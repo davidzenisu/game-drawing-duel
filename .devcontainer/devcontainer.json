@@ -8,7 +8,7 @@
         "-v",
         "/dev/bus/usb:/dev/bus/usb"
     ],
-    "forwardPorts": [8081, 5037],
+    "forwardPorts": [8081, 5037, 8000],
     "remoteUser": "root",
       "customizations": {
     "vscode": {

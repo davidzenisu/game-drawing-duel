@@ -1,0 +1,16 @@
+[project]
+name = "game-drawing-duel-backend"
+version = "0.1.0"
+description = "Backend API for Game Drawing Duel"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.11.0"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"

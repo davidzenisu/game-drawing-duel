@@ -18,6 +18,8 @@ RUN apt-get update && apt-get upgrade -y && \
     watchman \
     openjdk-17-jdk \
     android-sdk \
+    python3 \
+    python3-venv \
     wget \
     unzip \
     zip \
@@ -28,6 +30,9 @@ RUN apt-get update && apt-get upgrade -y && \
     libglu1-mesa \
     libc6:amd64 libstdc++6:amd64 lib32z1 libbz2-1.0:amd64 && \
     rm -rf /var/lib/apt/lists/*
+
+# Install uv for Python dependency management
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 # Add flutter to safe directory in git
 RUN git config --global --add safe.directory /usr/lib/flutter
