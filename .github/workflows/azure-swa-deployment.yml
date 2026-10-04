@@ -37,7 +37,6 @@ jobs:
       - name: Prepare Flutter web build
         working-directory: frontend
         run: |
-          flutter config --enable-web
           flutter pub get
           flutter build web --release
       - name: Azure login
