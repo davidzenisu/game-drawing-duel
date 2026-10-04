@@ -1,0 +1,31 @@
+{
+    "name": "Flutter Development Container",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "runArgs": [
+        "--privileged",
+        "-v",
+        "/dev/bus/usb:/dev/bus/usb"
+    ],
+    "forwardPorts": [8081, 5037],
+    "remoteUser": "root",
+      "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.flutter",
+        "Dart-Code.dart-code",
+        "eamodio.gitlens",
+        "ms-vscode.cpptools",
+        "google.flutter-intl-vs-code"
+      ],
+      "settings": {
+        "dart.flutterSdkPath": "/flutter",
+        "dart.enableCompletionCommitCharacters": false,
+        "dart.lineLength": 100,
+        "editor.formatOnSave": true,
+        "files.autoSave": "afterDelay"
+      }
+    }
+  }
+}

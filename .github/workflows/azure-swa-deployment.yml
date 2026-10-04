@@ -1,0 +1,100 @@
+name: Azure Static Web Apps CI/CD
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+          lfs: true
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+      - name: Prepare Flutter web build
+        working-directory: frontend
+        run: |
+          flutter pub get
+          flutter build web --release
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Get Deployment Token
+        id: get_deployment_token
+        uses: Azure/cli@v3
+        env:
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
+        with:
+          inlineScript: |
+            echo "Fetching deployment token..."
+            app_name=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "swa-name" --query "value" -o tsv)
+            token=$(az staticwebapp secrets list --name "$app_name" --query "properties.apiKey" -o tsv)
+            echo "token=$token" >> $GITHUB_OUTPUT
+      - name: Build And Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.get_deployment_token.outputs.token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          action: 'upload'
+          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
+          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          app_location: "/frontend/build/web" 
+          api_location: ""
+          output_location: "" 
+          ###### End of Repository/Build Configurations ######
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Get Deployment Token
+        id: get_deployment_token
+        uses: Azure/cli@v3
+        env:
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
+        with:
+          inlineScript: |
+            echo "Fetching deployment token..."
+            app_name=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "swa-name" --query "value" -o tsv)
+            token=$(az staticwebapp secrets list --name "$app_name" --query "properties.apiKey" -o tsv)
+            echo "token=$token" >> $GITHUB_OUTPUT
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.get_deployment_token.outputs.token }}
+          action: 'close'
