@@ -16,6 +16,16 @@ Game Drawing Duel is a daily, sketch-based competitive game where players draw c
 - [docs/concept/initial-setup.md](docs/concept/initial-setup.md) — roster balance and timing assumptions
 - [docs/concept/visuals.md](docs/concept/visuals.md) — visual style and presentation direction
 
+## CI/CD
+
+This is a mostly Azure-dependent app.
+For bootstrapping, the following GitHub secrets are required:
+
+- AZURE_CLIENT_ID
+- AZURE_KEY_VAULT_NAME
+- AZURE_SUBSCRIPTION_ID
+- AZURE_TENANT_ID
+
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE).
