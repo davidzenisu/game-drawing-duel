@@ -23,6 +23,7 @@ RUN apt-get update && apt-get upgrade -y && \
     zip \
     curl \
     git-all \
+    git-lfs \
     xz-utils \
     libglu1-mesa \
     libc6:amd64 libstdc++6:amd64 lib32z1 libbz2-1.0:amd64 && \
@@ -30,6 +31,9 @@ RUN apt-get update && apt-get upgrade -y && \
 
 # Add flutter to safe directory in git
 RUN git config --global --add safe.directory /usr/lib/flutter
+
+# Configure Git LFS for all users
+RUN git lfs install --system
 
 # # Configure git user name and email
 # RUN git config --global user.name "Your Name" \
