@@ -28,6 +28,18 @@ jobs:
         with:
           submodules: true
           lfs: true
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+      - name: Prepare Flutter web build
+        working-directory: frontend
+        run: |
+          flutter config --enable-web
+          flutter pub get
+          flutter build web --release
       - name: Azure login
         uses: azure/login@v3
         with:
