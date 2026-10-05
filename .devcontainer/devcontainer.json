@@ -11,7 +11,9 @@
   "forwardPorts": [
     8081,
     5037,
-    8000
+    8000,
+    7071,
+    9091
   ],
   "remoteUser": "root",
   "customizations": {
@@ -21,7 +23,9 @@
         "Dart-Code.dart-code",
         "eamodio.gitlens",
         "ms-vscode.cpptools",
-        "google.flutter-intl-vs-code"
+        "google.flutter-intl-vs-code",
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-python.python"
       ],
       "settings": {
         "dart.flutterSdkPath": "/flutter",

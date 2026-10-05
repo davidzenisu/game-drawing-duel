@@ -20,6 +20,8 @@ RUN apt-get update && apt-get upgrade -y && \
     android-sdk \
     python3 \
     python3-venv \
+    nodejs \
+    npm \
     wget \
     unzip \
     zip \
@@ -30,6 +32,9 @@ RUN apt-get update && apt-get upgrade -y && \
     libglu1-mesa \
     libc6:amd64 libstdc++6:amd64 lib32z1 libbz2-1.0:amd64 && \
     rm -rf /var/lib/apt/lists/*
+
+# Install Azure Functions Core Tools
+RUN npm install --global azure-functions-core-tools@4 --unsafe-perm true
 
 # Install uv for Python dependency management
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
