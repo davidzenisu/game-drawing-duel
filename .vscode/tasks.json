@@ -3,10 +3,13 @@
   "tasks": [
     {
       "label": "func: host start",
-      "type": "shell",
-      "command": "uv run --locked func host start",
+      "type": "func",
+      "command": "host start",
       "options": {
-        "cwd": "${workspaceFolder}/backend"
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "PATH": "${workspaceFolder}/backend/.venv/bin:${env:PATH}"
+        }
       },
       "dependsOn": "uv sync (functions)",
       "problemMatcher": "$func-python-watch",
