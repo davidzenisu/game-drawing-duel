@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "func: host start",
+      "type": "func",
+      "command": "host start",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "env": {
+          "PATH": "${workspaceFolder}/backend/.venv/bin:${env:PATH}"
+        }
+      },
+      "dependsOn": "uv sync (functions)",
+      "problemMatcher": "$func-python-watch",
+      "isBackground": true
+    },
+    {
+      "label": "uv sync (functions)",
+      "type": "shell",
+      "command": "uv sync --locked",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
