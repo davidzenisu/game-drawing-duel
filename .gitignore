@@ -24,11 +24,9 @@ dist-ssr
 # Python
 __pycache__/
 *.py[cod]
+!**/__init__.py
 .venv/
 .ruff_cache/
-
-# Azurite 
-__*
 
 # Any .env files
 .env
