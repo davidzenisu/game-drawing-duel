@@ -29,7 +29,7 @@ class _MainAppState extends State<MainApp> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('CounterWhatever: $_counter'),
+              Text('Counter: $_counter'),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _incrementCounter, child: const Text('Increment counter')),
             ],
