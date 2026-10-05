@@ -10,6 +10,12 @@ on:
       - main
     paths:
       - 'backend/**'
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+    paths:
+      - 'backend/**'
 
 jobs:
   build_and_deploy_job:
@@ -40,5 +46,4 @@ jobs:
         with:
           app-name: ${{ steps.get_function_app_name.outputs.app_name }}
           package: backend
-          scm-do-build-during-deployment: true
-          enable-oryx-build: true
+          remote-build: true
