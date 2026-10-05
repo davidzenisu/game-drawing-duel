@@ -1,6 +1,8 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import make_url
 
 from alembic import context
 from app.models import Drawing
@@ -8,6 +10,17 @@ from app.models import Drawing
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError("DATABASE_URL must be set to run Alembic migrations")
+
+url = make_url(database_url)
+if url.drivername in {"postgres", "postgresql"}:
+    url = url.set(drivername="postgresql+psycopg")
+config.set_main_option(
+    "sqlalchemy.url", url.render_as_string(hide_password=False).replace("%", "%%")
+)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
