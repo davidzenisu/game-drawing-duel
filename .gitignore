@@ -29,3 +29,6 @@ __pycache__/
 
 # Azurite 
 __*
+
+# Any .env files
+.env
