@@ -2,9 +2,10 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "func: host start",
-      "type": "func",
-      "command": "host start",
+      "label": "uv: func host start",
+      "type": "shell",
+      "command": "uv",
+      "args": ["run", "--env-file", ".env", "func", "host", "start"],
       "options": {
         "cwd": "${workspaceFolder}/backend",
         "env": {
