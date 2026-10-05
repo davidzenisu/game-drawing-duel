@@ -25,7 +25,8 @@
         "ms-vscode.cpptools",
         "google.flutter-intl-vs-code",
         "ms-azuretools.vscode-azurefunctions",
-        "ms-python.python"
+        "ms-python.python",
+        "Azurite.azurite"
       ],
       "settings": {
         "dart.flutterSdkPath": "/flutter",
