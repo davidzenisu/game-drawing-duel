@@ -2,13 +2,14 @@ import os
 import unittest
 from unittest.mock import patch
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
-from app.main import app
+from app.main import app, configure_frontend_cors
 from app.models import Drawing
 
 
@@ -71,4 +72,29 @@ class DrawingEndpointTests(unittest.TestCase):
         self.assertEqual(
             response.json()["detail"],
             "The DATABASE_URL environment variable is not configured",
+        )
+
+    def test_cors_uses_frontend_url_environment_variable(self) -> None:
+        frontend_url = "https://frontend.example"
+        cors_app = FastAPI()
+
+        with patch.dict(os.environ, {"FRONTEND_URL": frontend_url}):
+            configure_frontend_cors(cors_app)
+
+        @cors_app.get("/resource")
+        def get_resource() -> dict[str, str]:
+            return {"status": "ok"}
+
+        client = TestClient(cors_app)
+        allowed_response = client.get("/resource", headers={"Origin": frontend_url})
+        disallowed_response = client.get(
+            "/resource", headers={"Origin": "https://other.example"}
+        )
+
+        self.assertEqual(
+            allowed_response.headers.get("access-control-allow-origin"),
+            frontend_url,
+        )
+        self.assertNotIn(
+            "access-control-allow-origin", disallowed_response.headers
         )
