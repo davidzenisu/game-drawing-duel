@@ -134,64 +134,75 @@ class _MainAppState extends State<MainApp> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (!_isAuth0Configured) {
-      return const Center(child: Text('Authentication is not configured.'));
-    }
-
-    if (_credentials == null) {
-      return Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_error != null) ...[
-                  Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                ],
-                FilledButton.icon(
-                  onPressed: _isWorking ? null : _login,
-                  icon: const Icon(Icons.login_rounded),
-                  label: const Text('Sign in'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
-        child: Card(
-          margin: const EdgeInsets.all(24),
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.draw_rounded, size: 40, color: colorScheme.primary),
-                const SizedBox(height: 16),
-                Text('Counter', style: textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text('$_counter', style: textTheme.bodyLarge),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _incrementCounter,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Increment counter'),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Auth0 build configuration', style: textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      SelectableText(
+                        'AUTH0_DOMAIN: ${_auth0Domain.isEmpty ? '(empty)' : _auth0Domain}',
+                      ),
+                      SelectableText(
+                        'AUTH0_CLIENT_ID: ${_auth0ClientId.isEmpty ? '(empty)' : _auth0ClientId}',
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              const SizedBox(height: 24),
+              if (_error != null) ...[
+                SelectableText(_error!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
               ],
-            ),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (!_isAuth0Configured)
+                const Center(child: Text('Authentication is not configured.'))
+              else if (_credentials == null)
+                Center(
+                  child: FilledButton.icon(
+                    onPressed: _isWorking ? null : _login,
+                    icon: const Icon(Icons.login_rounded),
+                    label: const Text('Sign in'),
+                  ),
+                )
+              else
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.draw_rounded, size: 40, color: colorScheme.primary),
+                        const SizedBox(height: 16),
+                        Text('Counter', style: textTheme.titleLarge),
+                        const SizedBox(height: 8),
+                        Text('$_counter', style: textTheme.bodyLarge),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: _incrementCounter,
+                          icon: const Icon(Icons.add_rounded),
+                          label: const Text('Increment counter'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
