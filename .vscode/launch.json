@@ -19,6 +19,7 @@
       "cwd": "${workspaceFolder}/frontend",
       "deviceId": "web-server",
       "toolArgs": [
+        "--dart-define-from-file=config/config.json",
         "--web-hostname=0.0.0.0",
         "--web-port=8080"
       ]

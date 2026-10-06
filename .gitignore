@@ -28,5 +28,6 @@ __pycache__/
 .venv/
 .ruff_cache/
 
-# Any .env files
+# Any .env files or config files
 .env
+config.json
