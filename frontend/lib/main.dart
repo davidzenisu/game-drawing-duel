@@ -145,27 +145,8 @@ class _MainAppState extends State<MainApp> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Auth0 build configuration', style: textTheme.titleMedium),
-                      const SizedBox(height: 12),
-                      SelectableText(
-                        'AUTH0_DOMAIN: ${_auth0Domain.isEmpty ? '(empty)' : _auth0Domain}',
-                      ),
-                      SelectableText(
-                        'AUTH0_CLIENT_ID: ${_auth0ClientId.isEmpty ? '(empty)' : _auth0ClientId}',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
               if (_error != null) ...[
-                SelectableText(_error!, textAlign: TextAlign.center),
+                Text(_error!, textAlign: TextAlign.center),
                 const SizedBox(height: 16),
               ],
               if (_isLoading)
