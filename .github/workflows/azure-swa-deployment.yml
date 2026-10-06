@@ -36,9 +36,15 @@ jobs:
           cache: true
       - name: Prepare Flutter web build
         working-directory: frontend
+        env:
+          AUTH0_DOMAIN: ${{ vars.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ vars.AUTH0_CLIENT_ID }}
+          API_URL: ${{ vars.API_URL }}
         run: |
           flutter pub get
-          flutter build web --release
+          python3 -c 'import json, os; print(json.dumps({"AUTH0_DOMAIN": os.environ["AUTH0_DOMAIN"], "AUTH0_CLIENT_ID": os.environ["AUTH0_CLIENT_ID"], "API_URL": os.environ["API_URL"]}))' > "$RUNNER_TEMP/auth0-defines.json"
+          flutter build web --release \
+            --dart-define-from-file="$RUNNER_TEMP/auth0-defines.json"
       - name: Azure login
         uses: azure/login@v3
         with:

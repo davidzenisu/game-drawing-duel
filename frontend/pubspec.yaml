@@ -10,6 +10,7 @@ dependencies:
   auth0_flutter: ^2.6.2
   flutter:
     sdk: flutter
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
