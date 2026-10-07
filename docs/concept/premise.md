@@ -6,11 +6,23 @@ repo:
 title: premise
 category: concept
 ---
-Main idea is that it's a game based on a minimal list of friends (5-10 people) where all the characters are variations of the playsers themselves.
 
-There is a full 4 day cycle that happens simultaneously for all players:
+There is already a huge amount of components set up in this resository and infrastructure code outside of it.
 
-1. Prompt: Each player gets a prompt for a challenger each day that is randomly drawn from the other players (never themselves). The player needs to put in a title among with randomly drawn name; either suffixed or prefixed. There should be a relatively tight character window (e.g. 35 characters). In the future there may be a theme to match (e.g. represented by the background) but for now it's just an open prompt each day. If missed by the player, a prompt will be randomly selected from a list of ~500 pregenerated prompts from the database.
-2. Sketch: Once each day, the player should draw a "challenger" (enemy) based on the prompt (see previous step) that a player party will face (see next step). This is the main way of the game to generate new content so the focus of features, functionality etc. should be om that part. The player is given one of the prompts of stage 1 (but again, never their own name) and needs to draw that prompt in a given time (~60 seconds?). This is a "mandatory" step and the only thing a player should do each day. Without this step no new content can be generated. So this step should be front and center and be somewhat mandatory before doing anything else in the game. It should also be the step that's rewarded the most.
-3. Challenge: Once a day, players can face challengers/enemies from the day before (see previous step) by assembling a party of legends from their roster. The roster of the player will increase over time but the main idea is that each player can select up to 4 legends as "matchups" against challengers. These challengers will apear larger at the upper part of the screen, similar to a boss in a traditional Final Fantasy game, while the legends will slot in as party members on the bottom with both the enemy as well as the party member titles cleary visible. This can be done for each enemy generated from the day before (see previous step); so each player can play this challegenge (player - 1) times each day (e.g.: 8 players, 7 enemies to face and parties to assemble for) and should be selected randomly. Maybe the general idea is to be able to only use each legend from the roster once each day. If not done by the player, the roster will be filled "randomly" until the player runs out legends.
-4. Vote: The final phase that happens on the fourth day of the cycle is voting for one of the involved parties of the match-ups from the day before (see previous step). Only match-ups where the player drew neither the enemy/challenger nor selected the fighting party members should be shown to them for voting. The player should then decide whether the challenger or the party should win. This means a player in theory could judge up to ((player - 1)x(player - 2)) fights each day, which would be a minimum of 4x3=12 and maximum of 9x8=56. If players don't vote on the match-ups, the battles should be decided at random where the rates should be calculated based on historical data.
+Implement the code
+
+- Use libraries with first party or big community support only.
+
+
+For CI/CD:
+- Add pipelines to deploy the frontend and database migrations + backend respectively on open pull request and on main branch pushes (already exists for frontend). For PRs push to a test infrastructure.
+- Add build/test validation pipelines for PRs for frontend, backend, database migrations. For database migrations ensure that no new migrations are required (alembic check)
+
+
+Functionality:
+- On the backend make sure that all routes are protected for authenticated users only except for the open api and health endpoint. Extend the health endpoint to check database access as well.
+- Make sure that most endpoints also inect user data from the database with each request to have context.
+- 
+
+Design:
+- 
