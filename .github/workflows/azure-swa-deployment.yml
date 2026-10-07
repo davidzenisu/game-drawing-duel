@@ -34,17 +34,33 @@ jobs:
           flutter-version: '3.44.2'
           channel: stable
           cache: true
-      - name: Prepare Flutter web build
-        working-directory: frontend
-        run: |
-          flutter pub get
-          flutter build web --release
       - name: Azure login
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Get Build Config
+        id: get_build_config
+        uses: Azure/cli@v3
+        env:
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
+        with:
+          inlineScript: |
+            echo "AUTH0_DOMAIN=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-domain" --query "value" -o tsv)" >> $GITHUB_OUTPUT
+            echo "AUTH0_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-client-id" --query "value" -o tsv)" >> $GITHUB_OUTPUT
+            echo "API_URL=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "api_custom_domain" --query "value" -o tsv)" >> $GITHUB_OUTPUT
+      - name: Prepare Flutter web build
+        working-directory: frontend
+        env:
+          AUTH0_DOMAIN: ${{ steps.get_build_config.outputs.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ steps.get_build_config.outputs.AUTH0_CLIENT_ID }}
+          API_URL: ${{ steps.get_build_config.outputs.API_URL }}
+        run: |
+          flutter pub get
+          python3 -c 'import json, os; print(json.dumps({"AUTH0_DOMAIN": os.environ["AUTH0_DOMAIN"], "AUTH0_CLIENT_ID": os.environ["AUTH0_CLIENT_ID"], "API_URL": os.environ["API_URL"]}))' > "$RUNNER_TEMP/auth0-defines.json"
+          flutter build web --release \
+            --dart-define-from-file="$RUNNER_TEMP/auth0-defines.json"
       - name: Get Deployment Token
         id: get_deployment_token
         uses: Azure/cli@v3

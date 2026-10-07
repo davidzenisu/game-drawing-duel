@@ -1,0 +1,5 @@
+{
+    "AUTH0_DOMAIN": "your-tenant.auth0.com",
+    "AUTH0_CLIENT_ID": "your-client-id",
+    "API_URL": "http://localhost:7071"
+}
