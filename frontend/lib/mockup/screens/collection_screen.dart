@@ -92,7 +92,7 @@ class _CollectionTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Badge(
-        isLabelVisible: owned.canUpgrade,
+        isLabelVisible: owned.hasUnspentPoints,
         label: const Icon(Icons.upgrade_rounded, size: 12, color: Colors.white),
         child: Column(
           children: [
@@ -124,6 +124,16 @@ class CharacterDetailScreen extends StatefulWidget {
 class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
   ElementKind _element = ElementKind.fire;
 
+  /// Index into the upgrade path being previewed, or null for the real state.
+  int? _preview;
+
+  List<UpgradeEffect> get _shownEffects {
+    final preview = _preview;
+    return preview == null ? widget.owned.unlocked : widget.owned.path.sublist(0, preview + 1);
+  }
+
+  ElementKind? get _shownElement => _preview == null ? widget.owned.element : widget.owned.element ?? _element;
+
   @override
   Widget build(BuildContext context) {
     final owned = widget.owned;
@@ -139,10 +149,25 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
             Center(
               child: Hero(
                 tag: 'standee-${card.id}',
-                child: Standee(card: card, width: 220, effects: owned.unlocked, element: owned.element),
+                child: Standee(card: card, width: 220, effects: _shownEffects, element: _shownElement),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _preview == null
+                    ? const SizedBox(height: 40)
+                    : InputChip(
+                        key: ValueKey(_preview),
+                        avatar: const Icon(Icons.visibility_rounded),
+                        label: Text('Previewing up to ${owned.path[_preview!].label}'),
+                        onDeleted: () => setState(() => _preview = null),
+                        onPressed: () => setState(() => _preview = null),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
@@ -160,10 +185,21 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                       children: [
                         Text('Upgrades', style: textTheme.titleMedium),
                         const Spacer(),
-                        Chip(avatar: const Icon(Icons.upgrade_rounded), label: Text('${owned.upgradePoints} points')),
+                        Chip(
+                          avatar: const Icon(Icons.upgrade_rounded),
+                          label: Text(
+                            '${owned.upgradePoints} points',
+                            style: owned.upgradePoints < 0
+                                ? TextStyle(color: Theme.of(context).colorScheme.error)
+                                : null,
+                          ),
+                        ),
                       ],
                     ),
-                    Text('Every duplicate pull grants one upgrade point.', style: textTheme.bodySmall),
+                    Text(
+                      'Every duplicate pull grants one upgrade point. In the mockup you can unlock everything on credit.',
+                      style: textTheme.bodySmall,
+                    ),
                     const SizedBox(height: 8),
                     for (final (i, effect) in owned.path.indexed) _node(context, effect, i),
                   ],
@@ -225,29 +261,41 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                 children: [
                   Text('${effect.label}$elementLabel', style: Theme.of(context).textTheme.titleSmall),
                   Text(effect.description, style: Theme.of(context).textTheme.bodySmall),
+                  if (!unlocked)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _preview = _preview == index ? null : index),
+                        icon: Icon(_preview == index ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                        label: Text(_preview == index ? 'Stop preview' : 'Preview'),
+                      ),
+                    ),
+                  if (effect == UpgradeEffect.element && owned.element == null)
+                    SegmentedButton<ElementKind>(
+                      segments: [
+                        for (final element in ElementKind.values)
+                          ButtonSegment(
+                            value: element,
+                            label: Text(element.name),
+                            icon: Icon(Icons.circle, size: 12, color: elementColor(element)),
+                          ),
+                      ],
+                      selected: {_element},
+                      onSelectionChanged: (selection) => setState(() {
+                        _element = selection.first;
+                        _preview ??= index;
+                      }),
+                    ),
                   if (isNext) ...[
                     const SizedBox(height: 8),
-                    if (effect == UpgradeEffect.element)
-                      SegmentedButton<ElementKind>(
-                        segments: [
-                          for (final element in ElementKind.values)
-                            ButtonSegment(
-                              value: element,
-                              label: Text(element.name),
-                              icon: Icon(Icons.circle, size: 12, color: elementColor(element)),
-                            ),
-                        ],
-                        selected: {_element},
-                        onSelectionChanged: (selection) => setState(() => _element = selection.first),
-                      ),
-                    const SizedBox(height: 8),
                     FilledButton.icon(
-                      onPressed: owned.canUpgrade
-                          ? () => widget.controller.unlockNextUpgrade(owned, element: _element)
-                          : null,
+                      onPressed: () {
+                        widget.controller.unlockNextUpgrade(owned, element: _element);
+                        setState(() => _preview = null);
+                      },
                       style: FilledButton.styleFrom(backgroundColor: AppPalette.victory),
                       icon: const Icon(Icons.lock_open_rounded),
-                      label: Text(owned.canUpgrade ? 'Unlock (1 point)' : 'Needs a duplicate'),
+                      label: Text(owned.upgradePoints > 0 ? 'Unlock (1 point)' : 'Unlock on credit (1 point)'),
                     ),
                   ],
                 ],

@@ -1,9 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../logic/daily_loop.dart';
 import '../logic/game_controller.dart';
-import '../widgets/fight_stage.dart';
+import '../widgets/animated_fight.dart';
 
 /// Step 4: vote who would win the fights the others set up yesterday.
 class VoteScreen extends StatefulWidget {
@@ -70,7 +72,12 @@ class _VoteScreenState extends State<VoteScreen> {
           ),
         ),
         Expanded(
-          child: FightStage(theme: fight.challenger.scenery, challenger: fight.challenger, fighters: fight.fighters),
+          // An undecided skirmish loops while you make up your mind.
+          child: AnimatedFight(
+            fight: fight,
+            beats: FightScript.skirmish(fighterCount: fight.fighters.length, random: Random(fight.id.hashCode)),
+            loop: true,
+          ),
         ),
         SafeArea(
           top: false,

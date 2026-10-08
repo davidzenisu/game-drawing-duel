@@ -80,7 +80,7 @@ class FightSetup {
   }
 }
 
-/// One hit of a replayed fight. Index -1 is the challenger.
+/// One hit of an animated fight.
 class FightBeat {
   const FightBeat({
     required this.attacker,
@@ -90,23 +90,34 @@ class FightBeat {
     required this.fighterHp,
   });
 
+  /// The challenger.
+  static const challenger = -1;
+
+  /// All standing fighters attacking together.
+  static const team = -2;
+
+  /// [challenger], [team] or the index of a fighter.
   final int attacker;
+
+  /// [challenger] or the index of a fighter.
   final int target;
   final int damage;
   final int challengerHp;
   final List<int> fighterHp;
 }
 
-/// Builds a fight animation that ends with the outcome the votes decided.
+/// Builds short fight animations.
 abstract final class FightScript {
   static const maxHp = 100;
 
+  /// A fight that ends with the outcome the votes decided. The fighters
+  /// attack together, the challenger strikes one of them back.
   static List<FightBeat> build({required int fighterCount, required bool fightersWin, Random? random}) {
     final rng = random ?? Random();
+    int roll(int min, int max) => min + rng.nextInt(max - min + 1);
     var challengerHp = maxHp;
     final fighterHp = List.filled(fighterCount, maxHp);
     final beats = <FightBeat>[];
-    int roll(int min, int max) => min + rng.nextInt(max - min + 1);
     void add(int attacker, int target, int damage) => beats.add(
       FightBeat(
         attacker: attacker,
@@ -117,30 +128,62 @@ abstract final class FightScript {
       ),
     );
 
-    // The winners hit hard, the losers never land the final blow.
-    final perFighterHit = (maxHp / (fighterCount * 3)).round();
-    while (challengerHp > 0 && fighterHp.any((hp) => hp > 0)) {
-      for (var i = 0; i < fighterCount && challengerHp > 0; i++) {
-        if (fighterHp[i] == 0) continue;
-        var damage = fightersWin
-            ? roll((perFighterHit * 0.7).round(), (perFighterHit * 1.3).round())
-            : roll(3, max(4, 30 ~/ fighterCount));
-        if (!fightersWin) damage = min(damage, max(0, challengerHp - 8));
-        damage = min(max(damage, fightersWin ? 1 : 0), challengerHp);
-        challengerHp -= damage;
-        add(i, -1, damage);
-      }
+    while (true) {
+      // The team strikes. Losing teams never land the final blow.
+      var damage = fightersWin ? roll(30, 48) : roll(10, 22);
+      if (!fightersWin) damage = min(damage, max(0, challengerHp - 10));
+      damage = min(damage, challengerHp);
+      challengerHp -= damage;
+      add(FightBeat.team, FightBeat.challenger, damage);
       if (challengerHp == 0) break;
+
+      // The challenger strikes back at one fighter.
       final alive = [
         for (var i = 0; i < fighterCount; i++)
           if (fighterHp[i] > 0) i,
       ];
       final target = alive[rng.nextInt(alive.length)];
-      var damage = fightersWin ? roll(15, 40) : roll(35, 60);
-      if (fightersWin && alive.length == 1) damage = min(damage, max(0, fighterHp[target] - 5));
-      damage = min(damage, fighterHp[target]);
-      fighterHp[target] -= damage;
-      add(-1, target, damage);
+      var hit = fightersWin ? roll(20, 45) : roll(70, 100);
+      if (fightersWin && alive.length == 1) hit = min(hit, max(0, fighterHp[target] - 10));
+      hit = min(hit, fighterHp[target]);
+      fighterHp[target] -= hit;
+      add(FightBeat.challenger, target, hit);
+      if (fighterHp.every((hp) => hp == 0)) break;
+    }
+    return beats;
+  }
+
+  /// A few undecided exchanges for the voting screen. Nobody drops low
+  /// enough to give the outcome away.
+  static List<FightBeat> skirmish({required int fighterCount, Random? random}) {
+    final rng = random ?? Random();
+    var challengerHp = maxHp;
+    final fighterHp = List.filled(fighterCount, maxHp);
+    final beats = <FightBeat>[];
+    for (var round = 0; round < 3; round++) {
+      final damage = 8 + rng.nextInt(10);
+      challengerHp -= damage;
+      beats.add(
+        FightBeat(
+          attacker: FightBeat.team,
+          target: FightBeat.challenger,
+          damage: damage,
+          challengerHp: challengerHp,
+          fighterHp: List.unmodifiable(fighterHp),
+        ),
+      );
+      final target = rng.nextInt(fighterCount);
+      final hit = 8 + rng.nextInt(10);
+      fighterHp[target] = max(45, fighterHp[target] - hit);
+      beats.add(
+        FightBeat(
+          attacker: FightBeat.challenger,
+          target: target,
+          damage: hit,
+          challengerHp: challengerHp,
+          fighterHp: List.unmodifiable(fighterHp),
+        ),
+      );
     }
     return beats;
   }

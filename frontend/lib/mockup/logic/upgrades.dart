@@ -2,11 +2,11 @@ import 'models.dart';
 
 /// Special effects unlocked by spending duplicates, see `docs/concept/features.md`.
 enum UpgradeEffect {
-  shadow('Shadow', 'A dramatic drop shadow.'),
-  light('Light', 'A soft glow behind the card.'),
-  element('Element', 'An elemental aura of your choice.'),
-  aura('Aura', 'The elemental aura grows stronger.'),
-  halo('Halo', 'A shining halo only legends can earn.');
+  shadow('Shadow', 'The ink casts a shadow onto the card.'),
+  light('Light', 'The brush strokes start to glow.'),
+  element('Element', 'The strokes burn, freeze or crackle with lightning.'),
+  aura('Aura', 'Energy surges along every stroke, the element grows wilder.'),
+  halo('Halo', 'A golden shimmer, sparkles and a halo. Legends only.');
 
   const UpgradeEffect(this.label, this.description);
 
@@ -35,14 +35,18 @@ class OwnedCard {
   final List<UpgradeEffect> unlocked = [];
   ElementKind? element;
 
-  /// Every duplicate is worth one upgrade point.
+  /// Every duplicate is worth one upgrade point. The mockup lets players
+  /// unlock upgrades on credit, so this can go negative.
   int get upgradePoints => copies - 1 - unlocked.length;
 
   List<UpgradeEffect> get path => UpgradeTree.pathFor(card.rarity);
 
   UpgradeEffect? get nextUpgrade => unlocked.length < path.length ? path[unlocked.length] : null;
 
-  bool get canUpgrade => upgradePoints > 0 && nextUpgrade != null;
+  bool get canUpgrade => nextUpgrade != null;
+
+  /// Whether a duplicate is waiting to be spent.
+  bool get hasUnspentPoints => upgradePoints > 0 && nextUpgrade != null;
 
   bool has(UpgradeEffect effect) => unlocked.contains(effect);
 }

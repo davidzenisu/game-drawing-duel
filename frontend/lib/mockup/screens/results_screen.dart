@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -8,7 +7,7 @@ import '../logic/daily_loop.dart';
 import '../logic/game_controller.dart';
 import '../widgets/card_art.dart';
 import '../widgets/sketch_canvas.dart';
-import '../widgets/fight_stage.dart';
+import '../widgets/animated_fight.dart';
 
 /// Fights you were part of: the fighters you picked yesterday and the
 /// challenger you drew two days ago.
@@ -93,144 +92,35 @@ class FightReplayScreen extends StatefulWidget {
   State<FightReplayScreen> createState() => _FightReplayScreenState();
 }
 
-class _FightReplayScreenState extends State<FightReplayScreen> with TickerProviderStateMixin {
+class _FightReplayScreenState extends State<FightReplayScreen> {
   late final List<FightBeat> _beats = FightScript.build(
     fighterCount: widget.fight.fighters.length,
     fightersWin: widget.fight.fightersWin,
     random: Random(widget.fight.id.hashCode),
   );
-  late final _lunge = AnimationController(vsync: this, duration: const Duration(milliseconds: 320));
-  late final _impact = AnimationController(vsync: this, duration: const Duration(milliseconds: 550));
-  Timer? _timer;
-  int _shown = 0;
-
-  bool get _finished => _shown >= _beats.length;
-
-  FightBeat? get _beat => _shown == 0 ? null : _beats[_shown - 1];
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 750), (_) => _next());
-  }
-
-  void _next() {
-    if (_finished) {
-      _timer?.cancel();
-      return;
-    }
-    setState(() => _shown++);
-    _lunge.forward(from: 0).then((_) {
-      if (mounted) _lunge.reverse();
-    });
-    _impact.forward(from: 0);
-  }
-
-  void _skip() {
-    _timer?.cancel();
-    setState(() => _shown = _beats.length);
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _lunge.dispose();
-    _impact.dispose();
-    super.dispose();
-  }
+  bool _skip = false;
+  bool _finished = false;
 
   @override
   Widget build(BuildContext context) {
-    final fight = widget.fight;
     return Scaffold(
       appBar: AppBar(
         title: const Text('The fight'),
-        actions: [if (!_finished) TextButton(onPressed: _skip, child: const Text('Skip'))],
+        actions: [if (!_finished) TextButton(onPressed: () => setState(() => _skip = true), child: const Text('Skip'))],
       ),
       body: Stack(
         children: [
           Positioned.fill(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_lunge, _impact]),
-              builder: (context, _) => FightStage(
-                theme: fight.challenger.scenery,
-                challenger: fight.challenger,
-                fighters: fight.fighters,
-                wrapChallenger: (context, standee) => _wrap(-1, standee),
-                wrapFighter: (context, index, standee) => _wrap(index, standee),
-              ),
+            child: AnimatedFight(
+              fight: widget.fight,
+              beats: _beats,
+              skip: _skip,
+              onFinished: () => setState(() => _finished = true),
             ),
           ),
           if (_finished) _outcome(context),
         ],
       ),
-    );
-  }
-
-  Widget _wrap(int index, Widget standee) {
-    final beat = _beat;
-    final hp = beat == null
-        ? FightScript.maxHp
-        : index == -1
-        ? beat.challengerHp
-        : beat.fighterHp[index];
-    final attacking = beat != null && beat.attacker == index;
-    final hit = beat != null && beat.target == index;
-    // The challenger lunges down at the fighters, fighters lunge up.
-    final lunge = attacking ? Curves.easeOut.transform(_lunge.value) * (index == -1 ? 36 : -36) : 0.0;
-    final shake = hit ? sin(_impact.value * pi * 8) * 8 * (1 - _impact.value) : 0.0;
-    final knockedOut = hp == 0;
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.topCenter,
-      children: [
-        IntrinsicWidth(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(end: hp / FightScript.maxHp),
-                duration: const Duration(milliseconds: 400),
-                builder: (context, value, _) => ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: value,
-                    minHeight: 7,
-                    color: Color.lerp(AppPalette.hpLow, AppPalette.hpHigh, value),
-                    backgroundColor: Colors.black26,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              AnimatedOpacity(
-                opacity: knockedOut ? 0.45 : 1,
-                duration: const Duration(milliseconds: 400),
-                child: AnimatedRotation(
-                  turns: knockedOut ? -0.04 : 0,
-                  duration: const Duration(milliseconds: 400),
-                  child: Transform.translate(offset: Offset(shake, lunge), child: standee),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (hit && beat.damage > 0)
-          Positioned(
-            top: 10 - _impact.value * 40,
-            child: Opacity(
-              opacity: 1 - _impact.value,
-              child: Text(
-                '-${beat.damage}',
-                style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                  color: AppPalette.hurry,
-                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 

@@ -485,7 +485,7 @@ class GameController extends ChangeNotifier {
     return cards;
   }
 
-  int get upgradesAvailable => _owned.values.where((o) => o.canUpgrade).length;
+  int get upgradesAvailable => _owned.values.where((o) => o.hasUnspentPoints).length;
 
   void unlockNextUpgrade(OwnedCard owned, {ElementKind? element}) {
     final next = owned.nextUpgrade;

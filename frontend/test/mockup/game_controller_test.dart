@@ -137,14 +137,28 @@ void main() {
     expect(game.tickets, 0);
     expect(() => game.pull(1), throwsStateError);
 
-    while (!game.collection.any((o) => o.canUpgrade)) {
+    while (!game.collection.any((o) => o.hasUnspentPoints)) {
       game.nextDay();
       if (game.promptToDraw != null) game.submitChallenger(_doodle);
       game.pull(game.tickets);
     }
-    final owned = game.collection.firstWhere((o) => o.canUpgrade);
+    final owned = game.collection.firstWhere((o) => o.hasUnspentPoints);
     game.unlockNextUpgrade(owned);
     expect(owned.unlocked, [UpgradeEffect.shadow]);
+  });
+
+  test('the mockup allows every upgrade on credit', () {
+    final game = launchedGame();
+    final owned = game.collection.firstWhere((o) => o.card.rarity == Rarity.adventurer);
+    expect(owned.upgradePoints, 0);
+    game.unlockNextUpgrade(owned);
+    game.unlockNextUpgrade(owned);
+    expect(() => game.unlockNextUpgrade(owned), throwsArgumentError, reason: 'the element needs a choice');
+    game.unlockNextUpgrade(owned, element: ElementKind.storm);
+    expect(owned.unlocked, owned.path);
+    expect(owned.upgradePoints, -3);
+    expect(owned.canUpgrade, isFalse);
+    expect(game.upgradesAvailable, 0);
   });
 
   test('a hurry is free and can be sent once per day', () {
