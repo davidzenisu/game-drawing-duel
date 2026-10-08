@@ -57,55 +57,105 @@ void main() {
     expect(game.isUnlocked(alter), isTrue);
   });
 
-  test('launching fills the pool and starts day 1', () {
+  test('launching fills the pool, the rosters and starts day 1', () {
     final game = launchedGame();
     final players = game.server.players.length;
     final launchPool = SetupPlan.poolAtLaunch(players).values.reduce((a, b) => a + b);
     expect(game.phase, GamePhase.daily);
     expect(game.day, 1);
     expect(game.tickets, GameController.launchBonus);
-    expect(game.todaysChallengers, hasLength(players - 1));
-    expect(game.pool, hasLength(launchPool + players - 1));
+    expect(game.pool, hasLength(launchPool));
+    // Your own setup drawings land in your roster.
+    expect(game.collection.map((o) => o.card.id), unorderedEquals(game.assignments.map((a) => a.id)));
   });
 
-  test('daily challenger, pulls, upgrades and duels', () {
+  test('day 1 only unlocks the prompt step', () {
     final game = launchedGame();
-    game.submitChallenger(_doodle, 'Beach body');
-    expect(game.tickets, GameController.launchBonus + 1);
-    game.submitChallenger(_doodle, 'Twice');
-    expect(game.tickets, GameController.launchBonus + 1, reason: 'one challenger per day');
+    expect(game.yourPrompt, isNull);
+    expect(game.promptSubject.isYou, isFalse);
+    expect(game.promptToDraw, isNull);
+    expect(game.fightChallenger, isNull);
+    expect(game.fightsToVote, isEmpty);
+    game.submitPrompt('Sunburnt');
+    expect(game.yourPrompt?.title, 'Sunburnt');
+    expect(game.yourPrompt?.theme, game.theme);
+  });
 
+  test('the 4 day loop: prompt, draw, fighters, vote and results', () {
+    final game = launchedGame();
+    final you = game.you;
+
+    // Day 1: write a prompt.
+    game.submitPrompt('Sunburnt');
+
+    // Day 2: draw someone else's prompt from yesterday.
+    game.nextDay();
+    final toDraw = game.promptToDraw!;
+    expect(toDraw.author.isYou, isFalse);
+    expect(toDraw.day, 1);
+    expect(toDraw.subject.id, isNot(you.id));
+    final tickets = game.tickets;
+    game.submitChallenger(_doodle);
+    expect(game.tickets, tickets + 1);
+    expect(game.yourChallenger?.title, toDraw.title);
+    game.submitChallenger(_doodle);
+    expect(game.tickets, tickets + 1, reason: 'one challenger per day');
+    game.submitPrompt('Day two prompt');
+
+    // Day 3: pick up to four fighters against one new challenger.
+    game.nextDay();
+    final challenger = game.fightChallenger!;
+    expect(challenger.day, 2);
+    expect(challenger.artist, isNot(you.name));
+    expect(() => game.submitFighters(game.collection.take(5).toList()), throwsArgumentError);
+    game.submitFighters(game.collection.take(4).toList());
+    expect(game.yourFight?.fighters, hasLength(4));
+
+    // Day 4: vote on the others' fights, see the results of yours.
+    game.nextDay();
+    final toVote = game.fightsToVote;
+    // One player fights your challenger, everyone else's fight is up for your vote.
+    expect(toVote, hasLength(game.otherPlayers.length - 1));
+    expect(toVote.every((f) => !f.owner.isYou && f.challenger.artist != you.name), isTrue);
+    game.vote(toVote.first, fightersWin: true);
+    expect(game.hasVoted(toVote.first), isTrue);
+    expect(game.votesLeft, toVote.length - 1);
+
+    final fights = game.yourFightResults;
+    expect(fights, hasLength(1));
+    expect(fights.single.votes, hasLength(game.otherPlayers.length));
+    // Somebody fought the challenger you drew two days ago.
+    expect(game.yourChallengerResults, hasLength(1));
+    expect(game.yourChallengerResults.first.challenger.day, 2);
+  });
+
+  test('pulls turn duplicates into upgrade points', () {
+    final game = launchedGame();
     final outcomes = game.pull(10);
     expect(outcomes, hasLength(10));
     expect(outcomes.any((o) => o.card.rarity.stars >= 3), isTrue);
-    expect(game.tickets, 1);
-    expect(() => game.pull(2), throwsStateError);
+    expect(game.tickets, 0);
+    expect(() => game.pull(1), throwsStateError);
 
-    // Duplicates turn into upgrade points.
     while (!game.collection.any((o) => o.canUpgrade)) {
       game.nextDay();
-      game.submitChallenger(_doodle, 'More');
+      if (game.promptToDraw != null) game.submitChallenger(_doodle);
       game.pull(game.tickets);
     }
     final owned = game.collection.firstWhere((o) => o.canUpgrade);
     game.unlockNextUpgrade(owned);
     expect(owned.unlocked, [UpgradeEffect.shadow]);
-
-    final result = game.duel(owned, game.todaysChallengers.first);
-    final before = game.tickets;
-    final rewarded = game.recordDuel(result);
-    expect(rewarded, result.leftWins);
-    expect(game.tickets, before + (result.leftWins ? 1 : 0));
   });
 
-  test('hurries cost a pull and can only be sent once per player per day', () {
+  test('a hurry is free and can be sent once per day', () {
     final game = launchedGame();
-    final target = game.otherPlayers.first;
-    expect(game.sendHurry(target), isTrue);
-    expect(game.sendHurry(target), isFalse);
-    expect(game.tickets, GameController.launchBonus - GameController.hurryCost);
+    final tickets = game.tickets;
+    expect(game.sendHurry(game.otherPlayers.first), isTrue);
+    expect(game.sendHurry(game.otherPlayers.last), isFalse);
+    expect(game.tickets, tickets);
+    expect(game.hurrySentTo, game.otherPlayers.first);
     game.nextDay();
-    expect(game.hurriedToday, isEmpty);
+    expect(game.hurrySentTo, isNull);
     expect(game.day, 2);
   });
 }

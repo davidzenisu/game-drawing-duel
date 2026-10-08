@@ -27,6 +27,7 @@ class DrawingScreen extends StatefulWidget {
     required this.hint,
     required this.rarity,
     this.initialTitle = '',
+    this.titleLocked = false,
     this.reference,
     this.theme,
     this.hurry,
@@ -37,6 +38,9 @@ class DrawingScreen extends StatefulWidget {
   final String hint;
   final Rarity rarity;
   final String initialTitle;
+
+  /// The title was given by a prompt and can't be changed.
+  final bool titleLocked;
 
   /// A drawing to build on, shown next to the canvas.
   final Sketch? reference;
@@ -138,6 +142,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                     Expanded(
                       child: TextField(
                         controller: _title,
+                        readOnly: widget.titleLocked,
                         decoration: const InputDecoration(
                           labelText: 'Title',
                           hintText: 'e.g. The early years',

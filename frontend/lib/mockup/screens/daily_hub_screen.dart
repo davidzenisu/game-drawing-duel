@@ -3,13 +3,15 @@ import 'package:flutter/material.dart';
 import '../../theme/palette.dart';
 import '../logic/game_controller.dart';
 import '../logic/models.dart';
-import '../widgets/card_art.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
 import 'collection_screen.dart';
 import 'drawing_screen.dart';
-import 'duel_screen.dart';
+import 'fight_setup_screen.dart';
 import 'gacha_screen.dart';
+import 'prompt_screen.dart';
+import 'results_screen.dart';
+import 'vote_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
 class DailyHubScreen extends StatefulWidget {
@@ -57,20 +59,23 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
   void _open(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
 
   Future<void> _drawChallenger() async {
+    final prompt = _controller.promptToDraw!;
     final result = await Navigator.of(context).push<DrawingResult>(
       MaterialPageRoute(
         builder: (_) => DrawingScreen(
-          subject: _controller.challengerSubject.name,
-          prompt: "Today's challenger",
-          hint: 'Draw them as ${_controller.theme.prompt}.',
+          subject: prompt.subject.name,
+          prompt: '"${prompt.title}"',
+          hint: 'A challenger prompt by ${prompt.author.name} · ${prompt.theme.label}',
           rarity: Rarity.hero,
-          theme: _controller.theme,
+          initialTitle: prompt.title,
+          titleLocked: true,
+          theme: prompt.theme,
           hurry: _controller.incomingHurry,
         ),
       ),
     );
     if (result == null) return;
-    _controller.submitChallenger(result.sketch, result.title);
+    _controller.submitChallenger(result.sketch);
     _toast('Challenger added to the pool. +1 pull!');
   }
 
@@ -84,19 +89,13 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           children: [
             const ListTile(
               title: Text('Send a hurry'),
-              subtitle: Text(
-                'Costs ${GameController.hurryCost} pull. Their next drawing gets shorter, '
-                'and they only find out while drawing.',
-              ),
+              subtitle: Text('Free once a day. Their next drawing gets shorter, and they only find out while drawing.'),
             ),
             for (final player in _controller.otherPlayers)
               ListTile(
                 leading: CircleAvatar(child: Text(player.name.characters.first)),
                 title: Text(player.name),
-                enabled: !_controller.hurriedToday.contains(player.id),
-                trailing: _controller.hurriedToday.contains(player.id)
-                    ? const Icon(Icons.check_rounded)
-                    : const Icon(Icons.bolt_rounded, color: AppPalette.hurry),
+                trailing: const Icon(Icons.bolt_rounded, color: AppPalette.hurry),
                 onTap: () => Navigator.of(context).pop(player),
               ),
           ],
@@ -104,20 +103,16 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       ),
     );
     if (target == null) return;
-    _toast(
-      _controller.sendHurry(target)
-          ? '${target.name} will have to hurry. Shh!'
-          : 'You need at least ${GameController.hurryCost} pull to send a hurry.',
-    );
+    if (_controller.sendHurry(target)) _toast('${target.name} will have to hurry. Shh!');
   }
 
   Future<void> _nextDay() async {
-    if (!_controller.challengerDrawn) {
+    if (_controller.hasOpenSteps) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Skip today?'),
-          content: const Text("You haven't drawn today's challenger yet and will miss its pull."),
+          title: const Text('Skip the rest of today?'),
+          content: const Text("You haven't finished all of today's steps yet."),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Stay')),
             FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Next day')),
@@ -127,6 +122,75 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       if (confirmed != true) return;
     }
     _controller.nextDay();
+  }
+
+  Future<void> _openStep(Widget screen) => Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => screen));
+
+  String _unlocksOn(int step) => 'Starts on day $step of the loop.';
+
+  List<Widget> _steps() {
+    final c = _controller;
+    final prompt = c.yourPrompt;
+    final toDraw = c.promptToDraw;
+    final fight = c.yourFight;
+    final hasResults = c.yourFightResults.isNotEmpty || c.yourChallengerResults.isNotEmpty;
+    return [
+      _ActionCard(
+        icon: Icons.edit_note_rounded,
+        step: GameController.promptStep,
+        title: 'Write a challenger prompt',
+        subtitle: prompt == null
+            ? 'Give ${c.promptSubject.name} a challenger title for "${c.theme.label}".'
+            : 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.',
+        done: prompt != null,
+        onTap: prompt == null ? () => _openStep(PromptScreen(controller: c)) : null,
+      ),
+      _ActionCard(
+        icon: Icons.brush_rounded,
+        step: GameController.drawStep,
+        title: 'Draw a challenger',
+        subtitle: !c.stepUnlocked(GameController.drawStep) || toDraw == null
+            ? _unlocksOn(GameController.drawStep)
+            : c.challengerDrawn
+            ? 'Done. "${toDraw.title}" joined the pool as a hero.'
+            : 'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 2 min · +1 pull',
+        done: c.challengerDrawn,
+        onTap: toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
+      ),
+      _ActionCard(
+        icon: Icons.groups_rounded,
+        step: GameController.fightStep,
+        title: 'Pick your fighters',
+        subtitle: c.fightChallenger == null
+            ? _unlocksOn(GameController.fightStep)
+            : fight != null
+            ? 'Locked in ${fight.fighters.length} fighters against ${fight.challenger.subject}.'
+            : 'Send up to 4 fighters against a new challenger. The others vote tomorrow.',
+        done: fight != null,
+        onTap: c.fightChallenger == null ? null : () => _openStep(FightSetupScreen(controller: c)),
+      ),
+      _ActionCard(
+        icon: Icons.how_to_vote_rounded,
+        step: GameController.voteStep,
+        title: 'Vote: who would win?',
+        subtitle: !c.stepUnlocked(GameController.voteStep) || c.fightsToVote.isEmpty
+            ? _unlocksOn(GameController.voteStep)
+            : c.votesLeft == 0
+            ? 'All ${c.fightsToVote.length} votes cast.'
+            : '${c.votesLeft} of yesterday\'s fights waiting for your vote.',
+        done: c.fightsToVote.isNotEmpty && c.votesLeft == 0,
+        badge: c.votesLeft,
+        onTap: c.fightsToVote.isEmpty ? null : () => _openStep(VoteScreen(controller: c)),
+      ),
+      _ActionCard(
+        icon: Icons.sports_martial_arts_rounded,
+        title: 'Battle results',
+        subtitle: hasResults
+            ? 'Watch the fights of your fighters and your challenger.'
+            : 'Your first results arrive on day ${GameController.voteStep}.',
+        onTap: hasResults ? () => _openStep(ResultsScreen(controller: c)) : null,
+      ),
+    ];
   }
 
   @override
@@ -167,33 +231,14 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _ActionCard(
-                            icon: Icons.brush_rounded,
-                            title: "Draw today's challenger",
-                            subtitle: _controller.challengerDrawn
-                                ? 'Done for today. Your challenger joined the pool as a hero.'
-                                : 'Draw ${_controller.challengerSubject.name} as ${theme.prompt}. '
-                                      '★★★ · 2 min · +1 pull',
-                            done: _controller.challengerDrawn,
-                            onTap: _controller.challengerDrawn ? null : _drawChallenger,
-                          ),
+                          ..._steps(),
+                          const SizedBox(height: 12),
                           _ActionCard(
                             icon: Icons.auto_awesome_rounded,
                             title: 'Summon',
                             subtitle:
                                 '${_controller.tickets} pulls available · ${_controller.pool.length} characters in the pool',
                             onTap: () => _open(GachaScreen(controller: _controller)),
-                          ),
-                          _ActionCard(
-                            icon: Icons.sports_martial_arts_rounded,
-                            title: "Duel today's challengers",
-                            subtitle: _controller.collection.isEmpty
-                                ? 'Summon a character first.'
-                                : 'Won ${_controller.duelsWon} · Lost ${_controller.duelsLost}'
-                                      '${_controller.duelRewardClaimed ? '' : ' · First win today: +1 pull'}',
-                            onTap: _controller.collection.isEmpty
-                                ? null
-                                : () => _open(DuelScreen(controller: _controller)),
                           ),
                           _ActionCard(
                             icon: Icons.collections_rounded,
@@ -207,11 +252,12 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                           _ActionCard(
                             icon: Icons.bolt_rounded,
                             title: 'Send a hurry',
-                            subtitle: 'Cut a friend\'s drawing time as a surprise.',
-                            onTap: _sendHurry,
+                            subtitle: _controller.hurrySentTo == null
+                                ? "Free once a day: cut a friend's drawing time as a surprise."
+                                : 'Sent to ${_controller.hurrySentTo!.name} today.',
+                            done: _controller.hurrySentTo != null,
+                            onTap: _controller.hurrySentTo == null ? _sendHurry : null,
                           ),
-                          const SizedBox(height: 16),
-                          _ChallengerParade(cards: _controller.todaysChallengers, textColor: onScenery),
                         ],
                       ),
                     ),
@@ -234,8 +280,11 @@ class _ActionCard extends StatelessWidget {
     this.onTap,
     this.done = false,
     this.badge = 0,
+    this.step,
   });
 
+  /// The step of the daily loop this card belongs to.
+  final int? step;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -264,63 +313,11 @@ class _ActionCard extends StatelessWidget {
             ),
           ),
         ),
-        title: Text(title),
+        title: Text(step == null ? title : 'Step $step · $title'),
         subtitle: Text(subtitle),
         trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
         onTap: onTap,
       ),
-    );
-  }
-}
-
-class _ChallengerParade extends StatelessWidget {
-  const _ChallengerParade({required this.cards, required this.textColor});
-
-  final List<CharacterCard> cards;
-  final Color textColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Today's challengers",
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: textColor, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 220,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: cards.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final card = cards[index];
-              return TweenAnimationBuilder<double>(
-                key: ValueKey(card.id),
-                tween: Tween(begin: 0, end: 1),
-                duration: Duration(milliseconds: 400 + index * 120),
-                curve: Curves.easeOutBack,
-                builder: (context, value, child) => Transform.translate(
-                  offset: Offset(0, (1 - value) * 60),
-                  child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-                ),
-                child: SizedBox(
-                  width: 110,
-                  child: Column(
-                    children: [
-                      Standee(card: card, width: 90),
-                      const SizedBox(height: 4),
-                      Nameplate(name: card.subject, title: card.title, compact: true),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }

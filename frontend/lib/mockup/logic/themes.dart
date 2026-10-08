@@ -60,6 +60,9 @@ enum DailyTheme {
     required this.accent,
   });
 
+  /// The theme of a given day of the loop (day 1 is the first).
+  static DailyTheme ofDay(int day) => values[(day - 1) % values.length];
+
   final String label;
   final String prompt;
   final Color skyTop;

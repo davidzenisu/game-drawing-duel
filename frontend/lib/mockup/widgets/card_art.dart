@@ -257,27 +257,49 @@ class _AuraPainter extends CustomPainter {
 
 /// JRPG-style nameplate as seen in `docs/images`.
 class Nameplate extends StatelessWidget {
-  const Nameplate({super.key, required this.name, required this.title, this.rarity, this.compact = false});
+  const Nameplate({
+    super.key,
+    required this.name,
+    required this.title,
+    this.rarity,
+    this.compact = false,
+    this.nameFirst = false,
+    this.large = false,
+  });
 
   final String name;
   final String title;
   final Rarity? rarity;
   final bool compact;
 
+  /// Shows the name above the title, as on a challenger's nameplate.
+  final bool nameFirst;
+
+  /// Extra large text for the challenger in a fight.
+  final bool large;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final titleStyle = (compact ? textTheme.labelSmall : textTheme.titleSmall)!.copyWith(
-      color: AppPalette.nameplateText,
-      fontFamily: 'monospace',
-      fontWeight: FontWeight.w700,
-    );
-    final nameStyle = (compact ? textTheme.titleMedium : textTheme.headlineSmall)!.copyWith(
-      color: AppPalette.nameplateText,
-      fontFamily: 'monospace',
-      fontWeight: FontWeight.w900,
-      letterSpacing: 1.5,
-    );
+    final titleStyle =
+        (compact
+                ? textTheme.labelSmall
+                : large
+                ? textTheme.titleLarge
+                : textTheme.titleSmall)!
+            .copyWith(color: AppPalette.nameplateText, fontFamily: 'monospace', fontWeight: FontWeight.w700);
+    final nameStyle =
+        (compact
+                ? textTheme.titleMedium
+                : large
+                ? textTheme.displaySmall
+                : textTheme.headlineSmall)!
+            .copyWith(
+              color: AppPalette.nameplateText,
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+            );
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -296,8 +318,16 @@ class Nameplate extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (rarity != null) StarRow(rarity: rarity!, size: compact ? 12 : 16),
-            Text(title, style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
-            Text(name, style: nameStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+            if (!nameFirst) Text(title, style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+            if (large)
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(name, style: nameStyle, maxLines: 1),
+              )
+            else
+              Text(name, style: nameStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+            if (nameFirst) Text(title, style: titleStyle, maxLines: 3, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),

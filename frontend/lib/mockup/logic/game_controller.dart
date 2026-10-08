@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import 'bot_artist.dart';
-import 'duel.dart';
+import 'daily_loop.dart';
 import 'gacha.dart';
 import 'models.dart';
 import 'setup_plan.dart';
@@ -54,7 +54,6 @@ class GameController extends ChangeNotifier {
 
   /// Pulls every player receives when the server launches.
   static const launchBonus = 10;
-  static const hurryCost = 1;
 
   static const suggestedNames = ['Alex', 'Sam', 'Robin', 'Kim', 'Charlie', 'Jo', 'Mika', 'Toni', 'Lou', 'Nico'];
 
@@ -87,22 +86,6 @@ class GameController extends ChangeNotifier {
   int get day => _day;
   DailyTheme _theme = DailyTheme.forest;
   DailyTheme get theme => _theme;
-  bool _challengerDrawn = false;
-  bool get challengerDrawn => _challengerDrawn;
-  Player? _challengerSubject;
-  Player get challengerSubject => _challengerSubject!;
-  HurryPlan? _incomingHurry;
-  HurryPlan? get incomingHurry => _incomingHurry;
-  bool _duelRewardClaimed = false;
-  bool get duelRewardClaimed => _duelRewardClaimed;
-  final List<CharacterCard> _todaysChallengers = [];
-  List<CharacterCard> get todaysChallengers => List.unmodifiable(_todaysChallengers);
-  final Set<String> _hurriedToday = {};
-  Set<String> get hurriedToday => Set.unmodifiable(_hurriedToday);
-  int _duelsWon = 0;
-  int get duelsWon => _duelsWon;
-  int _duelsLost = 0;
-  int get duelsLost => _duelsLost;
 
   List<Player> get otherPlayers => server.players.where((p) => !p.isYou).toList();
 
@@ -183,43 +166,165 @@ class GameController extends ChangeNotifier {
   }
 
   /// Fills the pool with your drawings and everybody else's and starts day 1.
+  /// Every artist's setup drawings also land in their own roster.
   void launch() {
     final players = server.players;
     for (final (index, artist) in players.indexed) {
       if (artist.isYou) continue;
+      final roster = _botRosters[artist.id] = [];
       for (final assignment in SetupPlan.assignmentsFor(players, index)) {
-        _pool.add(
-          CharacterCard(
-            id: assignment.id,
-            subject: assignment.subject.name,
-            title: _bots.title(),
-            rarity: assignment.prompt.rarity,
-            prompt: assignment.prompt.label,
-            artist: artist.name,
-            sketch: _bots.doodle(assignment.prompt.label),
-          ),
+        final card = CharacterCard(
+          id: assignment.id,
+          subject: assignment.subject.name,
+          title: _bots.title(),
+          rarity: assignment.prompt.rarity,
+          prompt: assignment.prompt.label,
+          artist: artist.name,
+          sketch: _bots.doodle(assignment.prompt.label),
         );
+        roster.add(card);
+        _pool.add(card);
       }
     }
     _pool.addAll(_setupDrawings.values);
+    for (final card in _setupDrawings.values) {
+      _owned[card.id] = OwnedCard(card);
+    }
     _tickets += launchBonus;
     _startDay();
     _setPhase(GamePhase.daily);
   }
 
   // Daily routine ---------------------------------------------------------------
+  //
+  // Every challenger goes through a 4 day loop, and every day each player
+  // works on a different stage of it:
+  //   1. write a title prompt for a theme and a character,
+  //   2. draw a challenger from a prompt someone wrote the day before,
+  //   3. pick up to four fighters against a challenger drawn the day before,
+  //   4. vote on the fights the others set up the day before.
+  // Afterwards the fights play out and everyone involved sees the outcome.
+
+  static const promptStep = 1;
+  static const drawStep = 2;
+  static const fightStep = 3;
+  static const voteStep = 4;
+
+  /// Prompts per day, in roster order.
+  final Map<int, List<ChallengerPrompt>> _prompts = {};
+
+  /// Challengers drawn per day.
+  final Map<int, List<CharacterCard>> _challengers = {};
+
+  /// Fights set up per day.
+  final Map<int, List<FightSetup>> _fights = {};
+
+  /// Characters in the simulated players' rosters.
+  final Map<String, List<CharacterCard>> _botRosters = {};
+
+  /// The character you write today's prompt for.
+  Player get promptSubject => _promptSubject!;
+  Player? _promptSubject;
+
+  ChallengerPrompt? get yourPrompt => _prompts[_day]?.where((p) => p.author.isYou).firstOrNull;
+
+  /// The prompt you draw today, written by someone else yesterday.
+  ChallengerPrompt? get promptToDraw => _promptToDraw;
+  ChallengerPrompt? _promptToDraw;
+
+  CharacterCard? get yourChallenger =>
+      _challengers[_day]?.where((c) => c.artist == you.name && c.day == _day).firstOrNull;
+
+  bool get challengerDrawn => yourChallenger != null;
+
+  /// One randomly selected challenger from yesterday to pick fighters against.
+  CharacterCard? get fightChallenger => _fightChallenger;
+  CharacterCard? _fightChallenger;
+
+  FightSetup? get yourFight => _fights[_day]?.where((f) => f.owner.isYou).firstOrNull;
+
+  /// Yesterday's fights you can vote on (not the ones you're part of).
+  List<FightSetup> get fightsToVote => [
+    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
+      if (!fight.owner.isYou && fight.challenger.artist != you.name) fight,
+  ];
+
+  bool hasVoted(FightSetup fight) => fight.votes.containsKey(you.id);
+
+  int get votesLeft => fightsToVote.where((f) => !hasVoted(f)).length;
+
+  /// Finished fights you picked the fighters for (yesterday).
+  List<FightSetup> get yourFightResults => [
+    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
+      if (fight.owner.isYou) fight,
+  ];
+
+  /// Finished fights against the challenger you drew (two days ago).
+  List<FightSetup> get yourChallengerResults => [
+    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
+      if (fight.challenger.artist == you.name) fight,
+  ];
+
+  /// Whether a step of the loop is available today.
+  bool stepUnlocked(int step) => _day >= step;
+
+  HurryPlan? _incomingHurry;
+  HurryPlan? get incomingHurry => _incomingHurry;
+
+  /// The player you sent today's free hurry to.
+  Player? get hurrySentTo => _hurrySentTo;
+  Player? _hurrySentTo;
+
+  /// Whether there is still something to do on the current day.
+  bool get hasOpenSteps =>
+      yourPrompt == null ||
+      (_promptToDraw != null && !challengerDrawn) ||
+      (_fightChallenger != null && yourFight == null && collection.isNotEmpty) ||
+      votesLeft > 0;
+
+  Player _drawerOf(Player author) {
+    final players = server.players;
+    return players[(players.indexOf(author) + 1) % players.length];
+  }
+
+  Player _randomSubject(Player author) {
+    final excluded = {author.id, _drawerOf(author).id};
+    final candidates = server.players.where((p) => !excluded.contains(p.id)).toList();
+    return candidates[_random.nextInt(candidates.length)];
+  }
 
   void _startDay() {
     _day++;
-    _theme = DailyTheme.values[(_day - 1) % DailyTheme.values.length];
-    _challengerDrawn = false;
-    _duelRewardClaimed = false;
-    _hurriedToday.clear();
-    _todaysChallengers.clear();
-
+    _theme = DailyTheme.ofDay(_day);
+    _hurrySentTo = null;
     final others = otherPlayers;
-    _challengerSubject = others[_random.nextInt(others.length)];
-    _incomingHurry = _random.nextDouble() < 0.6
+
+    // Step 1: everyone writes a prompt for today's theme.
+    _promptSubject = _randomSubject(you);
+    _prompts[_day] = [
+      for (final author in others)
+        ChallengerPrompt(
+          id: 'prompt$_day-${author.id}',
+          author: author,
+          subject: _randomSubject(author),
+          theme: _theme,
+          title: _bots.title(),
+          day: _day,
+        ),
+    ];
+
+    // Step 2: yesterday's prompts are drawn by the next player in the roster.
+    _challengers[_day] = [];
+    _promptToDraw = null;
+    for (final prompt in _prompts[_day - 1] ?? const <ChallengerPrompt>[]) {
+      final drawer = _drawerOf(prompt.author);
+      if (drawer.isYou) {
+        _promptToDraw = prompt;
+      } else {
+        _addChallenger(prompt, drawer, _bots.doodle('challenger'));
+      }
+    }
+    _incomingHurry = _promptToDraw != null && _random.nextDouble() < 0.6
         ? HurryPlan(
             by: others[_random.nextInt(others.length)].name,
             atFraction: 0.25 + _random.nextDouble() * 0.35,
@@ -227,23 +332,61 @@ class GameController extends ChangeNotifier {
           )
         : null;
 
-    // The simulated players already drew their challengers for today.
-    for (final artist in others) {
-      final candidates = server.players.where((p) => p.id != artist.id).toList();
-      final subject = candidates[_random.nextInt(candidates.length)];
-      final card = CharacterCard(
-        id: 'day$_day-${artist.id}',
-        subject: subject.name,
-        title: _bots.title(),
-        rarity: Rarity.hero,
-        prompt: 'Challenger: ${_theme.prompt}',
-        artist: artist.name,
-        sketch: _bots.doodle('challenger'),
-        day: _day,
+    // Step 3: pick fighters against one of yesterday's challengers.
+    final yesterday = _challengers[_day - 1] ?? const <CharacterCard>[];
+    final notYours = yesterday.where((c) => c.artist != you.name).toList();
+    _fightChallenger = notYours.isEmpty ? null : notYours[_random.nextInt(notYours.length)];
+    _fights[_day] = [];
+    final yourChallengerYesterday = yesterday.where((c) => c.artist == you.name).firstOrNull;
+    for (final (i, owner) in others.indexed) {
+      final roster = _botRosters[owner.id] ?? const <CharacterCard>[];
+      // Your challenger is reserved for the first player so the others spread out.
+      final candidates = yesterday.where((c) => c.artist != owner.name && c != yourChallengerYesterday).toList();
+      if (roster.isEmpty || candidates.isEmpty) continue;
+      // Make sure somebody fights the challenger you drew.
+      final challenger = i == 0 && yourChallengerYesterday != null
+          ? yourChallengerYesterday
+          : candidates[_random.nextInt(candidates.length)];
+      final picks = ([...roster]..shuffle(_random)).take(1 + _random.nextInt(FightSetup.maxFighters));
+      _fights[_day]!.add(
+        FightSetup(
+          id: 'fight$_day-${owner.id}',
+          owner: owner,
+          challenger: challenger,
+          fighters: [for (final card in picks) FighterEntry(card: card)],
+          day: _day,
+        ),
       );
-      _todaysChallengers.add(card);
-      _pool.add(card);
     }
+
+    // Step 4: the simulated players vote on yesterday's fights.
+    for (final fight in _fights[_day - 1] ?? const <FightSetup>[]) {
+      for (final voter in others) {
+        if (voter.id == fight.owner.id) continue;
+        fight.votes[voter.id] = _random.nextDouble() < fight.fighterOdds;
+      }
+    }
+
+    // The simulated players pull a character every day.
+    for (final roster in _botRosters.values) {
+      roster.add(_pool[_random.nextInt(_pool.length)]);
+    }
+  }
+
+  void _addChallenger(ChallengerPrompt prompt, Player artist, Sketch sketch) {
+    final card = CharacterCard(
+      id: 'challenger$_day-${artist.id}',
+      subject: prompt.subject.name,
+      title: prompt.title,
+      rarity: Rarity.hero,
+      prompt: 'Challenger: ${prompt.theme.label}',
+      artist: artist.name,
+      sketch: sketch,
+      day: _day,
+      theme: prompt.theme,
+    );
+    _challengers[_day]!.add(card);
+    _pool.add(card);
   }
 
   void nextDay() {
@@ -251,32 +394,61 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Drawing today's challenger adds it to the pool as a hero and earns a pull.
-  void submitChallenger(Sketch sketch, String title) {
-    if (_challengerDrawn) return;
-    _pool.add(
-      CharacterCard(
-        id: 'day$_day-${you.id}',
-        subject: challengerSubject.name,
-        title: title,
-        rarity: Rarity.hero,
-        prompt: 'Challenger: ${_theme.prompt}',
-        artist: you.name,
-        sketch: sketch,
+  /// Step 1: write the title prompt for today's theme and character.
+  void submitPrompt(String title) {
+    if (yourPrompt != null) return;
+    _prompts[_day]!.add(
+      ChallengerPrompt(
+        id: 'prompt$_day-${you.id}',
+        author: you,
+        subject: promptSubject,
+        theme: _theme,
+        title: title.trim(),
         day: _day,
       ),
     );
-    _challengerDrawn = true;
+    notifyListeners();
+  }
+
+  /// Step 2: drawing the challenger adds it to the pool as a hero and earns a pull.
+  void submitChallenger(Sketch sketch) {
+    final prompt = _promptToDraw;
+    if (prompt == null || challengerDrawn) return;
+    _addChallenger(prompt, you, sketch);
     _tickets++;
     notifyListeners();
   }
 
-  /// Spends a pull to cut another player's drawing time. They only find out
-  /// while drawing.
+  /// Step 3: lock in up to four fighters against today's challenger.
+  void submitFighters(List<OwnedCard> fighters) {
+    final challenger = _fightChallenger;
+    if (challenger == null || yourFight != null) return;
+    if (fighters.isEmpty || fighters.length > FightSetup.maxFighters) {
+      throw ArgumentError('Pick between 1 and ${FightSetup.maxFighters} fighters.');
+    }
+    _fights[_day]!.add(
+      FightSetup(
+        id: 'fight$_day-${you.id}',
+        owner: you,
+        challenger: challenger,
+        fighters: [for (final owned in fighters) FighterEntry.fromOwned(owned)],
+        day: _day,
+      ),
+    );
+    notifyListeners();
+  }
+
+  /// Step 4: vote whether the fighters or the challenger would win.
+  void vote(FightSetup fight, {required bool fightersWin}) {
+    if (!fightsToVote.contains(fight) || hasVoted(fight)) return;
+    fight.votes[you.id] = fightersWin;
+    notifyListeners();
+  }
+
+  /// Hurries are free, once per day. The target only finds out while drawing.
   bool sendHurry(Player target) {
-    if (_tickets < hurryCost || _hurriedToday.contains(target.id)) return false;
-    _tickets -= hurryCost;
-    _hurriedToday.add(target.id);
+    if (_hurrySentTo != null || target.isYou) return false;
+    _hurrySentTo = target;
     notifyListeners();
     return true;
   }
@@ -324,31 +496,6 @@ class GameController extends ChangeNotifier {
     }
     owned.unlocked.add(next);
     notifyListeners();
-  }
-
-  // Duels -----------------------------------------------------------------------
-
-  DuelResult duel(OwnedCard fighter, CharacterCard opponent) => Duel.simulate(
-    FighterStats.of(fighter.card.rarity, upgrades: fighter.unlocked.length),
-    FighterStats.of(opponent.rarity),
-    random: _random,
-  );
-
-  /// Records a finished duel. The first win of the day earns a bonus pull.
-  bool recordDuel(DuelResult result) {
-    var rewarded = false;
-    if (result.leftWins) {
-      _duelsWon++;
-      if (!_duelRewardClaimed) {
-        _duelRewardClaimed = true;
-        _tickets++;
-        rewarded = true;
-      }
-    } else {
-      _duelsLost++;
-    }
-    notifyListeners();
-    return rewarded;
   }
 
   void _setPhase(GamePhase phase) {

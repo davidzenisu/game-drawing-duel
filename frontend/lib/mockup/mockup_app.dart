@@ -36,7 +36,6 @@ class _MockupGameAppState extends State<MockupGameApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      builder: (context, child) => Banner(message: 'MOCKUP', location: BannerLocation.bottomStart, child: child!),
       home: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) => AnimatedSwitcher(

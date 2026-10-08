@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import '../../theme/palette.dart';
+import 'themes.dart';
 
 /// Rarity tiers of the gacha, which also define how long a drawing may take.
 enum Rarity {
@@ -62,6 +63,7 @@ class CharacterCard {
     required this.artist,
     required this.sketch,
     this.day = 0,
+    this.theme,
   });
 
   final String id;
@@ -78,4 +80,10 @@ class CharacterCard {
 
   /// The day the card was added to the pool (0 = initial setup).
   final int day;
+
+  /// The theme of the prompt a challenger was drawn from.
+  final DailyTheme? theme;
+
+  /// Scenery to show the character in.
+  DailyTheme get scenery => theme ?? DailyTheme.forest;
 }
