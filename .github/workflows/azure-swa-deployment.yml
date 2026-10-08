@@ -58,9 +58,11 @@ jobs:
           AUTH0_DOMAIN: ${{ steps.get_build_config.outputs.AUTH0_DOMAIN }}
           AUTH0_CLIENT_ID: ${{ steps.get_build_config.outputs.AUTH0_CLIENT_ID }}
           API_URL: ${{ steps.get_build_config.outputs.API_URL }}
+          # Pull request previews run the gameplay mockup; main keeps the regular app.
+          MOCKUP_GAMEPLAY: ${{ github.event_name == 'pull_request' }}
         run: |
           flutter pub get
-          python3 -c 'import json, os; print(json.dumps({"AUTH0_DOMAIN": os.environ["AUTH0_DOMAIN"], "AUTH0_CLIENT_ID": os.environ["AUTH0_CLIENT_ID"], "API_URL": os.environ["API_URL"]}))' > "$RUNNER_TEMP/auth0-defines.json"
+          python3 -c 'import json, os; print(json.dumps({"AUTH0_DOMAIN": os.environ["AUTH0_DOMAIN"], "AUTH0_CLIENT_ID": os.environ["AUTH0_CLIENT_ID"], "API_URL": os.environ["API_URL"], "MOCKUP_GAMEPLAY": os.environ["MOCKUP_GAMEPLAY"] == "true"}))' > "$RUNNER_TEMP/auth0-defines.json"
           flutter build web --release \
             --dart-define-from-file="$RUNNER_TEMP/auth0-defines.json"
       - name: Get Deployment Token
