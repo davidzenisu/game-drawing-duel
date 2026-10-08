@@ -6,6 +6,22 @@ repo:
 title: initial-setup
 category: concept
 ---
+When a server is created, the creator can prepopulate their own and all other player's names.
+
+They can then share a generated server code with friends to join.
+
+Any player who joins needs to do 3-6 drawings and titles for other players. 
+
+The following prompts should be the default prompts:
+- 1 star: basic
+- 1 star (second): alter (based on the first)
+- 2 star: Knight
+- 2 start (second): Mage
+- 2 star (third): Rogue
+- 3 star: A legend
+
+The "basic" and "alter" shouldn't need additional prompting, the alter should be drawn after the original has been created.
+
 All can be redrawn but with a different time limit
 
 - basics (normal & alter, 1 star): 30 seconds
