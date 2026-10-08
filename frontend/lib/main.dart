@@ -5,13 +5,17 @@ import 'package:auth0_flutter/auth0_flutter.dart' show Credentials;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'feature_flags.dart';
+import 'mockup/mockup_app.dart';
+import 'theme/app_theme.dart';
+
 const _auth0Domain = String.fromEnvironment('AUTH0_DOMAIN');
 const _auth0ClientId = String.fromEnvironment('AUTH0_CLIENT_ID');
 const _apiUrl = String.fromEnvironment('API_URL');
 const _isAuth0Configured = _auth0Domain != '' && _auth0ClientId != '';
 
 void main() {
-  runApp(const MainApp());
+  runApp(FeatureFlags.mockupGameplay ? const MockupGameApp() : const MainApp());
 }
 
 class MainApp extends StatefulWidget {
@@ -30,8 +34,6 @@ class _MainAppState extends State<MainApp> {
   bool _isLoading = true;
   bool _isWorking = false;
   bool _isDrawingsLoading = false;
-
-  static const _seedColor = Color(0xFF6750A4);
 
   @override
   void initState() {
@@ -68,10 +70,7 @@ class _MainAppState extends State<MainApp> {
       _error = null;
     });
     try {
-      await _auth0!.loginWithRedirect(
-        redirectUrl: Uri.base.origin,
-        scopes: const {'openid', 'profile', 'email'},
-      );
+      await _auth0!.loginWithRedirect(redirectUrl: Uri.base.origin, scopes: const {'openid', 'profile', 'email'});
       if (!mounted) return;
       setState(() => _isWorking = false);
     } catch (error) {
@@ -122,9 +121,7 @@ class _MainAppState extends State<MainApp> {
 
     try {
       final apiBaseUrl = _apiUrl.trim().replaceFirst(RegExp(r'/+$'), '');
-      final response = await http
-          .get(Uri.parse('$apiBaseUrl/drawings'))
-          .timeout(const Duration(seconds: 20));
+      final response = await http.get(Uri.parse('$apiBaseUrl/drawings')).timeout(const Duration(seconds: 20));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('Request failed with status ${response.statusCode}.');
       }
@@ -160,14 +157,8 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: _seedColor),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: _seedColor, brightness: Brightness.dark),
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
       home: Scaffold(
         appBar: AppBar(
@@ -265,12 +256,8 @@ class _MainAppState extends State<MainApp> {
               ],
               rows: _drawings
                   .map(
-                    (drawing) => DataRow(
-                      cells: [
-                        DataCell(Text(drawing.id.toString())),
-                        DataCell(Text(drawing.description)),
-                      ],
-                    ),
+                    (drawing) =>
+                        DataRow(cells: [DataCell(Text(drawing.id.toString())), DataCell(Text(drawing.description))]),
                   )
                   .toList(growable: false),
             ),

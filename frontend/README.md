@@ -25,3 +25,21 @@ variables `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `API_URL`, writes a temporary
 JSON defines file, and passes it to the release build. Set all three repository
 variables for deployment. These values are included in the client-side app, so
 they are not secrets.
+
+## Mockup gameplay loop
+
+The app can run an offline mockup of the gameplay loop described in
+`docs/concept` (account creation, server creation/join, initial drawing setup,
+daily challenger drawing, gacha pulls, duplicate upgrades and duels). Everything
+happens in memory within a single session; the other players are simulated and
+no backend, database or Auth0 is used.
+
+Enable it with the `MOCKUP_GAMEPLAY` feature flag, either in
+`config/config.json` (`"MOCKUP_GAMEPLAY": true`) or directly:
+
+```sh
+flutter run -d chrome --dart-define=MOCKUP_GAMEPLAY=true
+```
+
+The flag defaults to `false`, so regular builds are unaffected. The mockup lives
+in `lib/mockup`, the shared colour palette in `lib/theme/palette.dart`.
