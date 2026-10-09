@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'models.dart';
 
 /// The default prompts of the initial drawing setup.
@@ -79,22 +81,29 @@ abstract final class SetupPlan {
   static List<DrawingAssignment> assignmentsFor(List<Player> players, int artistIndex) =>
       _assign(players, artistIndex, promptsFor(players.length));
 
-  /// The assignments of the player at [artistIndex] among the [active]
-  /// players of a test session: [testPrompts] of the other active players,
-  /// or of themselves when playing alone.
-  static List<DrawingAssignment> testAssignmentsFor(List<Player> active, int artistIndex) =>
-      _assign(active, artistIndex, testPrompts);
+  /// The assignments of the player at [artistIndex] in a test session:
+  /// [testPrompts] of different, randomly picked other [players] of the whole
+  /// roster, whether they joined or not.
+  static List<DrawingAssignment> testAssignmentsFor(List<Player> players, int artistIndex, Random random) {
+    final others = [...players]
+      ..removeAt(artistIndex)
+      ..shuffle(random);
+    return [
+      for (final (i, prompt) in testPrompts.indexed)
+        DrawingAssignment(id: '${players[artistIndex].id}-${prompt.name}', prompt: prompt, subject: others[i]),
+    ];
+  }
 
   /// Every prompt group (the alter shares its subject with the basic) shifts
-  /// the subject by a different offset, so nobody draws themselves (unless
-  /// alone) and every player is depicted exactly once per prompt.
+  /// the subject by a different offset, so nobody draws themselves and every
+  /// player is depicted exactly once per prompt.
   static List<DrawingAssignment> _assign(List<Player> players, int artistIndex, List<SetupPrompt> prompts) {
     final count = players.length;
     final assignments = <DrawingAssignment>[];
     var group = -1;
     for (final prompt in prompts) {
       if (prompt.basedOn == null) group++;
-      final offset = count == 1 ? 0 : 1 + group % (count - 1);
+      final offset = 1 + group % (count - 1);
       final subject = players[(artistIndex + offset) % count];
       final basedOn = prompt.basedOn;
       assignments.add(

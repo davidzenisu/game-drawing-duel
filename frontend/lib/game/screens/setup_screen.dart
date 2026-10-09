@@ -25,6 +25,10 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   Timer? _refreshTimer;
 
+  /// Assignments whose drawing is being uploaded.
+  final Set<String> _uploading = {};
+  bool _launching = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,7 +68,15 @@ class _SetupScreenState extends State<SetupScreen> {
       ),
     );
     if (result == null || !mounted) return;
+    setState(() => _uploading.add(assignment.id));
     await runGameAction(context, () => controller.submitSetupDrawing(assignment, result.sketch, result.title));
+    if (mounted) setState(() => _uploading.remove(assignment.id));
+  }
+
+  Future<void> _launch() async {
+    setState(() => _launching = true);
+    await runGameAction(context, widget.controller.launch);
+    if (mounted) setState(() => _launching = false);
   }
 
   @override
@@ -126,11 +138,17 @@ class _SetupScreenState extends State<SetupScreen> {
                         ),
                       const SizedBox(height: 16),
                       FilledButton.icon(
-                        onPressed: controller.setupComplete && !waiting
-                            ? () => runGameAction(context, controller.launch)
+                        onPressed: controller.setupComplete && !waiting && !_launching && _uploading.isEmpty
+                            ? _launch
                             : null,
-                        icon: const Icon(Icons.rocket_launch_rounded),
-                        label: Text(waiting ? 'Waiting for your friends to finish…' : 'Finish and launch'),
+                        icon: _launching ? const _Spinner() : const Icon(Icons.rocket_launch_rounded),
+                        label: Text(
+                          _launching
+                              ? 'Launching…'
+                              : waiting
+                              ? 'Waiting for your friends to finish…'
+                              : 'Finish and launch',
+                        ),
                       ),
                     ],
                   ),
@@ -147,6 +165,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final controller = widget.controller;
     final drawing = controller.setupDrawing(assignment);
     final unlocked = controller.isUnlocked(assignment);
+    final uploading = _uploading.contains(assignment.id);
     final limit = assignment.prompt.rarity.drawTime;
     final limitLabel = limit == null
         ? 'no time limit'
@@ -168,13 +187,20 @@ class _SetupScreenState extends State<SetupScreen> {
         ),
         title: Text('${assignment.subject.name} · ${assignment.prompt.label}'),
         subtitle: Text(
-          drawing != null
+          uploading
+              ? 'Uploading…'
+              : drawing != null
               ? '"${drawing.title}"'
               : unlocked
               ? '${'★' * assignment.prompt.rarity.stars} · $limitLabel'
               : 'Draw the basic version first',
         ),
-        trailing: drawing == null
+        trailing: uploading
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: _Spinner(semanticsLabel: 'Uploading'),
+              )
+            : drawing == null
             ? FilledButton.tonal(onPressed: unlocked ? () => _draw(assignment) : null, child: const Text('Draw'))
             : TextButton(
                 onPressed: controller.waitingForLaunch ? null : () => _draw(assignment),
@@ -183,4 +209,17 @@ class _SetupScreenState extends State<SetupScreen> {
       ),
     );
   }
+}
+
+/// A small progress circle that fits into a button or a list tile.
+class _Spinner extends StatelessWidget {
+  const _Spinner({this.semanticsLabel});
+
+  final String? semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 20,
+    child: CircularProgressIndicator(strokeWidth: 2.5, semanticsLabel: semanticsLabel),
+  );
 }

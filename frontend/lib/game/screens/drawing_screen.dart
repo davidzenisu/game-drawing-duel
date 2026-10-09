@@ -57,7 +57,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   final _pad = SketchPadController();
   late final _title = TextEditingController(text: widget.initialTitle);
   final _stopwatch = Stopwatch();
-  late final _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+  late final AnimationController _shake;
   Timer? _ticker;
   bool _hurried = false;
   bool _timeUp = false;
@@ -74,6 +74,8 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    // Created up front: creating it lazily in dispose() would fail.
+    _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _pad.addListener(_rebuild);
     _title.addListener(_rebuild);
     if (_limit != null) {

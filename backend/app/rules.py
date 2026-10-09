@@ -4,6 +4,7 @@ The frontend implements the same rules (`frontend/lib/game/rules`); both are
 checked against `shared/rules.json`.
 """
 
+import random
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -88,24 +89,29 @@ def assignments_for(player_count: int, artist: int) -> list[Assignment]:
     return _assign(player_count, artist, prompts_for(player_count))
 
 
-def test_assignments_for(active_count: int, artist: int) -> list[Assignment]:
-    """What the active player at index `artist` draws in a test session: the
-    test prompts of the other active players, or of themselves when alone."""
-    return _assign(active_count, artist, TEST_PROMPTS)
+def test_assignments_for(
+    player_count: int, artist: int, rng: random.Random | None = None
+) -> list[Assignment]:
+    """What the player at index `artist` draws in a test session: the test
+    prompts of different, randomly picked other players of the whole roster,
+    whether they joined or not."""
+    others = [i for i in range(player_count) if i != artist]
+    subjects = (rng or random.SystemRandom()).sample(others, len(TEST_PROMPTS))
+    return [Assignment(p, s) for p, s in zip(TEST_PROMPTS, subjects, strict=True)]
 
 
 def _assign(
     count: int, artist: int, prompts: tuple[SetupPrompt, ...]
 ) -> list[Assignment]:
     # Every prompt group (the alter shares its subject with the basic) shifts
-    # the subject by a different offset, so nobody draws themselves (unless
-    # alone) and every player is depicted exactly once per prompt.
+    # the subject by a different offset, so nobody draws themselves and every
+    # player is depicted exactly once per prompt.
     assignments = []
     group = -1
     for prompt in prompts:
         if prompt.based_on is None:
             group += 1
-        offset = 0 if count == 1 else 1 + group % (count - 1)
+        offset = 1 + group % (count - 1)
         assignments.append(Assignment(prompt, (artist + offset) % count))
     return assignments
 

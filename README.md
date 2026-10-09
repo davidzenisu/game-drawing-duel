@@ -101,16 +101,15 @@ server for trying the game with the real database and storage, at speed:
 
 - It can start without everyone: only the players who joined take part.
 - The initial setup is short: every active player draws three characters,
-  *Basic*, *Knight* and *Legend*, of the other active players (or of
-  themselves when playing alone).
+  *Basic*, *Knight* and *Legend*, of three different, randomly picked other
+  players of the whole roster, whether they joined or not.
 - Days don't wait for real time. The admin can advance to the next day, and
   the day advances automatically once every active player has ended theirs.
   Players see who has ended their day when they refresh, not by polling.
 - The lobby and the game show a TEST SESSION badge.
 
-Players who join a test session after its setup started draw along, of the
-players who joined until then, and the launch waits for them too; once it
-launched, nobody can join anymore. So far the flag, the badge and the short
+Players who join a test session after its setup started draw along, and the
+launch waits for them too; once it launched, nobody can join anymore. So far the flag, the badge and the short
 setup exist; the day controls arrive with the daily loop.
 
 ### Game rules

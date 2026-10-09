@@ -77,42 +77,41 @@ class SetupTests(SetupTestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"], "You haven't joined this server")
 
+    def assert_test_assignments(self, code: str, subject: str, position: int) -> None:
+        """The short setup, of different players other than yourself."""
+        assignments = self.assignments(code, subject).json()
+        self.assertEqual(
+            [a["prompt"] for a in assignments], ["basic", "knight", "legend"]
+        )
+        subjects = [a["subject_position"] for a in assignments]
+        self.assertEqual(len(set(subjects)), 3)
+        self.assertNotIn(position, subjects)
+        self.assertTrue(set(subjects) <= set(range(len(FRIENDS) + 1)))
+
     def test_test_sessions_start_with_whoever_joined(self) -> None:
         code = self.create(is_test=True).json()["code"]
         self.sign_up(FRIEND_SUBJECTS[0], FRIENDS[0])
         self.claim(code, 1, FRIEND_SUBJECTS[0])
         response = self.start(code)
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(
-            [
-                (a["prompt"], a["subject_position"])
-                for a in self.assignments(code).json()
-            ],
-            [("basic", 1), ("knight", 1), ("legend", 1)],
-        )
-        friend = self.assignments(code, FRIEND_SUBJECTS[0]).json()
-        self.assertEqual([a["subject_position"] for a in friend], [0, 0, 0])
+        self.assert_test_assignments(code, ADMIN, 0)
+        self.assert_test_assignments(code, FRIEND_SUBJECTS[0], 1)
+        stranger = self.assignments(code, FRIEND_SUBJECTS[1])
+        self.assertEqual(stranger.status_code, 403, "only who joined draws")
 
-    def test_alone_in_a_test_session_you_draw_yourself(self) -> None:
+    def test_alone_in_a_test_session_you_draw_the_others(self) -> None:
         code = self.create(is_test=True).json()["code"]
         self.start(code)
-        self.assertEqual(
-            [
-                (a["prompt"], a["subject_position"])
-                for a in self.assignments(code).json()
-            ],
-            [("basic", 0), ("knight", 0), ("legend", 0)],
-        )
+        self.assert_test_assignments(code, ADMIN, 0)
 
     def test_late_joiners_of_a_test_session_draw_along(self) -> None:
         code = self.create(is_test=True).json()["code"]
         self.start(code)
+        before = self.assignments(code).json()
         self.sign_up(FRIEND_SUBJECTS[2], FRIENDS[2])
         joined = self.claim(code, 3, FRIEND_SUBJECTS[2])
         self.assertEqual(joined.status_code, 200, joined.text)
         self.assertEqual(joined.json()["phase"], "setup")
-        late = self.assignments(code, FRIEND_SUBJECTS[2]).json()
-        self.assertEqual([a["subject_position"] for a in late], [0, 0, 0])
+        self.assert_test_assignments(code, FRIEND_SUBJECTS[2], 3)
         # The admin keeps the assignments they started with.
-        admin = self.assignments(code).json()
-        self.assertEqual([a["subject_position"] for a in admin], [0, 0, 0])
+        self.assertEqual(self.assignments(code).json(), before)

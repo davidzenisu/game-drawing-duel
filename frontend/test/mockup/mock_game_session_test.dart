@@ -76,7 +76,9 @@ void main() {
     expect(game.server.artists.map((p) => p.name), ['Pat', 'Alex']);
     await game.startSetup();
     expect(game.assignments.map((a) => a.prompt), SetupPlan.testPrompts);
-    expect(game.assignments.map((a) => a.subject.name), everyElement('Alex'));
+    final subjects = game.assignments.map((a) => a.subject.name).toSet();
+    expect(subjects, hasLength(3), reason: 'different players');
+    expect(subjects, isNot(contains('Pat')));
     for (final assignment in game.assignments) {
       await game.submitSetupDrawing(assignment, _doodle, 'Title');
     }

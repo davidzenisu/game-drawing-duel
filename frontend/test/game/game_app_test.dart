@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
@@ -5,6 +7,8 @@ import 'package:frontend/game/game_app.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/screens/setup_screen.dart';
+import 'package:frontend/game/widgets/sketch_canvas.dart';
 
 void main() {
   testWidgets('walks from signup through the lobby into the drawing setup', (tester) async {
@@ -169,4 +173,81 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('uploads and the launch show a progress circle', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = _SlowSession();
+    await tester.pumpWidget(GameApp(session: controller));
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pump();
+    await tester.tap(find.text('Finish account'));
+    await tester.pumpAndSettle();
+    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
+    await controller.startSetup();
+    await tester.pumpAndSettle();
+
+    for (final (i, assignment) in controller.assignments.indexed) {
+      await tester.tap(find.widgetWithText(FilledButton, 'Draw').first);
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(SketchPad), const Offset(80, 60));
+      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Drawing $i');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+      // The progress circle keeps spinning, so the screen never settles.
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(find.text('Uploading…'), findsOneWidget, reason: assignment.prompt.label);
+      expect(
+        find.descendant(of: find.byType(SetupScreen), matching: find.byType(CircularProgressIndicator)),
+        findsOneWidget,
+      );
+      controller.release();
+      await tester.pumpAndSettle();
+      expect(find.text('Uploading…'), findsNothing);
+      expect(find.text('"Drawing $i"'), findsOneWidget);
+    }
+
+    final launch = find.widgetWithText(FilledButton, 'Finish and launch');
+    await tester.ensureVisible(launch);
+    await tester.tap(launch);
+    await tester.pump();
+    expect(find.text('Launching…'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(SetupScreen), matching: find.byType(CircularProgressIndicator)),
+      findsOneWidget,
+    );
+    controller.release();
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.daily);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+}
+
+/// A mockup whose uploads and launch wait until [release]d.
+class _SlowSession extends MockGameSession {
+  _SlowSession() : super(seed: 1);
+
+  Completer<void>? _pending;
+
+  void release() => _pending?.complete();
+
+  Future<void> _wait() async {
+    _pending = Completer();
+    await _pending!.future;
+  }
+
+  @override
+  Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title) async {
+    await _wait();
+    await super.submitSetupDrawing(assignment, sketch, title);
+  }
+
+  @override
+  Future<void> launch() async {
+    await _wait();
+    await super.launch();
+  }
 }

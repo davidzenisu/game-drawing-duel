@@ -247,7 +247,8 @@ void main() {
       await admin.startSetup();
       expect(admin.phase, GamePhase.setup);
       expect(admin.assignments.map((a) => a.prompt), SetupPlan.testPrompts);
-      expect(admin.assignments.map((a) => a.subject.isYou), everyElement(isTrue), reason: 'alone, you draw yourself');
+      expect(admin.assignments.map((a) => a.subject.isYou), everyElement(isFalse), reason: 'the others, joined or not');
+      expect(admin.assignments.map((a) => a.subject.id).toSet(), hasLength(3));
     });
 
     test('coming back during the setup opens your assignments', () async {
@@ -278,7 +279,7 @@ void main() {
       expect(card.title, 'Sir Alex');
       expect(card.rarity, Rarity.adventurer);
       expect(card.prompt, SetupPrompt.knight.label);
-      expect((card.artist, card.subject), ('Alex', 'Alex'));
+      expect((card.artist, card.subject), ('Alex', knight.subject.name));
       expect(card.sketch, same(doodle), reason: 'no need to download what you just drew');
       expect(admin.setupComplete, isFalse);
     });

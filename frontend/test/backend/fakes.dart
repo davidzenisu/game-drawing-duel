@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/game/rules/models.dart';
@@ -205,13 +206,11 @@ class FakeBackend {
   /// Planned like the real API does, with ids made up from seat and prompt.
   List<Map<String, Object?>> _assignments(String code, int playerId) {
     final server = servers[code]!;
-    final seats = [
-      for (final (i, s) in server.seats.indexed)
-        if (!server.isTest || s['player'] != null) Player(id: '$i', name: s['name'] as String),
-    ];
-    final artist = seats.indexWhere((p) => server.seats[int.parse(p.id)]['player'] == playerId);
+    final seats = [for (final (i, s) in server.seats.indexed) Player(id: '$i', name: s['name'] as String)];
+    final artist = server.seats.indexWhere((s) => s['player'] == playerId);
+    // Seeded, so the same artist keeps the same random subjects.
     final planned = server.isTest
-        ? SetupPlan.testAssignmentsFor(seats, artist)
+        ? SetupPlan.testAssignmentsFor(seats, artist, Random(int.parse(code) + artist))
         : SetupPlan.assignmentsFor(seats, artist);
     int id(DrawingAssignment a) => int.parse(seats[artist].id) * 10 + a.prompt.index;
     return [

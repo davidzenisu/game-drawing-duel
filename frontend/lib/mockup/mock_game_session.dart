@@ -165,9 +165,11 @@ class MockGameSession extends GameSession {
 
   /// The setup assignments of [artist], one of the [ServerSession.artists].
   List<DrawingAssignment> _assignmentsOf(Player artist) {
-    final artists = server.artists;
-    final index = artists.indexWhere((p) => p.id == artist.id);
-    return server.isTest ? SetupPlan.testAssignmentsFor(artists, index) : SetupPlan.assignmentsFor(artists, index);
+    final players = server.players;
+    final index = players.indexWhere((p) => p.id == artist.id);
+    return server.isTest
+        ? SetupPlan.testAssignmentsFor(players, index, _random)
+        : SetupPlan.assignmentsFor(players, index);
   }
 
   @override
