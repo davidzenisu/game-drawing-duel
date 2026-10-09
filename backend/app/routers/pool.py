@@ -1,14 +1,24 @@
-"""The characters of a running game."""
+"""The characters of a running game: the pool, pulls and your collection."""
+
+import uuid
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
+from app import pulls
 from app.auth import CurrentPlayer
-from app.models import Character, Server
+from app.models import Character, Server, ServerSeat
 from app.routers.servers import Code, DbSession, load_server, your_seat
 from app.routers.setup import character_response
-from app.schemas import CharacterResponse
+from app.schemas import (
+    CharacterResponse,
+    GachaResponse,
+    OwnedCharacterResponse,
+    PullOutcomeResponse,
+    PullRequest,
+    PullsResponse,
+)
 
 router = APIRouter(prefix="/servers", tags=["pool"])
 
@@ -41,14 +51,71 @@ def get_pool(
     return _characters(session, Character.server_id == server.id)
 
 
-@router.get("/{code}/collection", response_model=list[CharacterResponse])
+def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
+    state = pulls.gacha_state(session, seat.id)
+    return GachaResponse(
+        tickets=pulls.tickets(session, seat.id),
+        total_pulls=state.total_pulls,
+        pulls_until_legend=state.pulls_until_legend,
+        beginner_pulls_left=state.beginner_pulls_left,
+    )
+
+
+def _running_seat(session: Session, code: str, player_id: uuid.UUID) -> ServerSeat:
+    server = load_server(session, code)
+    seat = your_seat(server, player_id)
+    _launched(server)
+    return seat
+
+
+@router.get("/{code}/gacha", response_model=GachaResponse)
+def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaResponse:
+    """Your pulls left and pity progress."""
+    return _gacha(session, _running_seat(session, code, player.id))
+
+
+@router.post("/{code}/pulls", response_model=PullsResponse)
+def pull(
+    code: Code, body: PullRequest, player: CurrentPlayer, session: DbSession
+) -> PullsResponse:
+    """Spends pulls on random characters of the pool, see `app/gacha.py`."""
+    seat = _running_seat(session, code, player.id)
+    try:
+        outcomes = pulls.pull(session, seat, body.count)
+    except pulls.NotEnoughPulls as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Not enough pulls"
+        ) from error
+    session.commit()
+    return PullsResponse(
+        outcomes=[
+            PullOutcomeResponse(
+                character=character_response(o.character),
+                is_new=o.is_new,
+                copies=o.copies,
+            )
+            for o in outcomes
+        ],
+        gacha=_gacha(session, seat),
+    )
+
+
+@router.get("/{code}/collection", response_model=list[OwnedCharacterResponse])
 def get_collection(
     code: Code, player: CurrentPlayer, session: DbSession
-) -> list[CharacterResponse]:
-    """Your characters: so far the ones you drew during the setup."""
-    server = load_server(session, code)
-    seat = your_seat(server, player.id)
-    _launched(server)
-    return _characters(
-        session, Character.server_id == server.id, Character.artist_seat_id == seat.id
+) -> list[OwnedCharacterResponse]:
+    """Your characters: the ones you drew during the setup and the ones you
+    pulled, with how many copies you own."""
+    seat = _running_seat(session, code, player.id)
+    owned = pulls.copies(session, seat)
+    characters = session.scalars(
+        select(Character)
+        .where(Character.id.in_(owned))
+        .options(selectinload(Character.artist), selectinload(Character.subject))
+        .order_by(Character.created_at)
     )
+    return [
+        OwnedCharacterResponse(character=character_response(c), copies=owned[c.id])
+        for c in characters
+    ]

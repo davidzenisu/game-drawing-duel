@@ -352,9 +352,39 @@ void main() {
 
       await admin.refreshServer();
       expect(admin.phase, GamePhase.daily);
-      expect(admin.collection.map((o) => o.card.title), ['Basic', 'Knight', 'A legend']);
+      expect(admin.collection.map((o) => o.card.title), ['A legend', 'Knight', 'Basic'], reason: 'rarest first');
+      expect(admin.tickets, 10, reason: 'the launch bonus');
       expect(admin.isMockup, isFalse);
       expect(admin.refreshInterval, const Duration(seconds: 5));
+    });
+
+    test('pulls spend tickets and add copies to the collection', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      expect(admin.phase, GamePhase.daily);
+      expect(admin.gachaStatus.beginnerPullsLeft, 10);
+
+      // The fake hands out the pool in order: Basic, Knight, A legend, …
+      final outcomes = await admin.pull(4);
+      final pull = backend.requests.last;
+      expect(pull.url.path, '/servers/123456/pulls');
+      expect(jsonDecode(pull.body), {'count': 4});
+      expect(outcomes.map((o) => o.card.title), ['Basic', 'Knight', 'A legend', 'Basic']);
+      expect(outcomes.map((o) => o.copies), [2, 2, 2, 3]);
+      expect(outcomes.every((o) => !o.isNew), isTrue, reason: 'you own your setup drawings');
+      expect(admin.tickets, 6);
+      expect(admin.gachaStatus.totalPulls, 4);
+      final basic = admin.collection.firstWhere((o) => o.card.title == 'Basic');
+      expect(basic.copies, 3);
+      expect(basic.upgradePoints, 2);
+
+      await expectLater(
+        admin.pull(10),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Not enough pulls')),
+      );
+      expect(admin.tickets, 6);
     });
   });
 

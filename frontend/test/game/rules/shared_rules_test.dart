@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 
@@ -66,5 +67,27 @@ void main() {
       }
       expect(seen, hasLength(n), reason: 'everyone can be drawn');
     }
+  });
+
+  group('gacha', () {
+    final gacha = rules['gacha'] as Map<String, dynamic>;
+
+    test('numbers', () {
+      expect(GachaMachine.launchBonus, gacha['launch_bonus']);
+      expect({for (final MapEntry(:key, :value) in GachaMachine.rates.entries) key.name: value}, gacha['rates']);
+      expect(GachaMachine.beginnerWindow, gacha['beginner_window']);
+      expect(GachaMachine.legendPity, gacha['legend_pity']);
+    });
+
+    test('tier fallback', () {
+      for (final [List available, String wanted, bool guaranteed, String expected] in gacha['tier_fallback'] as List) {
+        final tier = GachaMachine.closestAvailableTier(
+          {for (final r in available) Rarity.values.byName(r as String)},
+          Rarity.values.byName(wanted),
+          preferHigher: guaranteed,
+        );
+        expect(tier.name, expected, reason: '$available, $wanted, $guaranteed');
+      }
+    });
   });
 }

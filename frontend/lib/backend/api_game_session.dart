@@ -33,6 +33,8 @@ class ApiGameSession extends GameSession {
 
   List<CharacterCard> _pool = const [];
   List<OwnedCard> _collection = const [];
+  int _tickets = 0;
+  GachaStatus _gachaStatus = GachaMachine().status;
 
   /// Sketches by character id. A character never changes, so refreshing
   /// only downloads new ones.
@@ -70,6 +72,7 @@ class ApiGameSession extends GameSession {
     _setupDrawings = {};
     _pool = const [];
     _collection = const [];
+    _tickets = 0;
     _setPhase(GamePhase.signIn);
   }
 
@@ -219,21 +222,41 @@ class ApiGameSession extends GameSession {
 
   /// The pool and your collection of a running game.
   Future<void> _loadPool(ServerSession server) async {
-    final (pool, collection) = await (
+    final (pool, collection, gacha) = await (
       _get('/servers/${server.code}/pool'),
       _get('/servers/${server.code}/collection'),
+      _get('/servers/${server.code}/gacha'),
     ).wait;
     if (pool is! List || collection is! List) throw const FormatException('Unexpected pool response.');
     final cards = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
     final byId = {for (final card in cards) card.id: card};
     _pool = cards;
     _collection = [
-      for (final character in collection)
-        if (character case {'id': String id} when byId.containsKey(id))
-          OwnedCard(byId[id]!)
+      for (final owned in collection)
+        if (owned case {'character': {'id': String id}, 'copies': int copies} when byId.containsKey(id))
+          OwnedCard(byId[id]!)..copies = copies
         else
           throw const FormatException('Unexpected character in collection.'),
     ];
+    _setGacha(gacha);
+  }
+
+  void _setGacha(Object? json) {
+    if (json case {
+      'tickets': int tickets,
+      'total_pulls': int totalPulls,
+      'pulls_until_legend': int untilLegend,
+      'beginner_pulls_left': int? beginnerLeft,
+    }) {
+      _tickets = tickets;
+      _gachaStatus = GachaStatus(
+        totalPulls: totalPulls,
+        pullsUntilLegend: untilLegend,
+        beginnerPullsLeft: beginnerLeft,
+      );
+    } else {
+      throw const FormatException('Unexpected gacha response.');
+    }
   }
 
   static Player _seat(ServerSession server, int position) => server.players.firstWhere(
@@ -309,6 +332,7 @@ class ApiGameSession extends GameSession {
     _setupDrawings = {};
     _pool = const [];
     _collection = const [];
+    _tickets = 0;
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
   }
@@ -359,6 +383,7 @@ class ApiGameSession extends GameSession {
     _setupDrawings = {};
     _pool = const [];
     _collection = const [];
+    _tickets = 0;
     _serverNotice = notice;
     _setPhase(GamePhase.server);
   }
@@ -391,13 +416,17 @@ class ApiGameSession extends GameSession {
   List<CharacterCard> get pool => _pool;
 
   @override
-  int get tickets => 0;
+  int get tickets => _tickets;
 
   @override
-  GachaStatus get gachaStatus => GachaMachine().status;
+  GachaStatus get gachaStatus => _gachaStatus;
 
   @override
-  List<OwnedCard> get collection => _collection;
+  List<OwnedCard> get collection => _collection.toList()
+    ..sort((a, b) {
+      final byRarity = b.card.rarity.stars.compareTo(a.card.rarity.stars);
+      return byRarity != 0 ? byRarity : a.card.subject.compareTo(b.card.subject);
+    });
 
   @override
   int get day => 0;
@@ -457,7 +486,35 @@ class ApiGameSession extends GameSession {
   Future<bool> sendHurry(Player target) => Future.error(const NotAvailableYet());
 
   @override
-  Future<List<PullOutcome>> pull(int count) => Future.error(const NotAvailableYet());
+  Future<List<PullOutcome>> pull(int count) async {
+    final json = await _post('/servers/${server.code}/pulls', {'count': count});
+    if (json case {'outcomes': List outcomes, 'gacha': final gacha}) {
+      final byId = {for (final card in _pool) card.id: card};
+      final results = [
+        for (final outcome in outcomes)
+          if (outcome case {
+            'character': {'id': String id},
+            'is_new': bool isNew,
+            'copies': int copies,
+          } when byId.containsKey(id))
+            PullOutcome(card: byId[id]!, isNew: isNew, copies: copies)
+          else
+            throw const FormatException('Unexpected pull outcome.'),
+      ];
+      for (final result in results) {
+        final owned = _collection.where((o) => o.card.id == result.card.id).firstOrNull;
+        if (owned == null) {
+          _collection = [..._collection, OwnedCard(result.card)..copies = result.copies];
+        } else {
+          owned.copies = result.copies;
+        }
+      }
+      _setGacha(gacha);
+      notifyListeners();
+      return results;
+    }
+    throw const FormatException('Unexpected pulls response.');
+  }
 
   @override
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element}) => Future.error(const NotAvailableYet());

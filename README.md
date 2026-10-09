@@ -80,7 +80,21 @@ refresh.
 | `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |
 | `POST /servers/{code}/setup/done` | Finish your setup drawings; the last player to finish launches the game |
 | `GET /servers/{code}/pool` | Every character of a launched game |
-| `GET /servers/{code}/collection` | Your characters: so far the ones you drew during the setup |
+| `GET /servers/{code}/collection` | Your characters (your setup drawings and pulls) with how many copies you own |
+| `GET /servers/{code}/gacha` | Your pulls left and pity progress |
+| `POST /servers/{code}/pulls` | Spend 1 to 10 pulls on random characters of the pool |
+
+### Gacha
+
+Every pull a player earns is a `pull_grant` row with a timestamp and the
+reason it was awarded, e.g. `launch-bonus:3` (everyone gets 10 at the
+launch). A seat can't receive the same reason twice. A `pull` spends exactly
+one grant (`grant_id` is unique) on a character, numbered per seat; a
+player's pulls are serialised with a row lock, so the same grant can't be
+spent twice. The rarity is rolled on the server (`app/gacha.py`) with the
+rates and pity from `docs/concept/gacha-rates.md`: the pity follows from a
+player's pulls so far instead of being stored. Duplicates are copies of a
+character in the collection.
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
 ### Database ids
