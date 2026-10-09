@@ -1,0 +1,162 @@
+name: Validation
+
+permissions:
+  contents: read
+
+# Runs on every pull request so the required `Validation passed` check is always
+# reported. Jobs for parts of the repository a pull request doesn't touch are
+# skipped, which counts as passing.
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    name: Detect changes
+    outputs:
+      frontend: ${{ steps.diff.outputs.frontend }}
+      backend: ${{ steps.diff.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Find changed parts
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          echo "$changed"
+          workflow_changed=$(grep -c '^\.github/workflows/validation\.yml$' <<< "$changed" || true)
+          frontend=$(grep -c '^frontend/' <<< "$changed" || true)
+          backend=$(grep -c '^backend/' <<< "$changed" || true)
+          echo "frontend=$([ $((frontend + workflow_changed)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$([ $((backend + workflow_changed)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    name: Frontend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    name: Backend
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Test
+        run: uv run python -m unittest discover -s tests -v
+
+  migrations:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    name: Database migrations
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: game-drawing-duel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/game-drawing-duel
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Apply all migrations
+        run: uv run alembic upgrade head
+
+      # Fails when the models changed without a matching migration.
+      - name: Check that no new migrations are required
+        run: uv run alembic check
+
+      - name: Downgrade and upgrade again
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+  # The single check to require in the branch ruleset for `main`.
+  validation_passed:
+    needs: [changes, frontend, backend, migrations]
+    if: always()
+    runs-on: ubuntu-latest
+    name: Validation passed
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          if grep -qE 'failure|cancelled' <<< "$RESULTS"; then
+            echo "::error::At least one validation job failed or was cancelled."
+            exit 1
+          fi

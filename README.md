@@ -30,10 +30,13 @@ For bootstrapping, the following GitHub secrets are required:
 
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
-| `frontend-validation.yml` | Pull requests touching `frontend/` | `flutter analyze` and `flutter test` |
-| `backend-validation.yml` | Pull requests touching `backend/` | `ruff check` and the unit tests; applies all migrations to a fresh PostgreSQL, runs `alembic check` to make sure no migration is missing, then downgrades and upgrades again |
+| `validation.yml` | Every pull request | Runs only the checks for the parts a pull request touches. **Frontend:** `flutter analyze` and `flutter test`. **Backend:** `ruff check` and the unit tests. **Migrations:** applies all migrations to a fresh PostgreSQL, runs `alembic check` to make sure no migration is missing, then downgrades and upgrades again. Ends with the `Validation passed` check |
 | `azure-swa-deployment.yml` | Pull requests and pushes to `main` touching `frontend/` | Builds the web app and deploys it to Azure Static Web Apps (pull requests get a preview environment with the gameplay mockup enabled) |
-| `azure-functions-deployment.yml` | Pushes to `main` touching `backend/` | Runs the database migrations, then deploys the Function App |
+| `azure-functions-deployment.yml` | Pushes to `main` touching `backend/` | Runs the database migrations, stops if `alembic check` finds the models and the migrated schema out of sync, then deploys the Function App |
+
+Pull requests can only be merged when `Validation passed` succeeds. It is a
+required status check in the branch ruleset for `main`; skipped jobs count as
+passing, so pull requests that only touch documentation can still be merged.
 
 The deployment reads the database connection for the migrations from the Key
 Vault secret `database-url`.

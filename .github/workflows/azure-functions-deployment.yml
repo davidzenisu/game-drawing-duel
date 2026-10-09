@@ -72,6 +72,15 @@ jobs:
           uv sync --locked
           uv run alembic upgrade head
 
+      # Stops the deployment if the deployed models don't match the migrated
+      # schema (a missing migration, or manual changes to the database).
+      - name: Check that the schema matches the models
+        working-directory: backend
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/backend-venv
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: uv run alembic check
+
       - name: Deploy Azure Function App
         uses: Azure/functions-action@v1
         with:
