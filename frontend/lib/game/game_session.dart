@@ -103,6 +103,10 @@ abstract class GameSession extends ChangeNotifier {
   /// The server you created or joined. Only available from the lobby on.
   ServerSession get server;
 
+  /// Why you are back at creating or joining a server, e.g. because another
+  /// player cancelled the server.
+  String? get serverNotice;
+
   /// Names to prefill when creating a server.
   List<String> get suggestedPlayerNames;
 
@@ -213,12 +217,17 @@ abstract class GameSession extends ChangeNotifier {
   /// Joins [server] (from [previewServer]) as the player at [seat].
   Future<void> joinServer(ServerSession server, Player seat);
 
-  /// How often the lobby refreshes who joined.
-  Duration get lobbyRefreshInterval;
+  /// How often the lobby and the setup refresh the server.
+  Duration get refreshInterval;
 
-  /// Updates who joined the lobby, and moves on to the setup once the admin
-  /// started it.
-  Future<void> refreshLobby();
+  /// Updates the server: who joined the lobby, whether the admin started the
+  /// setup, or whether someone cancelled it.
+  Future<void> refreshServer();
+
+  /// Cancels the server for everyone and deletes its drawings; anyone who
+  /// joined can, e.g. when dropping out. Everyone returns to creating or
+  /// joining a server.
+  Future<void> cancelServer();
 
   /// Starts the setup for everyone. Only the admin can, see [ServerSession.canStart].
   Future<void> startSetup();

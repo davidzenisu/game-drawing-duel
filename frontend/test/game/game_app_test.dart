@@ -84,7 +84,7 @@ void main() {
 
     // The simulated admin starts the setup once everyone joined.
     for (var i = 0; i < SetupPlan.maxPlayers && controller.phase == GamePhase.lobby; i++) {
-      await tester.pump(controller.lobbyRefreshInterval);
+      await tester.pump(controller.refreshInterval);
     }
     await tester.pumpAndSettle();
     expect(controller.phase, GamePhase.setup);
@@ -118,6 +118,54 @@ void main() {
     expect(controller.server.everyoneJoined, isFalse);
     final start = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Start drawing'));
     expect(start.onPressed, isNotNull);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('cancelling the server asks first and returns to the server screen', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = MockGameSession(seed: 1);
+    await tester.pumpWidget(GameApp(session: controller));
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pump();
+    await tester.tap(find.text('Finish account'));
+    await tester.pumpAndSettle();
+    final create = find.widgetWithText(FilledButton, 'Create server');
+    await tester.ensureVisible(create);
+    await tester.tap(create);
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.lobby);
+
+    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cancel the server?'), findsOneWidget);
+    await tester.tap(find.text('Keep playing'));
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.lobby);
+
+    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.server);
+    expect(find.text('Create server'), findsWidgets);
+
+    // Also from the setup, while the other players are drawing.
+    await tester.ensureVisible(create);
+    await tester.tap(create);
+    await tester.pumpAndSettle();
+    await controller.startSetup();
+    await tester.pumpAndSettle();
+    expect(find.text('Initial drawings'), findsOneWidget);
+    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.server);
+    expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox());
   });

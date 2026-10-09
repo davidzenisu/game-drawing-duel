@@ -100,6 +100,15 @@ class FakeBackend {
     if (path.length >= 2 && path[0] == 'servers' && servers.containsKey(path[1])) {
       final code = path[1];
       if (request.method == 'GET' && path.length == 2) return _json(200, _server(code, myId));
+      if (request.method == 'DELETE' && path.length == 2) {
+        if (!servers[code]!.seats.any((s) => s['player'] == myId)) {
+          return _json(403, {'detail': "You haven't joined this server"});
+        }
+        servers.remove(code);
+        started.remove(code);
+        drawings.removeWhere((key, _) => key.$1 == code);
+        return http.Response('', 204);
+      }
       if (request.method == 'POST' && path.length == 5 && path[4] == 'claim') {
         final seats = servers[code]!.seats;
         final seat = seats[int.parse(path[3])];

@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../game_session.dart';
 import '../rules/setup_plan.dart';
+import '../widgets/cancel_server_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/phase_builder.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
 import 'drawing_screen.dart';
@@ -23,6 +25,7 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   Timer? _friendsTimer;
   int _friendsDone = 0;
+  Timer? _refreshTimer;
 
   int get _friendsTotal => widget.controller.otherPlayers.length * widget.controller.assignments.length;
 
@@ -31,14 +34,25 @@ class _SetupScreenState extends State<SetupScreen> {
     super.initState();
     // The other players draw in the background.
     _friendsTimer = Timer.periodic(const Duration(milliseconds: 1500), (timer) {
+      if (widget.controller.phase != GamePhase.setup) return timer.cancel();
       setState(() => _friendsDone++);
       if (_friendsDone >= _friendsTotal) timer.cancel();
+    });
+    // Finds out when someone cancels the server.
+    _refreshTimer = Timer.periodic(widget.controller.refreshInterval, (timer) async {
+      if (widget.controller.phase != GamePhase.setup) return timer.cancel();
+      try {
+        await widget.controller.refreshServer();
+      } catch (_) {
+        // Polling: try again on the next tick.
+      }
     });
   }
 
   @override
   void dispose() {
     _friendsTimer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -68,15 +82,19 @@ class _SetupScreenState extends State<SetupScreen> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final textTheme = Theme.of(context).textTheme;
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
+    return PhaseBuilder(
+      session: controller,
+      phase: GamePhase.setup,
+      builder: (context) {
         final done = controller.assignments.where((a) => controller.setupDrawing(a) != null).length;
         final friendsProgress = _friendsTotal == 0 ? 1.0 : (_friendsDone / _friendsTotal).clamp(0.0, 1.0);
         return Scaffold(
           appBar: AppBar(
             title: const Text('Initial drawings'),
-            actions: [SignOutButton(session: controller)],
+            actions: [
+              CancelServerButton(session: controller),
+              SignOutButton(session: controller),
+            ],
           ),
           body: ListView(
             padding: const EdgeInsets.all(16),

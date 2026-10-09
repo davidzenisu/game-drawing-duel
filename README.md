@@ -60,7 +60,10 @@ the admin) and gets a unique 6-digit code to share. Friends look the server up
 with the code and claim the seat with their name; the lobby shows who joined.
 Once everyone joined, the admin starts the initial drawing setup for everyone
 (the server's `phase` goes from `lobby` to `setup`) and every player gets
-their drawing assignments.
+their drawing assignments. Until the launch, any player who joined can cancel
+the server, e.g. when dropping out: it is deleted with its drawings, and the
+other players are sent back to creating or joining a server on their next
+refresh.
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -68,6 +71,7 @@ their drawing assignments.
 | `GET /servers/mine` | The servers you joined, newest first |
 | `GET /servers/{code}` | Roster and who joined |
 | `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
+| `DELETE /servers/{code}` | Cancel the server for everyone, with all its drawings; any player who joined |
 | `POST /servers/{code}/setup` | Start the initial drawing setup; admin only |
 | `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, the drawing it builds on and what you drew so far |
 | `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |

@@ -4,43 +4,15 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.main import app, configure_frontend_cors
-from app.models import Drawing
 from tests.helpers import ApiTestCase, bearer, make_token
 
 
-class DrawingEndpointTests(ApiTestCase):
-    def test_lists_drawings_with_timestamps(self) -> None:
-        self.sign_up()
-        with Session(self.engine) as session:
-            session.add_all(
-                [
-                    Drawing(description="Second drawing"),
-                    Drawing(description="First drawing"),
-                ]
-            )
-            session.commit()
-
-        response = self.client.get("/drawings", headers=bearer(make_token()))
-
-        self.assertEqual(response.status_code, 200)
-        drawings = response.json()
-        self.assertEqual(
-            [drawing["description"] for drawing in drawings],
-            ["Second drawing", "First drawing"],
-        )
-        self.assertEqual(
-            set(drawings[0]),
-            {"id", "description", "created_at", "updated_at"},
-        )
-        self.assertTrue(drawings[0]["created_at"])
-        self.assertTrue(drawings[0]["updated_at"])
-
+class GameRouteTests(ApiTestCase):
     def test_requires_a_signed_up_player(self) -> None:
-        response = self.client.get("/drawings", headers=bearer(make_token()))
+        response = self.client.get("/servers/mine", headers=bearer(make_token()))
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["detail"], "Finish signing up first")
 
@@ -48,7 +20,7 @@ class DrawingEndpointTests(ApiTestCase):
         del app.dependency_overrides[get_db]
 
         with patch.dict(os.environ, {}, clear=True):
-            response = self.client.get("/drawings", headers=bearer(make_token()))
+            response = self.client.get("/servers/mine", headers=bearer(make_token()))
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(

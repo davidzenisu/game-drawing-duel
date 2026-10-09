@@ -124,18 +124,31 @@ class MockGameSession extends GameSession {
   }
 
   @override
-  Duration get lobbyRefreshInterval => const Duration(milliseconds: 900);
+  Duration get refreshInterval => const Duration(milliseconds: 900);
 
   /// The simulated friends join one at a time; when you joined someone
   /// else's server, its simulated admin starts once everyone is there.
   @override
-  Future<void> refreshLobby() async {
+  Future<void> refreshServer() async {
+    if (_phase != GamePhase.lobby) return;
     final next = server.players.where((p) => !server.joined.contains(p.id)).firstOrNull;
     if (next != null) {
       server.joined.add(next.id);
       notifyListeners();
     }
     if (!server.isAdmin && server.everyoneJoined) await startSetup();
+  }
+
+  /// Nobody else cancels in the mockup.
+  @override
+  String? get serverNotice => null;
+
+  @override
+  Future<void> cancelServer() async {
+    _server = null;
+    _assignments = const [];
+    _setupDrawings.clear();
+    _setPhase(GamePhase.server);
   }
 
   String _newCode() => List.generate(6, (_) => _random.nextInt(10)).join();
