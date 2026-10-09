@@ -36,6 +36,8 @@ class Server(Base):
     )
     # When the admin started the initial drawing setup; null in the lobby.
     setup_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When everyone finished the setup and the game began.
+    launched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     seats: Mapped[list["ServerSeat"]] = relationship(
         back_populates="server",
@@ -61,5 +63,7 @@ class ServerSeat(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     player_id: Mapped[int | None] = mapped_column(ForeignKey("player.id"))
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the player finished their setup drawings.
+    setup_done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     server: Mapped[Server] = relationship(back_populates="seats")

@@ -10,11 +10,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
-from app.models import Character, Server, SetupAssignment
+from app.models import Character, Server, ServerSeat, SetupAssignment
 from app.routers.servers import (
     Code,
     DbSession,
     load_server,
+    require_not_launched,
     server_response,
     your_seat,
 )
@@ -149,6 +150,11 @@ def submit_drawing(
     server = load_server(session, code)
     seat = your_seat(server, player.id)
     _require_setup(server)
+    require_not_launched(server)
+    if seat.setup_done_at is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="You already finished your setup"
+        )
     assignment = session.get(SetupAssignment, assignment_id)
     if assignment is None or assignment.artist_seat_id != seat.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such assignment")
@@ -210,3 +216,49 @@ def submit_drawing(
     if previous_id is not None:
         delete_quietly(files, str(previous_id))
     return character_response(character)
+
+
+@router.post("/{code}/setup/done", response_model=ServerResponse)
+def finish_setup(
+    code: Code, player: CurrentPlayer, session: DbSession
+) -> ServerResponse:
+    """Finishes your setup drawings; they can't be redrawn anymore.
+
+    The game launches once every player with setup drawings finished: all
+    their characters form the pool, and each player's own drawings start
+    their collection.
+    """
+    server = load_server(session, code)
+    seat = your_seat(server, player.id)
+    _require_setup(server)
+    require_not_launched(server)
+    # Finishing players wait for each other here, so the last one to finish
+    # sees everyone else's and launches.
+    session.scalar(select(Server.id).where(Server.id == server.id).with_for_update())
+    artist_ids = set(
+        session.scalars(
+            select(SetupAssignment.artist_seat_id)
+            .join(ServerSeat, ServerSeat.id == SetupAssignment.artist_seat_id)
+            .where(ServerSeat.server_id == server.id)
+        )
+    )
+    undrawn = session.scalar(
+        select(func.count())
+        .select_from(SetupAssignment)
+        .outerjoin(Character, Character.assignment_id == SetupAssignment.id)
+        .where(SetupAssignment.artist_seat_id == seat.id, Character.id.is_(None))
+    )
+    if undrawn:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Finish all your drawings first"
+        )
+    if seat.setup_done_at is None:
+        seat.setup_done_at = func.now()
+        session.flush()
+    session.refresh(server)
+    if all(s.setup_done_at is not None for s in server.seats if s.id in artist_ids):
+        server.launched_at = func.now()
+    session.commit()
+    session.expire_all()
+    return server_response(load_server(session, code), player)

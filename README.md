@@ -60,7 +60,10 @@ the admin) and gets a unique 6-digit code to share. Friends look the server up
 with the code and claim the seat with their name; the lobby shows who joined.
 Once everyone joined, the admin starts the initial drawing setup for everyone
 (the server's `phase` goes from `lobby` to `setup`) and every player gets
-their drawing assignments. Until the launch, any player who joined can cancel
+their drawing assignments. Once a player drew all of theirs, they finish their
+setup (no more redrawing); when the last one finishes, the game launches
+(`phase` becomes `running`): all drawings form the pool and everyone's own
+drawings start their collection. Until the launch, any player who joined can cancel
 the server, e.g. when dropping out: it is deleted with its drawings, and the
 other players are sent back to creating or joining a server on their next
 refresh.
@@ -75,6 +78,9 @@ refresh.
 | `POST /servers/{code}/setup` | Start the initial drawing setup; admin only |
 | `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, the drawing it builds on and what you drew so far |
 | `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |
+| `POST /servers/{code}/setup/done` | Finish your setup drawings; the last player to finish launches the game |
+| `GET /servers/{code}/pool` | Every character of a launched game |
+| `GET /servers/{code}/collection` | Your characters: so far the ones you drew during the setup |
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
 ### Drawings
@@ -103,8 +109,9 @@ server for trying the game with the real database and storage, at speed:
 - The lobby and the game show a TEST SESSION badge.
 
 Players who join a test session after its setup started draw along, of the
-players who joined until then. So far the flag, the badge and the short setup
-exist; the day controls arrive with the daily loop.
+players who joined until then, and the launch waits for them too; once it
+launched, nobody can join anymore. So far the flag, the badge and the short
+setup exist; the day controls arrive with the daily loop.
 
 ### Game rules
 

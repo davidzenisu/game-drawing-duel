@@ -319,10 +319,39 @@ void main() {
       expect(admin.serverNotice, isNull);
     });
 
-    test('launching is not available yet', () async {
+    Future<void> drawAll(ApiGameSession player) async {
+      for (final assignment in player.assignments) {
+        await player.submitSetupDrawing(assignment, doodle, assignment.prompt.label);
+      }
+    }
+
+    test('the game launches once everyone finished their drawings', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
-      await expectLater(admin.launch(), throwsA(isA<NotAvailableYet>()));
+      final sam = await signedUp('sam', 'Sam');
+      final preview = await sam.previewServer('123456');
+      await sam.joinServer(preview, preview.players[1]);
+      expect(sam.phase, GamePhase.setup, reason: 'joining late, Sam draws along');
+
+      await drawAll(admin);
+      await admin.launch();
+      expect(admin.phase, GamePhase.setup);
+      expect(admin.waitingForLaunch, isTrue);
+      expect(backend.requests.where((r) => r.method == 'POST').last.url.path, '/servers/123456/setup/done');
+
+      await drawAll(sam);
+      await sam.refreshServer();
+      expect(sam.server.setupDone, {admin.server.players.first.id});
+      await sam.launch();
+      expect(sam.phase, GamePhase.daily);
+      expect(sam.pool, hasLength(6));
+      expect(sam.collection.map((o) => o.card.artist), everyElement('Sam'));
+      expect(sam.collection, hasLength(3));
+      expect(sam.promptSubject, isNull, reason: 'the daily loop comes later');
+
+      await admin.refreshServer();
+      expect(admin.phase, GamePhase.daily);
+      expect(admin.collection.map((o) => o.card.title), ['Basic', 'Knight', 'A legend']);
       expect(admin.isMockup, isFalse);
       expect(admin.refreshInterval, const Duration(seconds: 5));
     });

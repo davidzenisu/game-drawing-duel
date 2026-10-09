@@ -1,5 +1,5 @@
 import secrets
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import delete, func, select, update
@@ -27,6 +27,19 @@ def _new_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(SERVER_CODE_LENGTH))
 
 
+def phase(server: Server) -> Literal["lobby", "setup", "running"]:
+    if server.launched_at is not None:
+        return "running"
+    return "lobby" if server.setup_started_at is None else "setup"
+
+
+def require_not_launched(server: Server) -> None:
+    if server.launched_at is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="The game already launched"
+        )
+
+
 def server_response(server: Server, player: Player) -> ServerResponse:
     your_seat = next((s for s in server.seats if s.player_id == player.id), None)
     return ServerResponse(
@@ -34,10 +47,15 @@ def server_response(server: Server, player: Player) -> ServerResponse:
         created_at=server.created_at,
         is_test=server.is_test,
         is_admin=server.admin_id == player.id,
-        phase="lobby" if server.setup_started_at is None else "setup",
+        phase=phase(server),
         your_position=your_seat.position if your_seat else None,
         seats=[
-            SeatResponse(position=s.position, name=s.name, joined=s.player_id is not None)
+            SeatResponse(
+                position=s.position,
+                name=s.name,
+                joined=s.player_id is not None,
+                setup_done=s.setup_done_at is not None,
+            )
             for s in server.seats
         ],
     )
@@ -120,6 +138,7 @@ def claim_seat(
 ) -> ServerResponse:
     """Joins the server as the player the admin listed at `position`."""
     server = load_server(session, code)
+    require_not_launched(server)
     seat = next((s for s in server.seats if s.position == position), None)
     if seat is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such seat")
@@ -154,18 +173,19 @@ def claim_seat(
     return server_response(load_server(session, code), player)
 
 
-
 @router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
 def cancel_server(
     code: Code, player: CurrentPlayer, session: DbSession, files: Files
 ) -> None:
-    """Cancels the server for everyone, with all its drawings.
+    """Cancels the server for everyone, with all its drawings. Only before
+    the launch.
 
     Any player who joined can, e.g. the admin when setting it up went wrong
     or a player dropping out. The others find out when they next refresh.
     """
     server = load_server(session, code)
     your_seat(server, player.id)
+    require_not_launched(server)
     character_ids = session.scalars(
         select(Character.id).where(Character.server_id == server.id)
     ).all()

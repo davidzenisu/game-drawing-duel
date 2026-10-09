@@ -31,6 +31,9 @@ class ApiGameSession extends GameSession {
   /// Your setup drawings by assignment id.
   Map<String, CharacterCard> _setupDrawings = {};
 
+  List<CharacterCard> _pool = const [];
+  List<OwnedCard> _collection = const [];
+
   /// Sketches by character id. A character never changes, so refreshing
   /// only downloads new ones.
   final Map<String, Sketch> _sketches = {};
@@ -65,6 +68,8 @@ class ApiGameSession extends GameSession {
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
+    _pool = const [];
+    _collection = const [];
     _setPhase(GamePhase.signIn);
   }
 
@@ -123,6 +128,10 @@ class ApiGameSession extends GameSession {
         await _loadSetup(server);
         _server = server;
         _setPhase(GamePhase.setup);
+      case 'running':
+        await _loadPool(server);
+        _server = server;
+        _setPhase(GamePhase.daily);
       default:
         throw const FormatException('Unexpected server phase.');
     }
@@ -145,14 +154,20 @@ class ApiGameSession extends GameSession {
     final yourPosition = json['your_position'];
     final players = <Player>[];
     final joined = <String>{};
+    final setupDone = <String>{};
     for (final seat in json['seats'] as List) {
-      if (seat is! Map || seat['position'] is! int || seat['name'] is! String || seat['joined'] is! bool) {
+      if (seat is! Map ||
+          seat['position'] is! int ||
+          seat['name'] is! String ||
+          seat['joined'] is! bool ||
+          seat['setup_done'] is! bool) {
         throw const FormatException('Unexpected seat in server response.');
       }
       final position = seat['position'] as int;
       final player = Player(id: _seatId(position), name: seat['name'] as String, isYou: position == yourPosition);
       players.add(player);
       if (seat['joined'] as bool) joined.add(player.id);
+      if (seat['setup_done'] as bool) setupDone.add(player.id);
     }
     return ServerSession(
       code: json['code'] as String,
@@ -160,6 +175,7 @@ class ApiGameSession extends GameSession {
       isAdmin: json['is_admin'] as bool,
       joined: joined,
       isTest: json['is_test'] as bool,
+      setupDone: setupDone,
     );
   }
 
@@ -199,6 +215,25 @@ class ApiGameSession extends GameSession {
     ]);
     _assignments = assignments;
     _setupDrawings = Map.fromEntries(drawings);
+  }
+
+  /// The pool and your collection of a running game.
+  Future<void> _loadPool(ServerSession server) async {
+    final (pool, collection) = await (
+      _get('/servers/${server.code}/pool'),
+      _get('/servers/${server.code}/collection'),
+    ).wait;
+    if (pool is! List || collection is! List) throw const FormatException('Unexpected pool response.');
+    final cards = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
+    final byId = {for (final card in cards) card.id: card};
+    _pool = cards;
+    _collection = [
+      for (final character in collection)
+        if (character case {'id': String id} when byId.containsKey(id))
+          OwnedCard(byId[id]!)
+        else
+          throw const FormatException('Unexpected character in collection.'),
+    ];
   }
 
   static Player _seat(ServerSession server, int position) => server.players.firstWhere(
@@ -272,6 +307,8 @@ class ApiGameSession extends GameSession {
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
+    _pool = const [];
+    _collection = const [];
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
   }
@@ -320,6 +357,8 @@ class ApiGameSession extends GameSession {
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
+    _pool = const [];
+    _collection = const [];
     _serverNotice = notice;
     _setPhase(GamePhase.server);
   }
@@ -349,7 +388,7 @@ class ApiGameSession extends GameSession {
   List<String> get suggestedPlayerNames => const [];
 
   @override
-  List<CharacterCard> get pool => const [];
+  List<CharacterCard> get pool => _pool;
 
   @override
   int get tickets => 0;
@@ -358,7 +397,7 @@ class ApiGameSession extends GameSession {
   GachaStatus get gachaStatus => GachaMachine().status;
 
   @override
-  List<OwnedCard> get collection => const [];
+  List<OwnedCard> get collection => _collection;
 
   @override
   int get day => 0;
@@ -367,7 +406,7 @@ class ApiGameSession extends GameSession {
   DailyTheme get theme => DailyTheme.forest;
 
   @override
-  Player get promptSubject => throw const NotAvailableYet();
+  Player? get promptSubject => null;
 
   @override
   ChallengerPrompt? get yourPrompt => null;
@@ -400,7 +439,7 @@ class ApiGameSession extends GameSession {
   Player? get hurrySentTo => null;
 
   @override
-  Future<void> launch() => Future.error(const NotAvailableYet());
+  Future<void> launch() async => _enterServer(await _post('/servers/${server.code}/setup/done'));
 
   @override
   Future<void> submitPrompt(String title) => Future.error(const NotAvailableYet());
