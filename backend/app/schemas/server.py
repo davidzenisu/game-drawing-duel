@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -51,12 +52,12 @@ class ServerResponse(BaseModel):
 class AssignmentResponse(BaseModel):
     """A drawing you make during the initial setup."""
 
-    id: int
+    id: uuid.UUID
     # An `app.rules.SetupPrompt`.
     prompt: str
     # The seat of the player to draw.
     subject_position: int
     # The assignment this one builds on (the alter is based on the basic).
-    based_on: int | None
+    based_on: uuid.UUID | None
     # Your drawing for it, once submitted.
     character: CharacterResponse | None

@@ -68,7 +68,7 @@ void main() {
 
   test('signing out returns to the sign-in', () async {
     final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Sam'));
-    final backend = FakeBackend()..players['test-token'] = {'id': 3, 'first_name': 'Sam'};
+    final backend = FakeBackend()..players['test-token'] = {'id': 'player-uuid-3', 'first_name': 'Sam'};
     final session = sessionWith(auth, backend);
     await session.start();
     expect(session.phase, GamePhase.server);
@@ -81,7 +81,7 @@ void main() {
   });
 
   test('a returning player skips the signup', () async {
-    final backend = FakeBackend()..players['test-token'] = {'id': 3, 'first_name': 'Sam'};
+    final backend = FakeBackend()..players['test-token'] = {'id': 'player-uuid-3', 'first_name': 'Sam'};
     final session = sessionWith(FakeAuthClient(profile: const AuthProfile(nickname: 'sam')), backend);
 
     await session.start();
@@ -272,7 +272,7 @@ void main() {
       await admin.submitSetupDrawing(knight, doodle, '  Sir Alex ');
       final put = backend.requests.last;
       expect(put.method, 'PUT');
-      expect(put.url.path, '/servers/123456/assignments/${knight.id.split('-').last}/drawing');
+      expect(put.url.path, '/servers/123456/assignments/${knight.id.substring('assignment-'.length)}/drawing');
       expect(jsonDecode(put.body), {'title': 'Sir Alex', 'sketch': SketchJson.encode(doodle)});
 
       final card = admin.setupDrawing(knight)!;

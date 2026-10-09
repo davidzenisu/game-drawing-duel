@@ -2,9 +2,8 @@
 
 import logging
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -125,7 +124,7 @@ def my_assignments(
     ]
 
 
-def _drawn(session: Session, assignment_id: int) -> Character | None:
+def _drawn(session: Session, assignment_id: uuid.UUID) -> Character | None:
     return session.scalar(
         select(Character).where(Character.assignment_id == assignment_id)
     )
@@ -136,7 +135,7 @@ def _drawn(session: Session, assignment_id: int) -> Character | None:
 )
 def submit_drawing(
     code: Code,
-    assignment_id: Annotated[int, Path(ge=1)],
+    assignment_id: uuid.UUID,
     body: DrawingSubmit,
     player: CurrentPlayer,
     session: DbSession,

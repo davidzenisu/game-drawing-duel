@@ -44,11 +44,11 @@ class FakeAuthClient implements AuthClient {
 
 /// An in-memory stand-in for the API. Callers are told apart by their token.
 class FakeBackend {
-  /// Players by token: `{'id': 7, 'first_name': 'Pat'}`.
+  /// Players by token: `{'id': 'player-uuid-7', 'first_name': 'Pat'}`.
   final Map<String, Map<String, Object?>> players = {};
 
   /// Servers by code; every seat has a `name` and the `player` id or null.
-  final Map<String, ({int admin, bool isTest, List<Map<String, Object?>> seats})> servers = {};
+  final Map<String, ({String admin, bool isTest, List<Map<String, Object?>> seats})> servers = {};
 
   /// Codes of the servers whose setup started.
   final Set<String> started = {};
@@ -61,7 +61,7 @@ class FakeBackend {
 
   /// Setup drawings by server code and assignment id: the character as the
   /// API returns it and the uploaded sketch.
-  final Map<(String, int), ({Map<String, Object?> character, Object? sketch})> drawings = {};
+  final Map<(String, String), ({Map<String, Object?> character, Object? sketch})> drawings = {};
   int _nextCharacter = 1;
   final List<http.Request> requests = [];
 
@@ -80,13 +80,13 @@ class FakeBackend {
 
     if (request.url.path == '/me') {
       if (request.method == 'PUT') {
-        players[token] = {'id': me?['id'] ?? players.length + 1, 'first_name': body!['first_name']};
+        players[token] = {'id': me?['id'] ?? 'player-uuid-${players.length + 1}', 'first_name': body!['first_name']};
         return _json(200, {...players[token]!, 'created_at': '2026-10-09T10:00:00Z'});
       }
       return me == null ? _json(404, {'detail': 'Not signed up yet'}) : _json(200, me);
     }
     if (me == null) return _json(403, {'detail': 'Finish signing up first'});
-    final myId = me['id'] as int;
+    final myId = me['id'] as String;
 
     if (request.method == 'POST' && request.url.path == '/servers') {
       final code = '${_nextCode++}';
@@ -152,7 +152,7 @@ class FakeBackend {
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'assignments') {
         return _json(200, [
-          for (final a in _assignments(code, myId)) {...a, 'character': drawings[(code, a['id'] as int)]?.character},
+          for (final a in _assignments(code, myId)) {...a, 'character': drawings[(code, a['id'] as String)]?.character},
         ]);
       }
       if (request.method == 'PUT' && path.length == 5 && path[4] == 'drawing') {
@@ -166,7 +166,7 @@ class FakeBackend {
           'artist_position': servers[code]!.seats.indexWhere((s) => s['player'] == myId),
           'subject_position': assignment['subject_position'],
         };
-        drawings[(code, assignment['id'] as int)] = (character: character, sketch: body['sketch']);
+        drawings[(code, assignment['id'] as String)] = (character: character, sketch: body['sketch']);
         return _json(200, character);
       }
     }
@@ -177,7 +177,7 @@ class FakeBackend {
     return _json(404, {'detail': 'No server with this code'});
   });
 
-  Map<String, Object?> _server(String code, int playerId) {
+  Map<String, Object?> _server(String code, String playerId) {
     final server = servers[code]!;
     final yours = server.seats.indexWhere((s) => s['player'] == playerId);
     return {
@@ -204,7 +204,7 @@ class FakeBackend {
   }
 
   /// Planned like the real API does, with ids made up from seat and prompt.
-  List<Map<String, Object?>> _assignments(String code, int playerId) {
+  List<Map<String, Object?>> _assignments(String code, String playerId) {
     final server = servers[code]!;
     final seats = [for (final (i, s) in server.seats.indexed) Player(id: '$i', name: s['name'] as String)];
     final artist = server.seats.indexWhere((s) => s['player'] == playerId);
@@ -212,7 +212,7 @@ class FakeBackend {
     final planned = server.isTest
         ? SetupPlan.testAssignmentsFor(seats, artist, Random(int.parse(code) + artist))
         : SetupPlan.assignmentsFor(seats, artist);
-    int id(DrawingAssignment a) => int.parse(seats[artist].id) * 10 + a.prompt.index;
+    String id(DrawingAssignment a) => 'assignment-uuid-${seats[artist].id}-${a.prompt.name}';
     return [
       for (final a in planned)
         {

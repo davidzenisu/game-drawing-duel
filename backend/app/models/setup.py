@@ -1,6 +1,7 @@
+import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -13,17 +14,17 @@ class SetupAssignment(Base):
     __tablename__ = "setup_assignment"
     __table_args__ = (UniqueConstraint("artist_seat_id", "prompt"),)
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    artist_seat_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    artist_seat_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
-    subject_seat_id: Mapped[int] = mapped_column(
+    subject_seat_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
     # An `app.rules.SetupPrompt`.
     prompt: Mapped[str] = mapped_column(String(20), nullable=False)
     # The assignment this one builds on (the alter is based on the basic).
-    based_on_id: Mapped[int | None] = mapped_column(
+    based_on_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("setup_assignment.id", ondelete="CASCADE")
     )
     created_at: Mapped[datetime] = mapped_column(

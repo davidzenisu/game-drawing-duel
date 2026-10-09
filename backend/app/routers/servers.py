@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -70,7 +71,7 @@ def load_server(session: Session, code: str) -> Server:
     return server
 
 
-def your_seat(server: Server, player_id: int) -> ServerSeat:
+def your_seat(server: Server, player_id: uuid.UUID) -> ServerSeat:
     seat = next((s for s in server.seats if s.player_id == player_id), None)
     if seat is None:
         raise HTTPException(
@@ -118,7 +119,7 @@ def my_servers(player: CurrentPlayer, session: DbSession) -> list[ServerResponse
         .join(ServerSeat)
         .where(ServerSeat.player_id == player.id)
         .options(selectinload(Server.seats))
-        .order_by(Server.created_at.desc(), Server.id.desc())
+        .order_by(Server.created_at.desc())
     ).all()
     return [server_response(server, player) for server in servers]
 

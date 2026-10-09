@@ -102,7 +102,7 @@ class ApiGameSession extends GameSession {
   }
 
   void _setAccount(Object? json) {
-    if (json is! Map || json['id'] is! int || json['first_name'] is! String) {
+    if (json is! Map || json['id'] is! String || json['first_name'] is! String) {
       throw const FormatException('Unexpected player response.');
     }
     _account = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
@@ -179,10 +179,10 @@ class ApiGameSession extends GameSession {
     );
   }
 
-  static String _assignmentId(int id) => 'assignment-$id';
+  static String _assignmentId(String id) => 'assignment-$id';
 
-  static int _assignmentNumber(DrawingAssignment assignment) =>
-      int.parse(assignment.id.substring('assignment-'.length));
+  /// The API's id of [assignment].
+  static String _assignmentKey(DrawingAssignment assignment) => assignment.id.substring('assignment-'.length);
 
   /// Your setup assignments and the drawings you made for them so far.
   Future<void> _loadSetup(ServerSession server) async {
@@ -192,10 +192,10 @@ class ApiGameSession extends GameSession {
     final characters = <String, Object?>{};
     for (final item in json) {
       if (item case {
-        'id': int id,
+        'id': String id,
         'prompt': String prompt,
         'subject_position': int subject,
-        'based_on': int? basedOn,
+        'based_on': String? basedOn,
       }) {
         final assignment = DrawingAssignment(
           id: _assignmentId(id),
@@ -374,7 +374,7 @@ class ApiGameSession extends GameSession {
 
   @override
   Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title) async {
-    final json = await _put('/servers/${server.code}/assignments/${_assignmentNumber(assignment)}/drawing', {
+    final json = await _put('/servers/${server.code}/assignments/${_assignmentKey(assignment)}/drawing', {
       'title': title.trim(),
       'sketch': SketchJson.encode(sketch),
     });

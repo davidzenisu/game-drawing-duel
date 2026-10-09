@@ -83,6 +83,12 @@ refresh.
 | `GET /servers/{code}/collection` | Your characters: so far the ones you drew during the setup |
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
+### Database ids
+
+Every table's primary key is a UUID the API generates (`uuid4`), so ids in the
+API reveal nothing about how many players, servers or drawings exist. What
+players see and type are the 6-digit server codes and seat positions.
+
 ### Drawings
 
 Every drawing gets a new UUID: a `character` row in the database and a file of

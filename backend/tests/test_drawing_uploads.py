@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from app.main import app
 from app.storage import StorageUnavailable, get_file_store
@@ -166,7 +167,7 @@ class AlterTests(SetupTestCase):
     def test_drawing_waits_for_the_setup(self) -> None:
         code = self.create().json()["code"]
         response = self.client.put(
-            f"/servers/{code}/assignments/1/drawing",
+            f"/servers/{code}/assignments/{uuid.uuid4()}/drawing",
             json={"title": "Too early", "sketch": SKETCH},
             headers=bearer(make_token(ADMIN)),
         )

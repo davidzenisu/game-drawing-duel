@@ -25,7 +25,7 @@ def _characters(session: DbSession, *conditions) -> list[CharacterResponse]:
         select(Character)
         .where(*conditions)
         .options(selectinload(Character.artist), selectinload(Character.subject))
-        .order_by(Character.created_at, Character.id)
+        .order_by(Character.created_at)
     )
     return [character_response(c) for c in characters]
 
