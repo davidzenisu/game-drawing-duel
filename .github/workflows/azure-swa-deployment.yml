@@ -52,6 +52,10 @@ jobs:
             echo "AUTH0_DOMAIN=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-domain" --query "value" -o tsv)" >> $GITHUB_OUTPUT
             echo "AUTH0_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-client-id" --query "value" -o tsv)" >> $GITHUB_OUTPUT
             echo "API_URL=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "api-custom-domain" --query "value" -o tsv)" >> $GITHUB_OUTPUT
+            # TODO: Once the test infrastructure exists, point pull request
+            # previews at the test backend instead (replaces the line above):
+            # api_secret=$([ "$GITHUB_EVENT_NAME" = "pull_request" ] && echo "api-custom-domain-test" || echo "api-custom-domain")
+            # echo "API_URL=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "$api_secret" --query "value" -o tsv)" >> $GITHUB_OUTPUT
       - name: Prepare Flutter web build
         working-directory: frontend
         env:
