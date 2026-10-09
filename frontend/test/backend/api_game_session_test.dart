@@ -133,6 +133,21 @@ void main() {
       expect(admin.otherPlayers, hasLength(4));
     });
 
+    test('test sessions are created as such and can start without everyone', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      expect(backend.requests.last.body, contains('"is_test":true'));
+      expect(admin.server.isTest, isTrue);
+      expect(admin.server.everyoneJoined, isFalse);
+      expect(admin.server.canStart, isTrue);
+    });
+
+    test('regular servers wait for everyone', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      expect(backend.requests.last.body, contains('"is_test":false'));
+      expect(admin.server.isTest, isFalse);
+      expect(admin.server.canStart, isFalse);
+    });
+
     test('friends preview the roster, claim a seat and show up in the lobby', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
       final sam = await signedUp('sam', 'Sam');

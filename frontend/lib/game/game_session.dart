@@ -27,16 +27,29 @@ class NotAvailableYet implements Exception {
 }
 
 class ServerSession {
-  ServerSession({required this.code, required this.players, required this.isAdmin, required this.joined});
+  ServerSession({
+    required this.code,
+    required this.players,
+    required this.isAdmin,
+    required this.joined,
+    this.isTest = false,
+  });
 
   final String code;
   final List<Player> players;
   final bool isAdmin;
 
+  /// A test session: starts without everyone, uses [SetupPlan.testPrompts]
+  /// and lets the day be advanced on demand.
+  final bool isTest;
+
   /// Ids of the players that already joined the server.
   final Set<String> joined;
 
   bool get everyoneJoined => joined.length == players.length;
+
+  /// Regular servers start once everyone joined, test sessions any time.
+  bool get canStart => everyoneJoined || isTest;
 }
 
 /// Another player secretly bought a hurry against your next drawing.
@@ -178,7 +191,7 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> signUp(String firstName);
 
   /// Creates a server with a prepopulated roster; the creator is the admin.
-  Future<void> createServer(List<String> otherNames);
+  Future<void> createServer(List<String> otherNames, {bool isTest = false});
 
   /// Looks up a server by its 6-digit code: its roster and who already
   /// joined, so the joining player can claim a free seat.

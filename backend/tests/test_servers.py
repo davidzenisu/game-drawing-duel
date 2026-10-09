@@ -13,11 +13,18 @@ class ServerTests(ApiTestCase):
         super().setUp()
         self.sign_up(ADMIN, "Alex")
 
-    def create(self, names: list[str] | None = None, subject: str = ADMIN):
+    def create(
+        self,
+        names: list[str] | None = None,
+        subject: str = ADMIN,
+        *,
+        is_test: bool | None = None,
+    ):
+        body: dict = {"other_names": FRIENDS if names is None else names}
+        if is_test is not None:
+            body["is_test"] = is_test
         return self.client.post(
-            "/servers",
-            json={"other_names": FRIENDS if names is None else names},
-            headers=bearer(make_token(subject)),
+            "/servers", json=body, headers=bearer(make_token(subject))
         )
 
     def claim(self, code: str, position: int, subject: str):
@@ -37,6 +44,16 @@ class ServerTests(ApiTestCase):
             [(s["position"], s["name"], s["joined"]) for s in server["seats"]],
             [(0, "Alex", True)] + [(i + 1, n, False) for i, n in enumerate(FRIENDS)],
         )
+
+    def test_servers_are_regular_unless_marked_as_test_sessions(self) -> None:
+        self.assertFalse(self.create().json()["is_test"])
+        test_server = self.create(is_test=True).json()
+        self.assertTrue(test_server["is_test"])
+        self.sign_up("auth0|sam", "Sam")
+        seen_by_sam = self.client.get(
+            f"/servers/{test_server['code']}", headers=bearer(make_token("auth0|sam"))
+        )
+        self.assertTrue(seen_by_sam.json()["is_test"])
 
     def test_rosters_need_five_to_ten_players_with_different_names(self) -> None:
         for names in (FRIENDS[:3], [f"P{i}" for i in range(10)]):

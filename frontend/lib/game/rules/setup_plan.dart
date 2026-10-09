@@ -34,6 +34,10 @@ abstract final class SetupPlan {
   static const minPlayers = 5;
   static const maxPlayers = 10;
 
+  /// The short setup of a test session, drawn by every player who joined:
+  /// one character per rarity tier that exists at setup.
+  static const testPrompts = [SetupPrompt.basic, SetupPrompt.knight, SetupPrompt.legend];
+
   static bool supports(int playerCount) => playerCount >= minPlayers && playerCount <= maxPlayers;
 
   /// The prompts every player draws for a server of [playerCount] players.

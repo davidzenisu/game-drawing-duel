@@ -92,9 +92,9 @@ class MockGameSession extends GameSession {
 
   /// Creates a server with a prepopulated roster; the creator is the admin.
   @override
-  Future<void> createServer(List<String> otherNames) async {
+  Future<void> createServer(List<String> otherNames, {bool isTest = false}) async {
     final players = [you, for (final (i, name) in otherNames.indexed) Player(id: 'p$i', name: name.trim())];
-    _server = ServerSession(code: _newCode(), players: players, isAdmin: true, joined: {you.id});
+    _server = ServerSession(code: _newCode(), players: players, isAdmin: true, joined: {you.id}, isTest: isTest);
     _setPhase(GamePhase.lobby);
   }
 
