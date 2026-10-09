@@ -50,25 +50,15 @@ jobs:
             app_name=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "function-app-name" --query "value" -o tsv)
             echo "app_name=$app_name" >> "$GITHUB_OUTPUT"
 
-      # Migrations use the same database connection the Function App runs with.
       - name: Get database connection
         uses: Azure/cli@v3
         env:
-          APP_NAME: ${{ steps.get_function_app_name.outputs.app_name }}
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
         with:
           inlineScript: |
-            resource_group=$(az functionapp list --query "[?name=='$APP_NAME'].resourceGroup | [0]" -o tsv)
-            database_url=$(az functionapp config appsettings list --name "$APP_NAME" --resource-group "$resource_group" --query "[?name=='DATABASE_URL'].value | [0]" -o tsv)
-            if [[ "$database_url" == @Microsoft.KeyVault* ]]; then
-              secret_uri=$(sed -nE 's/.*SecretUri=([^;)]*).*/\1/p' <<< "$database_url")
-              if [ -z "$secret_uri" ]; then
-                echo "::error::Only Key Vault references with a SecretUri are supported for DATABASE_URL."
-                exit 1
-              fi
-              database_url=$(az keyvault secret show --id "$secret_uri" --query "value" -o tsv)
-            fi
+            database_url=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "database-url" --query "value" -o tsv)
             if [ -z "$database_url" ]; then
-              echo "::error::DATABASE_URL is not configured on the Function App $APP_NAME."
+              echo "::error::The Key Vault secret database-url is missing or empty."
               exit 1
             fi
             echo "::add-mask::$database_url"
@@ -101,8 +91,7 @@ jobs:
 
   # TODO: Enable once the test infrastructure exists. Pull requests deploy to
   # a shared test Function App and migrate the test database. Expects the Key
-  # Vault secret `function-app-name-test` and a DATABASE_URL app setting on
-  # that Function App.
+  # Vault secrets `function-app-name-test` and `database-url-test`.
   # deploy_test_job:
   #   if: github.event_name == 'pull_request'
   #   runs-on: ubuntu-latest
@@ -133,17 +122,12 @@ jobs:
   #     - name: Get database connection
   #       uses: Azure/cli@v3
   #       env:
-  #         APP_NAME: ${{ steps.get_function_app_name.outputs.app_name }}
+  #         AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
   #       with:
   #         inlineScript: |
-  #           resource_group=$(az functionapp list --query "[?name=='$APP_NAME'].resourceGroup | [0]" -o tsv)
-  #           database_url=$(az functionapp config appsettings list --name "$APP_NAME" --resource-group "$resource_group" --query "[?name=='DATABASE_URL'].value | [0]" -o tsv)
-  #           if [[ "$database_url" == @Microsoft.KeyVault* ]]; then
-  #             secret_uri=$(sed -nE 's/.*SecretUri=([^;)]*).*/\1/p' <<< "$database_url")
-  #             database_url=$(az keyvault secret show --id "$secret_uri" --query "value" -o tsv)
-  #           fi
+  #           database_url=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "database-url-test" --query "value" -o tsv)
   #           if [ -z "$database_url" ]; then
-  #             echo "::error::DATABASE_URL is not configured on the Function App $APP_NAME."
+  #             echo "::error::The Key Vault secret database-url-test is missing or empty."
   #             exit 1
   #           fi
   #           echo "::add-mask::$database_url"

@@ -35,12 +35,13 @@ For bootstrapping, the following GitHub secrets are required:
 | `azure-swa-deployment.yml` | Pull requests and pushes to `main` touching `frontend/` | Builds the web app and deploys it to Azure Static Web Apps (pull requests get a preview environment with the gameplay mockup enabled) |
 | `azure-functions-deployment.yml` | Pushes to `main` touching `backend/` | Runs the database migrations, then deploys the Function App |
 
-The migrations use the `DATABASE_URL` app setting of the Function App, so the
-API and its schema always point at the same database.
+The deployment reads the database connection for the migrations from the Key
+Vault secret `database-url`.
 
 Deploying pull requests to a test backend and database is prepared in the
 workflows but commented out until the test infrastructure exists. It expects
-the Key Vault secrets `function-app-name-test` and `api-custom-domain-test`.
+the Key Vault secrets `function-app-name-test`, `database-url-test` and
+`api-custom-domain-test`.
 
 ### Running the checks locally
 
