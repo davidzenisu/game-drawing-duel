@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import (
@@ -8,6 +9,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Uuid,
     false,
     func,
 )
@@ -21,9 +23,9 @@ class Server(Base):
 
     __tablename__ = "server"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(6), nullable=False, unique=True)
-    admin_id: Mapped[int] = mapped_column(ForeignKey("player.id"), nullable=False)
+    admin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("player.id"), nullable=False)
     # Test sessions start without everyone, use a short setup and let the
     # day be advanced on demand (see README, "Test sessions").
     is_test: Mapped[bool] = mapped_column(
@@ -55,13 +57,13 @@ class ServerSeat(Base):
         UniqueConstraint("server_id", "player_id"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    server_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    server_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server.id", ondelete="CASCADE"), nullable=False
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    player_id: Mapped[int | None] = mapped_column(ForeignKey("player.id"))
+    player_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("player.id"))
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When the player finished their setup drawings.
     setup_done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

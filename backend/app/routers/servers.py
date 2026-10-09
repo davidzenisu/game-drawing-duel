@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
@@ -70,7 +71,7 @@ def load_server(session: Session, code: str) -> Server:
     return server
 
 
-def your_seat(server: Server, player_id: int) -> ServerSeat:
+def your_seat(server: Server, player_id: uuid.UUID) -> ServerSeat:
     seat = next((s for s in server.seats if s.player_id == player_id), None)
     if seat is None:
         raise HTTPException(

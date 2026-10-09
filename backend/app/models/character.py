@@ -18,17 +18,17 @@ class Character(Base):
     __tablename__ = "character"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    server_id: Mapped[int] = mapped_column(
+    server_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server.id", ondelete="CASCADE"), nullable=False
     )
-    artist_seat_id: Mapped[int] = mapped_column(
+    artist_seat_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
-    subject_seat_id: Mapped[int] = mapped_column(
+    subject_seat_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
     # The setup drawing this character was drawn for; redrawing replaces it.
-    assignment_id: Mapped[int | None] = mapped_column(
+    assignment_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("setup_assignment.id", ondelete="CASCADE"), unique=True
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)

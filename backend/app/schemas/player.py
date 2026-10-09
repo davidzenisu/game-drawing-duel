@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Annotated
 
@@ -15,6 +16,6 @@ class PlayerUpdate(BaseModel):
 class PlayerResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     first_name: str
     created_at: datetime

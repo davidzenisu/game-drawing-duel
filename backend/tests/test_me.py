@@ -18,7 +18,7 @@ class SignupTests(ApiTestCase):
         with self.session_factory() as session:
             player = session.scalar(select(Player))
         self.assertEqual(player.auth0_id, "auth0|alex")
-        self.assertEqual(player.id, created["id"])
+        self.assertEqual(str(player.id), created["id"])
 
         response = self.client.get("/me", headers=bearer(make_token("auth0|alex")))
         self.assertEqual(response.status_code, 200)
