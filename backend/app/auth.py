@@ -1,7 +1,10 @@
 """Authentication with Auth0 access tokens.
 
 Every route except the health check and the API docs requires a valid access
-token for the configured Auth0 API (see `AUTH0_DOMAIN` and `AUTH0_AUDIENCE`).
+token for the configured Auth0 API (see `AUTH0_DOMAIN` and `AUTH0_AUDIENCE`)
+that carries the player permission. Auth0 grants it through the `user` role and
+adds it to the `permissions` claim (RBAC with "Add Permissions in the Access
+Token" enabled on the API).
 """
 
 import os
@@ -19,6 +22,9 @@ from app.database import get_db
 from app.models import Player
 
 ALGORITHMS = ["RS256"]
+
+# Every player has it; tokens without it (e.g. machine-to-machine) are rejected.
+REQUIRED_PERMISSION = "read:api"
 
 
 class TokenVerifier:
@@ -98,6 +104,13 @@ def get_auth0_subject(
         ) from error
     except jwt.PyJWTError as error:
         raise _unauthorized("Invalid access token") from error
+    permissions = claims.get("permissions")
+    if not isinstance(permissions, list) or REQUIRED_PERMISSION not in permissions:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Missing permission {REQUIRED_PERMISSION}",
+            headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'},
+        )
     return claims["sub"]
 
 

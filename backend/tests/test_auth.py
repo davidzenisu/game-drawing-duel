@@ -41,6 +41,26 @@ class AuthenticationTests(ApiTestCase):
             self.assertEqual(response.status_code, 401, name)
             self.assertEqual(response.json()["detail"], "Invalid access token", name)
 
+    def test_requires_the_player_permission(self) -> None:
+        cases = {
+            "no permissions": make_token(permissions=[]),
+            "other permission": make_token(permissions=["read:other"]),
+            # Machine-to-machine tokens carry no permissions claim at all.
+            "machine to machine": make_token(
+                "client-id@clients", gty="client-credentials", permissions=[]
+            ),
+            # Only `permissions` is trusted: without RBAC Auth0 grants any
+            # requested scope.
+            "scope only": make_token(permissions=[], scope="openid read:api"),
+        }
+        for name, token in cases.items():
+            for path in ("/me", "/drawings"):
+                response = self.client.get(path, headers=bearer(token))
+                self.assertEqual(response.status_code, 403, f"{name} {path}")
+                self.assertEqual(
+                    response.json()["detail"], "Missing permission read:api", name
+                )
+
     def test_accepts_a_valid_token(self) -> None:
         response = self.client.get("/me", headers=bearer(make_token()))
         # Authenticated, but not signed up yet.

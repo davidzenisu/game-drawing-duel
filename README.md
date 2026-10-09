@@ -45,7 +45,10 @@ Vault secret `database-url`.
 
 Every API route except `/health` and the API docs (`/docs`, `/redoc`,
 `/openapi.json`) requires an Auth0 access token for the API configured in
-`AUTH0_AUDIENCE`. A player's first `PUT /me` creates their database record
+`AUTH0_AUDIENCE` that carries the `read:api` permission. Players get it through
+the `user` role; the Auth0 API needs **Enable RBAC** and **Add Permissions in the
+Access Token** turned on so it appears in the token's `permissions` claim.
+Tokens without it (e.g. machine-to-machine) get `403`. A player's first `PUT /me` creates their database record
 linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
 database answers.

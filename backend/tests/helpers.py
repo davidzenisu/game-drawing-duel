@@ -27,6 +27,7 @@ def make_token(
     issuer: str = ISSUER,
     expires_in: int = 3600,
     signed_by_other_key: bool = False,
+    permissions: list[str] | None = None,
     **claims: Any,
 ) -> str:
     now = int(time.time())
@@ -36,6 +37,7 @@ def make_token(
         "iss": issuer,
         "iat": now,
         "exp": now + expires_in,
+        "permissions": ["read:api"] if permissions is None else permissions,
         **claims,
     }
     key = _OTHER_KEY if signed_by_other_key else _KEY
