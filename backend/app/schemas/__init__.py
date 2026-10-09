@@ -5,6 +5,7 @@ from app.schemas.gacha import (
     PullOutcomeResponse,
     PullRequest,
     PullsResponse,
+    UpgradeRequest,
 )
 from app.schemas.player import PlayerResponse, PlayerUpdate
 from app.schemas.server import (
@@ -29,4 +30,5 @@ __all__ = [
     "ServerCreate",
     "ServerResponse",
     "SketchData",
+    "UpgradeRequest",
 ]

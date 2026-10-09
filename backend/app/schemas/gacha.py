@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+from app.rules import Element
 from app.schemas.character import CharacterResponse
 
 
@@ -34,3 +35,13 @@ class PullsResponse(BaseModel):
 class OwnedCharacterResponse(BaseModel):
     character: CharacterResponse
     copies: int
+    # Unlocked upgrades in path order (`app.rules.UpgradeEffect`).
+    upgrades: list[str]
+    # The element chosen for the element upgrade, if unlocked.
+    element: str | None
+
+
+class UpgradeRequest(BaseModel):
+    """Only needed when the next upgrade is the element."""
+
+    element: Element | None = None

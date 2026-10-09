@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/rules/upgrades.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -63,6 +64,9 @@ class FakeBackend {
   /// [launchBonus] pulls at the launch.
   final Map<(String, String), List<String>> pulls = {};
   static const launchBonus = 10;
+
+  /// Unlocked upgrades by server code, player id and character id.
+  final Map<(String, String, String), ({List<String> effects, String? element})> upgrades = {};
 
   /// Setup drawings by server code and assignment id: the character as the
   /// API returns it and the uploaded sketch.
@@ -155,8 +159,27 @@ class FakeBackend {
         final copies = _copies(code, myId);
         return _json(200, [
           for (final character in _pool(code))
-            if (copies[character['id']] case final int n) {'character': character, 'copies': n},
+            if (copies[character['id']] case final int n) _owned(code, myId, character, n),
         ]);
+      }
+      if (request.method == 'POST' && path.length == 5 && path[2] == 'collection' && path[4] == 'upgrades') {
+        final character = _pool(code).firstWhere((c) => c['id'] == path[3]);
+        final copies = _copies(code, myId)[path[3]] ?? 0;
+        final done = upgrades.putIfAbsent((code, myId, path[3]), () => (effects: <String>[], element: null));
+        final rarity = Rarity.values.byName(character['rarity'] as String);
+        final path_ = UpgradeTree.pathFor(rarity);
+        if (copies - 1 - done.effects.length < 1) {
+          return _json(409, {'detail': 'You need a duplicate to unlock this'});
+        }
+        final next = path_[done.effects.length];
+        if (next == UpgradeEffect.element && body!['element'] == null) {
+          return _json(422, {'detail': 'Choose an element for this upgrade'});
+        }
+        upgrades[(code, myId, path[3])] = (
+          effects: [...done.effects, next.name],
+          element: next == UpgradeEffect.element ? body!['element'] as String : done.element,
+        );
+        return _json(200, _owned(code, myId, character, copies));
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'gacha') {
         return _json(200, _gacha(code, myId));
@@ -245,6 +268,16 @@ class FakeBackend {
       copies[id] = (copies[id] ?? 0) + 1;
     }
     return copies;
+  }
+
+  Map<String, Object?> _owned(String code, String playerId, Map<String, Object?> character, int copies) {
+    final done = upgrades[(code, playerId, character['id'] as String)];
+    return {
+      'character': character,
+      'copies': copies,
+      'upgrades': done?.effects ?? const <String>[],
+      'element': done?.element,
+    };
   }
 
   int _tickets(String code, String playerId) => launchBonus - (pulls[(code, playerId)]?.length ?? 0);

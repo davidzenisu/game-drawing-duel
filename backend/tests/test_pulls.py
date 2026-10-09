@@ -8,7 +8,9 @@ from tests.test_launch import LaunchTestCase
 from tests.test_setup import ADMIN
 
 
-class PullTests(LaunchTestCase):
+class PullTestCase(LaunchTestCase):
+    """A launched test session played alone, with helpers to pull."""
+
     def setUp(self) -> None:
         super().setUp()
         # A test session played alone: Basic, Knight and Legend of others.
@@ -27,6 +29,8 @@ class PullTests(LaunchTestCase):
             headers=bearer(make_token(ADMIN)),
         )
 
+
+class PullTests(PullTestCase):
     def test_the_launch_awards_ten_pulls(self) -> None:
         self.assertEqual(
             self.gacha(),

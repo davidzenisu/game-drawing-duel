@@ -77,3 +77,12 @@ class SharedRulesTest(unittest.TestCase):
                     self.assertNotIn(artist, subjects)
                     seen.update(subjects)
             self.assertEqual(seen, set(range(count)), "everyone can be drawn")
+
+    def test_upgrades(self):
+        self.assertEqual(
+            {r.value: [e.value for e in p] for r, p in rules.UPGRADE_PATHS.items()},
+            SHARED["upgrades"]["paths"],
+        )
+        self.assertEqual(
+            [e.value for e in rules.Element], SHARED["upgrades"]["elements"]
+        )

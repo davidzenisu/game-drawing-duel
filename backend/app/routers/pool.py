@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import pulls
+from app import pulls, upgrades
 from app.auth import CurrentPlayer
 from app.models import Character, Server, ServerSeat
 from app.routers.servers import Code, DbSession, load_server, your_seat
@@ -18,6 +18,7 @@ from app.schemas import (
     PullOutcomeResponse,
     PullRequest,
     PullsResponse,
+    UpgradeRequest,
 )
 
 router = APIRouter(prefix="/servers", tags=["pool"])
@@ -108,14 +109,56 @@ def get_collection(
     """Your characters: the ones you drew during the setup and the ones you
     pulled, with how many copies you own."""
     seat = _running_seat(session, code, player.id)
+    return _collection(session, seat)
+
+
+def _collection(
+    session: Session, seat: ServerSeat, *ids: uuid.UUID
+) -> list[OwnedCharacterResponse]:
+    """The seat's characters, or only those with `ids`."""
     owned = pulls.copies(session, seat)
+    done = upgrades.unlocked(session, seat.id)
     characters = session.scalars(
         select(Character)
-        .where(Character.id.in_(owned))
+        .where(Character.id.in_(ids or owned))
         .options(selectinload(Character.artist), selectinload(Character.subject))
         .order_by(Character.created_at)
     )
     return [
-        OwnedCharacterResponse(character=character_response(c), copies=owned[c.id])
+        OwnedCharacterResponse(
+            character=character_response(c),
+            copies=owned[c.id],
+            upgrades=[e.value for e in done[c.id].effects],
+            element=done[c.id].element,
+        )
         for c in characters
     ]
+
+
+@router.post(
+    "/{code}/collection/{character_id}/upgrades", response_model=OwnedCharacterResponse
+)
+def unlock_upgrade(
+    code: Code,
+    character_id: uuid.UUID,
+    body: UpgradeRequest,
+    player: CurrentPlayer,
+    session: DbSession,
+) -> OwnedCharacterResponse:
+    """Spends a duplicate on the character's next upgrade."""
+    seat = _running_seat(session, code, player.id)
+    character = session.get(Character, character_id)
+    if character is None or character.server_id != seat.server_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
+    try:
+        upgrades.unlock_next(session, seat, character, body.element)
+    except upgrades.ElementRequired as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
+    except upgrades.UpgradeRejected as error:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+    session.commit()
+    return _collection(session, seat, character.id)[0]
