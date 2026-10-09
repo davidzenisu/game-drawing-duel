@@ -4,6 +4,7 @@ The API only talks to `FileStore`. In Azure it is a blob container the
 Function App reaches with its managed identity; tests use `MemoryFileStore`.
 """
 
+import logging
 import os
 from collections.abc import Mapping
 from functools import lru_cache
@@ -13,6 +14,8 @@ from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.storage.blob import ContainerClient, ContentSettings
 from fastapi import Depends, HTTPException, status
+
+logger = logging.getLogger(__name__)
 
 
 class FileNotFound(Exception):
@@ -141,3 +144,11 @@ def get_file_store() -> FileStore:
 
 
 Files = Annotated[FileStore, Depends(get_file_store)]
+
+
+def delete_quietly(files: FileStore, name: str) -> None:
+    """Best effort: a file left behind costs storage, not correctness."""
+    try:
+        files.delete(name)
+    except StorageUnavailable:
+        logger.exception("Deleting the file %s failed", name)

@@ -181,7 +181,7 @@ void main() {
       expect(sam.server.joined, {'seat-0', 'seat-1'});
       expect(backend.requests.last.url.path, '/servers/123456/seats/1/claim');
 
-      await admin.refreshLobby();
+      await admin.refreshServer();
       expect(admin.server.joined, {'seat-0', 'seat-1'});
     });
 
@@ -227,13 +227,13 @@ void main() {
       final sam = friends.first;
       expect(sam.server.canStart, isFalse, reason: 'only the admin starts');
 
-      await admin.refreshLobby();
+      await admin.refreshServer();
       expect(admin.server.canStart, isTrue);
       await admin.startSetup();
       expect(backend.requests.last.url.path, '/servers/123456/assignments');
       expect(admin.phase, GamePhase.setup);
 
-      await sam.refreshLobby();
+      await sam.refreshServer();
       expect(sam.phase, GamePhase.setup);
       expect(sam.assignments.map((a) => a.prompt), SetupPlan.promptsFor(5));
       expect(sam.assignments.map((a) => a.subject.name), ['Robin', 'Robin', 'Kim', 'Jo', 'Alex', 'Robin']);
@@ -296,12 +296,35 @@ void main() {
       expect(again.setupDrawing(again.assignments[1]), isNull);
     });
 
+    test('cancelling the setup sends everyone back to the server screen', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      final sam = (await everyoneJoins()).first;
+      await admin.startSetup();
+      await sam.refreshServer();
+      expect(sam.phase, GamePhase.setup);
+
+      await sam.cancelServer();
+      expect(backend.requests.last.method, 'DELETE');
+      expect(backend.requests.last.url.path, '/servers/123456');
+      expect(sam.phase, GamePhase.server);
+      expect(sam.serverNotice, isNull, reason: 'Sam knows, Sam cancelled');
+      expect(sam.assignments, isEmpty);
+
+      await admin.refreshServer();
+      expect(admin.phase, GamePhase.server);
+      expect(admin.serverNotice, 'Server 123456 was cancelled.');
+
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      expect(admin.phase, GamePhase.lobby);
+      expect(admin.serverNotice, isNull);
+    });
+
     test('launching is not available yet', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
       await expectLater(admin.launch(), throwsA(isA<NotAvailableYet>()));
       expect(admin.isMockup, isFalse);
-      expect(admin.lobbyRefreshInterval, const Duration(seconds: 5));
+      expect(admin.refreshInterval, const Duration(seconds: 5));
     });
   });
 

@@ -1,5 +1,4 @@
 from app.schemas.character import CharacterResponse, DrawingSubmit, SketchData
-from app.schemas.drawing import DrawingResponse
 from app.schemas.player import PlayerResponse, PlayerUpdate
 from app.schemas.server import (
     AssignmentResponse,
@@ -11,7 +10,6 @@ from app.schemas.server import (
 __all__ = [
     "AssignmentResponse",
     "CharacterResponse",
-    "DrawingResponse",
     "DrawingSubmit",
     "PlayerResponse",
     "PlayerUpdate",

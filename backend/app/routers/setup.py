@@ -10,8 +10,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
-from app.models import Character, Server, ServerSeat, SetupAssignment
-from app.routers.servers import Code, DbSession, load_server, server_response
+from app.models import Character, Server, SetupAssignment
+from app.routers.servers import (
+    Code,
+    DbSession,
+    load_server,
+    server_response,
+    your_seat,
+)
 from app.rules import SetupPrompt
 from app.schemas import (
     AssignmentResponse,
@@ -20,20 +26,11 @@ from app.schemas import (
     ServerResponse,
 )
 from app.setup import assign_setup
-from app.storage import Files, StorageUnavailable
+from app.storage import Files, StorageUnavailable, delete_quietly
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/servers", tags=["setup"])
-
-
-def your_seat(server: Server, player_id: int) -> ServerSeat:
-    seat = next((s for s in server.seats if s.player_id == player_id), None)
-    if seat is None:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, detail="You haven't joined this server"
-        )
-    return seat
 
 
 def _require_setup(server: Server) -> None:
@@ -203,7 +200,7 @@ def submit_drawing(
         session.commit()
     except Exception as error:
         session.rollback()
-        _delete_file(files, character.id)
+        delete_quietly(files, str(character.id))
         if isinstance(error, IntegrityError):
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -211,13 +208,5 @@ def submit_drawing(
             ) from error
         raise
     if previous_id is not None:
-        _delete_file(files, previous_id)
+        delete_quietly(files, str(previous_id))
     return character_response(character)
-
-
-def _delete_file(files: Files, character_id: uuid.UUID) -> None:
-    """Best effort: a file left behind costs storage, not correctness."""
-    try:
-        files.delete(str(character_id))
-    except StorageUnavailable:
-        logger.exception("Deleting the drawing %s failed", character_id)

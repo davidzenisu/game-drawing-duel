@@ -17,7 +17,7 @@ Future<MockGameSession> launchedGame({int seed = 1}) async {
   await game.signUp('Pat');
   await game.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
   while (!game.server.everyoneJoined) {
-    await game.refreshLobby();
+    await game.refreshServer();
   }
   await game.startSetup();
   for (final assignment in game.assignments) {
@@ -61,7 +61,7 @@ void main() {
     await game.joinServer(preview, preview.players.firstWhere((p) => p.name == 'Pat'));
     expect(game.server.canStart, isFalse);
     while (game.phase == GamePhase.lobby) {
-      await game.refreshLobby();
+      await game.refreshServer();
     }
     expect(game.server.everyoneJoined, isTrue);
     expect(game.phase, GamePhase.setup);
@@ -72,7 +72,7 @@ void main() {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');
     await game.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
-    await game.refreshLobby();
+    await game.refreshServer();
     expect(game.server.artists.map((p) => p.name), ['Pat', 'Alex']);
     await game.startSetup();
     expect(game.assignments.map((a) => a.prompt), SetupPlan.testPrompts);
@@ -82,6 +82,20 @@ void main() {
     }
     await game.launch();
     expect(game.pool, hasLength(2 * SetupPlan.testPrompts.length), reason: 'only Pat and Alex drew');
+  });
+
+  test('cancelling the server returns to creating one', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
+    await game.startSetup();
+    await game.submitSetupDrawing(game.assignments.first, _doodle, 'Basic');
+    await game.cancelServer();
+    expect(game.phase, GamePhase.server);
+    expect(game.assignments, isEmpty);
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
+    await game.startSetup();
+    expect(game.setupDrawing(game.assignments.first), isNull, reason: 'a fresh setup');
   });
 
   test('the alter unlocks after the basic drawing', () async {

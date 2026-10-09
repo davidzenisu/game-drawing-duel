@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_auth0_subject
 from app.database import get_db
-from app.routers import characters, drawings, me, servers, setup
+from app.routers import characters, me, servers, setup
 
 app = FastAPI(title="Game Drawing Duel API", version="0.1.0")
 
@@ -47,7 +47,6 @@ def health_check(
 # Everything except the health check and the API docs requires a signed-in user.
 _authenticated = [Depends(get_auth0_subject)]
 app.include_router(me.router, dependencies=_authenticated)
-app.include_router(drawings.router, dependencies=_authenticated)
 app.include_router(servers.router, dependencies=_authenticated)
 app.include_router(setup.router, dependencies=_authenticated)
 app.include_router(characters.router, dependencies=_authenticated)

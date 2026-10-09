@@ -54,7 +54,7 @@ class AuthenticationTests(ApiTestCase):
             "scope only": make_token(permissions=[], scope="openid read:api"),
         }
         for name, token in cases.items():
-            for path in ("/me", "/drawings"):
+            for path in ("/me", "/servers/mine"):
                 response = self.client.get(path, headers=bearer(token))
                 self.assertEqual(response.status_code, 403, f"{name} {path}")
                 self.assertEqual(

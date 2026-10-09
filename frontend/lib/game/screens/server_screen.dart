@@ -28,10 +28,21 @@ class ServerScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            _CreateServer(controller: controller),
-            _JoinServer(controller: controller),
+            if (controller.serverNotice case final notice?)
+              Material(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                child: ListTile(leading: const Icon(Icons.info_outline_rounded), title: Text(notice)),
+              ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _CreateServer(controller: controller),
+                  _JoinServer(controller: controller),
+                ],
+              ),
+            ),
           ],
         ),
       ),

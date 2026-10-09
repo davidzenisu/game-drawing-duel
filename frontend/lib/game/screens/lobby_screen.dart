@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../game_session.dart';
+import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
+import '../widgets/phase_builder.dart';
 import '../widgets/sign_out_button.dart';
 import '../rules/setup_plan.dart';
 
@@ -24,15 +26,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
   @override
   void initState() {
     super.initState();
-    _joinTimer = Timer.periodic(widget.controller.lobbyRefreshInterval, (timer) async {
-      // Everyone but the admin waits for the setup to start.
-      final server = widget.controller.server;
-      if (server.isAdmin && server.everyoneJoined) {
-        timer.cancel();
-        return;
-      }
+    // Who joined, whether the setup started or the server was cancelled.
+    _joinTimer = Timer.periodic(widget.controller.refreshInterval, (timer) async {
+      if (widget.controller.phase != GamePhase.lobby) return timer.cancel();
       try {
-        await widget.controller.refreshLobby();
+        await widget.controller.refreshServer();
       } catch (_) {
         // Polling: try again on the next tick.
       }
@@ -55,11 +53,15 @@ class _LobbyScreenState extends State<LobbyScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lobby'),
-        actions: [SignOutButton(session: controller)],
+        actions: [
+          CancelServerButton(session: controller),
+          SignOutButton(session: controller),
+        ],
       ),
-      body: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) => SingleChildScrollView(
+      body: PhaseBuilder(
+        session: controller,
+        phase: GamePhase.lobby,
+        builder: (context) => SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Center(
             child: ConstrainedBox(

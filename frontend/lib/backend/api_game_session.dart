@@ -31,6 +31,12 @@ class ApiGameSession extends GameSession {
   /// Your setup drawings by assignment id.
   Map<String, CharacterCard> _setupDrawings = {};
 
+  /// Sketches by character id. A character never changes, so refreshing
+  /// only downloads new ones.
+  final Map<String, Sketch> _sketches = {};
+
+  String? _serverNotice;
+
   /// After a failed sign-in, signing in again must not reuse the old session.
   bool _freshSignInNeeded = false;
 
@@ -108,6 +114,7 @@ class ApiGameSession extends GameSession {
   /// Shows the server's lobby, or your setup once the admin started it.
   Future<void> _enterServer(Object? json) async {
     final server = _parseServer(json);
+    _serverNotice = null;
     switch ((json as Map)['phase']) {
       case 'lobby':
         _server = server;
@@ -209,7 +216,7 @@ class ApiGameSession extends GameSession {
       'artist_position': int artist,
       'subject_position': int subject,
     }) {
-      final sketch = known ?? SketchJson.decode(await _get('/characters/$id/sketch'));
+      final sketch = _sketches[id] = known ?? _sketches[id] ?? SketchJson.decode(await _get('/characters/$id/sketch'));
       return CharacterCard(
         id: id,
         subject: _seat(server, subject).name,
@@ -250,7 +257,7 @@ class ApiGameSession extends GameSession {
   ServerSession get server => _server ?? (throw StateError('Not in a server yet.'));
 
   @override
-  Duration get lobbyRefreshInterval => const Duration(seconds: 5);
+  Duration get refreshInterval => const Duration(seconds: 5);
 
   @override
   Future<void> signIn() async {
@@ -287,7 +294,35 @@ class ApiGameSession extends GameSession {
       _enterServer(await _post('/servers/${server.code}/seats/${_seatPosition(seat)}/claim'));
 
   @override
-  Future<void> refreshLobby() async => _enterServer(await _get('/servers/${server.code}'));
+  String? get serverNotice => _serverNotice;
+
+  @override
+  Future<void> refreshServer() async {
+    final code = server.code;
+    final Object? json;
+    try {
+      json = await _get('/servers/$code');
+    } on ApiException catch (error) {
+      if (error.statusCode != 404) rethrow;
+      return _leaveServer('Server $code was cancelled.');
+    }
+    await _enterServer(json);
+  }
+
+  @override
+  Future<void> cancelServer() async {
+    await _guard(() => _api!.delete('/servers/${server.code}'));
+    _leaveServer(null);
+  }
+
+  /// Back to creating or joining a server.
+  void _leaveServer(String? notice) {
+    _server = null;
+    _assignments = const [];
+    _setupDrawings = {};
+    _serverNotice = notice;
+    _setPhase(GamePhase.server);
+  }
 
   @override
   Future<void> startSetup() async => _enterServer(await _post('/servers/${server.code}/setup'));

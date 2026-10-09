@@ -2,16 +2,17 @@ import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
 from app.database import get_db
-from app.models import Player, Server, ServerSeat
+from app.models import Character, Player, Server, ServerSeat, SetupAssignment
 from app.rules import SERVER_CODE_LENGTH
 from app.schemas import SeatResponse, ServerCreate, ServerResponse
 from app.setup import assign_setup
+from app.storage import Files, delete_quietly
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -49,6 +50,15 @@ def load_server(session: Session, code: str) -> Server:
     if server is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No server with this code")
     return server
+
+
+def your_seat(server: Server, player_id: int) -> ServerSeat:
+    seat = next((s for s in server.seats if s.player_id == player_id), None)
+    if seat is None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="You haven't joined this server"
+        )
+    return seat
 
 
 @router.post("", response_model=ServerResponse, status_code=status.HTTP_201_CREATED)
@@ -143,3 +153,29 @@ def claim_seat(
     session.expire_all()
     return server_response(load_server(session, code), player)
 
+
+
+@router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
+def cancel_server(
+    code: Code, player: CurrentPlayer, session: DbSession, files: Files
+) -> None:
+    """Cancels the server for everyone, with all its drawings.
+
+    Any player who joined can, e.g. the admin when setting it up went wrong
+    or a player dropping out. The others find out when they next refresh.
+    """
+    server = load_server(session, code)
+    your_seat(server, player.id)
+    character_ids = session.scalars(
+        select(Character.id).where(Character.server_id == server.id)
+    ).all()
+    session.execute(delete(Character).where(Character.server_id == server.id))
+    session.execute(
+        delete(SetupAssignment).where(
+            SetupAssignment.artist_seat_id.in_([s.id for s in server.seats])
+        )
+    )
+    session.delete(server)
+    session.commit()
+    for character_id in character_ids:
+        delete_quietly(files, str(character_id))
