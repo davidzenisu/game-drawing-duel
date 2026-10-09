@@ -27,7 +27,7 @@ class FailingFileStore:
 class DrawingUploadTests(SetupTestCase):
     def setUp(self) -> None:
         super().setUp()
-        # A test session with Alex alone: Basic, Knight and Legend of Alex.
+        # A test session with Alex alone: Basic, Knight and Legend of others.
         self.code = self.create(is_test=True).json()["code"]
         self.start(self.code)
         self.by_prompt = {a["prompt"]: a for a in self.assignments(self.code).json()}
@@ -54,7 +54,8 @@ class DrawingUploadTests(SetupTestCase):
         self.assertEqual(character["rarity"], "adventurer")
         self.assertEqual(character["prompt"], "knight")
         self.assertEqual(
-            (character["artist_position"], character["subject_position"]), (0, 0)
+            (character["artist_position"], character["subject_position"]),
+            (0, self.by_prompt["knight"]["subject_position"]),
         )
 
         data, content_type, metadata = self.files.files[character["id"]]
@@ -68,7 +69,7 @@ class DrawingUploadTests(SetupTestCase):
                 "prompt": "knight",
                 "rarity": "adventurer",
                 "artist_position": "0",
-                "subject_position": "0",
+                "subject_position": str(self.by_prompt["knight"]["subject_position"]),
             },
         )
 

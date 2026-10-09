@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/models.dart';
@@ -46,8 +47,24 @@ void main() {
     for (final MapEntry(:key, :value) in (rules['assignments'] as Map<String, dynamic>).entries) {
       expect(subjects(roster(int.parse(key)), SetupPlan.assignmentsFor), value, reason: '$key players');
     }
-    for (final MapEntry(:key, :value) in (rules['test_assignments'] as Map<String, dynamic>).entries) {
-      expect(subjects(roster(int.parse(key)), SetupPlan.testAssignmentsFor), value, reason: '$key active players');
+  });
+
+  test('test sessions draw different, random other players', () {
+    final random = Random(1);
+    for (var n = SetupPlan.minPlayers; n <= SetupPlan.maxPlayers; n++) {
+      final players = roster(n);
+      final seen = <String>{};
+      for (var artist = 0; artist < n; artist++) {
+        for (var i = 0; i < 20; i++) {
+          final planned = SetupPlan.testAssignmentsFor(players, artist, random);
+          expect([for (final a in planned) a.prompt.name], rules['test_setup']);
+          final subjects = {for (final a in planned) a.subject.id};
+          expect(subjects, hasLength(planned.length));
+          expect(subjects, isNot(contains(players[artist].id)));
+          seen.addAll(subjects);
+        }
+      }
+      expect(seen, hasLength(n), reason: 'everyone can be drawn');
     }
   });
 }

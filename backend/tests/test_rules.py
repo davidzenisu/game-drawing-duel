@@ -2,6 +2,7 @@
 check its own implementation against too."""
 
 import json
+import random
 import unittest
 from pathlib import Path
 
@@ -60,8 +61,19 @@ class SharedRulesTest(unittest.TestCase):
         for count, expected in SHARED["assignments"].items():
             with self.subTest(players=count):
                 self.assertEqual(_subjects(int(count), rules.assignments_for), expected)
-        for count, expected in SHARED["test_assignments"].items():
-            with self.subTest(active=count):
-                self.assertEqual(
-                    _subjects(int(count), rules.test_assignments_for), expected
-                )
+
+    def test_test_session_subjects_are_random_other_players(self):
+        rng = random.Random(1)
+        for count in range(rules.MIN_PLAYERS, rules.MAX_PLAYERS + 1):
+            seen = set()
+            for artist in range(count):
+                for _ in range(20):
+                    planned = rules.test_assignments_for(count, artist, rng)
+                    self.assertEqual(
+                        [a.prompt.value for a in planned], SHARED["test_setup"]
+                    )
+                    subjects = [a.subject for a in planned]
+                    self.assertEqual(len(set(subjects)), len(subjects))
+                    self.assertNotIn(artist, subjects)
+                    seen.update(subjects)
+            self.assertEqual(seen, set(range(count)), "everyone can be drawn")
