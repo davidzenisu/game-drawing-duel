@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 import 'package:frontend/game/game_app.dart';
+import 'package:frontend/game/rules/models.dart';
 
 void main() {
   testWidgets('walks from signup through the lobby into the drawing setup', (tester) async {
@@ -38,6 +39,46 @@ void main() {
     expect(find.text('Draw your friends'), findsOneWidget);
 
     // Stop the background timers before the test ends.
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('joins a server by code and only offers free seats', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = MockGameSession(seed: 1);
+    await tester.pumpWidget(GameApp(session: controller));
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pump();
+    await tester.tap(find.text('Finish account'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Join server'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Server code'), '123456');
+    await tester.pump();
+    await tester.tap(find.text('Find server'));
+    await tester.pumpAndSettle();
+
+    final preview = await controller.previewServer('123456');
+    final seats = find.byType(RadioListTile<Player>);
+    expect(seats, findsNWidgets(preview.players.length));
+    for (final (i, player) in preview.players.indexed) {
+      final tile = tester.widget<RadioListTile<Player>>(seats.at(i));
+      expect(tile.enabled, !preview.joined.contains(player.id), reason: player.name);
+    }
+    // The admin's seat is labelled as such, other taken seats as joined.
+    expect(find.text('Admin'), findsOneWidget);
+    expect(find.text('Already joined'), findsNWidgets(preview.joined.length - 1));
+
+    // Your name is preselected; joining opens the lobby.
+    final join = find.widgetWithText(FilledButton, 'Join server');
+    await tester.ensureVisible(join);
+    await tester.tap(join);
+    await tester.pumpAndSettle();
+    expect(find.text('Lobby'), findsOneWidget);
+    expect(controller.you.name, 'Pat');
+
     await tester.pumpWidget(const SizedBox());
   });
 }

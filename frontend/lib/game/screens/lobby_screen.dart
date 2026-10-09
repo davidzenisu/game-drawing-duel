@@ -24,7 +24,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
   @override
   void initState() {
     super.initState();
-    _joinTimer = Timer.periodic(const Duration(milliseconds: 900), (timer) async {
+    _joinTimer = Timer.periodic(widget.controller.lobbyRefreshInterval, (timer) async {
       if (widget.controller.server.everyoneJoined) {
         timer.cancel();
         return;

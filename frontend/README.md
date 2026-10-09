@@ -70,6 +70,7 @@ The flag defaults to `false`, so regular builds are unaffected.
 - `lib/mockup/`: `MockGameSession`, the in-memory implementation behind the
   mockup, with simulated players.
 - `lib/backend/`: `ApiGameSession`, the implementation backed by the API and
-  Auth0. Signing in and signing up work; the rest of the game follows step by
-  step and reports that it isn't available yet.
+  Auth0. Signing in, signing up and servers (create, join, lobby) work; the
+  rest of the game follows step by step and reports that it isn't available
+  yet.
 - `lib/theme/palette.dart`: the shared colour palette.

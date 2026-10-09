@@ -180,11 +180,15 @@ abstract class GameSession extends ChangeNotifier {
   /// Creates a server with a prepopulated roster; the creator is the admin.
   Future<void> createServer(List<String> otherNames);
 
-  /// Looks up a server by its 6-digit code and returns its roster so the
-  /// joining player can claim a seat.
-  Future<List<Player>> previewServer(String code);
+  /// Looks up a server by its 6-digit code: its roster and who already
+  /// joined, so the joining player can claim a free seat.
+  Future<ServerSession> previewServer(String code);
 
-  Future<void> joinServer(String code, List<Player> roster, Player seat);
+  /// Joins [server] (from [previewServer]) as the player at [seat].
+  Future<void> joinServer(ServerSession server, Player seat);
+
+  /// How often the lobby refreshes who joined.
+  Duration get lobbyRefreshInterval;
 
   /// Updates who joined the lobby.
   Future<void> refreshLobby();

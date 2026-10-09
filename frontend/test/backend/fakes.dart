@@ -29,27 +29,76 @@ class FakeAuthClient implements AuthClient {
   Future<String> accessToken() async => token;
 }
 
-/// A fake backend: `/me` answers 404 until a PUT signs the player up.
+/// An in-memory stand-in for the API. Callers are told apart by their token.
 class FakeBackend {
-  FakeBackend([this._player]);
+  /// Players by token: `{'id': 7, 'first_name': 'Pat'}`.
+  final Map<String, Map<String, Object?>> players = {};
 
-  Map<String, Object?>? _player;
+  /// Servers by code; every seat has a `name` and the `player` id or null.
+  final Map<String, ({int admin, List<Map<String, Object?>> seats})> servers = {};
   final List<http.Request> requests = [];
+  int _nextCode = 123456;
 
   MockClient get client => MockClient((request) async {
     requests.add(request);
-    if (request.url.path != '/me') return _json(404, {'detail': 'Not Found'});
-    switch (request.method) {
-      case 'GET':
-        return _player == null ? _json(404, {'detail': 'Not signed up yet'}) : _json(200, _player);
-      case 'PUT':
-        final body = jsonDecode(request.body) as Map<String, Object?>;
-        _player = {'id': 7, 'first_name': body['first_name'], 'created_at': '2026-10-09T10:00:00Z'};
-        return _json(200, _player);
-      default:
-        return _json(405, {'detail': 'Method Not Allowed'});
+    final token = (request.headers['Authorization'] ?? '').replaceFirst('Bearer ', '');
+    final path = request.url.pathSegments;
+    final me = players[token];
+    final body = request.body.isEmpty ? null : jsonDecode(request.body) as Map<String, Object?>;
+
+    if (request.url.path == '/me') {
+      if (request.method == 'PUT') {
+        players[token] = {'id': me?['id'] ?? players.length + 1, 'first_name': body!['first_name']};
+        return _json(200, {...players[token]!, 'created_at': '2026-10-09T10:00:00Z'});
+      }
+      return me == null ? _json(404, {'detail': 'Not signed up yet'}) : _json(200, me);
     }
+    if (me == null) return _json(403, {'detail': 'Finish signing up first'});
+    final myId = me['id'] as int;
+
+    if (request.method == 'POST' && request.url.path == '/servers') {
+      final code = '${_nextCode++}';
+      servers[code] = (
+        admin: myId,
+        seats: [
+          {'name': me['first_name'], 'player': myId},
+          for (final name in body!['other_names'] as List) {'name': name, 'player': null},
+        ],
+      );
+      return _json(201, _server(code, myId));
+    }
+    if (request.method == 'GET' && request.url.path == '/servers/mine') {
+      final mine = servers.keys.where((c) => servers[c]!.seats.any((s) => s['player'] == myId)).toList().reversed;
+      return _json(200, [for (final code in mine) _server(code, myId)]);
+    }
+    if (path.length >= 2 && path[0] == 'servers' && servers.containsKey(path[1])) {
+      final code = path[1];
+      if (request.method == 'GET' && path.length == 2) return _json(200, _server(code, myId));
+      if (request.method == 'POST' && path.length == 5 && path[4] == 'claim') {
+        final seats = servers[code]!.seats;
+        final seat = seats[int.parse(path[3])];
+        if (seat['player'] != null) return _json(409, {'detail': 'This seat is taken'});
+        if (seats.any((s) => s['player'] == myId)) return _json(409, {'detail': 'You already joined this server'});
+        seat['player'] = myId;
+        return _json(200, _server(code, myId));
+      }
+    }
+    return _json(404, {'detail': 'No server with this code'});
   });
+
+  Map<String, Object?> _server(String code, int playerId) {
+    final server = servers[code]!;
+    final yours = server.seats.indexWhere((s) => s['player'] == playerId);
+    return {
+      'code': code,
+      'created_at': '2026-10-09T10:00:00Z',
+      'is_admin': server.admin == playerId,
+      'your_position': yours < 0 ? null : yours,
+      'seats': [
+        for (final (i, s) in server.seats.indexed) {'position': i, 'name': s['name'], 'joined': s['player'] != null},
+      ],
+    };
+  }
 
   static http.Response _json(int status, Object? body) =>
       http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'});

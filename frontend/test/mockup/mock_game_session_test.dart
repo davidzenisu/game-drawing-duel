@@ -42,10 +42,13 @@ void main() {
   test('joining a server claims a seat from the prepopulated roster', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');
-    final roster = await game.previewServer('123456');
+    final preview = await game.previewServer('123456');
+    final roster = preview.players;
     expect(roster.length, inInclusiveRange(SetupPlan.minPlayers, SetupPlan.maxPlayers));
     final seat = roster.firstWhere((p) => p.name == 'Pat');
-    await game.joinServer('123456', roster, seat);
+    expect(preview.joined, contains(roster.first.id));
+    expect(preview.joined, isNot(contains(seat.id)));
+    await game.joinServer(preview, seat);
     expect(game.you.id, seat.id);
     expect(game.server.isAdmin, isFalse);
     expect(game.server.players.where((p) => p.isYou), hasLength(1));
