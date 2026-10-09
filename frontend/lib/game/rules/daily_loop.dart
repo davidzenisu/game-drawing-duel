@@ -28,6 +28,7 @@ class ChallengerPrompt {
     required this.theme,
     required this.title,
     required this.day,
+    this.premade = false,
   });
 
   final String id;
@@ -36,6 +37,9 @@ class ChallengerPrompt {
   final DailyTheme theme;
   final String title;
   final int day;
+
+  /// [author] wrote nothing that day, so a premade title stands in.
+  final bool premade;
 }
 
 /// A character sent into a fight, with the effects it had at that time.

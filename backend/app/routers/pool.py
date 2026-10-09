@@ -24,7 +24,7 @@ from app.schemas import (
 router = APIRouter(prefix="/servers", tags=["pool"])
 
 
-def _launched(server: Server) -> None:
+def require_launched(server: Server) -> None:
     if server.launched_at is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="The game hasn't launched yet"
@@ -48,7 +48,7 @@ def get_pool(
     """Every character of the game, which the gacha pulls from."""
     server = load_server(session, code)
     your_seat(server, player.id)
-    _launched(server)
+    require_launched(server)
     return _characters(session, Character.server_id == server.id)
 
 
@@ -65,7 +65,7 @@ def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
 def _running_seat(session: Session, code: str, player_id: uuid.UUID) -> ServerSeat:
     server = load_server(session, code)
     seat = your_seat(server, player_id)
-    _launched(server)
+    require_launched(server)
     return seat
 
 

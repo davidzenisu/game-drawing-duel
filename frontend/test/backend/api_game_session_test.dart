@@ -9,6 +9,7 @@ import 'package:frontend/backend/sketch_json.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/rules/themes.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 
 import 'fakes.dart';
@@ -349,7 +350,9 @@ void main() {
       expect(sam.pool, hasLength(6));
       expect(sam.collection.map((o) => o.card.artist), everyElement('Sam'));
       expect(sam.collection, hasLength(3));
-      expect(sam.promptSubject, isNull, reason: 'the daily loop comes later');
+      expect((sam.day, sam.theme), (1, DailyTheme.forest));
+      expect(sam.promptSubject!.isYou, isFalse);
+      expect(sam.promptToDraw, isNull, reason: 'nothing was written yet');
 
       await admin.refreshServer();
       expect(admin.phase, GamePhase.daily);
@@ -403,6 +406,54 @@ void main() {
         admin.unlockNextUpgrade(knight),
         throwsA(isA<ApiException>().having((e) => e.message, 'message', 'You need a duplicate to unlock this')),
       );
+    });
+
+    test('the daily loop: prompts, challengers and ending the day', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      final sam = await signedUp('sam', 'Sam');
+      final preview = await sam.previewServer('123456');
+      await sam.joinServer(preview, preview.players[1]);
+      await admin.refreshServer();
+      await admin.startSetup();
+      await sam.refreshServer();
+      for (final player in [admin, sam]) {
+        await drawAll(player);
+        await player.launch();
+      }
+      await admin.refreshServer();
+      expect(admin.phase, GamePhase.daily);
+      expect((admin.canEndDay, admin.canAdvanceDay), (true, true));
+      expect((sam.canEndDay, sam.canAdvanceDay), (true, false), reason: 'only the admin skips ahead');
+
+      await admin.submitPrompt('  The Owl King ');
+      expect(admin.yourPrompt!.title, 'The Owl King');
+      expect(admin.yourPrompt!.theme, DailyTheme.forest);
+
+      await admin.endDay();
+      expect(admin.dayEnded, {admin.you.id});
+      expect(admin.day, 1, reason: 'Sam is still playing');
+      await sam.refreshDay();
+      expect(sam.dayEnded, {admin.you.id});
+      await sam.endDay();
+      expect(sam.day, 2);
+      expect(sam.dayEnded, isEmpty);
+
+      final toDraw = sam.promptToDraw!;
+      expect((toDraw.title, toDraw.author.name, toDraw.premade), ('The Owl King', 'Alex', false));
+      await admin.refreshDay();
+      expect(admin.promptToDraw!.premade, isTrue, reason: 'Sam wrote nothing');
+
+      await sam.submitChallenger(doodle);
+      expect(sam.yourChallenger!.title, 'The Owl King');
+      expect(sam.yourChallenger!.rarity, Rarity.hero);
+      expect(sam.yourChallenger!.sketch, same(doodle));
+      expect(sam.challengerDrawn, isTrue);
+      expect(sam.pool, contains(sam.yourChallenger));
+      expect(sam.tickets, 11, reason: 'a challenger earns a pull');
+
+      await admin.advanceDay();
+      expect(admin.day, 3);
+      await expectLater(sam.advanceDay(), throwsA(isA<ApiException>()));
     });
 
     test('a reload keeps the upgrades and the chosen element', () async {

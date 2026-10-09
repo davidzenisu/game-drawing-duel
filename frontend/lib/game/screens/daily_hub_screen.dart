@@ -68,7 +68,9 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         builder: (_) => DrawingScreen(
           subject: prompt.subject.name,
           prompt: '"${prompt.title}"',
-          hint: 'A challenger prompt by ${prompt.author.name} · ${prompt.theme.label}',
+          hint: prompt.premade
+              ? 'A premade prompt, as ${prompt.author.name} wrote none · ${prompt.theme.label}'
+              : 'A challenger prompt by ${prompt.author.name} · ${prompt.theme.label}',
           rarity: Rarity.hero,
           initialTitle: prompt.title,
           titleLocked: true,
@@ -126,6 +128,46 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       if (confirmed != true || !mounted) return;
     }
     await runGameAction(context, _controller.advanceDay);
+  }
+
+  /// Test sessions: you're done for today; the day moves on once everyone is.
+  Future<void> _endDay() async {
+    if (_controller.hasOpenSteps) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('End your day?'),
+          content: const Text("You haven't finished all of today's steps yet."),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Stay')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('End my day')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    await runGameAction(context, _controller.endDay);
+  }
+
+  /// Who ended today, in a test session.
+  Widget _dayEndedCard() {
+    final c = _controller;
+    final ended = [
+      for (final player in c.server.players)
+        if (c.dayEnded.contains(player.id)) player.isYou ? 'you' : player.name,
+    ];
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.bedtime_rounded),
+        title: Text(ended.isEmpty ? 'Nobody ended the day yet' : 'Ended today: ${ended.join(', ')}'),
+        subtitle: const Text('The next day starts once everyone ended theirs.'),
+        trailing: IconButton(
+          onPressed: () => runGameAction(context, c.refreshDay),
+          tooltip: 'Refresh',
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ),
+    );
   }
 
   Future<void> _openStep(Widget screen) => Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => screen));
@@ -217,18 +259,30 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               child: Text('Day ${_controller.day} · ${theme.label}', key: ValueKey(_controller.day)),
             ),
             actions: [
+              if (_controller.canEndDay && _controller.canAdvanceDay)
+                IconButton(
+                  onPressed: _nextDay,
+                  tooltip: 'Start the next day for everyone',
+                  icon: const Icon(Icons.skip_next_rounded),
+                ),
               TicketChip(tickets: _controller.tickets),
               SignOutButton(session: _controller),
               const SizedBox(width: 12),
             ],
           ),
-          floatingActionButton: !_controller.isMockup
-              ? null
-              : FloatingActionButton.extended(
+          floatingActionButton: _controller.canEndDay
+              ? FloatingActionButton.extended(
+                  onPressed: _controller.dayEnded.contains(_controller.you.id) ? null : _endDay,
+                  icon: const Icon(Icons.bedtime_rounded),
+                  label: Text(_controller.dayEnded.contains(_controller.you.id) ? 'Day ended' : 'End my day'),
+                )
+              : _controller.canAdvanceDay
+              ? FloatingActionButton.extended(
                   onPressed: _nextDay,
                   icon: const Icon(Icons.bedtime_rounded),
                   label: const Text('Next day'),
-                ),
+                )
+              : null,
           body: ThemedBackground(
             theme: theme,
             child: SafeArea(
@@ -241,6 +295,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (_controller.canEndDay) _dayEndedCard(),
                           ..._steps(),
                           const SizedBox(height: 12),
                           _ActionCard(

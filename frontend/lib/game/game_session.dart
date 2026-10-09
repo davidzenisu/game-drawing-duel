@@ -264,6 +264,22 @@ abstract class GameSession extends ChangeNotifier {
 
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element});
 
-  /// Ends the day early. Only available in the mockup, see [isMockup].
+  /// Whether you can start the next day for everyone: in the mockup, and
+  /// for the admin of a test session.
+  bool get canAdvanceDay;
+
+  /// Starts the next day for everyone, see [canAdvanceDay].
   Future<void> advanceDay();
+
+  /// Whether you end your day yourself: in test sessions the next day starts
+  /// once everyone ended theirs.
+  bool get canEndDay;
+
+  /// Ids of the players who ended today, see [canEndDay].
+  Set<String> get dayEnded;
+
+  Future<void> endDay();
+
+  /// Reloads today: who ended the day, or a new day that started.
+  Future<void> refreshDay();
 }

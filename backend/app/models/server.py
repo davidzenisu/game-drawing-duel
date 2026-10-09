@@ -41,6 +41,9 @@ class Server(Base):
     setup_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When everyone finished the setup and the game began.
     launched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The current day of a test session, which advances on demand. Regular
+    # servers count days from the launch, at midnight UTC.
+    test_day: Mapped[int | None] = mapped_column(Integer)
 
     seats: Mapped[list["ServerSeat"]] = relationship(
         back_populates="server",

@@ -65,6 +65,15 @@ class FakeBackend {
   final Map<(String, String), List<String>> pulls = {};
   static const launchBonus = 10;
 
+  /// The current day by server code, from the launch on.
+  final Map<String, int> days = {};
+
+  /// Written prompts by server code, author's seat and day.
+  final Map<(String, int, int), String> prompts = {};
+
+  /// Seats that ended a day, by server code and day.
+  final Map<(String, int), Set<int>> dayEnded = {};
+
   /// Unlocked upgrades by server code, player id and character id.
   final Map<(String, String, String), ({List<String> effects, String? element})> upgrades = {};
 
@@ -181,6 +190,9 @@ class FakeBackend {
         );
         return _json(200, _owned(code, myId, character, copies));
       }
+      if (path.length >= 3 && (path[2] == 'today' || path[2] == 'days')) {
+        return _day(code, myId, request.method, path.sublist(2), body);
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'gacha') {
         return _json(200, _gacha(code, myId));
       }
@@ -280,7 +292,80 @@ class FakeBackend {
     };
   }
 
-  int _tickets(String code, String playerId) => launchBonus - (pulls[(code, playerId)]?.length ?? 0);
+  int _tickets(String code, String playerId) {
+    final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
+    final challengers = _pool(code).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
+    return launchBonus + challengers - (pulls[(code, playerId)]?.length ?? 0);
+  }
+
+  static const themes = ['forest', 'beach', 'volcano', 'snow', 'space', 'castle'];
+
+  /// The daily loop, simplified: you write a prompt for the player two seats
+  /// on and draw the previous joined player's prompt from the day before.
+  http.Response _day(String code, String playerId, String method, List<String> path, Map<String, Object?>? body) {
+    final server = servers[code]!;
+    final joined = [
+      for (final (i, s) in server.seats.indexed)
+        if (s['player'] != null) i,
+    ];
+    final yours = server.seats.indexWhere((s) => s['player'] == playerId);
+    final day = days[code] ??= 1;
+    String theme(int day) => themes[(day - 1) % themes.length];
+    final author = joined[(joined.indexOf(yours) - 1) % joined.length];
+    int subjectOf(int seat) => (seat + 2) % server.seats.length;
+    Map<String, Object?>? challenger() =>
+        _pool(code).where((c) => c['artist_position'] == yours && c['day'] == day).firstOrNull;
+
+    switch ((method, path)) {
+      case ('POST', ['today', 'prompt']):
+        if (prompts.containsKey((code, yours, day))) return _json(409, {'detail': "You wrote today's prompt already"});
+        prompts[(code, yours, day)] = (body!['title'] as String).trim();
+      case ('PUT', ['today', 'challenger']):
+        if (challenger() != null) return _json(409, {'detail': "You drew today's challenger already"});
+        final written = prompts[(code, author, day - 1)];
+        drawings[(code, 'challenger-$day-$yours')] = (
+          character: {
+            'id': 'challenger-$day-$yours',
+            'title': written ?? 'Premade prompt',
+            'rarity': 'hero',
+            'prompt': 'challenger',
+            'artist_position': yours,
+            'subject_position': subjectOf(author),
+            'day': day,
+            'theme': theme(day - 1),
+          },
+          sketch: body!['sketch'],
+        );
+      case ('POST', ['today', 'end']):
+        final ended = dayEnded.putIfAbsent((code, day), () => {})..add(yours);
+        if (joined.every(ended.contains)) days[code] = day + 1;
+      case ('POST', ['days', 'next']):
+        if (server.admin != playerId) return _json(403, {'detail': 'Only the admin can start the next day'});
+        days[code] = day + 1;
+      case ('GET', ['today']):
+        break;
+      default:
+        return _json(404, {'detail': 'Not found'});
+    }
+    final today = days[code]!;
+    final written = prompts[(code, author, today - 1)];
+    return _json(200, {
+      'day': today,
+      'theme': theme(today),
+      'prompt': {'subject_position': subjectOf(yours), 'title': prompts[(code, yours, today)]},
+      'to_draw': today == 1
+          ? null
+          : {
+              'author_position': author,
+              'subject_position': subjectOf(author),
+              'title': written ?? 'Premade prompt',
+              'theme': theme(today - 1),
+              'premade': written == null,
+              'challenger': _pool(code).where((c) => c['artist_position'] == yours && c['day'] == today).firstOrNull,
+            },
+      'day_ended': [...?dayEnded[(code, today)]]..sort(),
+    });
+  }
 
   Map<String, Object?> _gacha(String code, String playerId) {
     final total = pulls[(code, playerId)]?.length ?? 0;

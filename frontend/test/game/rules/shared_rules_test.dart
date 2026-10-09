@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/rules/themes.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 
 /// Checks the rules against `shared/rules.json`, which the backend's tests
@@ -76,6 +77,12 @@ void main() {
       for (final r in Rarity.values) r.name: [for (final e in UpgradeTree.pathFor(r)) e.name],
     }, upgrades['paths']);
     expect([for (final e in ElementKind.values) e.name], upgrades['elements']);
+  });
+
+  test('themes', () {
+    expect([for (final t in DailyTheme.values) t.name], rules['themes']);
+    expect(DailyTheme.ofDay(1), DailyTheme.forest);
+    expect(DailyTheme.ofDay(DailyTheme.values.length + 2), DailyTheme.beach);
   });
 
   group('gacha', () {
