@@ -101,7 +101,7 @@ class MockGameSession extends GameSession {
   /// Looks up a (simulated) server by its 6-digit code and returns its roster
   /// so the joining player can claim a seat.
   @override
-  Future<List<Player>> previewServer(String code) async {
+  Future<ServerSession> previewServer(String code) async {
     final rng = Random(int.parse(code));
     final names = [...suggestedNames]..shuffle(rng);
     final count = SetupPlan.minPlayers + rng.nextInt(SetupPlan.maxPlayers - SetupPlan.minPlayers + 1);
@@ -109,18 +109,22 @@ class MockGameSession extends GameSession {
     // The admin usually knows your name already.
     final seat = 1 + rng.nextInt(count - 1);
     roster[seat] = Player(id: 'p$seat', name: you.name);
-    return roster;
+    // Everyone listed before your seat is assumed to have joined already.
+    final joined = {for (final p in roster.take(seat)) p.id};
+    return ServerSession(code: code, players: roster, isAdmin: false, joined: joined);
   }
 
   @override
-  Future<void> joinServer(String code, List<Player> roster, Player seat) async {
+  Future<void> joinServer(ServerSession server, Player seat) async {
+    if (server.joined.contains(seat.id)) throw StateError('This seat is taken');
     _you = seat.copyWith(isYou: true);
-    final players = [for (final p in roster) p.id == seat.id ? you : p];
-    // Everyone listed before you is assumed to have joined already.
-    final joined = {for (final p in players.take(players.indexOf(you) + 1)) p.id};
-    _server = ServerSession(code: code, players: players, isAdmin: false, joined: joined);
+    final players = [for (final p in server.players) p.id == seat.id ? you : p];
+    _server = ServerSession(code: server.code, players: players, isAdmin: false, joined: {...server.joined, you.id});
     _setPhase(GamePhase.lobby);
   }
+
+  @override
+  Duration get lobbyRefreshInterval => const Duration(milliseconds: 900);
 
   /// The simulated friends join one at a time.
   @override

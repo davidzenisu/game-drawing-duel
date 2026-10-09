@@ -174,7 +174,7 @@ class _JoinServer extends StatefulWidget {
 
 class _JoinServerState extends State<_JoinServer> {
   final _code = TextEditingController();
-  List<Player>? _roster;
+  ServerSession? _preview;
   Player? _seat;
 
   @override
@@ -184,11 +184,14 @@ class _JoinServerState extends State<_JoinServer> {
   }
 
   Future<void> _lookUp() async {
-    final roster = await runGameQuery(context, () => widget.controller.previewServer(_code.text));
-    if (roster == null || !mounted) return;
+    final preview = await runGameQuery(context, () => widget.controller.previewServer(_code.text));
+    if (preview == null || !mounted) return;
     setState(() {
-      _roster = roster;
-      _seat = roster.where((p) => p.name == widget.controller.you.name).firstOrNull;
+      _preview = preview;
+      // The admin usually knows your name already.
+      _seat = preview.players
+          .where((p) => p.name == widget.controller.you.name && !preview.joined.contains(p.id))
+          .firstOrNull;
     });
   }
 
@@ -206,7 +209,7 @@ class _JoinServerState extends State<_JoinServer> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: textTheme.headlineSmall?.copyWith(letterSpacing: 8, fontFamily: 'monospace'),
           decoration: const InputDecoration(labelText: 'Server code', border: OutlineInputBorder()),
-          onChanged: (_) => setState(() => _roster = null),
+          onChanged: (_) => setState(() => _preview = null),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -217,7 +220,7 @@ class _JoinServerState extends State<_JoinServer> {
         AnimatedSize(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic,
-          child: _roster == null
+          child: _preview == null
               ? const SizedBox(width: double.infinity)
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -230,12 +233,16 @@ class _JoinServerState extends State<_JoinServer> {
                       onChanged: (seat) => setState(() => _seat = seat),
                       child: Column(
                         children: [
-                          for (final (i, player) in _roster!.indexed)
+                          for (final (i, player) in _preview!.players.indexed)
                             RadioListTile<Player>(
                               value: player,
                               title: Text(player.name),
-                              subtitle: i == 0 ? const Text('Admin') : null,
-                              enabled: i != 0,
+                              subtitle: i == 0
+                                  ? const Text('Admin')
+                                  : _preview!.joined.contains(player.id)
+                                  ? const Text('Already joined')
+                                  : null,
+                              enabled: !_preview!.joined.contains(player.id),
                             ),
                         ],
                       ),
@@ -244,10 +251,7 @@ class _JoinServerState extends State<_JoinServer> {
                     FilledButton.icon(
                       onPressed: _seat == null
                           ? null
-                          : () => runGameAction(
-                              context,
-                              () => widget.controller.joinServer(_code.text, _roster!, _seat!),
-                            ),
+                          : () => runGameAction(context, () => widget.controller.joinServer(_preview!, _seat!)),
                       icon: const Icon(Icons.group_add_rounded),
                       label: const Text('Join server'),
                     ),

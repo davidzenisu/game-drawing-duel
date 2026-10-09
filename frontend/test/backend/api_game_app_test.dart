@@ -47,8 +47,11 @@ void main() {
     final create = find.widgetWithText(FilledButton, 'Create server');
     await tester.ensureVisible(create);
     await tester.tap(create);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
-    expect(find.textContaining("isn't available yet"), findsOneWidget);
+    expect(find.text('Lobby'), findsOneWidget);
+    expect(find.text('123456'), findsOneWidget);
+    expect(find.text('Players 1/5'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Sign out'));
     await tester.pumpAndSettle();

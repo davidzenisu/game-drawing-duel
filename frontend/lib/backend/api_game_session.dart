@@ -10,8 +10,8 @@ import 'auth_client.dart';
 
 /// [GameSession] backed by the API and Auth0.
 ///
-/// Signing in and signing up are implemented; the rest of the game arrives
-/// step by step and reports [NotAvailableYet] until then.
+/// Signing in, signing up and servers are implemented; the rest of the game
+/// arrives step by step and reports [NotAvailableYet] until then.
 class ApiGameSession extends GameSession {
   ApiGameSession({required ApiClient? api, String? signInProblem})
     : _api = api,
@@ -22,7 +22,8 @@ class ApiGameSession extends GameSession {
   GamePhase _phase = GamePhase.loading;
   String? _signInProblem;
   String _suggestedFirstName = '';
-  Player? _you;
+  Player? _account;
+  ServerSession? _server;
 
   AuthClient get _auth => _api!.auth;
 
@@ -41,21 +42,61 @@ class ApiGameSession extends GameSession {
   }
 
   Future<void> _loadPlayer() async {
+    final Object? me;
     try {
-      _setPlayer(await _api!.get('/me'));
+      me = await _api!.get('/me');
     } on ApiException catch (error) {
       if (error.statusCode != 404) rethrow;
       // Signed in, but the account isn't finished yet.
-      _setPhase(GamePhase.signup);
+      return _setPhase(GamePhase.signup);
     }
+    _setAccount(me);
+    await _loadServer();
   }
 
-  void _setPlayer(Object? json) {
+  void _setAccount(Object? json) {
     if (json is! Map || json['id'] is! int || json['first_name'] is! String) {
       throw const FormatException('Unexpected player response.');
     }
-    _you = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
-    _setPhase(GamePhase.server);
+    _account = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
+  }
+
+  /// Back to the lobby of your newest server, or to creating or joining one.
+  Future<void> _loadServer() async {
+    final servers = await _api!.get('/servers/mine');
+    if (servers is! List) throw const FormatException('Unexpected servers response.');
+    if (servers.isEmpty) return _setPhase(GamePhase.server);
+    _server = _parseServer(servers.first);
+    _setPhase(GamePhase.lobby);
+  }
+
+  static String _seatId(int position) => 'seat-$position';
+
+  static int _seatPosition(Player seat) => int.parse(seat.id.substring('seat-'.length));
+
+  /// Every seat becomes a player; yours is marked with `isYou`.
+  ServerSession _parseServer(Object? json) {
+    if (json is! Map || json['code'] is! String || json['seats'] is! List || json['is_admin'] is! bool) {
+      throw const FormatException('Unexpected server response.');
+    }
+    final yourPosition = json['your_position'];
+    final players = <Player>[];
+    final joined = <String>{};
+    for (final seat in json['seats'] as List) {
+      if (seat is! Map || seat['position'] is! int || seat['name'] is! String || seat['joined'] is! bool) {
+        throw const FormatException('Unexpected seat in server response.');
+      }
+      final position = seat['position'] as int;
+      final player = Player(id: _seatId(position), name: seat['name'] as String, isYou: position == yourPosition);
+      players.add(player);
+      if (seat['joined'] as bool) joined.add(player.id);
+    }
+    return ServerSession(
+      code: json['code'] as String,
+      players: players,
+      isAdmin: json['is_admin'] as bool,
+      joined: joined,
+    );
   }
 
   void _setPhase(GamePhase phase) {
@@ -78,7 +119,14 @@ class ApiGameSession extends GameSession {
   String get suggestedFirstName => _suggestedFirstName;
 
   @override
-  Player get you => _you ?? (throw StateError('Not signed up yet.'));
+  Player get you =>
+      _server?.players.where((p) => p.isYou).firstOrNull ?? _account ?? (throw StateError('Not signed up yet.'));
+
+  @override
+  ServerSession get server => _server ?? (throw StateError('Not in a server yet.'));
+
+  @override
+  Duration get lobbyRefreshInterval => const Duration(seconds: 5);
 
   @override
   Future<void> signIn() async {
@@ -89,20 +137,40 @@ class ApiGameSession extends GameSession {
   @override
   Future<void> signOut() async {
     await _auth.signOut();
-    _you = null;
+    _account = null;
+    _server = null;
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
   }
 
   @override
   Future<void> signUp(String firstName) async {
-    _setPlayer(await _api!.put('/me', {'first_name': firstName.trim()}));
+    _setAccount(await _api!.put('/me', {'first_name': firstName.trim()}));
+    await _loadServer();
+  }
+
+  @override
+  Future<void> createServer(List<String> otherNames) async {
+    _server = _parseServer(await _api!.post('/servers', {'other_names': otherNames}));
+    _setPhase(GamePhase.lobby);
+  }
+
+  @override
+  Future<ServerSession> previewServer(String code) async => _parseServer(await _api!.get('/servers/$code'));
+
+  @override
+  Future<void> joinServer(ServerSession server, Player seat) async {
+    _server = _parseServer(await _api!.post('/servers/${server.code}/seats/${_seatPosition(seat)}/claim'));
+    _setPhase(GamePhase.lobby);
+  }
+
+  @override
+  Future<void> refreshLobby() async {
+    _server = _parseServer(await _api!.get('/servers/${server.code}'));
+    notifyListeners();
   }
 
   // Not available yet ------------------------------------------------------------
-
-  @override
-  ServerSession get server => throw const NotAvailableYet();
 
   @override
   List<String> get suggestedPlayerNames => const [];
@@ -163,18 +231,6 @@ class ApiGameSession extends GameSession {
 
   @override
   Player? get hurrySentTo => null;
-
-  @override
-  Future<void> createServer(List<String> otherNames) => Future.error(const NotAvailableYet());
-
-  @override
-  Future<List<Player>> previewServer(String code) => Future.error(const NotAvailableYet());
-
-  @override
-  Future<void> joinServer(String code, List<Player> roster, Player seat) => Future.error(const NotAvailableYet());
-
-  @override
-  Future<void> refreshLobby() => Future.error(const NotAvailableYet());
 
   @override
   Future<void> startSetup() => Future.error(const NotAvailableYet());

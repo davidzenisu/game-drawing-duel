@@ -55,15 +55,14 @@ void main() {
     expect(session.you.name, 'Patricia');
     expect(session.you.isYou, isTrue);
 
-    final put = backend.requests.last;
-    expect(put.method, 'PUT');
+    final put = backend.requests.firstWhere((r) => r.method == 'PUT');
     expect(put.body, '{"first_name":"Patricia"}');
     expect(put.headers['Content-Type'], startsWith('application/json'));
   });
 
   test('signing out returns to the sign-in', () async {
     final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Sam'));
-    final backend = FakeBackend({'id': 3, 'first_name': 'Sam', 'created_at': '2026-10-01T00:00:00Z'});
+    final backend = FakeBackend()..players['test-token'] = {'id': 3, 'first_name': 'Sam'};
     final session = sessionWith(auth, backend);
     await session.start();
     expect(session.phase, GamePhase.server);
@@ -76,7 +75,7 @@ void main() {
   });
 
   test('a returning player skips the signup', () async {
-    final backend = FakeBackend({'id': 3, 'first_name': 'Sam', 'created_at': '2026-10-01T00:00:00Z'});
+    final backend = FakeBackend()..players['test-token'] = {'id': 3, 'first_name': 'Sam'};
     final session = sessionWith(FakeAuthClient(profile: const AuthProfile(nickname: 'sam')), backend);
 
     await session.start();
@@ -99,11 +98,98 @@ void main() {
     await expectLater(session.signIn(), throwsStateError);
   });
 
-  test('the rest of the game is not available yet', () async {
-    final session = sessionWith(FakeAuthClient(), FakeBackend());
-    await expectLater(session.createServer(['Sam']), throwsA(isA<NotAvailableYet>()));
-    await expectLater(session.previewServer('123456'), throwsA(isA<NotAvailableYet>()));
-    expect(session.isMockup, isFalse);
+  group('servers', () {
+    late FakeBackend backend;
+    late ApiGameSession admin;
+
+    Future<ApiGameSession> signedUp(String token, String name) async {
+      final session = ApiGameSession(
+        api: ApiClient(
+          baseUrl: 'https://api.example',
+          auth: FakeAuthClient(token: token, profile: const AuthProfile()),
+          httpClient: backend.client,
+        ),
+      );
+      await session.start();
+      await session.signUp(name);
+      return session;
+    }
+
+    setUp(() async {
+      backend = FakeBackend();
+      admin = await signedUp('alex', 'Alex');
+    });
+
+    test('creating a server opens its lobby with you as admin', () async {
+      expect(admin.phase, GamePhase.server);
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      expect(admin.phase, GamePhase.lobby);
+      expect(admin.server.code, '123456');
+      expect(admin.server.isAdmin, isTrue);
+      expect(admin.server.players.map((p) => p.name), ['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
+      expect(admin.you.name, 'Alex');
+      expect(admin.you.isYou, isTrue);
+      expect(admin.server.joined, {admin.you.id});
+      expect(admin.otherPlayers, hasLength(4));
+    });
+
+    test('friends preview the roster, claim a seat and show up in the lobby', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      final sam = await signedUp('sam', 'Sam');
+
+      final preview = await sam.previewServer('123456');
+      expect(preview.isAdmin, isFalse);
+      expect(preview.joined, {'seat-0'});
+      expect(preview.players.where((p) => p.isYou), isEmpty);
+
+      await sam.joinServer(preview, preview.players[1]);
+      expect(sam.phase, GamePhase.lobby);
+      expect(sam.you.name, 'Sam');
+      expect(sam.server.joined, {'seat-0', 'seat-1'});
+      expect(backend.requests.last.url.path, '/servers/123456/seats/1/claim');
+
+      await admin.refreshLobby();
+      expect(admin.server.joined, {'seat-0', 'seat-1'});
+    });
+
+    test('a taken seat is rejected with the API message', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      final sam = await signedUp('sam', 'Sam');
+      final kim = await signedUp('kim', 'Kim');
+      final preview = await kim.previewServer('123456');
+      await sam.joinServer(await sam.previewServer('123456'), preview.players[1]);
+
+      await expectLater(
+        kim.joinServer(preview, preview.players[1]),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'This seat is taken')),
+      );
+      expect(kim.phase, GamePhase.server);
+    });
+
+    test('coming back opens the lobby of your newest server', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      final again = ApiGameSession(
+        api: ApiClient(
+          baseUrl: 'https://api.example',
+          auth: FakeAuthClient(token: 'alex', profile: const AuthProfile()),
+          httpClient: backend.client,
+        ),
+      );
+      await again.start();
+      expect(again.phase, GamePhase.lobby);
+      expect(again.server.code, '123456');
+    });
+
+    test('unknown codes are reported', () async {
+      await expectLater(admin.previewServer('999999'), throwsA(isA<ApiException>()));
+    });
+
+    test('the drawings are not available yet', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      await expectLater(admin.startSetup(), throwsA(isA<NotAvailableYet>()));
+      expect(admin.isMockup, isFalse);
+      expect(admin.lobbyRefreshInterval, const Duration(seconds: 5));
+    });
   });
 
   test('profile first names fall back sensibly', () {

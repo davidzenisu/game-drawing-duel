@@ -31,6 +31,8 @@ class ApiClient {
 
   Future<Object?> put(String path, Object body) => _send('PUT', path, body: body);
 
+  Future<Object?> post(String path, [Object? body]) => _send('POST', path, body: body);
+
   Future<Object?> _send(String method, String path, {Object? body}) async {
     final request = http.Request(method, Uri.parse('$_baseUrl$path'))
       ..headers['Authorization'] = 'Bearer ${await auth.accessToken()}'

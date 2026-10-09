@@ -53,6 +53,22 @@ linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
 database answers.
 
+### Servers
+
+A player creates a server with the full list of players (5 to 10, including
+the admin) and gets a unique 6-digit code to share. Friends look the server up
+with the code and claim the seat with their name; the lobby shows who joined.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /servers` | Create a server; you take the first seat as admin |
+| `GET /servers/mine` | The servers you joined, newest first |
+| `GET /servers/{code}` | Roster and who joined |
+| `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
+
+The player limits live in `backend/app/rules.py` and
+`frontend/lib/game/rules/setup_plan.dart`; keep both in sync.
+
 ### Function App settings
 
 The app settings are managed in the infrastructure repository. The API reads:
