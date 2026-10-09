@@ -405,6 +405,22 @@ class MockGameSession extends GameSession {
   }
 
   @override
+  bool get canAdvanceDay => true;
+
+  /// The simulated players never wait for you.
+  @override
+  bool get canEndDay => false;
+
+  @override
+  Set<String> get dayEnded => const {};
+
+  @override
+  Future<void> endDay() => advanceDay();
+
+  @override
+  Future<void> refreshDay() async {}
+
+  @override
   Future<void> advanceDay() async {
     _startDay();
     notifyListeners();

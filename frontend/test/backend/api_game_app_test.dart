@@ -4,6 +4,7 @@ import 'package:frontend/backend/api_client.dart';
 import 'package:frontend/backend/api_game_session.dart';
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/game/game_app.dart';
+import 'package:frontend/game/rules/models.dart';
 
 import 'fakes.dart';
 
@@ -56,5 +57,55 @@ void main() {
     await tester.tap(find.byTooltip('Sign out'));
     await tester.pumpAndSettle();
     expect(find.text('Sign in to play with your friends.'), findsOneWidget);
+  });
+
+  testWidgets('a test session ends the day for everyone through the hub', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final backend = FakeBackend();
+    final session = ApiGameSession(
+      api: ApiClient(
+        baseUrl: 'https://api.example',
+        auth: FakeAuthClient(
+          token: 'alex',
+          profile: const AuthProfile(givenName: 'Alex'),
+        ),
+        httpClient: backend.client,
+      ),
+    );
+    // Alone in a launched test session.
+    await tester.runAsync(() async {
+      await session.start();
+      await session.signUp('Alex');
+      await session.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await session.startSetup();
+      for (final assignment in session.assignments) {
+        await session.submitSetupDrawing(assignment, Sketch.empty, assignment.prompt.label);
+      }
+      await session.launch();
+    });
+    await tester.pumpWidget(GameApp(session: session));
+    await tester.pumpAndSettle();
+    // The launch dialog.
+    await tester.tap(find.text("Let's go"));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Day 1 · Enchanted Forest'), findsOneWidget);
+    expect(find.text('Nobody ended the day yet'), findsOneWidget);
+    expect(find.byTooltip('Start the next day for everyone'), findsOneWidget);
+
+    await tester.tap(find.text('End my day'));
+    await tester.pumpAndSettle();
+    // Steps are still open today.
+    await tester.tap(find.widgetWithText(FilledButton, 'End my day'));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+
+    // Alone, ending the day starts the next one.
+    expect(session.day, 2);
+    expect(find.text('Day 2 · Hot Sandy Beaches'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
   });
 }

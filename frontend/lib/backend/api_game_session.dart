@@ -220,12 +220,16 @@ class ApiGameSession extends GameSession {
     _setupDrawings = Map.fromEntries(drawings);
   }
 
-  /// The pool and your collection of a running game.
+  static DailyTheme _theme(String name) =>
+      DailyTheme.values.asNameMap()[name] ?? (throw FormatException('Unknown theme $name.'));
+
+  /// The pool, your collection and today of a running game.
   Future<void> _loadPool(ServerSession server) async {
-    final (pool, collection, gacha) = await (
+    final (pool, collection, gacha, today) = await (
       _get('/servers/${server.code}/pool'),
       _get('/servers/${server.code}/collection'),
       _get('/servers/${server.code}/gacha'),
+      _get('/servers/${server.code}/today'),
     ).wait;
     if (pool is! List || collection is! List) throw const FormatException('Unexpected pool response.');
     final cards = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
@@ -239,6 +243,66 @@ class ApiGameSession extends GameSession {
           throw const FormatException('Unexpected character in collection.'),
     ];
     _setGacha(gacha);
+    await _setToday(server, today);
+  }
+
+  int _day = 0;
+  DailyTheme _dayTheme = DailyTheme.forest;
+  Player? _promptSubject;
+  ChallengerPrompt? _yourPrompt;
+  ChallengerPrompt? _promptToDraw;
+  CharacterCard? _yourChallenger;
+  Set<String> _dayEnded = const {};
+
+  /// Today's step 1 and 2 from the API; [known] is the challenger you just drew.
+  Future<void> _setToday(ServerSession server, Object? json, {Sketch? known}) async {
+    if (json case {
+      'day': int day,
+      'theme': String theme,
+      'prompt': {'subject_position': int subject, 'title': String? title},
+      'day_ended': List ended,
+    }) {
+      _day = day;
+      _dayTheme = _theme(theme);
+      final you = server.players.firstWhere((p) => p.isYou);
+      _promptSubject = _seat(server, subject);
+      _yourPrompt = title == null
+          ? null
+          : ChallengerPrompt(
+              id: 'prompt-$day-${you.id}',
+              author: you,
+              subject: _promptSubject!,
+              theme: _dayTheme,
+              title: title,
+              day: day,
+            );
+      _promptToDraw = null;
+      _yourChallenger = null;
+      if (json['to_draw'] case {
+        'author_position': int author,
+        'subject_position': int drawnSubject,
+        'title': String drawnTitle,
+        'theme': String drawnTheme,
+        'premade': bool premade,
+        'challenger': final challenger,
+      }) {
+        _promptToDraw = ChallengerPrompt(
+          id: 'prompt-${day - 1}-${_seatId(author)}',
+          author: _seat(server, author),
+          subject: _seat(server, drawnSubject),
+          theme: _theme(drawnTheme),
+          title: drawnTitle,
+          day: day - 1,
+          premade: premade,
+        );
+        if (challenger != null) _yourChallenger = await _loadCharacter(server, challenger, known: known);
+      } else if (json['to_draw'] != null) {
+        throw const FormatException('Unexpected prompt to draw.');
+      }
+      _dayEnded = {for (final position in ended) _seat(server, position as int).id};
+      return;
+    }
+    throw const FormatException('Unexpected day response.');
   }
 
   /// Copies, upgrades and element of [owned] from the API's collection entry.
@@ -293,14 +357,23 @@ class ApiGameSession extends GameSession {
       'subject_position': int subject,
     }) {
       final sketch = _sketches[id] = known ?? _sketches[id] ?? SketchJson.decode(await _get('/characters/$id/sketch'));
+      final theme = switch (json['theme']) {
+        final String name => _theme(name),
+        _ => null,
+      };
       return CharacterCard(
         id: id,
         subject: _seat(server, subject).name,
         title: title,
         rarity: Rarity.values.asNameMap()[rarity] ?? (throw FormatException('Unknown rarity $rarity.')),
-        prompt: SetupPrompt.values.asNameMap()[prompt]?.label ?? prompt,
+        prompt: SetupPrompt.values.asNameMap()[prompt]?.label ?? 'Challenger: ${theme?.label ?? ''}',
         artist: _seat(server, artist).name,
         sketch: sketch,
+        day: switch (json['day']) {
+          final int day => day,
+          _ => 0,
+        },
+        theme: theme,
       );
     }
     throw const FormatException('Unexpected character response.');
@@ -447,22 +520,22 @@ class ApiGameSession extends GameSession {
     });
 
   @override
-  int get day => 0;
+  int get day => _day;
 
   @override
-  DailyTheme get theme => DailyTheme.forest;
+  DailyTheme get theme => _dayTheme;
 
   @override
-  Player? get promptSubject => null;
+  Player? get promptSubject => _promptSubject;
 
   @override
-  ChallengerPrompt? get yourPrompt => null;
+  ChallengerPrompt? get yourPrompt => _yourPrompt;
 
   @override
-  ChallengerPrompt? get promptToDraw => null;
+  ChallengerPrompt? get promptToDraw => _promptToDraw;
 
   @override
-  CharacterCard? get yourChallenger => null;
+  CharacterCard? get yourChallenger => _yourChallenger;
 
   @override
   CharacterCard? get fightChallenger => null;
@@ -489,10 +562,20 @@ class ApiGameSession extends GameSession {
   Future<void> launch() async => _enterServer(await _post('/servers/${server.code}/setup/done'));
 
   @override
-  Future<void> submitPrompt(String title) => Future.error(const NotAvailableYet());
+  Future<void> submitPrompt(String title) async {
+    await _setToday(server, await _post('/servers/${server.code}/today/prompt', {'title': title.trim()}));
+    notifyListeners();
+  }
 
   @override
-  Future<void> submitChallenger(Sketch sketch) => Future.error(const NotAvailableYet());
+  /// The challenger joins the pool and earns a pull.
+  Future<void> submitChallenger(Sketch sketch) async {
+    final json = await _put('/servers/${server.code}/today/challenger', {'sketch': SketchJson.encode(sketch)});
+    await _setToday(server, json, known: sketch);
+    if (_yourChallenger case final challenger?) _pool = [..._pool, challenger];
+    _setGacha(await _get('/servers/${server.code}/gacha'));
+    notifyListeners();
+  }
 
   @override
   Future<void> submitFighters(List<OwnedCard> fighters) => Future.error(const NotAvailableYet());
@@ -544,5 +627,30 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> advanceDay() => Future.error(const NotAvailableYet());
+  bool get canAdvanceDay => _server?.isTest == true && _server!.isAdmin;
+
+  @override
+  Future<void> advanceDay() async {
+    await _post('/servers/${server.code}/days/next');
+    await refreshDay();
+  }
+
+  @override
+  bool get canEndDay => _server?.isTest == true;
+
+  @override
+  Set<String> get dayEnded => _dayEnded;
+
+  @override
+  Future<void> endDay() async {
+    await _post('/servers/${server.code}/today/end');
+    await refreshDay();
+  }
+
+  /// A new day brings new challengers to the pool, so everything reloads.
+  @override
+  Future<void> refreshDay() async {
+    await _loadPool(server);
+    notifyListeners();
+  }
 }

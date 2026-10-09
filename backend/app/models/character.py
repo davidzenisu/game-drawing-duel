@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, utc_now
@@ -16,6 +25,12 @@ class Character(Base):
     """
 
     __tablename__ = "character"
+    # One challenger per artist and day.
+    __table_args__ = (
+        UniqueConstraint(
+            "artist_seat_id", "day", name="character_artist_seat_id_day_key"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     server_id: Mapped[uuid.UUID] = mapped_column(
@@ -34,8 +49,11 @@ class Character(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     # An `app.rules.Rarity`.
     rarity: Mapped[str] = mapped_column(String(20), nullable=False)
-    # An `app.rules.SetupPrompt` for setup drawings.
+    # An `app.rules.SetupPrompt` for setup drawings, "challenger" otherwise.
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    # The day a challenger was drawn and its prompt's `app.rules.Theme`.
+    day: Mapped[int | None] = mapped_column(Integer)
+    theme: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

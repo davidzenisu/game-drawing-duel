@@ -1,4 +1,11 @@
-from app.schemas.character import CharacterResponse, DrawingSubmit, SketchData
+from app.schemas.character import (
+    ChallengerSubmit,
+    CharacterResponse,
+    DrawingSubmit,
+    PromptSubmit,
+    SketchData,
+)
+from app.schemas.day import PromptToDrawResponse, TodayResponse, YourPrompt
 from app.schemas.gacha import (
     GachaResponse,
     OwnedCharacterResponse,
@@ -17,12 +24,15 @@ from app.schemas.server import (
 
 __all__ = [
     "AssignmentResponse",
+    "ChallengerSubmit",
     "CharacterResponse",
     "DrawingSubmit",
     "GachaResponse",
     "OwnedCharacterResponse",
     "PlayerResponse",
     "PlayerUpdate",
+    "PromptSubmit",
+    "PromptToDrawResponse",
     "PullOutcomeResponse",
     "PullRequest",
     "PullsResponse",
@@ -30,5 +40,7 @@ __all__ = [
     "ServerCreate",
     "ServerResponse",
     "SketchData",
+    "TodayResponse",
     "UpgradeRequest",
+    "YourPrompt",
 ]

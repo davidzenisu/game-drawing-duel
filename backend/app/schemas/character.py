@@ -49,6 +49,16 @@ class DrawingSubmit(BaseModel):
     sketch: SketchData
 
 
+class PromptSubmit(BaseModel):
+    title: Title
+
+
+class ChallengerSubmit(BaseModel):
+    """The title comes with the prompt."""
+
+    sketch: SketchData
+
+
 class CharacterResponse(BaseModel):
     """A drawn character; its sketch is at `/characters/{id}/sketch`."""
 
@@ -56,6 +66,10 @@ class CharacterResponse(BaseModel):
     title: str
     # An `app.rules.Rarity`.
     rarity: str
+    # An `app.rules.SetupPrompt`, or "challenger".
     prompt: str
     artist_position: int
     subject_position: int
+    # For challengers: the day they were drawn and their `app.rules.Theme`.
+    day: int | None = None
+    theme: str | None = None

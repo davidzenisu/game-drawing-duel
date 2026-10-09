@@ -86,3 +86,8 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(
             [e.value for e in rules.Element], SHARED["upgrades"]["elements"]
         )
+
+    def test_themes(self):
+        self.assertEqual([t.value for t in rules.Theme], SHARED["themes"])
+        self.assertEqual(rules.theme_of_day(1), rules.Theme.FOREST)
+        self.assertEqual(rules.theme_of_day(len(rules.Theme) + 2), rules.Theme.BEACH)

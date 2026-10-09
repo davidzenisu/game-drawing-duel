@@ -85,6 +85,29 @@ refresh.
 | `POST /servers/{code}/pulls` | Spend 1 to 10 pulls on random characters of the pool |
 | `POST /servers/{code}/collection/{id}/upgrades` | Spend a duplicate on the character's next upgrade (`{"element": …}` for the element upgrade) |
 
+### Daily loop
+
+Day 1 is the launch day; regular servers move to the next day at midnight
+UTC, and each day has a theme. Every day each player:
+
+1. writes a challenger title for the day's theme and a randomly picked
+   character (not themselves and not the player who draws it),
+2. draws the title the previous player wrote the day before; if they wrote
+   none, a premade title (`app/premade_prompts.py`) stands in. The challenger
+   joins the pool as a hero and earns the day's only pull
+   (`challenger:day-N`).
+
+The random picks are derived from the server, day and seat, so they stay the
+same without being stored ahead of time. Fighters and votes follow.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /servers/{code}/today` | Day, theme, your prompt to write and your prompt to draw |
+| `POST /servers/{code}/today/prompt` | Write today's challenger title, once |
+| `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
+| `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
+| `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
+
 ### Gacha
 
 Every pull a player earns is a `pull_grant` row with a timestamp and the
@@ -132,8 +155,9 @@ server for trying the game with the real database and storage, at speed:
 - The lobby and the game show a TEST SESSION badge.
 
 Players who join a test session after its setup started draw along, and the
-launch waits for them too; once it launched, nobody can join anymore. So far the flag, the badge and the short
-setup exist; the day controls arrive with the daily loop.
+launch waits for them too; once it launched, nobody can join anymore. The day
+controls are in the daily hub: everyone can end their day, the admin can start
+the next one, and a refresh shows who ended theirs.
 
 ### Game rules
 

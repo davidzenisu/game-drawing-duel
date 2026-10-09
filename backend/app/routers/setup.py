@@ -5,10 +5,10 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
+from app.drawings import save_character
 from app.models import Character, Server, ServerSeat, SetupAssignment
 from app.pulls import grant_launch_bonus
 from app.routers.servers import (
@@ -27,7 +27,7 @@ from app.schemas import (
     ServerResponse,
 )
 from app.setup import assign_setup
-from app.storage import Files, StorageUnavailable, delete_quietly
+from app.storage import Files, delete_quietly
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,8 @@ def character_response(character: Character) -> CharacterResponse:
         prompt=character.prompt,
         artist_position=character.artist.position,
         subject_position=character.subject.position,
+        day=character.day,
+        theme=character.theme,
     )
 
 
@@ -176,43 +178,24 @@ def submit_drawing(
         rarity=prompt.rarity.value,
         prompt=prompt.value,
     )
-    try:
-        files.upload(
-            str(character.id),
-            body.sketch.model_dump_json().encode(),
-            content_type="application/json",
-            metadata={
-                "kind": "setup",
-                "server": server.code,
-                "prompt": prompt.value,
-                "rarity": prompt.rarity.value,
-                "artist_position": str(seat.position),
-                "subject_position": str(assignment.subject.position),
-            },
-        )
-    except StorageUnavailable as error:
-        logger.exception("Storing a drawing failed")
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, detail="Couldn't store the drawing"
-        ) from error
-
     previous = _drawn(session, assignment.id)
     previous_id = previous.id if previous else None
-    try:
+
+    def remove_previous() -> None:
         if previous is not None:
             session.delete(previous)
             session.flush()
-        session.add(character)
-        session.commit()
-    except Exception as error:
-        session.rollback()
-        delete_quietly(files, str(character.id))
-        if isinstance(error, IntegrityError):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                detail="This drawing was just changed elsewhere, try again",
-            ) from error
-        raise
+
+    save_character(
+        session,
+        files,
+        server,
+        character,
+        body.sketch,
+        kind="setup",
+        conflict="This drawing was just changed elsewhere, try again",
+        before_insert=remove_previous,
+    )
     if previous_id is not None:
         delete_quietly(files, str(previous_id))
     return character_response(character)
@@ -259,7 +242,11 @@ def finish_setup(
     session.refresh(server)
     if all(s.setup_done_at is not None for s in server.seats if s.id in artist_ids):
         server.launched_at = func.now()
-        grant_launch_bonus(session, [s for s in server.seats if s.player_id is not None])
+        if server.is_test:
+            server.test_day = 1
+        grant_launch_bonus(
+            session, [s for s in server.seats if s.player_id is not None]
+        )
     session.commit()
     session.expire_all()
     return server_response(load_server(session, code), player)

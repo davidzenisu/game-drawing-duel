@@ -154,3 +154,20 @@ UPGRADE_PATHS = {
     ),
     Rarity.LEGEND: tuple(UpgradeEffect),
 }
+
+
+class Theme(StrEnum):
+    """The daily prompt themes, in the order the days cycle through them."""
+
+    FOREST = "forest"
+    BEACH = "beach"
+    VOLCANO = "volcano"
+    SNOW = "snow"
+    SPACE = "space"
+    CASTLE = "castle"
+
+
+def theme_of_day(day: int) -> Theme:
+    """The theme of a day of the game (day 1 is the first)."""
+    themes = list(Theme)
+    return themes[(day - 1) % len(themes)]
