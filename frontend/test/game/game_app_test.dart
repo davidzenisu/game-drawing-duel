@@ -81,4 +81,34 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('a test session is marked and can start without everyone', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = MockGameSession(seed: 1);
+    await tester.pumpWidget(GameApp(session: controller));
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pump();
+    await tester.tap(find.text('Finish account'));
+    await tester.pumpAndSettle();
+
+    final checkbox = find.widgetWithText(CheckboxListTile, 'Test session');
+    await tester.ensureVisible(checkbox);
+    await tester.tap(checkbox);
+    await tester.pump();
+    final create = find.widgetWithText(FilledButton, 'Create server');
+    await tester.ensureVisible(create);
+    await tester.tap(create);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(controller.server.isTest, isTrue);
+    expect(find.text('TEST SESSION'), findsOneWidget);
+    // Nobody else joined yet, but a test session can start anyway.
+    expect(controller.server.everyoneJoined, isFalse);
+    final start = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Start drawing'));
+    expect(start.onPressed, isNotNull);
+
+    await tester.pumpWidget(const SizedBox());
+  });
 }

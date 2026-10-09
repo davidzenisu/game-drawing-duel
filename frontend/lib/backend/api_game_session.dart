@@ -104,7 +104,11 @@ class ApiGameSession extends GameSession {
 
   /// Every seat becomes a player; yours is marked with `isYou`.
   ServerSession _parseServer(Object? json) {
-    if (json is! Map || json['code'] is! String || json['seats'] is! List || json['is_admin'] is! bool) {
+    if (json is! Map ||
+        json['code'] is! String ||
+        json['seats'] is! List ||
+        json['is_admin'] is! bool ||
+        json['is_test'] is! bool) {
       throw const FormatException('Unexpected server response.');
     }
     final yourPosition = json['your_position'];
@@ -124,6 +128,7 @@ class ApiGameSession extends GameSession {
       players: players,
       isAdmin: json['is_admin'] as bool,
       joined: joined,
+      isTest: json['is_test'] as bool,
     );
   }
 
@@ -178,8 +183,8 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> createServer(List<String> otherNames) async {
-    _server = _parseServer(await _post('/servers', {'other_names': otherNames}));
+  Future<void> createServer(List<String> otherNames, {bool isTest = false}) async {
+    _server = _parseServer(await _post('/servers', {'other_names': otherNames, 'is_test': isTest}));
     _setPhase(GamePhase.lobby);
   }
 

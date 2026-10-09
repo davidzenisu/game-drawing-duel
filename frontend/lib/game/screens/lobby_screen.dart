@@ -71,6 +71,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
+                          if (server.isTest) ...[
+                            Chip(
+                              avatar: const Icon(Icons.science_rounded, size: 18),
+                              label: const Text('TEST SESSION'),
+                              backgroundColor: colors.tertiaryContainer,
+                            ),
+                            const SizedBox(height: 8),
+                          ],
                           Text('Server code', style: textTheme.labelLarge),
                           const SizedBox(height: 4),
                           SelectableText(
@@ -115,14 +123,17 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     ),
                   const SizedBox(height: 16),
                   Text(
-                    'Everyone draws $drawings characters of the other players to fill the gacha pool.',
+                    server.isTest
+                        ? 'Test session: everyone who joined draws ${SetupPlan.testPrompts.length} quick characters '
+                              '(${SetupPlan.testPrompts.map((p) => p.label).join(', ')}). You can start without the others.'
+                        : 'Everyone draws $drawings characters of the other players to fill the gacha pool.',
                     style: textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: server.everyoneJoined ? () => runGameAction(context, controller.startSetup) : null,
+                    onPressed: server.canStart ? () => runGameAction(context, controller.startSetup) : null,
                     icon: const Icon(Icons.draw_rounded),
-                    label: Text(server.everyoneJoined ? 'Start drawing' : 'Waiting for everyone…'),
+                    label: Text(server.canStart ? 'Start drawing' : 'Waiting for everyone…'),
                   ),
                 ],
               ),

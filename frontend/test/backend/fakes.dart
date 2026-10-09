@@ -45,7 +45,7 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> players = {};
 
   /// Servers by code; every seat has a `name` and the `player` id or null.
-  final Map<String, ({int admin, List<Map<String, Object?>> seats})> servers = {};
+  final Map<String, ({int admin, bool isTest, List<Map<String, Object?>> seats})> servers = {};
   final List<http.Request> requests = [];
 
   /// Rejects every request with this status and detail, like the real API
@@ -75,9 +75,10 @@ class FakeBackend {
       final code = '${_nextCode++}';
       servers[code] = (
         admin: myId,
+        isTest: body!['is_test'] as bool? ?? false,
         seats: [
           {'name': me['first_name'], 'player': myId},
-          for (final name in body!['other_names'] as List) {'name': name, 'player': null},
+          for (final name in body['other_names'] as List) {'name': name, 'player': null},
         ],
       );
       return _json(201, _server(code, myId));
@@ -107,6 +108,7 @@ class FakeBackend {
     return {
       'code': code,
       'created_at': '2026-10-09T10:00:00Z',
+      'is_test': server.isTest,
       'is_admin': server.admin == playerId,
       'your_position': yours < 0 ? null : yours,
       'seats': [

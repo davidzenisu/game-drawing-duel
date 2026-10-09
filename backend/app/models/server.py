@@ -1,12 +1,14 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,6 +24,11 @@ class Server(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(6), nullable=False, unique=True)
     admin_id: Mapped[int] = mapped_column(ForeignKey("player.id"), nullable=False)
+    # Test sessions start without everyone, use a short setup and let the
+    # day be advanced on demand (see README, "Test sessions").
+    is_test: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

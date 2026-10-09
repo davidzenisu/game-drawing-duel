@@ -30,6 +30,7 @@ def _response(server: Server, player: Player) -> ServerResponse:
     return ServerResponse(
         code=server.code,
         created_at=server.created_at,
+        is_test=server.is_test,
         is_admin=server.admin_id == player.id,
         your_position=your_seat.position if your_seat else None,
         seats=[
@@ -60,7 +61,7 @@ def create_server(
             detail="Every player needs a different name",
         )
     for _ in range(_CODE_ATTEMPTS):
-        server = Server(code=_new_code(), admin_id=player.id)
+        server = Server(code=_new_code(), admin_id=player.id, is_test=body.is_test)
         server.seats = [
             ServerSeat(position=position, name=name)
             for position, name in enumerate(names)

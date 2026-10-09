@@ -14,6 +14,7 @@ class ServerCreate(BaseModel):
     """The other players; the admin takes the first seat themselves."""
 
     other_names: list[SeatName]
+    is_test: bool = False
 
     @field_validator("other_names")
     @classmethod
@@ -34,6 +35,7 @@ class SeatResponse(BaseModel):
 class ServerResponse(BaseModel):
     code: str
     created_at: datetime
+    is_test: bool
     is_admin: bool
     # Your seat, or null if you haven't joined (yet).
     your_position: int | None

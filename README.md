@@ -66,6 +66,24 @@ with the code and claim the seat with their name; the lobby shows who joined.
 | `GET /servers/{code}` | Roster and who joined |
 | `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
 
+#### Test sessions
+
+Ticking **Test session** when creating a server (`"is_test": true`) makes a
+server for trying the game with the real database and storage, at speed:
+
+- It can start without everyone: only the players who joined take part.
+- The initial setup is short: every active player draws three characters,
+  *Basic*, *Knight* and *Legend*, of the other active players (or of
+  themselves when playing alone).
+- Days don't wait for real time. The admin can advance to the next day, and
+  the day advances automatically once every active player has ended theirs.
+  Players see who has ended their day when they refresh, not by polling.
+- The lobby and the game show a TEST SESSION badge.
+
+So far the flag, the badge and starting without everyone exist; the short
+setup arrives with the initial drawings and the day controls with the daily
+loop.
+
 The player limits live in `backend/app/rules.py` and
 `frontend/lib/game/rules/setup_plan.dart`; keep both in sync.
 

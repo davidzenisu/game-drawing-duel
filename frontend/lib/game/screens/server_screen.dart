@@ -49,6 +49,7 @@ class _CreateServer extends StatefulWidget {
 }
 
 class _CreateServerState extends State<_CreateServer> {
+  bool _isTest = false;
   final _newName = TextEditingController();
   late final List<String> _names = widget.controller.suggestedPlayerNames
       .where((name) => name != widget.controller.you.name)
@@ -120,9 +121,23 @@ class _CreateServerState extends State<_CreateServer> {
                   style: textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error),
                 ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
+        CheckboxListTile(
+          value: _isTest,
+          onChanged: (value) => setState(() => _isTest = value ?? false),
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: const Text('Test session'),
+          subtitle: const Text(
+            'Start without everyone, draw 3 quick characters each, and skip ahead to the next day '
+            'instead of waiting for it.',
+          ),
+        ),
+        const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: valid ? () => runGameAction(context, () => widget.controller.createServer(_names)) : null,
+          onPressed: valid
+              ? () => runGameAction(context, () => widget.controller.createServer(_names, isTest: _isTest))
+              : null,
           icon: const Icon(Icons.rocket_launch_rounded),
           label: const Text('Create server'),
         ),
