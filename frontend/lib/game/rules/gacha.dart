@@ -16,6 +16,9 @@ class GachaStatus {
 }
 
 /// Gacha pulls with rates and pity, see `docs/concept/gacha-rates.md`.
+///
+/// The server pulls the same way (`backend/app/gacha.py`); both are checked
+/// against `shared/rules.json`.
 class GachaMachine {
   GachaMachine({Random? random}) : _random = random ?? Random();
 
@@ -54,7 +57,7 @@ class GachaMachine {
     if (pool.isEmpty) throw StateError('The pool is empty.');
 
     final (rarity, guaranteed) = _rollRarity();
-    final tier = _closestAvailableTier(pool, rarity, preferHigher: guaranteed);
+    final tier = closestAvailableTier({for (final card in pool) card.rarity}, rarity, preferHigher: guaranteed);
     final candidates = pool.where((card) => card.rarity == tier).toList();
     final card = candidates[_random.nextInt(candidates.length)];
 
@@ -79,10 +82,10 @@ class GachaMachine {
     return (Rarity.basic, false);
   }
 
-  /// Falls back to the nearest tier that has characters. Guaranteed pulls
-  /// look upwards first so pity never hands out something worse.
-  static Rarity _closestAvailableTier(List<CharacterCard> pool, Rarity wanted, {required bool preferHigher}) {
-    final available = pool.map((card) => card.rarity).toSet();
+  /// The tier to pull from when [wanted] has no characters: the nearest
+  /// [available] one. Guaranteed pulls look upwards first so pity never hands
+  /// out something worse.
+  static Rarity closestAvailableTier(Set<Rarity> available, Rarity wanted, {required bool preferHigher}) {
     if (available.contains(wanted)) return wanted;
     final higher = Rarity.values.where((r) => r.stars > wanted.stars && available.contains(r));
     final lower = Rarity.values.reversed.where((r) => r.stars < wanted.stars && available.contains(r));

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
 from app.models import Character, Server, ServerSeat, SetupAssignment
+from app.pulls import grant_launch_bonus
 from app.routers.servers import (
     Code,
     DbSession,
@@ -258,6 +259,7 @@ def finish_setup(
     session.refresh(server)
     if all(s.setup_done_at is not None for s in server.seats if s.id in artist_ids):
         server.launched_at = func.now()
+        grant_launch_bonus(session, [s for s in server.seats if s.player_id is not None])
     session.commit()
     session.expire_all()
     return server_response(load_server(session, code), player)

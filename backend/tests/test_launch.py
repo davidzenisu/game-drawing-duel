@@ -5,7 +5,9 @@ from tests.test_setup import ADMIN, FRIEND_SUBJECTS, SetupTestCase
 EVERYONE = [ADMIN, *FRIEND_SUBJECTS]
 
 
-class LaunchTests(SetupTestCase):
+class LaunchTestCase(SetupTestCase):
+    """Helpers to draw everything, finish the setup and read the game."""
+
     def draw_all(self, code: str, subject: str) -> None:
         for assignment in self.assignments(code, subject).json():
             response = self.client.put(
@@ -29,6 +31,8 @@ class LaunchTests(SetupTestCase):
         self.start(code)
         return code
 
+
+class LaunchTests(LaunchTestCase):
     def test_the_last_player_to_finish_launches_the_game(self) -> None:
         code = self.started_server()
         for subject in EVERYONE:
@@ -77,7 +81,8 @@ class LaunchTests(SetupTestCase):
         self.assertEqual(len(pool), 30, "~30 characters at launch")
         collection = self.get(f"/servers/{code}/collection", FRIEND_SUBJECTS[0]).json()
         self.assertEqual(len(collection), 6)
-        self.assertEqual({c["artist_position"] for c in collection}, {1})
+        self.assertEqual({c["character"]["artist_position"] for c in collection}, {1})
+        self.assertEqual({c["copies"] for c in collection}, {1})
         self.sign_up("auth0|stranger", "Pat")
         self.assertEqual(
             self.get(f"/servers/{code}/pool", "auth0|stranger").status_code, 403

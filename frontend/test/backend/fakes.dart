@@ -59,6 +59,11 @@ class FakeBackend {
   /// Codes of the servers that launched.
   final Set<String> launched = {};
 
+  /// Pulled character ids by server code and player id; everyone gets
+  /// [launchBonus] pulls at the launch.
+  final Map<(String, String), List<String>> pulls = {};
+  static const launchBonus = 10;
+
   /// Setup drawings by server code and assignment id: the character as the
   /// API returns it and the uploaded sketch.
   final Map<(String, String), ({Map<String, Object?> character, Object? sketch})> drawings = {};
@@ -143,12 +148,33 @@ class FakeBackend {
         if (artists.every(done.contains)) launched.add(code);
         return _json(200, _server(code, myId));
       }
-      if (request.method == 'GET' && path.length == 3 && (path[2] == 'pool' || path[2] == 'collection')) {
-        final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'pool') {
+        return _json(200, _pool(code));
+      }
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'collection') {
+        final copies = _copies(code, myId);
         return _json(200, [
-          for (final MapEntry(:key, :value) in drawings.entries)
-            if (key.$1 == code && (path[2] == 'pool' || value.character['artist_position'] == yours)) value.character,
+          for (final character in _pool(code))
+            if (copies[character['id']] case final int n) {'character': character, 'copies': n},
         ]);
+      }
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'gacha') {
+        return _json(200, _gacha(code, myId));
+      }
+      if (request.method == 'POST' && path.length == 3 && path[2] == 'pulls') {
+        final count = body!['count'] as int;
+        if (count > _tickets(code, myId)) return _json(409, {'detail': 'Not enough pulls'});
+        final pool = _pool(code);
+        final pulled = pulls.putIfAbsent((code, myId), () => []);
+        final outcomes = <Map<String, Object?>>[];
+        for (var i = 0; i < count; i++) {
+          // Round-robin through the pool, so tests know what comes next.
+          final character = pool[pulled.length % pool.length];
+          pulled.add(character['id'] as String);
+          final copies = _copies(code, myId)[character['id']]!;
+          outcomes.add({'character': character, 'is_new': copies == 1, 'copies': copies});
+        }
+        return _json(200, {'outcomes': outcomes, 'gacha': _gacha(code, myId)});
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'assignments') {
         return _json(200, [
@@ -200,6 +226,36 @@ class FakeBackend {
             'setup_done': finished[code]?.contains(i) ?? false,
           },
       ],
+    };
+  }
+
+  List<Map<String, Object?>> _pool(String code) => [
+    for (final MapEntry(:key, :value) in drawings.entries)
+      if (key.$1 == code) value.character,
+  ];
+
+  /// Copies by character id: your setup drawings and your pulls.
+  Map<String, int> _copies(String code, String playerId) {
+    final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
+    final copies = <String, int>{};
+    for (final character in _pool(code)) {
+      if (character['artist_position'] == yours) copies[character['id'] as String] = 1;
+    }
+    for (final id in pulls[(code, playerId)] ?? const <String>[]) {
+      copies[id] = (copies[id] ?? 0) + 1;
+    }
+    return copies;
+  }
+
+  int _tickets(String code, String playerId) => launchBonus - (pulls[(code, playerId)]?.length ?? 0);
+
+  Map<String, Object?> _gacha(String code, String playerId) {
+    final total = pulls[(code, playerId)]?.length ?? 0;
+    return {
+      'tickets': _tickets(code, playerId),
+      'total_pulls': total,
+      'pulls_until_legend': 50 - total,
+      'beginner_pulls_left': total < 10 ? 10 - total : null,
     };
   }
 
