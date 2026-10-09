@@ -38,7 +38,7 @@ class _PromptScreenState extends State<PromptScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
-    final subject = controller.promptSubject;
+    final subject = controller.promptSubject!;
     final theme = controller.theme;
     final textTheme = Theme.of(context).textTheme;
     // An existing card of the character, for inspiration.

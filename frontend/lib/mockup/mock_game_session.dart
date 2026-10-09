@@ -128,8 +128,10 @@ class MockGameSession extends GameSession {
 
   /// The simulated friends join one at a time; when you joined someone
   /// else's server, its simulated admin starts once everyone is there.
+  /// During the setup, they finish their drawings one at a time.
   @override
   Future<void> refreshServer() async {
+    if (_phase == GamePhase.setup) return _finishNextBot();
     if (_phase != GamePhase.lobby) return;
     final next = server.players.where((p) => !server.joined.contains(p.id)).firstOrNull;
     if (next != null) {
@@ -185,10 +187,19 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Fills the pool with your drawings and everybody else's and starts day 1.
+  void _finishNextBot() {
+    final next = server.artists.where((p) => !p.isYou && !server.setupDone.contains(p.id)).firstOrNull;
+    if (next == null) return;
+    server.setupDone.add(next.id);
+    notifyListeners();
+  }
+
+  /// Fills the pool with your drawings and everybody else's and starts day 1;
+  /// the simulated friends finish their drawings right away.
   /// Every artist's setup drawings also land in their own roster.
   @override
   Future<void> launch() async {
+    server.setupDone.addAll(server.artists.map((p) => p.id));
     for (final artist in server.artists) {
       if (artist.isYou) continue;
       final roster = _botRosters[artist.id] = [];

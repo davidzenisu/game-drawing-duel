@@ -98,6 +98,23 @@ void main() {
     expect(game.setupDrawing(game.assignments.first), isNull, reason: 'a fresh setup');
   });
 
+  test('during the setup, the simulated friends finish one at a time', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
+    await game.startSetup();
+    await game.refreshServer();
+    await game.refreshServer();
+    expect(game.server.setupDone, hasLength(2));
+    expect(game.waitingForLaunch, isFalse);
+    for (final assignment in game.assignments) {
+      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+    }
+    await game.launch();
+    expect(game.server.setupDone, hasLength(5), reason: 'everyone finishes at the launch');
+    expect(game.phase, GamePhase.daily);
+  });
+
   test('the alter unlocks after the basic drawing', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

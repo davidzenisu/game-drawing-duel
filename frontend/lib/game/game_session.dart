@@ -33,7 +33,8 @@ class ServerSession {
     required this.isAdmin,
     required this.joined,
     this.isTest = false,
-  });
+    Set<String>? setupDone,
+  }) : setupDone = setupDone ?? {};
 
   final String code;
   final List<Player> players;
@@ -45,6 +46,9 @@ class ServerSession {
 
   /// Ids of the players that already joined the server.
   final Set<String> joined;
+
+  /// Ids of the players that finished their setup drawings.
+  final Set<String> setupDone;
 
   bool get everyoneJoined => joined.length == players.length;
 
@@ -130,8 +134,8 @@ abstract class GameSession extends ChangeNotifier {
 
   DailyTheme get theme;
 
-  /// The character you write today's prompt for.
-  Player get promptSubject;
+  /// The character you write today's prompt for, once the day has one.
+  Player? get promptSubject;
 
   ChallengerPrompt? get yourPrompt;
 
@@ -173,6 +177,9 @@ abstract class GameSession extends ChangeNotifier {
   }
 
   bool get setupComplete => assignments.every((a) => setupDrawing(a) != null);
+
+  /// Whether you finished your setup and wait for the others to launch.
+  bool get waitingForLaunch => server.setupDone.contains(you.id);
 
   bool get challengerDrawn => yourChallenger != null;
 
@@ -234,7 +241,8 @@ abstract class GameSession extends ChangeNotifier {
 
   Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title);
 
-  /// Fills the pool with everyone's setup drawings and starts day 1.
+  /// Finishes your setup drawings. Once everyone finished, the game launches:
+  /// the pool fills with everyone's setup drawings and day 1 starts.
   Future<void> launch();
 
   /// Step 1: write the title prompt for today's theme and character.

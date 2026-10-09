@@ -52,6 +52,12 @@ class FakeBackend {
   /// Codes of the servers whose setup started.
   final Set<String> started = {};
 
+  /// Seat positions that finished their setup, by server code.
+  final Map<String, Set<int>> finished = {};
+
+  /// Codes of the servers that launched.
+  final Set<String> launched = {};
+
   /// Setup drawings by server code and assignment id: the character as the
   /// API returns it and the uploaded sketch.
   final Map<(String, int), ({Map<String, Object?> character, Object? sketch})> drawings = {};
@@ -126,6 +132,23 @@ class FakeBackend {
         if (!started.add(code)) return _json(409, {'detail': 'The setup already started'});
         return _json(200, _server(code, myId));
       }
+      if (request.method == 'POST' && path.length == 4 && path[2] == 'setup' && path[3] == 'done') {
+        final seats = servers[code]!.seats;
+        final done = finished.putIfAbsent(code, () => {})..add(seats.indexWhere((s) => s['player'] == myId));
+        final artists = [
+          for (final (i, s) in seats.indexed)
+            if (!servers[code]!.isTest || s['player'] != null) i,
+        ];
+        if (artists.every(done.contains)) launched.add(code);
+        return _json(200, _server(code, myId));
+      }
+      if (request.method == 'GET' && path.length == 3 && (path[2] == 'pool' || path[2] == 'collection')) {
+        final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);
+        return _json(200, [
+          for (final MapEntry(:key, :value) in drawings.entries)
+            if (key.$1 == code && (path[2] == 'pool' || value.character['artist_position'] == yours)) value.character,
+        ]);
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'assignments') {
         return _json(200, [
           for (final a in _assignments(code, myId)) {...a, 'character': drawings[(code, a['id'] as int)]?.character},
@@ -161,10 +184,20 @@ class FakeBackend {
       'created_at': '2026-10-09T10:00:00Z',
       'is_test': server.isTest,
       'is_admin': server.admin == playerId,
-      'phase': started.contains(code) ? 'setup' : 'lobby',
+      'phase': launched.contains(code)
+          ? 'running'
+          : started.contains(code)
+          ? 'setup'
+          : 'lobby',
       'your_position': yours < 0 ? null : yours,
       'seats': [
-        for (final (i, s) in server.seats.indexed) {'position': i, 'name': s['name'], 'joined': s['player'] != null},
+        for (final (i, s) in server.seats.indexed)
+          {
+            'position': i,
+            'name': s['name'],
+            'joined': s['player'] != null,
+            'setup_done': finished[code]?.contains(i) ?? false,
+          },
       ],
     };
   }

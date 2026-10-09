@@ -31,6 +31,8 @@ class SeatResponse(BaseModel):
     position: int
     name: str
     joined: bool
+    # Finished their setup drawings.
+    setup_done: bool
 
 
 class ServerResponse(BaseModel):
@@ -38,8 +40,9 @@ class ServerResponse(BaseModel):
     created_at: datetime
     is_test: bool
     is_admin: bool
-    # "lobby" while players join, "setup" once the admin started the setup.
-    phase: Literal["lobby", "setup"]
+    # "lobby" while players join, "setup" once the admin started the setup,
+    # "running" once everyone finished their setup drawings.
+    phase: Literal["lobby", "setup", "running"]
     # Your seat, or null if you haven't joined (yet).
     your_position: int | None
     seats: list[SeatResponse]

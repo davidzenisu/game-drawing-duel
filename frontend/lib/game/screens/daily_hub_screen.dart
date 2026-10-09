@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/daily_loop.dart';
-import '../rules/gacha.dart';
 import '../rules/models.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sign_out_button.dart';
@@ -46,8 +45,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: const Icon(Icons.celebration_rounded),
         title: const Text('The server is live!'),
         content: Text(
-          'All ${_controller.pool.length} characters are in the pool. '
-          'Here are ${GachaMachine.launchBonus} pulls to get you started.',
+          'All ${_controller.pool.length} characters are in the pool.'
+          '${_controller.tickets > 0 ? ' Here are ${_controller.tickets} pulls to get you started.' : ''}',
         ),
         actions: [FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Let's go"))],
       ),
@@ -136,6 +135,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
   List<Widget> _steps() {
     final c = _controller;
     final prompt = c.yourPrompt;
+    final subject = c.promptSubject;
     final toDraw = c.promptToDraw;
     final fight = c.yourFight;
     final hasResults = c.yourFightResults.isNotEmpty || c.yourChallengerResults.isNotEmpty;
@@ -144,11 +144,13 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: Icons.edit_note_rounded,
         step: LoopStep.prompt,
         title: 'Write a challenger prompt',
-        subtitle: prompt == null
-            ? 'Give ${c.promptSubject.name} a challenger title for "${c.theme.label}".'
-            : 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.',
+        subtitle: prompt != null
+            ? 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.'
+            : subject == null
+            ? "Today's prompt isn't ready yet."
+            : 'Give ${subject.name} a challenger title for "${c.theme.label}".',
         done: prompt != null,
-        onTap: prompt == null ? () => _openStep(PromptScreen(controller: c)) : null,
+        onTap: prompt == null && subject != null ? () => _openStep(PromptScreen(controller: c)) : null,
       ),
       _ActionCard(
         icon: Icons.brush_rounded,
