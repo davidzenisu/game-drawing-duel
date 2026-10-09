@@ -5,12 +5,16 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 class FakeAuthClient implements AuthClient {
-  FakeAuthClient({this.profile, this.token = 'test-token', this.restoreError});
+  FakeAuthClient({this.profile, this.token = 'test-token', this.restoreError, this.tokenError});
 
   AuthProfile? profile;
   final String token;
   final Object? restoreError;
+  Object? tokenError;
   int signIns = 0;
+
+  /// Whether each sign-in asked for a fresh login.
+  final List<bool> freshSignIns = [];
   int signOuts = 0;
 
   @override
@@ -20,13 +24,19 @@ class FakeAuthClient implements AuthClient {
   }
 
   @override
-  Future<void> signIn() async => signIns++;
+  Future<void> signIn({bool fresh = false}) async {
+    signIns++;
+    freshSignIns.add(fresh);
+  }
 
   @override
   Future<void> signOut() async => signOuts++;
 
   @override
-  Future<String> accessToken() async => token;
+  Future<String> accessToken() async {
+    if (tokenError != null) throw tokenError!;
+    return token;
+  }
 }
 
 /// An in-memory stand-in for the API. Callers are told apart by their token.
@@ -37,10 +47,15 @@ class FakeBackend {
   /// Servers by code; every seat has a `name` and the `player` id or null.
   final Map<String, ({int admin, List<Map<String, Object?>> seats})> servers = {};
   final List<http.Request> requests = [];
+
+  /// Rejects every request with this status and detail, like the real API
+  /// does for a bad token.
+  ({int status, String detail})? rejectAll;
   int _nextCode = 123456;
 
   MockClient get client => MockClient((request) async {
     requests.add(request);
+    if (rejectAll != null) return _json(rejectAll!.status, {'detail': rejectAll!.detail});
     final token = (request.headers['Authorization'] ?? '').replaceFirst('Bearer ', '');
     final path = request.url.pathSegments;
     final me = players[token];

@@ -22,7 +22,12 @@ class Auth0AuthClient implements AuthClient {
   }
 
   @override
-  Future<void> signIn() => _auth0.loginWithRedirect(audience: audience, redirectUrl: Uri.base.origin, scopes: _scopes);
+  Future<void> signIn({bool fresh = false}) => _auth0.loginWithRedirect(
+    audience: audience,
+    redirectUrl: Uri.base.origin,
+    scopes: _scopes,
+    parameters: fresh ? const {'prompt': 'login'} : const {},
+  );
 
   @override
   Future<void> signOut() => _auth0.logout(returnToUrl: Uri.base.origin);
