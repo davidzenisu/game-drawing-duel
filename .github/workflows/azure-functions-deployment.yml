@@ -11,19 +11,9 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/azure-functions-deployment.yml'
-  # TODO: Enable together with `deploy_test_job` below once the test
-  # infrastructure (Function App and database) exists.
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'backend/**'
-  #     - '.github/workflows/azure-functions-deployment.yml'
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     # Never run two migrations against the same database at once.
@@ -88,70 +78,3 @@ jobs:
           app-name: ${{ steps.get_function_app_name.outputs.app_name }}
           package: backend
           remote-build: true
-
-  # TODO: Enable once the test infrastructure exists. Pull requests deploy to
-  # a shared test Function App and migrate the test database. Expects the Key
-  # Vault secrets `function-app-name-test` and `database-url-test`.
-  # deploy_test_job:
-  #   if: github.event_name == 'pull_request'
-  #   runs-on: ubuntu-latest
-  #   name: Deploy to Test
-  #   concurrency:
-  #     group: backend-deployment-test
-  #     cancel-in-progress: false
-  #   steps:
-  #     - uses: actions/checkout@v6
-  #
-  #     - name: Azure login
-  #       uses: azure/login@v3
-  #       with:
-  #         client-id: ${{ secrets.AZURE_CLIENT_ID }}
-  #         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-  #         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  #
-  #     - name: Get test Function App name
-  #       id: get_function_app_name
-  #       uses: Azure/cli@v3
-  #       env:
-  #         AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
-  #       with:
-  #         inlineScript: |
-  #           app_name=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "function-app-name-test" --query "value" -o tsv)
-  #           echo "app_name=$app_name" >> "$GITHUB_OUTPUT"
-  #
-  #     - name: Get database connection
-  #       uses: Azure/cli@v3
-  #       env:
-  #         AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
-  #       with:
-  #         inlineScript: |
-  #           database_url=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "database-url-test" --query "value" -o tsv)
-  #           if [ -z "$database_url" ]; then
-  #             echo "::error::The Key Vault secret database-url-test is missing or empty."
-  #             exit 1
-  #           fi
-  #           echo "::add-mask::$database_url"
-  #           echo "DATABASE_URL=$database_url" >> "$GITHUB_ENV"
-  #
-  #     - name: Set up uv
-  #       uses: astral-sh/setup-uv@v7
-  #       with:
-  #         enable-cache: true
-  #         cache-dependency-glob: backend/uv.lock
-  #         python-version: '3.12'
-  #
-  #     - name: Run database migrations
-  #       working-directory: backend
-  #       env:
-  #         UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/backend-venv
-  #         PYTHONDONTWRITEBYTECODE: '1'
-  #       run: |
-  #         uv sync --locked
-  #         uv run alembic upgrade head
-  #
-  #     - name: Deploy Azure Function App
-  #       uses: Azure/functions-action@v1
-  #       with:
-  #         app-name: ${{ steps.get_function_app_name.outputs.app_name }}
-  #         package: backend
-  #         remote-build: true

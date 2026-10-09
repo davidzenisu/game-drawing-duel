@@ -38,10 +38,17 @@ For bootstrapping, the following GitHub secrets are required:
 The deployment reads the database connection for the migrations from the Key
 Vault secret `database-url`.
 
-Deploying pull requests to a test backend and database is prepared in the
-workflows but commented out until the test infrastructure exists. It expects
-the Key Vault secrets `function-app-name-test`, `database-url-test` and
-`api-custom-domain-test`.
+### Planned: test infrastructure for pull requests
+
+Once a test Function App and test database exist, pull requests should deploy
+to them instead of only validating:
+
+- `azure-functions-deployment.yml` also runs on pull requests touching
+  `backend/`. A separate job migrates the test database and deploys to the test
+  Function App, using the Key Vault secrets `function-app-name-test` and
+  `database-url-test`. Like production, it runs one deployment at a time.
+- `azure-swa-deployment.yml` builds pull request previews against the test API
+  (Key Vault secret `api-custom-domain-test`) instead of the production one.
 
 ### Running the checks locally
 
