@@ -16,6 +16,10 @@ jobs:
   build_and_deploy_job:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    # Never run two migrations against the same database at once.
+    concurrency:
+      group: backend-deployment-production
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v6
 
@@ -35,6 +39,38 @@ jobs:
           inlineScript: |
             app_name=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "function-app-name" --query "value" -o tsv)
             echo "app_name=$app_name" >> "$GITHUB_OUTPUT"
+
+      - name: Get database connection
+        uses: Azure/cli@v3
+        env:
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
+        with:
+          inlineScript: |
+            database_url=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "database-url" --query "value" -o tsv)
+            if [ -z "$database_url" ]; then
+              echo "::error::The Key Vault secret database-url is missing or empty."
+              exit 1
+            fi
+            echo "::add-mask::$database_url"
+            echo "DATABASE_URL=$database_url" >> "$GITHUB_ENV"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+          python-version: '3.12'
+
+      # Migrate before deploying so new code never runs against an old schema.
+      # The environment lives outside backend/ so it isn't part of the package.
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/backend-venv
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          uv sync --locked
+          uv run alembic upgrade head
 
       - name: Deploy Azure Function App
         uses: Azure/functions-action@v1

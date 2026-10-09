@@ -1,0 +1,42 @@
+name: Frontend Validation
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-validation.yml'
+
+concurrency:
+  group: frontend-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze_and_test:
+    runs-on: ubuntu-latest
+    name: Analyze and Test
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
