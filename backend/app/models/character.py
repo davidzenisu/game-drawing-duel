@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, utc_now
 from app.models.server import ServerSeat
 from app.models.setup import SetupAssignment
 
@@ -39,6 +39,7 @@ class Character(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        default=utc_now,
         server_default=func.now(),
     )
 

@@ -119,7 +119,7 @@ def my_servers(player: CurrentPlayer, session: DbSession) -> list[ServerResponse
         .join(ServerSeat)
         .where(ServerSeat.player_id == player.id)
         .options(selectinload(Server.seats))
-        .order_by(Server.created_at.desc(), Server.id.desc())
+        .order_by(Server.created_at.desc())
     ).all()
     return [server_response(server, player) for server in servers]
 

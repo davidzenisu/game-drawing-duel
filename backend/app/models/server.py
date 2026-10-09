@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
+from app.database import Base, utc_now
 
 
 class Server(Base):
@@ -34,6 +34,7 @@ class Server(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        default=utc_now,
         server_default=func.now(),
     )
     # When the admin started the initial drawing setup; null in the lobby.

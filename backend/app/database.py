@@ -1,5 +1,6 @@
 import os
 from collections.abc import Generator
+from datetime import UTC, datetime
 from functools import lru_cache
 
 from fastapi import HTTPException
@@ -10,6 +11,12 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 class Base(DeclarativeBase):
     pass
+
+
+def utc_now() -> datetime:
+    """Creation times set by the API: precise to the microsecond, so rows
+    created right after one another (even on SQLite) sort in order."""
+    return datetime.now(UTC)
 
 
 @lru_cache
