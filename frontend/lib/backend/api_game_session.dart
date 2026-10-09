@@ -7,10 +7,11 @@ import '../game/rules/themes.dart';
 import '../game/rules/upgrades.dart';
 import 'api_client.dart';
 import 'auth_client.dart';
+import 'sketch_json.dart';
 
 /// [GameSession] backed by the API and Auth0.
 ///
-/// Signing in, signing up, servers and starting the setup are implemented;
+/// Signing in, signing up, servers and the setup drawings are implemented;
 /// the rest of the game arrives step by step and reports [NotAvailableYet]
 /// until then.
 class ApiGameSession extends GameSession {
@@ -26,6 +27,9 @@ class ApiGameSession extends GameSession {
   Player? _account;
   ServerSession? _server;
   List<DrawingAssignment> _assignments = const [];
+
+  /// Your setup drawings by assignment id.
+  Map<String, CharacterCard> _setupDrawings = {};
 
   /// After a failed sign-in, signing in again must not reuse the old session.
   bool _freshSignInNeeded = false;
@@ -54,6 +58,7 @@ class ApiGameSession extends GameSession {
     _account = null;
     _server = null;
     _assignments = const [];
+    _setupDrawings = {};
     _setPhase(GamePhase.signIn);
   }
 
@@ -108,7 +113,7 @@ class ApiGameSession extends GameSession {
         _server = server;
         _setPhase(GamePhase.lobby);
       case 'setup':
-        _assignments = _parseAssignments(await _get('/servers/${server.code}/assignments'), server);
+        await _loadSetup(server);
         _server = server;
         _setPhase(GamePhase.setup);
       default:
@@ -153,29 +158,69 @@ class ApiGameSession extends GameSession {
 
   static String _assignmentId(int id) => 'assignment-$id';
 
-  /// Your setup drawings; the subjects are seats of [server].
-  static List<DrawingAssignment> _parseAssignments(Object? json, ServerSession server) {
+  static int _assignmentNumber(DrawingAssignment assignment) =>
+      int.parse(assignment.id.substring('assignment-'.length));
+
+  /// Your setup assignments and the drawings you made for them so far.
+  Future<void> _loadSetup(ServerSession server) async {
+    final json = await _get('/servers/${server.code}/assignments');
     if (json is! List) throw const FormatException('Unexpected assignments response.');
-    return [
-      for (final assignment in json)
-        if (assignment case {
-          'id': int id,
-          'prompt': String prompt,
-          'subject_position': int subject,
-          'based_on': int? basedOn,
-        })
-          DrawingAssignment(
-            id: _assignmentId(id),
-            prompt: SetupPrompt.values.asNameMap()[prompt] ?? (throw FormatException('Unknown prompt $prompt.')),
-            subject: server.players.firstWhere(
-              (p) => p.id == _seatId(subject),
-              orElse: () => throw FormatException('Unknown seat $subject.'),
-            ),
-            basedOn: basedOn == null ? null : _assignmentId(basedOn),
-          )
-        else
-          throw const FormatException('Unexpected assignment in response.'),
-    ];
+    final assignments = <DrawingAssignment>[];
+    final characters = <String, Object?>{};
+    for (final item in json) {
+      if (item case {
+        'id': int id,
+        'prompt': String prompt,
+        'subject_position': int subject,
+        'based_on': int? basedOn,
+      }) {
+        final assignment = DrawingAssignment(
+          id: _assignmentId(id),
+          prompt: SetupPrompt.values.asNameMap()[prompt] ?? (throw FormatException('Unknown prompt $prompt.')),
+          subject: _seat(server, subject),
+          basedOn: basedOn == null ? null : _assignmentId(basedOn),
+        );
+        assignments.add(assignment);
+        if (item['character'] != null) characters[assignment.id] = item['character'];
+      } else {
+        throw const FormatException('Unexpected assignment in response.');
+      }
+    }
+    final drawings = await Future.wait([
+      for (final MapEntry(key: assignmentId, value: character) in characters.entries)
+        _loadCharacter(server, character).then((card) => MapEntry(assignmentId, card)),
+    ]);
+    _assignments = assignments;
+    _setupDrawings = Map.fromEntries(drawings);
+  }
+
+  static Player _seat(ServerSession server, int position) => server.players.firstWhere(
+    (p) => p.id == _seatId(position),
+    orElse: () => throw FormatException('Unknown seat $position.'),
+  );
+
+  /// A character from the API, with its sketch loaded unless it is [known].
+  Future<CharacterCard> _loadCharacter(ServerSession server, Object? json, {Sketch? known}) async {
+    if (json case {
+      'id': String id,
+      'title': String title,
+      'rarity': String rarity,
+      'prompt': String prompt,
+      'artist_position': int artist,
+      'subject_position': int subject,
+    }) {
+      final sketch = known ?? SketchJson.decode(await _get('/characters/$id/sketch'));
+      return CharacterCard(
+        id: id,
+        subject: _seat(server, subject).name,
+        title: title,
+        rarity: Rarity.values.asNameMap()[rarity] ?? (throw FormatException('Unknown rarity $rarity.')),
+        prompt: SetupPrompt.values.asNameMap()[prompt]?.label ?? prompt,
+        artist: _seat(server, artist).name,
+        sketch: sketch,
+      );
+    }
+    throw const FormatException('Unexpected character response.');
   }
 
   void _setPhase(GamePhase phase) {
@@ -219,6 +264,7 @@ class ApiGameSession extends GameSession {
     _account = null;
     _server = null;
     _assignments = const [];
+    _setupDrawings = {};
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
   }
@@ -249,13 +295,23 @@ class ApiGameSession extends GameSession {
   @override
   List<DrawingAssignment> get assignments => _assignments;
 
+  @override
+  CharacterCard? setupDrawing(DrawingAssignment assignment) => _setupDrawings[assignment.id];
+
+  @override
+  Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title) async {
+    final json = await _put('/servers/${server.code}/assignments/${_assignmentNumber(assignment)}/drawing', {
+      'title': title.trim(),
+      'sketch': SketchJson.encode(sketch),
+    });
+    _setupDrawings[assignment.id] = await _loadCharacter(server, json, known: sketch);
+    notifyListeners();
+  }
+
   // Not available yet ------------------------------------------------------------
 
   @override
   List<String> get suggestedPlayerNames => const [];
-
-  @override
-  CharacterCard? setupDrawing(DrawingAssignment assignment) => null;
 
   @override
   List<CharacterCard> get pool => const [];
@@ -307,10 +363,6 @@ class ApiGameSession extends GameSession {
 
   @override
   Player? get hurrySentTo => null;
-
-  @override
-  Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title) =>
-      Future.error(const NotAvailableYet());
 
   @override
   Future<void> launch() => Future.error(const NotAvailableYet());

@@ -5,7 +5,9 @@ from tests.test_servers import ADMIN, FRIENDS, ServerTestCase
 FRIEND_SUBJECTS = [f"auth0|{name.lower()}" for name in FRIENDS]
 
 
-class SetupTests(ServerTestCase):
+class SetupTestCase(ServerTestCase):
+    """Helpers to start the setup and read the assignments."""
+
     def join_everyone(self, code: str) -> None:
         for position, (name, subject) in enumerate(zip(FRIENDS, FRIEND_SUBJECTS), 1):
             self.sign_up(subject, name)
@@ -21,6 +23,8 @@ class SetupTests(ServerTestCase):
             f"/servers/{code}/assignments", headers=bearer(make_token(subject))
         )
 
+
+class SetupTests(SetupTestCase):
     def test_regular_servers_start_once_everyone_joined(self) -> None:
         code = self.create().json()["code"]
         response = self.start(code)

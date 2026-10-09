@@ -16,9 +16,10 @@ void main() {
     for (var i = 0; i < players.length; i++) [for (final a in assign(players, i)) players.indexOf(a.subject)],
   ];
 
-  test('player limits', () {
+  test('limits', () {
     expect(SetupPlan.minPlayers, rules['players']['min']);
     expect(SetupPlan.maxPlayers, rules['players']['max']);
+    expect(CharacterCard.maxTitleLength, rules['max_title_length']);
   });
 
   test('rarities', () {

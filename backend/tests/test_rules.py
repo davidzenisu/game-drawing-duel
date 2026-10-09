@@ -21,6 +21,7 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.MIN_PLAYERS, SHARED["players"]["min"])
         self.assertEqual(rules.MAX_PLAYERS, SHARED["players"]["max"])
         self.assertEqual(rules.SERVER_CODE_LENGTH, SHARED["server_code_length"])
+        self.assertEqual(rules.MAX_TITLE_LENGTH, SHARED["max_title_length"])
 
     def test_rarities(self):
         self.assertEqual(
