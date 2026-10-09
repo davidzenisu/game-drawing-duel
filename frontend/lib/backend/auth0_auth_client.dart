@@ -25,5 +25,8 @@ class Auth0AuthClient implements AuthClient {
   Future<void> signIn() => _auth0.loginWithRedirect(audience: audience, redirectUrl: Uri.base.origin, scopes: _scopes);
 
   @override
+  Future<void> signOut() => _auth0.logout(returnToUrl: Uri.base.origin);
+
+  @override
   Future<String> accessToken() async => (await _auth0.credentials(audience: audience)).accessToken;
 }

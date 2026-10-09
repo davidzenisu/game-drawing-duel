@@ -18,6 +18,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hi Pat!'), findsOneWidget);
+    // The mockup has no account to sign out of.
+    expect(find.byTooltip('Sign out'), findsNothing);
     final create = find.widgetWithText(FilledButton, 'Create server');
     await tester.ensureVisible(create);
     await tester.tap(create);

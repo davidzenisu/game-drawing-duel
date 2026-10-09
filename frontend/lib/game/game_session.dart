@@ -171,6 +171,9 @@ abstract class GameSession extends ChangeNotifier {
   /// Starts signing in, e.g. by redirecting to the login page.
   Future<void> signIn();
 
+  /// Signs out of the account. Not available in the mockup, see [isMockup].
+  Future<void> signOut();
+
   /// Finishes the account by picking a first name.
   Future<void> signUp(String firstName);
 

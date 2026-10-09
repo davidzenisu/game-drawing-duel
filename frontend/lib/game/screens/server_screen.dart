@@ -5,6 +5,7 @@ import '../game_session.dart';
 import '../rules/models.dart';
 import '../rules/setup_plan.dart';
 import '../widgets/game_action.dart';
+import '../widgets/sign_out_button.dart';
 
 /// Create a server with a prepopulated roster or join one with a code.
 class ServerScreen extends StatelessWidget {
@@ -19,6 +20,7 @@ class ServerScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text('Hi ${controller.you.name}!'),
+          actions: [SignOutButton(session: controller)],
           bottom: const TabBar(
             tabs: [
               Tab(icon: Icon(Icons.add_circle_outline_rounded), text: 'Create server'),

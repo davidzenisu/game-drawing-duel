@@ -94,6 +94,13 @@ class _SignupScreenState extends State<SignupScreen> {
                         icon: const Icon(Icons.arrow_forward_rounded),
                         label: const Text('Finish account'),
                       ),
+                      if (!widget.controller.isMockup) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => runGameAction(context, widget.controller.signOut),
+                          child: const Text('Use a different account'),
+                        ),
+                      ],
                     ],
                   ),
                 ),

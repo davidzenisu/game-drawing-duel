@@ -61,6 +61,20 @@ void main() {
     expect(put.headers['Content-Type'], startsWith('application/json'));
   });
 
+  test('signing out returns to the sign-in', () async {
+    final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Sam'));
+    final backend = FakeBackend({'id': 3, 'first_name': 'Sam', 'created_at': '2026-10-01T00:00:00Z'});
+    final session = sessionWith(auth, backend);
+    await session.start();
+    expect(session.phase, GamePhase.server);
+
+    await session.signOut();
+    expect(auth.signOuts, 1);
+    expect(session.phase, GamePhase.signIn);
+    expect(session.suggestedFirstName, isEmpty);
+    expect(() => session.you, throwsStateError);
+  });
+
   test('a returning player skips the signup', () async {
     final backend = FakeBackend({'id': 3, 'first_name': 'Sam', 'created_at': '2026-10-01T00:00:00Z'});
     final session = sessionWith(FakeAuthClient(profile: const AuthProfile(nickname: 'sam')), backend);

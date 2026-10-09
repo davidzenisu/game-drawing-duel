@@ -23,6 +23,9 @@ abstract class AuthClient {
   /// Starts the sign-in, which may leave the app (redirect).
   Future<void> signIn();
 
+  /// Ends the sign-in, which may leave the app (redirect).
+  Future<void> signOut();
+
   /// A valid access token for the backend.
   Future<String> accessToken();
 }

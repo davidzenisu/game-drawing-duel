@@ -11,6 +11,7 @@ class FakeAuthClient implements AuthClient {
   final String token;
   final Object? restoreError;
   int signIns = 0;
+  int signOuts = 0;
 
   @override
   Future<AuthProfile?> restore() async {
@@ -20,6 +21,9 @@ class FakeAuthClient implements AuthClient {
 
   @override
   Future<void> signIn() async => signIns++;
+
+  @override
+  Future<void> signOut() async => signOuts++;
 
   @override
   Future<String> accessToken() async => token;

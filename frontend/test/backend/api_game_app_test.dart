@@ -36,6 +36,7 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
     expect(find.text('Hi Patricia!'), findsOneWidget);
+    expect(find.byTooltip('Sign out'), findsOneWidget);
 
     // No suggested names against the API: enter the other players.
     for (final name in ['Sam', 'Robin', 'Kim', 'Jo']) {
@@ -48,5 +49,9 @@ void main() {
     await tester.tap(create);
     await tester.pumpAndSettle();
     expect(find.textContaining("isn't available yet"), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Sign out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign in to play with your friends.'), findsOneWidget);
   });
 }

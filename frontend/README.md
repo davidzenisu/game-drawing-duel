@@ -21,7 +21,8 @@ of the Auth0 API (the audience the backend accepts), then run the VS Code
 Signing in redirects to Auth0. Back in the app, `GET /me` decides whether the
 player still has to finish the signup (pick a first name, prefilled from the
 social login) or is ready to play. Every API call carries the Auth0 access
-token for `AUTH0_AUDIENCE`.
+token for `AUTH0_AUDIENCE`. Signing out (app bar, or "Use a different account"
+on the signup) logs out of Auth0 and returns to the app.
 
 Register `http://localhost:7357` in the Auth0 application's **Allowed Callback
 URLs**, **Allowed Logout URLs**, and **Allowed Web Origins**. Add the production

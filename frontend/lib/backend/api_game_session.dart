@@ -87,6 +87,14 @@ class ApiGameSession extends GameSession {
   }
 
   @override
+  Future<void> signOut() async {
+    await _auth.signOut();
+    _you = null;
+    _suggestedFirstName = '';
+    _setPhase(GamePhase.signIn);
+  }
+
+  @override
   Future<void> signUp(String firstName) async {
     _setPlayer(await _api!.put('/me', {'first_name': firstName.trim()}));
   }

@@ -32,15 +32,14 @@ For bootstrapping, the following GitHub secrets are required:
 | --- | --- | --- |
 | `validation.yml` | Every pull request | Runs only the checks for the parts a pull request touches. **Frontend:** `flutter analyze` and `flutter test`. **Backend:** `ruff check` and the unit tests. **Migrations:** applies all migrations to a fresh PostgreSQL, runs `alembic check` to make sure no migration is missing, then downgrades and upgrades again. Ends with the `Validation passed` check |
 | `azure-swa-deployment.yml` | Pull requests and pushes to `main` touching `frontend/` | Builds the web app and deploys it to Azure Static Web Apps (pull requests get a preview environment with the gameplay mockup enabled) |
-| `azure-functions-deployment.yml` | Pushes to `main` touching `backend/` | Runs the database migrations, stops if `alembic check` finds the models and the migrated schema out of sync, sets the Function App's `AUTH0_DOMAIN` and `AUTH0_AUDIENCE` from Key Vault, then deploys the Function App |
+| `azure-functions-deployment.yml` | Pushes to `main` touching `backend/` | Runs the database migrations, stops if `alembic check` finds the models and the migrated schema out of sync, then deploys the Function App |
 
 Pull requests can only be merged when `Validation passed` succeeds. It is a
 required status check in the branch ruleset for `main`; skipped jobs count as
 passing, so pull requests that only touch documentation can still be merged.
 
 The deployment reads the database connection for the migrations from the Key
-Vault secret `database-url`, and the Auth0 settings from `auth0-domain` and
-`auth0-api-audience`.
+Vault secret `database-url`.
 
 ### API authentication
 
@@ -50,6 +49,20 @@ Every API route except `/health` and the API docs (`/docs`, `/redoc`,
 linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
 database answers.
+
+### Function App settings
+
+The app settings are managed in the infrastructure repository. The API reads:
+
+| Setting | Value |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string (same as the Key Vault secret `database-url`) |
+| `FRONTEND_URL` | Origin of the web app, allowed for CORS |
+| `AUTH0_DOMAIN` | Auth0 tenant domain without scheme, e.g. `your-tenant.eu.auth0.com` (same as `auth0-domain`) |
+| `AUTH0_AUDIENCE` | Identifier of the Auth0 API (same as `auth0-api-audience`) |
+
+Without the two Auth0 settings every route except `/health` and the docs
+answers `503 Authentication is not configured`.
 
 ### Planned: test infrastructure for pull requests
 

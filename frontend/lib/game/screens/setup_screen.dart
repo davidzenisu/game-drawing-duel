@@ -6,6 +6,7 @@ import '../game_session.dart';
 import '../rules/setup_plan.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
 import 'drawing_screen.dart';
 
@@ -73,7 +74,10 @@ class _SetupScreenState extends State<SetupScreen> {
         final done = controller.assignments.where((a) => controller.setupDrawing(a) != null).length;
         final friendsProgress = _friendsTotal == 0 ? 1.0 : (_friendsDone / _friendsTotal).clamp(0.0, 1.0);
         return Scaffold(
-          appBar: AppBar(title: const Text('Initial drawings')),
+          appBar: AppBar(
+            title: const Text('Initial drawings'),
+            actions: [SignOutButton(session: controller)],
+          ),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [

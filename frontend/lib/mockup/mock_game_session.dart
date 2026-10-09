@@ -43,6 +43,9 @@ class MockGameSession extends GameSession {
   @override
   Future<void> signIn() async {}
 
+  @override
+  Future<void> signOut() => Future.error(UnsupportedError('The mockup has no account to sign out of.'));
+
   GamePhase _phase = GamePhase.signup;
   @override
   GamePhase get phase => _phase;
