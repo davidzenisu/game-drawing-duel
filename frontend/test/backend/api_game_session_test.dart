@@ -198,4 +198,73 @@ void main() {
     expect(const AuthProfile(nickname: 'pd').firstName, 'pd');
     expect(const AuthProfile().firstName, '');
   });
+
+  group('a rejected sign-in', () {
+    test('a first sign-in reuses the identity provider session', () async {
+      final auth = FakeAuthClient();
+      final session = sessionWith(auth, FakeBackend());
+      await session.start();
+      await session.signIn();
+      expect(auth.freshSignIns, [false]);
+    });
+
+    test('a token the API rejects leads to a fresh sign-in', () async {
+      final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Pat'));
+      final backend = FakeBackend()..rejectAll = (status: 401, detail: 'Invalid access token');
+      final session = sessionWith(auth, backend);
+
+      await session.start();
+      expect(session.phase, GamePhase.signIn);
+      expect(session.signInProblem, contains('Invalid access token'));
+
+      await session.signIn();
+      expect(auth.freshSignIns, [true], reason: 'retrying must not reuse the rejected session');
+    });
+
+    test('a missing permission leads to a fresh sign-in', () async {
+      final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Pat'));
+      final backend = FakeBackend()..rejectAll = (status: 403, detail: 'Missing permission read:api');
+      final session = sessionWith(auth, backend);
+      await session.start();
+      expect(session.signInProblem, contains('Missing permission read:api'));
+      await session.signIn();
+      expect(auth.freshSignIns, [true]);
+    });
+
+    test('a token that cannot be fetched leads to a fresh sign-in', () async {
+      final auth = FakeAuthClient(profile: const AuthProfile(), tokenError: Exception('login_required'));
+      final session = sessionWith(auth, FakeBackend());
+      await session.start();
+      expect(session.phase, GamePhase.signIn);
+      expect(session.signInProblem, contains('login_required'));
+      await session.signIn();
+      expect(auth.freshSignIns, [true]);
+    });
+
+    test('a token rejected mid-game returns to the sign-in', () async {
+      final auth = FakeAuthClient(profile: const AuthProfile());
+      final backend = FakeBackend();
+      final session = sessionWith(auth, backend);
+      await session.start();
+      await session.signUp('Pat');
+      expect(session.phase, GamePhase.server);
+
+      backend.rejectAll = (status: 401, detail: 'Invalid access token');
+      await expectLater(session.createServer(['Sam', 'Robin', 'Kim', 'Jo']), throwsA(isA<SignInRequired>()));
+      expect(session.phase, GamePhase.signIn);
+      expect(() => session.you, throwsStateError);
+      await session.signIn();
+      expect(auth.freshSignIns, [true]);
+    });
+
+    test('other API errors keep you where you are', () async {
+      final backend = FakeBackend();
+      final session = sessionWith(FakeAuthClient(profile: const AuthProfile()), backend);
+      await session.start();
+      await session.signUp('Pat');
+      await expectLater(session.previewServer('999999'), throwsA(isA<ApiException>()));
+      expect(session.phase, GamePhase.server);
+      expect(session.signInProblem, isNull);
+    });
+  });
 }

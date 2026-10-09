@@ -25,6 +25,9 @@ class ApiGameSession extends GameSession {
   Player? _account;
   ServerSession? _server;
 
+  /// After a failed sign-in, signing in again must not reuse the old session.
+  bool _freshSignInNeeded = false;
+
   AuthClient get _auth => _api!.auth;
 
   /// Restores a previous sign-in and loads the player.
@@ -35,16 +38,41 @@ class ApiGameSession extends GameSession {
       if (profile == null) return _setPhase(GamePhase.signIn);
       _suggestedFirstName = profile.firstName;
       await _loadPlayer();
+    } on SignInRequired catch (error) {
+      _requireSignIn(error.message);
     } catch (error) {
-      _signInProblem = 'Signing in failed: $error';
-      _setPhase(GamePhase.signIn);
+      _requireSignIn('Signing in failed: $error');
+    }
+  }
+
+  /// Back to the sign-in with the reason; the next sign-in is a fresh one.
+  void _requireSignIn(String problem) {
+    _signInProblem = problem;
+    _freshSignInNeeded = true;
+    _account = null;
+    _server = null;
+    _setPhase(GamePhase.signIn);
+  }
+
+  Future<Object?> _get(String path) => _guard(() => _api!.get(path));
+
+  Future<Object?> _put(String path, Object body) => _guard(() => _api!.put(path, body));
+
+  Future<Object?> _post(String path, [Object? body]) => _guard(() => _api!.post(path, body));
+
+  Future<Object?> _guard(Future<Object?> Function() request) async {
+    try {
+      return await request();
+    } on SignInRequired catch (error) {
+      _requireSignIn(error.message);
+      rethrow;
     }
   }
 
   Future<void> _loadPlayer() async {
     final Object? me;
     try {
-      me = await _api!.get('/me');
+      me = await _get('/me');
     } on ApiException catch (error) {
       if (error.statusCode != 404) rethrow;
       // Signed in, but the account isn't finished yet.
@@ -63,7 +91,7 @@ class ApiGameSession extends GameSession {
 
   /// Back to the lobby of your newest server, or to creating or joining one.
   Future<void> _loadServer() async {
-    final servers = await _api!.get('/servers/mine');
+    final servers = await _get('/servers/mine');
     if (servers is! List) throw const FormatException('Unexpected servers response.');
     if (servers.isEmpty) return _setPhase(GamePhase.server);
     _server = _parseServer(servers.first);
@@ -131,7 +159,7 @@ class ApiGameSession extends GameSession {
   @override
   Future<void> signIn() async {
     if (_api == null) throw StateError(_signInProblem!);
-    await _auth.signIn();
+    await _auth.signIn(fresh: _freshSignInNeeded);
   }
 
   @override
@@ -145,28 +173,28 @@ class ApiGameSession extends GameSession {
 
   @override
   Future<void> signUp(String firstName) async {
-    _setAccount(await _api!.put('/me', {'first_name': firstName.trim()}));
+    _setAccount(await _put('/me', {'first_name': firstName.trim()}));
     await _loadServer();
   }
 
   @override
   Future<void> createServer(List<String> otherNames) async {
-    _server = _parseServer(await _api!.post('/servers', {'other_names': otherNames}));
+    _server = _parseServer(await _post('/servers', {'other_names': otherNames}));
     _setPhase(GamePhase.lobby);
   }
 
   @override
-  Future<ServerSession> previewServer(String code) async => _parseServer(await _api!.get('/servers/$code'));
+  Future<ServerSession> previewServer(String code) async => _parseServer(await _get('/servers/$code'));
 
   @override
   Future<void> joinServer(ServerSession server, Player seat) async {
-    _server = _parseServer(await _api!.post('/servers/${server.code}/seats/${_seatPosition(seat)}/claim'));
+    _server = _parseServer(await _post('/servers/${server.code}/seats/${_seatPosition(seat)}/claim'));
     _setPhase(GamePhase.lobby);
   }
 
   @override
   Future<void> refreshLobby() async {
-    _server = _parseServer(await _api!.get('/servers/${server.code}'));
+    _server = _parseServer(await _get('/servers/${server.code}'));
     notifyListeners();
   }
 
