@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
@@ -77,6 +78,16 @@ void main() {
       for (final r in Rarity.values) r.name: [for (final e in UpgradeTree.pathFor(r)) e.name],
     }, upgrades['paths']);
     expect([for (final e in ElementKind.values) e.name], upgrades['elements']);
+  });
+
+  test('fights', () {
+    final fights = rules['fights'] as Map<String, dynamic>;
+    expect(FightSetup.maxFighters, fights['max_fighters']);
+    expect({
+      for (final MapEntry(:key, :value) in FightSetup.rarityPower.entries) key.name: value,
+    }, fights['rarity_power']);
+    expect(FightSetup.upgradePower, fights['upgrade_power']);
+    expect(FightSetup.challengerPower, fights['challenger_power']);
   });
 
   test('themes', () {

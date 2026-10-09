@@ -85,16 +85,20 @@ class FightSetup {
   /// Ties go to the challenger.
   bool get fightersWin => fighterVotes > challengerVotes;
 
-  /// How likely a simulated player thinks the fighters win.
+  /// How strong a fighter of each rarity is, for [fighterOdds].
+  static const rarityPower = {Rarity.basic: 1.0, Rarity.adventurer: 1.5, Rarity.hero: 2.2, Rarity.legend: 3.2};
+
+  /// Extra power per unlocked upgrade.
+  static const upgradePower = 0.3;
+
+  /// How strong the challenger is against the whole team.
+  static const challengerPower = 5.0;
+
+  /// How likely the fighters win a vote decided by chance (and a simulated
+  /// player thinks they win). The server decides missing votes the same way.
   double get fighterOdds {
-    double power(Rarity rarity) => switch (rarity) {
-      Rarity.basic => 1.0,
-      Rarity.adventurer => 1.5,
-      Rarity.hero => 2.2,
-      Rarity.legend => 3.2,
-    };
-    final team = fighters.fold(0.0, (sum, f) => sum + power(f.card.rarity) + f.effects.length * 0.3);
-    return team / (team + 5);
+    final team = fighters.fold(0.0, (sum, f) => sum + rarityPower[f.card.rarity]! + f.effects.length * upgradePower);
+    return team / (team + challengerPower);
   }
 }
 

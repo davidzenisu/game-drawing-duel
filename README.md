@@ -96,15 +96,28 @@ UTC, and each day has a theme. Every day each player:
    none, a premade title (`app/premade_prompts.py`) stands in. The challenger
    joins the pool as a hero and earns the day's only pull
    (`challenger:day-N`).
+3. sends up to four characters of their collection against a random
+   challenger drawn the day before (not their own),
+4. votes on the day before's fights, except their own and those against
+   their challenger: do the fighters beat the challenger?
 
-The random picks are derived from the server, day and seat, so they stay the
-same without being stored ahead of time. Fighters and votes follow.
+A fight is decided once its voting day is over, i.e. two days after the
+fighters were picked; ties go to the challenger. Whatever a player leaves
+out is decided by chance: a player who picked no fighters gets random ones
+from their collection (stored the first time the next day is opened), and a
+missing vote is random, weighted by the team's strength
+(`rules.fighter_odds`, shared with the mockup).
+
+The random picks are derived from the server, day and seat (or fight), so
+they stay the same without being stored ahead of time.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /servers/{code}/today` | Day, theme, your prompt to write and your prompt to draw |
+| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the fights to vote on and your decided fights |
 | `POST /servers/{code}/today/prompt` | Write today's challenger title, once |
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
+| `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
+| `POST /servers/{code}/today/votes/{fight}` | Vote on one of yesterday's fights, once |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
 

@@ -71,6 +71,23 @@ class FakeBackend {
   /// Written prompts by server code, author's seat and day.
   final Map<(String, int, int), String> prompts = {};
 
+  /// Fights by server code: owner seat, day, challenger, fighters and votes
+  /// by voter seat.
+  final Map<
+    String,
+    List<
+      ({
+        String id,
+        int owner,
+        int day,
+        Map<String, Object?> challenger,
+        List<Map<String, Object?>> fighters,
+        Map<int, bool> votes,
+      })
+    >
+  >
+  fights = {};
+
   /// Seats that ended a day, by server code and day.
   final Map<(String, int), Set<int>> dayEnded = {};
 
@@ -315,6 +332,42 @@ class FakeBackend {
     int subjectOf(int seat) => (seat + 2) % server.seats.length;
     Map<String, Object?>? challenger() =>
         _pool(code).where((c) => c['artist_position'] == yours && c['day'] == day).firstOrNull;
+    // The first of yesterday's challengers that isn't yours.
+    Map<String, Object?>? fightChallenger() => days[code]! < 3
+        ? null
+        : _pool(code).where((c) => c['day'] == days[code]! - 1 && c['artist_position'] != yours).firstOrNull;
+    Map<String, Object?> fightJson(
+      ({
+        String id,
+        int owner,
+        int day,
+        Map<String, Object?> challenger,
+        List<Map<String, Object?>> fighters,
+        Map<int, bool> votes,
+      })
+      f, {
+      required bool decided,
+    }) {
+      final forFighters = f.votes.values.where((v) => v).length;
+      return {
+        'id': f.id,
+        'day': f.day,
+        'owner_position': f.owner,
+        'challenger': f.challenger,
+        'fighters': [
+          for (final c in f.fighters) {'character': c, 'upgrades': const <String>[], 'element': null},
+        ],
+        'by_chance': false,
+        'your_vote': f.votes[yours],
+        'outcome': decided
+            ? {
+                'fighter_votes': forFighters,
+                'challenger_votes': f.votes.length - forFighters,
+                'fighters_win': forFighters > f.votes.length - forFighters,
+              }
+            : null,
+      };
+    }
 
     switch ((method, path)) {
       case ('POST', ['today', 'prompt']):
@@ -336,6 +389,26 @@ class FakeBackend {
           },
           sketch: body!['sketch'],
         );
+      case ('PUT', ['today', 'fighters']):
+        final challenger = fightChallenger();
+        if (challenger == null) return _json(409, {'detail': "There's no challenger to fight today"});
+        final list = fights.putIfAbsent(code, () => []);
+        if (list.any((f) => f.owner == yours && f.day == day)) {
+          return _json(409, {'detail': "You picked today's fighters already"});
+        }
+        final pool = _pool(code);
+        list.add((
+          id: 'fight-$day-$yours',
+          owner: yours,
+          day: day,
+          challenger: challenger,
+          fighters: [for (final id in body!['character_ids'] as List) pool.firstWhere((c) => c['id'] == id)],
+          votes: {},
+        ));
+      case ('POST', ['today', 'votes', final fightId]):
+        final fight = fights[code]!.firstWhere((f) => f.id == fightId);
+        if (fight.votes.containsKey(yours)) return _json(409, {'detail': 'You voted on this fight already'});
+        fight.votes[yours] = body!['fighters_win'] as bool;
       case ('POST', ['today', 'end']):
         final ended = dayEnded.putIfAbsent((code, day), () => {})..add(yours);
         if (joined.every(ended.contains)) days[code] = day + 1;
@@ -363,6 +436,26 @@ class FakeBackend {
               'premade': written == null,
               'challenger': _pool(code).where((c) => c['artist_position'] == yours && c['day'] == today).firstOrNull,
             },
+      'fight': switch (fightChallenger()) {
+        null => null,
+        final challenger => {
+          'challenger': challenger,
+          'yours': [
+            for (final f in fights[code] ?? const [])
+              if (f.owner == yours && f.day == today) fightJson(f, decided: false),
+          ].firstOrNull,
+        },
+      },
+      'to_vote': [
+        for (final f in fights[code] ?? const [])
+          if (f.day == today - 1 && f.owner != yours && f.challenger['artist_position'] != yours)
+            fightJson(f, decided: false),
+      ],
+      'results': [
+        for (final f in fights[code] ?? const [])
+          if (f.day == today - 2 && (f.owner == yours || f.challenger['artist_position'] == yours))
+            fightJson(f, decided: true),
+      ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
     });
   }
