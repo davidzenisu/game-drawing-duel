@@ -81,6 +81,25 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: uv run alembic check
 
+      # The API verifies Auth0 access tokens and needs to know which tenant
+      # and API they are for. Kept in sync with Key Vault on every deploy.
+      - name: Configure authentication
+        uses: Azure/cli@v3
+        env:
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
+          APP_NAME: ${{ steps.get_function_app_name.outputs.app_name }}
+        with:
+          inlineScript: |
+            domain=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-domain" --query "value" -o tsv)
+            audience=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-api-audience" --query "value" -o tsv)
+            if [ -z "$domain" ] || [ -z "$audience" ]; then
+              echo "::error::The Key Vault secrets auth0-domain and auth0-api-audience must be set."
+              exit 1
+            fi
+            resource_group=$(az functionapp list --query "[?name=='$APP_NAME'].resourceGroup | [0]" -o tsv)
+            az functionapp config appsettings set --name "$APP_NAME" --resource-group "$resource_group" \
+              --settings "AUTH0_DOMAIN=$domain" "AUTH0_AUDIENCE=$audience" --output none
+
       - name: Deploy Azure Function App
         uses: Azure/functions-action@v1
         with:

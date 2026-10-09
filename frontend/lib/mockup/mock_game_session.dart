@@ -32,6 +32,17 @@ class MockGameSession extends GameSession {
   @override
   bool get isMockup => true;
 
+  @override
+  String? get signInProblem => null;
+
+  /// The mockup's signup screen offers a pretend social login instead.
+  @override
+  String get suggestedFirstName => '';
+
+  /// The mockup starts at the signup, there is nothing to sign in to.
+  @override
+  Future<void> signIn() async {}
+
   GamePhase _phase = GamePhase.signup;
   @override
   GamePhase get phase => _phase;

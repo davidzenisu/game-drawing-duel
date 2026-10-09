@@ -21,6 +21,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void initState() {
     super.initState();
+    _name.text = widget.controller.suggestedFirstName;
     _name.addListener(() => setState(() {}));
   }
 
@@ -66,12 +67,14 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ],
                       const SizedBox(height: 24),
-                      OutlinedButton.icon(
-                        onPressed: _useSocialProfile,
-                        icon: const Icon(Icons.account_circle_outlined),
-                        label: const Text('Sign up with social login'),
-                      ),
-                      const SizedBox(height: 16),
+                      if (widget.controller.isMockup) ...[
+                        OutlinedButton.icon(
+                          onPressed: _useSocialProfile,
+                          icon: const Icon(Icons.account_circle_outlined),
+                          label: const Text('Sign up with social login'),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       TextField(
                         controller: _name,
                         textCapitalization: TextCapitalization.words,

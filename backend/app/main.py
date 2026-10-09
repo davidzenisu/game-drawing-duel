@@ -1,14 +1,16 @@
 import os
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.auth import get_auth0_subject
 from app.database import get_db
-from app.models import Drawing
-from app.schemas import DrawingResponse
+from app.routers import drawings, me
 
 app = FastAPI(title="Game Drawing Duel API", version="0.1.0")
 
@@ -28,13 +30,21 @@ configure_frontend_cors(app)
 
 
 @app.get("/health", tags=["health"])
-async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.get("/drawings", response_model=list[DrawingResponse], tags=["drawings"])
-def list_drawings(
+def health_check(
     session: Annotated[Session, Depends(get_db)],
-) -> list[DrawingResponse]:
-    drawings = session.scalars(select(Drawing).order_by(Drawing.id)).all()
-    return [DrawingResponse.model_validate(drawing) for drawing in drawings]
+) -> JSONResponse:
+    """Public: reports whether the API can reach its database."""
+    try:
+        session.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "error", "database": "unavailable"},
+        )
+    return JSONResponse(content={"status": "ok", "database": "ok"})
+
+
+# Everything except the health check and the API docs requires a signed-in user.
+_authenticated = [Depends(get_auth0_subject)]
+app.include_router(me.router, dependencies=_authenticated)
+app.include_router(drawings.router, dependencies=_authenticated)
