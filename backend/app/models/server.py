@@ -34,6 +34,8 @@ class Server(Base):
         nullable=False,
         server_default=func.now(),
     )
+    # When the admin started the initial drawing setup; null in the lobby.
+    setup_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     seats: Mapped[list["ServerSeat"]] = relationship(
         back_populates="server",

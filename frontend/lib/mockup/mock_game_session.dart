@@ -126,13 +126,16 @@ class MockGameSession extends GameSession {
   @override
   Duration get lobbyRefreshInterval => const Duration(milliseconds: 900);
 
-  /// The simulated friends join one at a time.
+  /// The simulated friends join one at a time; when you joined someone
+  /// else's server, its simulated admin starts once everyone is there.
   @override
   Future<void> refreshLobby() async {
     final next = server.players.where((p) => !server.joined.contains(p.id)).firstOrNull;
-    if (next == null) return;
-    server.joined.add(next.id);
-    notifyListeners();
+    if (next != null) {
+      server.joined.add(next.id);
+      notifyListeners();
+    }
+    if (!server.isAdmin && server.everyoneJoined) await startSetup();
   }
 
   String _newCode() => List.generate(6, (_) => _random.nextInt(10)).join();
@@ -141,8 +144,15 @@ class MockGameSession extends GameSession {
 
   @override
   Future<void> startSetup() async {
-    _assignments = SetupPlan.assignmentsFor(server.players, server.players.indexOf(you));
+    _assignments = _assignmentsOf(you);
     _setPhase(GamePhase.setup);
+  }
+
+  /// The setup assignments of [artist], one of the [ServerSession.artists].
+  List<DrawingAssignment> _assignmentsOf(Player artist) {
+    final artists = server.artists;
+    final index = artists.indexWhere((p) => p.id == artist.id);
+    return server.isTest ? SetupPlan.testAssignmentsFor(artists, index) : SetupPlan.assignmentsFor(artists, index);
   }
 
   @override
@@ -166,11 +176,10 @@ class MockGameSession extends GameSession {
   /// Every artist's setup drawings also land in their own roster.
   @override
   Future<void> launch() async {
-    final players = server.players;
-    for (final (index, artist) in players.indexed) {
+    for (final artist in server.artists) {
       if (artist.isYou) continue;
       final roster = _botRosters[artist.id] = [];
-      for (final assignment in SetupPlan.assignmentsFor(players, index)) {
+      for (final assignment in _assignmentsOf(artist)) {
         final card = CharacterCard(
           id: assignment.id,
           subject: assignment.subject.name,
@@ -476,7 +485,7 @@ class MockGameSession extends GameSession {
   @override
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element}) async {
     final next = owned.nextUpgrade;
-    if (!owned.canUpgrade || next == null) return;
+    if (!canUpgrade(owned) || next == null) return;
     if (next == UpgradeEffect.element) {
       if (element == null) throw ArgumentError('Choose an element for this upgrade.');
       owned.element = element;

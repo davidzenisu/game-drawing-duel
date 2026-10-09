@@ -54,6 +54,36 @@ void main() {
     expect(game.server.players.where((p) => p.isYou), hasLength(1));
   });
 
+  test('when you joined, the simulated admin starts once everyone is there', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    final preview = await game.previewServer('123456');
+    await game.joinServer(preview, preview.players.firstWhere((p) => p.name == 'Pat'));
+    expect(game.server.canStart, isFalse);
+    while (game.phase == GamePhase.lobby) {
+      await game.refreshLobby();
+    }
+    expect(game.server.everyoneJoined, isTrue);
+    expect(game.phase, GamePhase.setup);
+    expect(game.assignments, hasLength(SetupPlan.drawingsPerPlayer(game.server.players.length)));
+  });
+
+  test('a test session sets up the players who joined with the short prompts', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
+    await game.refreshLobby();
+    expect(game.server.artists.map((p) => p.name), ['Pat', 'Alex']);
+    await game.startSetup();
+    expect(game.assignments.map((a) => a.prompt), SetupPlan.testPrompts);
+    expect(game.assignments.map((a) => a.subject.name), everyElement('Alex'));
+    for (final assignment in game.assignments) {
+      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+    }
+    await game.launch();
+    expect(game.pool, hasLength(2 * SetupPlan.testPrompts.length), reason: 'only Pat and Alex drew');
+  });
+
   test('the alter unlocks after the basic drawing', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');
@@ -165,7 +195,7 @@ void main() {
     await game.unlockNextUpgrade(owned, element: ElementKind.storm);
     expect(owned.unlocked, owned.path);
     expect(owned.upgradePoints, -3);
-    expect(owned.canUpgrade, isFalse);
+    expect(game.canUpgrade(owned), isFalse);
     expect(game.upgradesAvailable, 0);
   });
 

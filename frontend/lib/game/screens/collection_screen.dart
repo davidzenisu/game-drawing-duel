@@ -292,16 +292,22 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                   if (isNext) ...[
                     const SizedBox(height: 8),
                     FilledButton.icon(
-                      onPressed: () async {
-                        final unlocked = await runGameAction(
-                          context,
-                          () => widget.controller.unlockNextUpgrade(owned, element: _element),
-                        );
-                        if (unlocked && mounted) setState(() => _preview = null);
-                      },
+                      onPressed: !widget.controller.canUpgrade(owned)
+                          ? null
+                          : () async {
+                              final unlocked = await runGameAction(
+                                context,
+                                () => widget.controller.unlockNextUpgrade(owned, element: _element),
+                              );
+                              if (unlocked && mounted) setState(() => _preview = null);
+                            },
                       style: FilledButton.styleFrom(backgroundColor: AppPalette.victory),
                       icon: const Icon(Icons.lock_open_rounded),
-                      label: Text(owned.upgradePoints > 0 ? 'Unlock (1 point)' : 'Unlock on credit (1 point)'),
+                      label: Text(switch (owned.upgradePoints) {
+                        > 0 => 'Unlock (1 point)',
+                        _ when widget.controller.isMockup => 'Unlock on credit (1 point)',
+                        _ => 'Needs a duplicate',
+                      }),
                     ),
                   ],
                 ],

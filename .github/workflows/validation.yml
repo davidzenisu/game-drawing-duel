@@ -35,11 +35,12 @@ jobs:
         run: |
           changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
           echo "$changed"
-          workflow_changed=$(grep -c '^\.github/workflows/validation\.yml$' <<< "$changed" || true)
+          # The shared rules are checked by both the frontend and backend tests.
+          both=$(grep -cE '^(\.github/workflows/validation\.yml|shared/)' <<< "$changed" || true)
           frontend=$(grep -c '^frontend/' <<< "$changed" || true)
           backend=$(grep -c '^backend/' <<< "$changed" || true)
-          echo "frontend=$([ $((frontend + workflow_changed)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "backend=$([ $((backend + workflow_changed)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$([ $((frontend + both)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "backend=$([ $((backend + both)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   frontend:
     needs: changes

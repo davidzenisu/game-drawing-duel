@@ -25,7 +25,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
   void initState() {
     super.initState();
     _joinTimer = Timer.periodic(widget.controller.lobbyRefreshInterval, (timer) async {
-      if (widget.controller.server.everyoneJoined) {
+      // Everyone but the admin waits for the setup to start.
+      final server = widget.controller.server;
+      if (server.isAdmin && server.everyoneJoined) {
         timer.cancel();
         return;
       }
@@ -125,7 +127,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   Text(
                     server.isTest
                         ? 'Test session: everyone who joined draws ${SetupPlan.testPrompts.length} quick characters '
-                              '(${SetupPlan.testPrompts.map((p) => p.label).join(', ')}). You can start without the others.'
+                              '(${SetupPlan.testPrompts.map((p) => p.label).join(', ')}). It can start without the others.'
                         : 'Everyone draws $drawings characters of the other players to fill the gacha pool.',
                     style: textTheme.bodyMedium,
                   ),
@@ -133,7 +135,11 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   FilledButton.icon(
                     onPressed: server.canStart ? () => runGameAction(context, controller.startSetup) : null,
                     icon: const Icon(Icons.draw_rounded),
-                    label: Text(server.canStart ? 'Start drawing' : 'Waiting for everyone…'),
+                    label: Text(switch (server) {
+                      ServerSession(canStart: true) => 'Start drawing',
+                      ServerSession(isAdmin: true) => 'Waiting for everyone…',
+                      _ => 'Waiting for the admin to start…',
+                    }),
                   ),
                 ],
               ),

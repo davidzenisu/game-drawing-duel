@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 import 'package:frontend/game/game_app.dart';
+import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/rules/setup_plan.dart';
 
 void main() {
   testWidgets('walks from signup through the lobby into the drawing setup', (tester) async {
@@ -78,6 +80,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Lobby'), findsOneWidget);
     expect(controller.you.name, 'Pat');
+    expect(find.text('Waiting for the admin to start…'), findsOneWidget);
+
+    // The simulated admin starts the setup once everyone joined.
+    for (var i = 0; i < SetupPlan.maxPlayers && controller.phase == GamePhase.lobby; i++) {
+      await tester.pump(controller.lobbyRefreshInterval);
+    }
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.setup);
 
     await tester.pumpWidget(const SizedBox());
   });

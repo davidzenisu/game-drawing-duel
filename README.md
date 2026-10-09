@@ -58,6 +58,9 @@ database answers.
 A player creates a server with the full list of players (5 to 10, including
 the admin) and gets a unique 6-digit code to share. Friends look the server up
 with the code and claim the seat with their name; the lobby shows who joined.
+Once everyone joined, the admin starts the initial drawing setup for everyone
+(the server's `phase` goes from `lobby` to `setup`) and every player gets
+their drawing assignments.
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -65,6 +68,8 @@ with the code and claim the seat with their name; the lobby shows who joined.
 | `GET /servers/mine` | The servers you joined, newest first |
 | `GET /servers/{code}` | Roster and who joined |
 | `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
+| `POST /servers/{code}/setup` | Start the initial drawing setup; admin only |
+| `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat and the drawing it builds on |
 
 #### Test sessions
 
@@ -80,12 +85,17 @@ server for trying the game with the real database and storage, at speed:
   Players see who has ended their day when they refresh, not by polling.
 - The lobby and the game show a TEST SESSION badge.
 
-So far the flag, the badge and starting without everyone exist; the short
-setup arrives with the initial drawings and the day controls with the daily
-loop.
+Players who join a test session after its setup started draw along, of the
+players who joined until then. So far the flag, the badge and the short setup
+exist; the day controls arrive with the daily loop.
 
-The player limits live in `backend/app/rules.py` and
-`frontend/lib/game/rules/setup_plan.dart`; keep both in sync.
+### Game rules
+
+The rules the server enforces (`backend/app/rules.py`) and the ones the app
+plays by (`frontend/lib/game/rules`) are implemented on both sides.
+[`shared/rules.json`](shared/rules.json) is the specification both are tested
+against: player limits, rarities, the setup prompts per player count and who
+draws whom. Change it together with both implementations.
 
 ### Function App settings
 

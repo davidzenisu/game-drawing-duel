@@ -3,6 +3,8 @@ import 'package:frontend/backend/api_client.dart';
 import 'package:frontend/backend/api_game_session.dart';
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/game/game_session.dart';
+import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/rules/setup_plan.dart';
 
 import 'fakes.dart';
 
@@ -115,6 +117,18 @@ void main() {
       return session;
     }
 
+    Future<ApiGameSession> signedUpAgain(String token) async {
+      final session = ApiGameSession(
+        api: ApiClient(
+          baseUrl: 'https://api.example',
+          auth: FakeAuthClient(token: token, profile: const AuthProfile()),
+          httpClient: backend.client,
+        ),
+      );
+      await session.start();
+      return session;
+    }
+
     setUp(() async {
       backend = FakeBackend();
       admin = await signedUp('alex', 'Alex');
@@ -183,14 +197,7 @@ void main() {
 
     test('coming back opens the lobby of your newest server', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
-      final again = ApiGameSession(
-        api: ApiClient(
-          baseUrl: 'https://api.example',
-          auth: FakeAuthClient(token: 'alex', profile: const AuthProfile()),
-          httpClient: backend.client,
-        ),
-      );
-      await again.start();
+      final again = await signedUpAgain('alex');
       expect(again.phase, GamePhase.lobby);
       expect(again.server.code, '123456');
     });
@@ -199,9 +206,59 @@ void main() {
       await expectLater(admin.previewServer('999999'), throwsA(isA<ApiException>()));
     });
 
-    test('the drawings are not available yet', () async {
+    Future<List<ApiGameSession>> everyoneJoins() async {
+      final friends = <ApiGameSession>[];
+      for (final (i, name) in ['Sam', 'Robin', 'Kim', 'Jo'].indexed) {
+        final friend = await signedUp(name.toLowerCase(), name);
+        final preview = await friend.previewServer('123456');
+        await friend.joinServer(preview, preview.players[i + 1]);
+        friends.add(friend);
+      }
+      return friends;
+    }
+
+    test('only the admin can start, and everyone follows into the setup', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
-      await expectLater(admin.startSetup(), throwsA(isA<NotAvailableYet>()));
+      final friends = await everyoneJoins();
+      final sam = friends.first;
+      expect(sam.server.canStart, isFalse, reason: 'only the admin starts');
+
+      await admin.refreshLobby();
+      expect(admin.server.canStart, isTrue);
+      await admin.startSetup();
+      expect(backend.requests.last.url.path, '/servers/123456/assignments');
+      expect(admin.phase, GamePhase.setup);
+
+      await sam.refreshLobby();
+      expect(sam.phase, GamePhase.setup);
+      expect(sam.assignments.map((a) => a.prompt), SetupPlan.promptsFor(5));
+      expect(sam.assignments.map((a) => a.subject.name), ['Robin', 'Robin', 'Kim', 'Jo', 'Alex', 'Robin']);
+      final alter = sam.assignments[1];
+      expect(alter.basedOn, sam.assignments[0].id);
+      expect(sam.isUnlocked(alter), isFalse, reason: 'the basic is not drawn yet');
+    });
+
+    test('a test session starts with whoever joined', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      expect(admin.phase, GamePhase.setup);
+      expect(admin.assignments.map((a) => a.prompt), SetupPlan.testPrompts);
+      expect(admin.assignments.map((a) => a.subject.isYou), everyElement(isTrue), reason: 'alone, you draw yourself');
+    });
+
+    test('coming back during the setup opens your assignments', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      final again = await signedUpAgain('alex');
+      expect(again.phase, GamePhase.setup);
+      expect(again.assignments, hasLength(3));
+    });
+
+    test('the drawings are not available yet', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      final basic = admin.assignments.first;
+      await expectLater(admin.submitSetupDrawing(basic, Sketch.empty, 'Me'), throwsA(isA<NotAvailableYet>()));
       expect(admin.isMockup, isFalse);
       expect(admin.lobbyRefreshInterval, const Duration(seconds: 5));
     });
