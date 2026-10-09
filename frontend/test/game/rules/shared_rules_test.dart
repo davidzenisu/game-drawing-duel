@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/rules/upgrades.dart';
 
 /// Checks the rules against `shared/rules.json`, which the backend's tests
 /// check its own implementation against too.
@@ -67,6 +68,14 @@ void main() {
       }
       expect(seen, hasLength(n), reason: 'everyone can be drawn');
     }
+  });
+
+  test('upgrades', () {
+    final upgrades = rules['upgrades'] as Map<String, dynamic>;
+    expect({
+      for (final r in Rarity.values) r.name: [for (final e in UpgradeTree.pathFor(r)) e.name],
+    }, upgrades['paths']);
+    expect([for (final e in ElementKind.values) e.name], upgrades['elements']);
   });
 
   group('gacha', () {

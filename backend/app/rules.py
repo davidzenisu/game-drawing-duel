@@ -118,3 +118,39 @@ def _assign(
 
 # The longest title of a drawn character.
 MAX_TITLE_LENGTH = 60
+
+
+class UpgradeEffect(StrEnum):
+    """Special effects unlocked by spending duplicates."""
+
+    SHADOW = "shadow"
+    LIGHT = "light"
+    ELEMENT = "element"
+    AURA = "aura"
+    HALO = "halo"
+
+
+class Element(StrEnum):
+    """The choice made when unlocking the element upgrade."""
+
+    FIRE = "fire"
+    ICE = "ice"
+    STORM = "storm"
+
+
+# Each rarity has its own (deeper) upgrade path, unlocked in order.
+UPGRADE_PATHS = {
+    Rarity.BASIC: (UpgradeEffect.SHADOW, UpgradeEffect.LIGHT),
+    Rarity.ADVENTURER: (
+        UpgradeEffect.SHADOW,
+        UpgradeEffect.LIGHT,
+        UpgradeEffect.ELEMENT,
+    ),
+    Rarity.HERO: (
+        UpgradeEffect.SHADOW,
+        UpgradeEffect.LIGHT,
+        UpgradeEffect.ELEMENT,
+        UpgradeEffect.AURA,
+    ),
+    Rarity.LEGEND: tuple(UpgradeEffect),
+}

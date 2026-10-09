@@ -9,6 +9,7 @@ import 'package:frontend/backend/sketch_json.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/rules/upgrades.dart';
 
 import 'fakes.dart';
 
@@ -385,6 +386,38 @@ void main() {
         throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Not enough pulls')),
       );
       expect(admin.tickets, 6);
+
+      // Two duplicates of the basic: two upgrades, then the path ends.
+      expect(admin.canUpgrade(basic), isTrue);
+      await admin.unlockNextUpgrade(basic);
+      await admin.unlockNextUpgrade(basic);
+      expect(backend.requests.last.url.path, '/servers/123456/collection/${basic.card.id}/upgrades');
+      expect(basic.unlocked, [UpgradeEffect.shadow, UpgradeEffect.light]);
+      expect(basic.upgradePoints, 0);
+      expect(admin.canUpgrade(basic), isFalse, reason: 'no unlocking on credit outside the mockup');
+      expect(admin.upgradesAvailable, 2, reason: 'the knight and the legend have a duplicate each');
+
+      final knight = admin.collection.firstWhere((o) => o.card.title == 'Knight');
+      await admin.unlockNextUpgrade(knight);
+      await expectLater(
+        admin.unlockNextUpgrade(knight),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'You need a duplicate to unlock this')),
+      );
+    });
+
+    test('a reload keeps the upgrades and the chosen element', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      backend.upgrades[('123456', 'player-uuid-1', admin.collection.first.card.id)] = (
+        effects: ['shadow', 'light', 'element'],
+        element: 'ice',
+      );
+      final again = await signedUpAgain('alex');
+      final legend = again.collection.first;
+      expect(legend.unlocked, [UpgradeEffect.shadow, UpgradeEffect.light, UpgradeEffect.element]);
+      expect(legend.element, ElementKind.ice);
     });
   });
 

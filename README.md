@@ -83,6 +83,7 @@ refresh.
 | `GET /servers/{code}/collection` | Your characters (your setup drawings and pulls) with how many copies you own |
 | `GET /servers/{code}/gacha` | Your pulls left and pity progress |
 | `POST /servers/{code}/pulls` | Spend 1 to 10 pulls on random characters of the pool |
+| `POST /servers/{code}/collection/{id}/upgrades` | Spend a duplicate on the character's next upgrade (`{"element": …}` for the element upgrade) |
 
 ### Gacha
 
@@ -94,7 +95,9 @@ player's pulls are serialised with a row lock, so the same grant can't be
 spent twice. The rarity is rolled on the server (`app/gacha.py`) with the
 rates and pity from `docs/concept/gacha-rates.md`: the pity follows from a
 player's pulls so far instead of being stored. Duplicates are copies of a
-character in the collection.
+character in the collection: each one unlocks the next upgrade of the
+character's rarity path (`upgrade` rows, one per effect). Only the mockup
+unlocks upgrades on credit.
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
 ### Database ids

@@ -233,12 +233,30 @@ class ApiGameSession extends GameSession {
     _pool = cards;
     _collection = [
       for (final owned in collection)
-        if (owned case {'character': {'id': String id}, 'copies': int copies} when byId.containsKey(id))
-          OwnedCard(byId[id]!)..copies = copies
+        if (owned case {'character': {'id': String id}} when byId.containsKey(id))
+          _setOwned(OwnedCard(byId[id]!), owned)
         else
           throw const FormatException('Unexpected character in collection.'),
     ];
     _setGacha(gacha);
+  }
+
+  /// Copies, upgrades and element of [owned] from the API's collection entry.
+  static OwnedCard _setOwned(OwnedCard owned, Object? json) {
+    if (json case {'copies': int copies, 'upgrades': List upgrades, 'element': String? element}) {
+      owned
+        ..copies = copies
+        ..unlocked.clear()
+        ..unlocked.addAll([
+          for (final effect in upgrades)
+            UpgradeEffect.values.asNameMap()[effect] ?? (throw FormatException('Unknown upgrade $effect.')),
+        ])
+        ..element = element == null
+            ? null
+            : ElementKind.values.asNameMap()[element] ?? (throw FormatException('Unknown element $element.'));
+      return owned;
+    }
+    throw const FormatException('Unexpected character in collection.');
   }
 
   void _setGacha(Object? json) {
@@ -517,7 +535,13 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element}) => Future.error(const NotAvailableYet());
+  Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element}) async {
+    final json = await _post('/servers/${server.code}/collection/${owned.card.id}/upgrades', {
+      if (element != null) 'element': element.name,
+    });
+    _setOwned(owned, json);
+    notifyListeners();
+  }
 
   @override
   Future<void> advanceDay() => Future.error(const NotAvailableYet());
