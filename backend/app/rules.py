@@ -108,3 +108,7 @@ def _assign(
         offset = 0 if count == 1 else 1 + group % (count - 1)
         assignments.append(Assignment(prompt, (artist + offset) % count))
     return assignments
+
+
+# The longest title of a drawn character.
+MAX_TITLE_LENGTH = 60

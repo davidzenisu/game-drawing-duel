@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, StringConstraints, field_validator
 
 from app.rules import MAX_PLAYERS, MIN_PLAYERS
+from app.schemas.character import CharacterResponse
 
 SeatName = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)
@@ -54,3 +55,5 @@ class AssignmentResponse(BaseModel):
     subject_position: int
     # The assignment this one builds on (the alter is based on the basic).
     based_on: int | None
+    # Your drawing for it, once submitted.
+    character: CharacterResponse | None

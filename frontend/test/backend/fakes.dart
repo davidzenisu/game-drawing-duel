@@ -51,6 +51,11 @@ class FakeBackend {
 
   /// Codes of the servers whose setup started.
   final Set<String> started = {};
+
+  /// Setup drawings by server code and assignment id: the character as the
+  /// API returns it and the uploaded sketch.
+  final Map<(String, int), ({Map<String, Object?> character, Object? sketch})> drawings = {};
+  int _nextCharacter = 1;
   final List<http.Request> requests = [];
 
   /// Rejects every request with this status and detail, like the real API
@@ -113,8 +118,28 @@ class FakeBackend {
         return _json(200, _server(code, myId));
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'assignments') {
-        return _json(200, _assignments(code, myId));
+        return _json(200, [
+          for (final a in _assignments(code, myId)) {...a, 'character': drawings[(code, a['id'] as int)]?.character},
+        ]);
       }
+      if (request.method == 'PUT' && path.length == 5 && path[4] == 'drawing') {
+        final assignment = _assignments(code, myId).firstWhere((a) => '${a['id']}' == path[3]);
+        final prompt = SetupPrompt.values.byName(assignment['prompt'] as String);
+        final character = {
+          'id': 'character-${_nextCharacter++}',
+          'title': (body!['title'] as String).trim(),
+          'rarity': prompt.rarity.name,
+          'prompt': prompt.name,
+          'artist_position': servers[code]!.seats.indexWhere((s) => s['player'] == myId),
+          'subject_position': assignment['subject_position'],
+        };
+        drawings[(code, assignment['id'] as int)] = (character: character, sketch: body['sketch']);
+        return _json(200, character);
+      }
+    }
+    if (request.method == 'GET' && path.length == 3 && path[0] == 'characters' && path[2] == 'sketch') {
+      final drawing = drawings.values.where((d) => d.character['id'] == path[1]).firstOrNull;
+      return drawing == null ? _json(404, {'detail': 'No such character'}) : _json(200, drawing.sketch);
     }
     return _json(404, {'detail': 'No server with this code'});
   });

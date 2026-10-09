@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app.auth import TokenVerifier, get_token_verifier
 from app.database import Base, get_db
 from app.main import app
+from app.storage import MemoryFileStore, get_file_store
 
 ISSUER = "https://tenant.example.auth0.com/"
 AUDIENCE = "https://api.drawing-duel.example"
@@ -66,6 +67,8 @@ class ApiTestCase(unittest.TestCase):
 
         public_key = _KEY.public_key()
         app.dependency_overrides[get_db] = override_get_db
+        self.files = MemoryFileStore()
+        app.dependency_overrides[get_file_store] = lambda: self.files
         app.dependency_overrides[get_token_verifier] = lambda: TokenVerifier(
             ISSUER, AUDIENCE, lambda _token: public_key
         )

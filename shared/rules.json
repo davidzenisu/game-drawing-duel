@@ -2,6 +2,7 @@
   "_about": "The game rules both the frontend (frontend/lib/game/rules) and the backend (backend/app/rules.py) implement. Each side's tests check its implementation against this file. 'assignments' and 'test_assignments' list, per player count, every artist's subjects (as roster indexes) in the order of the setup prompts.",
   "players": {"min": 5, "max": 10},
   "server_code_length": 6,
+  "max_title_length": 60,
   "rarities": [
     {"name": "basic", "stars": 1, "draw_seconds": 30},
     {"name": "adventurer", "stars": 2, "draw_seconds": 60},

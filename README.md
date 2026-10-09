@@ -69,7 +69,20 @@ their drawing assignments.
 | `GET /servers/{code}` | Roster and who joined |
 | `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
 | `POST /servers/{code}/setup` | Start the initial drawing setup; admin only |
-| `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat and the drawing it builds on |
+| `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, the drawing it builds on and what you drew so far |
+| `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |
+| `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
+
+### Drawings
+
+Every drawing gets a new UUID: a `character` row in the database and a file of
+that name in the storage container with the strokes as JSON (normalised
+points, colours and brush widths, so the stroke effects can follow them).
+The file's metadata labels it with the kind of drawing, server code, prompt,
+rarity and the artist's and subject's seats. Redrawing creates a new
+character and deletes the old file. The API reaches the container through
+`app/storage.py`'s `FileStore` interface; in Azure that is the blob container
+accessed with the Function App's managed identity, in tests an in-memory store.
 
 #### Test sessions
 
@@ -107,6 +120,9 @@ The app settings are managed in the infrastructure repository. The API reads:
 | `FRONTEND_URL` | Origin of the web app, allowed for CORS |
 | `AUTH0_DOMAIN` | Auth0 tenant domain without scheme, e.g. `your-tenant.eu.auth0.com` (same as `auth0-domain`) |
 | `AUTH0_AUDIENCE` | Identifier of the Auth0 API (same as `auth0-api-audience`) |
+| `STORAGE_ACCOUNT_NAME` | Storage account holding the drawings |
+| `STORAGE_CONTAINER_NAME` | Blob container for the drawings |
+| `FUNCTION_APP_CLIENT_ID` | Client id of the Function App's user-assigned managed identity, which needs **Storage Blob Data Contributor** on the container |
 
 Without the two Auth0 settings every route except `/health` and the docs
 answers `503 Authentication is not configured`.

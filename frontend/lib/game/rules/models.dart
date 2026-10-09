@@ -54,6 +54,9 @@ class Sketch {
 
 /// A drawn character that is part of the server's gacha pool.
 class CharacterCard {
+  /// The longest title a character can have.
+  static const maxTitleLength = 60;
+
   const CharacterCard({
     required this.id,
     required this.subject,

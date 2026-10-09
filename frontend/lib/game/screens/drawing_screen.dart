@@ -143,6 +143,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                       child: TextField(
                         controller: _title,
                         readOnly: widget.titleLocked,
+                        maxLength: CharacterCard.maxTitleLength,
                         decoration: const InputDecoration(
                           labelText: 'Title',
                           hintText: 'e.g. The early years',

@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/backend/api_client.dart';
 import 'package:frontend/backend/api_game_session.dart';
 import 'package:frontend/backend/auth_client.dart';
+import 'package:frontend/backend/sketch_json.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
@@ -254,11 +258,48 @@ void main() {
       expect(again.assignments, hasLength(3));
     });
 
-    test('the drawings are not available yet', () async {
+    const doodle = Sketch([
+      Stroke(color: Color(0xFF000000), width: 0.016, points: [Offset(0.1, 0.2), Offset(0.3, 0.4)]),
+    ]);
+
+    test('setup drawings are uploaded with their title', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
-      final basic = admin.assignments.first;
-      await expectLater(admin.submitSetupDrawing(basic, Sketch.empty, 'Me'), throwsA(isA<NotAvailableYet>()));
+      final knight = admin.assignments[1];
+      expect(admin.setupDrawing(knight), isNull);
+
+      await admin.submitSetupDrawing(knight, doodle, '  Sir Alex ');
+      final put = backend.requests.last;
+      expect(put.method, 'PUT');
+      expect(put.url.path, '/servers/123456/assignments/${knight.id.split('-').last}/drawing');
+      expect(jsonDecode(put.body), {'title': 'Sir Alex', 'sketch': SketchJson.encode(doodle)});
+
+      final card = admin.setupDrawing(knight)!;
+      expect(card.title, 'Sir Alex');
+      expect(card.rarity, Rarity.adventurer);
+      expect(card.prompt, SetupPrompt.knight.label);
+      expect((card.artist, card.subject), ('Alex', 'Alex'));
+      expect(card.sketch, same(doodle), reason: 'no need to download what you just drew');
+      expect(admin.setupComplete, isFalse);
+    });
+
+    test('coming back during the setup loads your drawings', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+
+      final again = await signedUpAgain('alex');
+      expect(again.phase, GamePhase.setup);
+      final card = again.setupDrawing(again.assignments.first)!;
+      expect(card.title, 'Basic');
+      expect(card.sketch.strokes.single.points, doodle.strokes.single.points);
+      expect(again.setupDrawing(again.assignments[1]), isNull);
+    });
+
+    test('launching is not available yet', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await expectLater(admin.launch(), throwsA(isA<NotAvailableYet>()));
       expect(admin.isMockup, isFalse);
       expect(admin.lobbyRefreshInterval, const Duration(seconds: 5));
     });
