@@ -50,5 +50,16 @@ Enable it with the `MOCKUP_GAMEPLAY` feature flag, either in
 flutter run -d chrome --dart-define=MOCKUP_GAMEPLAY=true
 ```
 
-The flag defaults to `false`, so regular builds are unaffected. The mockup lives
-in `lib/mockup`, the shared colour palette in `lib/theme/palette.dart`.
+The flag defaults to `false`, so regular builds are unaffected.
+
+### Code layout
+
+- `lib/game/`: everything the game needs regardless of where it is played.
+  - `rules/`: the game rules (setup plan, gacha rates and pity, upgrade paths,
+    daily loop, themes).
+  - `screens/` and `widgets/`: the UI.
+  - `game_session.dart`: the `GameSession` interface the screens use. State is
+    read synchronously; actions return futures so a backend can implement it.
+- `lib/mockup/`: `MockGameSession`, the in-memory implementation behind the
+  mockup, with simulated players.
+- `lib/theme/palette.dart`: the shared colour palette.

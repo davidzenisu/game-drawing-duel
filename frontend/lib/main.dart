@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'feature_flags.dart';
-import 'mockup/mockup_app.dart';
+import 'game/game_app.dart';
+import 'mockup/mock_game_session.dart';
 import 'theme/app_theme.dart';
 
 const _auth0Domain = String.fromEnvironment('AUTH0_DOMAIN');
@@ -15,7 +16,7 @@ const _apiUrl = String.fromEnvironment('API_URL');
 const _isAuth0Configured = _auth0Domain != '' && _auth0ClientId != '';
 
 void main() {
-  runApp(FeatureFlags.mockupGameplay ? const MockupGameApp() : const MainApp());
+  runApp(FeatureFlags.mockupGameplay ? GameApp(session: MockGameSession()) : const MainApp());
 }
 
 class MainApp extends StatefulWidget {
