@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints, field_validator
 
@@ -37,6 +37,20 @@ class ServerResponse(BaseModel):
     created_at: datetime
     is_test: bool
     is_admin: bool
+    # "lobby" while players join, "setup" once the admin started the setup.
+    phase: Literal["lobby", "setup"]
     # Your seat, or null if you haven't joined (yet).
     your_position: int | None
     seats: list[SeatResponse]
+
+
+class AssignmentResponse(BaseModel):
+    """A drawing you make during the initial setup."""
+
+    id: int
+    # An `app.rules.SetupPrompt`.
+    prompt: str
+    # The seat of the player to draw.
+    subject_position: int
+    # The assignment this one builds on (the alter is based on the basic).
+    based_on: int | None

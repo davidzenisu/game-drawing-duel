@@ -36,14 +36,16 @@ class OwnedCard {
   ElementKind? element;
 
   /// Every duplicate is worth one upgrade point. The mockup lets players
-  /// unlock upgrades on credit, so this can go negative.
+  /// unlock upgrades on credit, so this can go negative there.
   int get upgradePoints => copies - 1 - unlocked.length;
 
   List<UpgradeEffect> get path => UpgradeTree.pathFor(card.rarity);
 
   UpgradeEffect? get nextUpgrade => unlocked.length < path.length ? path[unlocked.length] : null;
 
-  bool get canUpgrade => nextUpgrade != null;
+  /// Whether the next upgrade can be unlocked, with a point to spend or,
+  /// [onCredit], without.
+  bool canUpgrade({bool onCredit = false}) => nextUpgrade != null && (onCredit || upgradePoints > 0);
 
   /// Whether a duplicate is waiting to be spent.
   bool get hasUnspentPoints => upgradePoints > 0 && nextUpgrade != null;

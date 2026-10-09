@@ -10,8 +10,9 @@ import 'auth_client.dart';
 
 /// [GameSession] backed by the API and Auth0.
 ///
-/// Signing in, signing up and servers are implemented; the rest of the game
-/// arrives step by step and reports [NotAvailableYet] until then.
+/// Signing in, signing up, servers and starting the setup are implemented;
+/// the rest of the game arrives step by step and reports [NotAvailableYet]
+/// until then.
 class ApiGameSession extends GameSession {
   ApiGameSession({required ApiClient? api, String? signInProblem})
     : _api = api,
@@ -24,6 +25,7 @@ class ApiGameSession extends GameSession {
   String _suggestedFirstName = '';
   Player? _account;
   ServerSession? _server;
+  List<DrawingAssignment> _assignments = const [];
 
   /// After a failed sign-in, signing in again must not reuse the old session.
   bool _freshSignInNeeded = false;
@@ -51,6 +53,7 @@ class ApiGameSession extends GameSession {
     _freshSignInNeeded = true;
     _account = null;
     _server = null;
+    _assignments = const [];
     _setPhase(GamePhase.signIn);
   }
 
@@ -89,13 +92,28 @@ class ApiGameSession extends GameSession {
     _account = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
   }
 
-  /// Back to the lobby of your newest server, or to creating or joining one.
+  /// Back to your newest server, or to creating or joining one.
   Future<void> _loadServer() async {
     final servers = await _get('/servers/mine');
     if (servers is! List) throw const FormatException('Unexpected servers response.');
     if (servers.isEmpty) return _setPhase(GamePhase.server);
-    _server = _parseServer(servers.first);
-    _setPhase(GamePhase.lobby);
+    await _enterServer(servers.first);
+  }
+
+  /// Shows the server's lobby, or your setup once the admin started it.
+  Future<void> _enterServer(Object? json) async {
+    final server = _parseServer(json);
+    switch ((json as Map)['phase']) {
+      case 'lobby':
+        _server = server;
+        _setPhase(GamePhase.lobby);
+      case 'setup':
+        _assignments = _parseAssignments(await _get('/servers/${server.code}/assignments'), server);
+        _server = server;
+        _setPhase(GamePhase.setup);
+      default:
+        throw const FormatException('Unexpected server phase.');
+    }
   }
 
   static String _seatId(int position) => 'seat-$position';
@@ -108,7 +126,8 @@ class ApiGameSession extends GameSession {
         json['code'] is! String ||
         json['seats'] is! List ||
         json['is_admin'] is! bool ||
-        json['is_test'] is! bool) {
+        json['is_test'] is! bool ||
+        json['phase'] is! String) {
       throw const FormatException('Unexpected server response.');
     }
     final yourPosition = json['your_position'];
@@ -130,6 +149,33 @@ class ApiGameSession extends GameSession {
       joined: joined,
       isTest: json['is_test'] as bool,
     );
+  }
+
+  static String _assignmentId(int id) => 'assignment-$id';
+
+  /// Your setup drawings; the subjects are seats of [server].
+  static List<DrawingAssignment> _parseAssignments(Object? json, ServerSession server) {
+    if (json is! List) throw const FormatException('Unexpected assignments response.');
+    return [
+      for (final assignment in json)
+        if (assignment case {
+          'id': int id,
+          'prompt': String prompt,
+          'subject_position': int subject,
+          'based_on': int? basedOn,
+        })
+          DrawingAssignment(
+            id: _assignmentId(id),
+            prompt: SetupPrompt.values.asNameMap()[prompt] ?? (throw FormatException('Unknown prompt $prompt.')),
+            subject: server.players.firstWhere(
+              (p) => p.id == _seatId(subject),
+              orElse: () => throw FormatException('Unknown seat $subject.'),
+            ),
+            basedOn: basedOn == null ? null : _assignmentId(basedOn),
+          )
+        else
+          throw const FormatException('Unexpected assignment in response.'),
+    ];
   }
 
   void _setPhase(GamePhase phase) {
@@ -172,6 +218,7 @@ class ApiGameSession extends GameSession {
     await _auth.signOut();
     _account = null;
     _server = null;
+    _assignments = const [];
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
   }
@@ -183,33 +230,29 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> createServer(List<String> otherNames, {bool isTest = false}) async {
-    _server = _parseServer(await _post('/servers', {'other_names': otherNames, 'is_test': isTest}));
-    _setPhase(GamePhase.lobby);
-  }
+  Future<void> createServer(List<String> otherNames, {bool isTest = false}) async =>
+      _enterServer(await _post('/servers', {'other_names': otherNames, 'is_test': isTest}));
 
   @override
   Future<ServerSession> previewServer(String code) async => _parseServer(await _get('/servers/$code'));
 
   @override
-  Future<void> joinServer(ServerSession server, Player seat) async {
-    _server = _parseServer(await _post('/servers/${server.code}/seats/${_seatPosition(seat)}/claim'));
-    _setPhase(GamePhase.lobby);
-  }
+  Future<void> joinServer(ServerSession server, Player seat) async =>
+      _enterServer(await _post('/servers/${server.code}/seats/${_seatPosition(seat)}/claim'));
 
   @override
-  Future<void> refreshLobby() async {
-    _server = _parseServer(await _get('/servers/${server.code}'));
-    notifyListeners();
-  }
+  Future<void> refreshLobby() async => _enterServer(await _get('/servers/${server.code}'));
+
+  @override
+  Future<void> startSetup() async => _enterServer(await _post('/servers/${server.code}/setup'));
+
+  @override
+  List<DrawingAssignment> get assignments => _assignments;
 
   // Not available yet ------------------------------------------------------------
 
   @override
   List<String> get suggestedPlayerNames => const [];
-
-  @override
-  List<DrawingAssignment> get assignments => const [];
 
   @override
   CharacterCard? setupDrawing(DrawingAssignment assignment) => null;
@@ -264,9 +307,6 @@ class ApiGameSession extends GameSession {
 
   @override
   Player? get hurrySentTo => null;
-
-  @override
-  Future<void> startSetup() => Future.error(const NotAvailableYet());
 
   @override
   Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title) =>

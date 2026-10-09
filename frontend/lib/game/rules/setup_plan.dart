@@ -3,17 +3,25 @@ import 'models.dart';
 /// The default prompts of the initial drawing setup.
 enum SetupPrompt {
   basic(rarity: Rarity.basic, label: 'Basic', hint: 'Just them, as you know them.'),
-  alter(rarity: Rarity.basic, label: 'Alter', hint: 'An alternative version of your basic drawing.'),
+  alter(
+    rarity: Rarity.basic,
+    label: 'Alter',
+    hint: 'An alternative version of your basic drawing.',
+    basedOn: SetupPrompt.basic,
+  ),
   knight(rarity: Rarity.adventurer, label: 'Knight', hint: 'Draw them as a knight.'),
   mage(rarity: Rarity.adventurer, label: 'Mage', hint: 'Draw them as a mage.'),
   rogue(rarity: Rarity.adventurer, label: 'Rogue', hint: 'Draw them as a rogue.'),
   legend(rarity: Rarity.legend, label: 'A legend', hint: 'Draw them as a true legend. Take your time.');
 
-  const SetupPrompt({required this.rarity, required this.label, required this.hint});
+  const SetupPrompt({required this.rarity, required this.label, required this.hint, this.basedOn});
 
   final Rarity rarity;
   final String label;
   final String hint;
+
+  /// The prompt this one builds on; it is drawn of the same subject.
+  final SetupPrompt? basedOn;
 }
 
 /// A drawing a player has to make during the initial setup.
@@ -30,6 +38,9 @@ class DrawingAssignment {
 
 /// Works out who draws what so that the pool always holds roughly 30
 /// characters at launch, see `docs/concept/initial-setup.md`.
+///
+/// The server enforces the same rules (`backend/app/rules.py`); both are
+/// checked against `shared/rules.json`.
 abstract final class SetupPlan {
   static const minPlayers = 5;
   static const maxPlayers = 10;
@@ -64,28 +75,34 @@ abstract final class SetupPlan {
     return counts;
   }
 
-  /// The assignments of the player at [artistIndex].
-  ///
+  /// The assignments of the player at [artistIndex] in a regular server.
+  static List<DrawingAssignment> assignmentsFor(List<Player> players, int artistIndex) =>
+      _assign(players, artistIndex, promptsFor(players.length));
+
+  /// The assignments of the player at [artistIndex] among the [active]
+  /// players of a test session: [testPrompts] of the other active players,
+  /// or of themselves when playing alone.
+  static List<DrawingAssignment> testAssignmentsFor(List<Player> active, int artistIndex) =>
+      _assign(active, artistIndex, testPrompts);
+
   /// Every prompt group (the alter shares its subject with the basic) shifts
-  /// the subject by a different offset, so nobody draws themselves and every
-  /// player is depicted exactly once per prompt.
-  static List<DrawingAssignment> assignmentsFor(List<Player> players, int artistIndex) {
+  /// the subject by a different offset, so nobody draws themselves (unless
+  /// alone) and every player is depicted exactly once per prompt.
+  static List<DrawingAssignment> _assign(List<Player> players, int artistIndex, List<SetupPrompt> prompts) {
     final count = players.length;
     final assignments = <DrawingAssignment>[];
     var group = -1;
-    for (final prompt in promptsFor(count)) {
-      if (prompt != SetupPrompt.alter) group++;
-      final offset = 1 + group % (count - 1);
+    for (final prompt in prompts) {
+      if (prompt.basedOn == null) group++;
+      final offset = count == 1 ? 0 : 1 + group % (count - 1);
       final subject = players[(artistIndex + offset) % count];
-      final basedOn = prompt == SetupPrompt.alter
-          ? assignments.firstWhere((a) => a.prompt == SetupPrompt.basic).id
-          : null;
+      final basedOn = prompt.basedOn;
       assignments.add(
         DrawingAssignment(
           id: '${players[artistIndex].id}-${prompt.name}',
           prompt: prompt,
           subject: subject,
-          basedOn: basedOn,
+          basedOn: basedOn == null ? null : assignments.firstWhere((a) => a.prompt == basedOn).id,
         ),
       );
     }

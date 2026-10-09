@@ -48,8 +48,18 @@ class ServerSession {
 
   bool get everyoneJoined => joined.length == players.length;
 
-  /// Regular servers start once everyone joined, test sessions any time.
-  bool get canStart => everyoneJoined || isTest;
+  /// The admin starts the setup for everyone: in regular servers once
+  /// everyone joined, in test sessions any time.
+  bool get canStart => isAdmin && (everyoneJoined || isTest);
+
+  /// Who draws during the setup: everyone, or in a test session only the
+  /// players who joined.
+  List<Player> get artists => isTest
+      ? [
+          for (final p in players)
+            if (joined.contains(p.id)) p,
+        ]
+      : players;
 }
 
 /// Another player secretly bought a hurry against your next drawing.
@@ -169,6 +179,9 @@ abstract class GameSession extends ChangeNotifier {
   /// Whether a step of the daily loop is available today.
   bool stepUnlocked(int step) => day >= step;
 
+  /// Whether [owned]'s next upgrade can be unlocked; the mockup unlocks on credit.
+  bool canUpgrade(OwnedCard owned) => owned.canUpgrade(onCredit: isMockup);
+
   /// Characters with duplicates waiting to be spent on upgrades.
   int get upgradesAvailable => collection.where((o) => o.hasUnspentPoints).length;
 
@@ -203,9 +216,11 @@ abstract class GameSession extends ChangeNotifier {
   /// How often the lobby refreshes who joined.
   Duration get lobbyRefreshInterval;
 
-  /// Updates who joined the lobby.
+  /// Updates who joined the lobby, and moves on to the setup once the admin
+  /// started it.
   Future<void> refreshLobby();
 
+  /// Starts the setup for everyone. Only the admin can, see [ServerSession.canStart].
   Future<void> startSetup();
 
   Future<void> submitSetupDrawing(DrawingAssignment assignment, Sketch sketch, String title);
