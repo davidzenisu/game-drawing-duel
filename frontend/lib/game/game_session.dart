@@ -7,7 +7,24 @@ import 'rules/setup_plan.dart';
 import 'rules/themes.dart';
 import 'rules/upgrades.dart';
 
-enum GamePhase { signup, server, lobby, setup, daily }
+enum GamePhase {
+  /// Restoring a previous sign-in.
+  loading,
+  signIn,
+  signup,
+  server,
+  lobby,
+  setup,
+  daily,
+}
+
+/// An action that is part of the game but not implemented by this session yet.
+class NotAvailableYet implements Exception {
+  const NotAvailableYet();
+
+  @override
+  String toString() => "This isn't available yet. Stay tuned!";
+}
 
 class ServerSession {
   ServerSession({required this.code, required this.players, required this.isAdmin, required this.joined});
@@ -50,6 +67,12 @@ abstract class GameSession extends ChangeNotifier {
   // State --------------------------------------------------------------------
 
   GamePhase get phase;
+
+  /// Why signing in doesn't work right now, e.g. a missing configuration.
+  String? get signInProblem;
+
+  /// First name to prefill on signup, e.g. from the social login.
+  String get suggestedFirstName;
 
   /// The signed-in player. Only available after signing up.
   Player get you;
@@ -145,6 +168,13 @@ abstract class GameSession extends ChangeNotifier {
 
   // Actions ------------------------------------------------------------------
 
+  /// Starts signing in, e.g. by redirecting to the login page.
+  Future<void> signIn();
+
+  /// Signs out of the account. Not available in the mockup, see [isMockup].
+  Future<void> signOut();
+
+  /// Finishes the account by picking a first name.
   Future<void> signUp(String firstName);
 
   /// Creates a server with a prepopulated roster; the creator is the admin.

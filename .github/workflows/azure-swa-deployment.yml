@@ -51,18 +51,20 @@ jobs:
           inlineScript: |
             echo "AUTH0_DOMAIN=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-domain" --query "value" -o tsv)" >> $GITHUB_OUTPUT
             echo "AUTH0_CLIENT_ID=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-client-id" --query "value" -o tsv)" >> $GITHUB_OUTPUT
+            echo "AUTH0_AUDIENCE=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "auth0-api-audience" --query "value" -o tsv)" >> $GITHUB_OUTPUT
             echo "API_URL=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "api-custom-domain" --query "value" -o tsv)" >> $GITHUB_OUTPUT
       - name: Prepare Flutter web build
         working-directory: frontend
         env:
           AUTH0_DOMAIN: ${{ steps.get_build_config.outputs.AUTH0_DOMAIN }}
           AUTH0_CLIENT_ID: ${{ steps.get_build_config.outputs.AUTH0_CLIENT_ID }}
+          AUTH0_AUDIENCE: ${{ steps.get_build_config.outputs.AUTH0_AUDIENCE }}
           API_URL: ${{ steps.get_build_config.outputs.API_URL }}
           # Pull request previews run the gameplay mockup; main keeps the regular app.
           MOCKUP_GAMEPLAY: ${{ github.event_name == 'pull_request' }}
         run: |
           flutter pub get
-          python3 -c 'import json, os; print(json.dumps({"AUTH0_DOMAIN": os.environ["AUTH0_DOMAIN"], "AUTH0_CLIENT_ID": os.environ["AUTH0_CLIENT_ID"], "API_URL": os.environ["API_URL"], "MOCKUP_GAMEPLAY": os.environ["MOCKUP_GAMEPLAY"] == "true"}))' > "$RUNNER_TEMP/auth0-defines.json"
+          python3 -c 'import json, os; print(json.dumps({"AUTH0_DOMAIN": os.environ["AUTH0_DOMAIN"], "AUTH0_CLIENT_ID": os.environ["AUTH0_CLIENT_ID"], "AUTH0_AUDIENCE": os.environ["AUTH0_AUDIENCE"], "API_URL": os.environ["API_URL"], "MOCKUP_GAMEPLAY": os.environ["MOCKUP_GAMEPLAY"] == "true"}))' > "$RUNNER_TEMP/auth0-defines.json"
           flutter build web --release \
             --dart-define-from-file="$RUNNER_TEMP/auth0-defines.json"
       - name: Get Deployment Token

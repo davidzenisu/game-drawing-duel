@@ -6,6 +6,7 @@ import 'screens/daily_hub_screen.dart';
 import 'screens/lobby_screen.dart';
 import 'screens/server_screen.dart';
 import 'screens/setup_screen.dart';
+import 'screens/sign_in_screen.dart';
 import 'screens/signup_screen.dart';
 
 /// The game for a [GameSession], e.g. the offline mockup enabled through
@@ -39,6 +40,8 @@ class GameApp extends StatelessWidget {
   }
 
   Widget _screenFor(GamePhase phase) => switch (phase) {
+    GamePhase.loading => const Scaffold(body: Center(child: CircularProgressIndicator())),
+    GamePhase.signIn => SignInScreen(controller: session),
     GamePhase.signup => SignupScreen(controller: session),
     GamePhase.server => ServerScreen(controller: session),
     GamePhase.lobby => LobbyScreen(controller: session),

@@ -4,37 +4,17 @@ from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import Session
 
-from app.database import Base, get_db
+from app.database import get_db
 from app.main import app, configure_frontend_cors
 from app.models import Drawing
+from tests.helpers import ApiTestCase, bearer, make_token
 
 
-class DrawingEndpointTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
-        Base.metadata.create_all(self.engine)
-        self.session_factory = sessionmaker(bind=self.engine)
-
-        def override_get_db():
-            with self.session_factory() as session:
-                yield session
-
-        app.dependency_overrides[get_db] = override_get_db
-        self.client = TestClient(app)
-
-    def tearDown(self) -> None:
-        app.dependency_overrides.clear()
-        self.engine.dispose()
-
+class DrawingEndpointTests(ApiTestCase):
     def test_lists_drawings_with_timestamps(self) -> None:
+        self.sign_up()
         with Session(self.engine) as session:
             session.add_all(
                 [
@@ -44,16 +24,13 @@ class DrawingEndpointTests(unittest.TestCase):
             )
             session.commit()
 
-        response = self.client.get("/drawings")
+        response = self.client.get("/drawings", headers=bearer(make_token()))
 
         self.assertEqual(response.status_code, 200)
         drawings = response.json()
         self.assertEqual(
             [drawing["description"] for drawing in drawings],
-            [
-                "Second drawing",
-                "First drawing",
-            ],
+            ["Second drawing", "First drawing"],
         )
         self.assertEqual(
             set(drawings[0]),
@@ -62,11 +39,16 @@ class DrawingEndpointTests(unittest.TestCase):
         self.assertTrue(drawings[0]["created_at"])
         self.assertTrue(drawings[0]["updated_at"])
 
+    def test_requires_a_signed_up_player(self) -> None:
+        response = self.client.get("/drawings", headers=bearer(make_token()))
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["detail"], "Finish signing up first")
+
     def test_returns_service_unavailable_without_database_url(self) -> None:
-        app.dependency_overrides.clear()
+        del app.dependency_overrides[get_db]
 
         with patch.dict(os.environ, {}, clear=True):
-            response = self.client.get("/drawings")
+            response = self.client.get("/drawings", headers=bearer(make_token()))
 
         self.assertEqual(response.status_code, 503)
         self.assertEqual(
@@ -74,6 +56,8 @@ class DrawingEndpointTests(unittest.TestCase):
             "The DATABASE_URL environment variable is not configured",
         )
 
+
+class CorsTests(unittest.TestCase):
     def test_cors_uses_frontend_url_environment_variable(self) -> None:
         frontend_url = "https://frontend.example"
         cors_app = FastAPI()
@@ -95,6 +79,4 @@ class DrawingEndpointTests(unittest.TestCase):
             allowed_response.headers.get("access-control-allow-origin"),
             frontend_url,
         )
-        self.assertNotIn(
-            "access-control-allow-origin", disallowed_response.headers
-        )
+        self.assertNotIn("access-control-allow-origin", disallowed_response.headers)

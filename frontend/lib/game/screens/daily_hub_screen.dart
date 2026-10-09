@@ -6,6 +6,7 @@ import '../rules/daily_loop.dart';
 import '../rules/gacha.dart';
 import '../rules/models.dart';
 import '../widgets/game_action.dart';
+import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
 import 'collection_screen.dart';
@@ -215,6 +216,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ),
             actions: [
               TicketChip(tickets: _controller.tickets),
+              SignOutButton(session: _controller),
               const SizedBox(width: 12),
             ],
           ),

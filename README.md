@@ -41,6 +41,32 @@ passing, so pull requests that only touch documentation can still be merged.
 The deployment reads the database connection for the migrations from the Key
 Vault secret `database-url`.
 
+### API authentication
+
+Every API route except `/health` and the API docs (`/docs`, `/redoc`,
+`/openapi.json`) requires an Auth0 access token for the API configured in
+`AUTH0_AUDIENCE` that carries the `read:api` permission. Players get it through
+the `user` role; the Auth0 API needs **Enable RBAC** and **Add Permissions in the
+Access Token** turned on so it appears in the token's `permissions` claim.
+Tokens without it (e.g. machine-to-machine) get `403`. A player's first `PUT /me` creates their database record
+linked to the Auth0 user id; game routes load that record for every request and
+answer `403` until the signup is finished. `/health` also checks that the
+database answers.
+
+### Function App settings
+
+The app settings are managed in the infrastructure repository. The API reads:
+
+| Setting | Value |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string (same as the Key Vault secret `database-url`) |
+| `FRONTEND_URL` | Origin of the web app, allowed for CORS |
+| `AUTH0_DOMAIN` | Auth0 tenant domain without scheme, e.g. `your-tenant.eu.auth0.com` (same as `auth0-domain`) |
+| `AUTH0_AUDIENCE` | Identifier of the Auth0 API (same as `auth0-api-audience`) |
+
+Without the two Auth0 settings every route except `/health` and the docs
+answers `503 Authentication is not configured`.
+
 ### Planned: test infrastructure for pull requests
 
 Once a test Function App and test database exist, pull requests should deploy

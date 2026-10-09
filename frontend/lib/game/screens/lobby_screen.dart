@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../game_session.dart';
 import '../widgets/game_action.dart';
+import '../widgets/sign_out_button.dart';
 import '../rules/setup_plan.dart';
 
 /// Waiting room showing the server code while friends join.
@@ -50,7 +51,10 @@ class _LobbyScreenState extends State<LobbyScreen> {
     final colors = Theme.of(context).colorScheme;
     final drawings = SetupPlan.drawingsPerPlayer(server.players.length);
     return Scaffold(
-      appBar: AppBar(title: const Text('Lobby')),
+      appBar: AppBar(
+        title: const Text('Lobby'),
+        actions: [SignOutButton(session: controller)],
+      ),
       body: ListenableBuilder(
         listenable: controller,
         builder: (context, _) => SingleChildScrollView(
