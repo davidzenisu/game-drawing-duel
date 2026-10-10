@@ -57,6 +57,7 @@ class DocsLoginTests(unittest.TestCase):
         self.assertIn('"clientId": "docs-client"', docs)
         self.assertIn('"usePkceWithAuthorizationCodeGrant": true', docs)
         self.assertIn('"audience": "https://api.drawing-duel.example"', docs)
+        self.assertIn('"response_mode": "fragment"', docs)
 
     def test_without_a_docs_client_the_docs_take_a_pasted_token(self) -> None:
         settings = {k: v for k, v in SETTINGS.items() if k != "AUTH0_DOCS_CLIENT_ID"}
