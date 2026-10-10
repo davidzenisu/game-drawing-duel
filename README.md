@@ -61,9 +61,10 @@ Auth0 instead of needing a pasted token: **Authorize** → **Auth0** (leave
 (authorization code flow with PKCE, for `AUTH0_AUDIENCE`) and sends the access
 token with every **Try it out**. Use an account that finished signing up in the
 game. Pasting a token under **HTTPBearer** keeps working.
-Auth0 returns the login code in the URL fragment (`response_mode=fragment`):
-Azure Functions reads a `code` query parameter as a function key and would fail
-the redirect with a `500`.
+Auth0 posts the login code back (`response_mode=form_post`) and the API
+redirects to the same page with the code in the URL fragment: Azure Functions
+reads a `code` query parameter as a function key and would fail the redirect
+with a `500`.
 
 The setting is the client id of an Auth0 **Single Page Application**. The game's
 own application works, or create a separate one (e.g. "API docs") so its

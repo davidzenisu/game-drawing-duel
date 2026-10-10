@@ -10,8 +10,10 @@ only accept a pasted token.
 
 import os
 from typing import Any
+from urllib.parse import parse_qsl, urlencode
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import RedirectResponse
 
 SCHEME = "Auth0"
 _SCOPES = {
@@ -58,10 +60,10 @@ def configure_docs_login(application: FastAPI) -> None:
         "additionalQueryStringParams": {
             # Asks for an access token for the API rather than for Auth0 itself.
             "audience": audience,
-            # Returns the code in the URL fragment, which the browser keeps to
-            # itself: Azure Functions takes a `code` query parameter for a
-            # function key and fails the redirect with a 500.
-            "response_mode": "fragment",
+            # Posts the code back instead of putting it in the redirect's query:
+            # Azure Functions takes a `code` query parameter for a function key
+            # and fails the request with a 500. See `_posted_login`.
+            "response_mode": "form_post",
         },
     }
     default_openapi = application.openapi
@@ -72,3 +74,21 @@ def configure_docs_login(application: FastAPI) -> None:
         return application.openapi_schema
 
     application.openapi = openapi
+    redirect_url = application.swagger_ui_oauth2_redirect_url
+    if redirect_url:
+        application.add_api_route(
+            redirect_url,
+            _posted_login,
+            methods=["POST"],
+            include_in_schema=False,
+        )
+
+
+async def _posted_login(request: Request) -> RedirectResponse:
+    """Auth0 posts the login result here; Swagger UI's redirect page reads it
+    from the URL fragment, which never reaches the server."""
+    fields = parse_qsl((await request.body()).decode())
+    return RedirectResponse(
+        f"{request.url.path}#{urlencode(fields)}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
