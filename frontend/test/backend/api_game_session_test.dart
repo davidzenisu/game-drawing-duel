@@ -454,6 +454,16 @@ void main() {
       await admin.advanceDay();
       expect(admin.day, 3);
       await expectLater(sam.advanceDay(), throwsA(isA<ApiException>()));
+
+      // The free hurry: once a day, a surprise for the target's drawing.
+      await sam.refreshDay();
+      expect(await admin.sendHurry(sam.server.players[1].copyWith(isYou: false)), isTrue);
+      expect(admin.hurrySentTo!.name, 'Sam');
+      expect(await admin.sendHurry(admin.server.players[1]), isFalse, reason: 'once a day');
+      await sam.refreshDay();
+      expect(sam.incomingHurry!.by, 'Alex');
+      expect(sam.incomingHurry!.cut, const Duration(seconds: 30));
+      expect(admin.incomingHurry, isNull);
     });
 
     test('fighters on day 3, votes on day 4 and the outcome on day 5', () async {

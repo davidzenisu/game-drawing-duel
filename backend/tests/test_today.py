@@ -12,7 +12,9 @@ from tests.test_setup import ADMIN, FRIEND_SUBJECTS
 SAM = FRIEND_SUBJECTS[0]
 
 
-class TodayTests(LaunchTestCase):
+class TodayTestCase(LaunchTestCase):
+    """A launched test session with Alex and Sam."""
+
     def setUp(self) -> None:
         super().setUp()
         # A test session with Alex (seat 0) and Sam (seat 1).
@@ -41,6 +43,8 @@ class TodayTests(LaunchTestCase):
             headers=bearer(make_token(subject)),
         )
 
+
+class TodayTests(TodayTestCase):
     def test_day_one_starts_with_a_prompt_to_write(self) -> None:
         today = self.today()
         self.assertEqual((today["day"], today["theme"]), (1, "forest"))
@@ -151,3 +155,32 @@ class RegularDayTests(LaunchTestCase):
             self.assertEqual(response.status_code, 409, path)
         today = self.get(f"/servers/{code}/today").json()
         self.assertEqual(today["day"], 1)
+
+
+class HurryTests(TodayTestCase):
+    def test_a_free_hurry_a_day_cuts_the_targets_drawing_time(self) -> None:
+        self.assertIsNone(self.today()["hurry_sent_to"])
+        response = self.post("today/hurry", json={"target_position": 1})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["hurry_sent_to"], 1)
+        self.assertIsNone(response.json()["incoming_hurry"])
+
+        incoming = self.today(SAM)["incoming_hurry"]
+        self.assertEqual((incoming["by_position"], incoming["cut_seconds"]), (0, 30))
+        self.assertTrue(0.25 <= incoming["at_fraction"] <= 0.6)
+
+        again = self.post("today/hurry", json={"target_position": 1})
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(again.json()["detail"], "You sent today's hurry already")
+
+        self.post("days/next")
+        self.assertIsNone(self.today()["hurry_sent_to"], "a new day, a new hurry")
+        self.assertIsNone(self.today(SAM)["incoming_hurry"])
+
+    def test_only_other_players_who_joined(self) -> None:
+        self.assertEqual(
+            self.post("today/hurry", json={"target_position": 0}).status_code, 422
+        )
+        self.assertEqual(
+            self.post("today/hurry", json={"target_position": 3}).status_code, 404
+        )

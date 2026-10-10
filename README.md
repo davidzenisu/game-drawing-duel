@@ -111,6 +111,10 @@ missing vote is random, weighted by the team's strength
 The random picks are derived from the server, day and seat (or fight), so
 they stay the same without being stored ahead of time.
 
+Every day each player can also send one free hurry to another player: it
+takes 30 seconds off their challenger drawing at a random moment between a
+quarter and 60% of the time limit, which they only find out while drawing.
+
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the fights to vote on and your decided fights |
@@ -118,6 +122,7 @@ they stay the same without being stored ahead of time.
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
 | `POST /servers/{code}/today/votes/{fight}` | Vote on one of yesterday's fights, once |
+| `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
 

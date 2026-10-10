@@ -10,10 +10,6 @@ import 'auth_client.dart';
 import 'sketch_json.dart';
 
 /// [GameSession] backed by the API and Auth0.
-///
-/// Signing in, signing up, servers and the setup drawings are implemented;
-/// the rest of the game arrives step by step and reports [NotAvailableYet]
-/// until then.
 class ApiGameSession extends GameSession {
   ApiGameSession({required ApiClient? api, String? signInProblem})
     : _api = api,
@@ -254,6 +250,8 @@ class ApiGameSession extends GameSession {
   CharacterCard? _yourChallenger;
   Set<String> _dayEnded = const {};
   CharacterCard? _fightChallenger;
+  Player? _hurrySentTo;
+  HurryPlan? _incomingHurry;
   FightSetup? _yourFight;
   List<FightSetup> _fightsToVote = const [];
   List<FightSetup> _results = const [];
@@ -364,6 +362,18 @@ class ApiGameSession extends GameSession {
       }
       _fightsToVote = [for (final fight in json['to_vote'] as List? ?? const []) await _parseFight(server, fight)];
       _results = [for (final fight in json['results'] as List? ?? const []) await _parseFight(server, fight)];
+      _hurrySentTo = switch (json['hurry_sent_to']) {
+        final int position => _seat(server, position),
+        _ => null,
+      };
+      _incomingHurry = switch (json['incoming_hurry']) {
+        {'by_position': int by, 'at_fraction': num at, 'cut_seconds': int cut} => HurryPlan(
+          by: _seat(server, by).name,
+          atFraction: at.toDouble(),
+          cut: Duration(seconds: cut),
+        ),
+        _ => null,
+      };
       return;
     }
     throw const FormatException('Unexpected day response.');
@@ -623,10 +633,10 @@ class ApiGameSession extends GameSession {
   ];
 
   @override
-  HurryPlan? get incomingHurry => null;
+  HurryPlan? get incomingHurry => _incomingHurry;
 
   @override
-  Player? get hurrySentTo => null;
+  Player? get hurrySentTo => _hurrySentTo;
 
   @override
   Future<void> launch() async => _enterServer(await _post('/servers/${server.code}/setup/done'));
@@ -666,7 +676,18 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<bool> sendHurry(Player target) => Future.error(const NotAvailableYet());
+  Future<bool> sendHurry(Player target) async {
+    final Object? json;
+    try {
+      json = await _post('/servers/${server.code}/today/hurry', {'target_position': _seatPosition(target)});
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) return false;
+      rethrow;
+    }
+    await _setToday(server, json);
+    notifyListeners();
+    return true;
+  }
 
   @override
   Future<List<PullOutcome>> pull(int count) async {

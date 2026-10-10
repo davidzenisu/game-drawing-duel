@@ -1,5 +1,5 @@
 {
-  "_about": "The game rules both the frontend (frontend/lib/game/rules) and the backend (backend/app/rules.py) implement. Each side's tests check its implementation against this file. 'assignments' lists, per player count, every artist's subjects (as roster indexes) in the order of the setup prompts. In a test session, every player who joined draws the 'test_setup' prompts of different, randomly picked other players of the whole roster. 'gacha' holds the pull rates in percent and the pity rules; 'tier_fallback' lists [available rarities, rolled rarity, guaranteed pull, rarity pulled from] for pools without the rolled rarity. 'upgrades' lists each rarity's upgrade path, unlocked in order with one duplicate each, and the elements to choose from for the element upgrade. 'themes' are the daily themes in the order the days cycle through them, starting on day 1. 'fights' holds how many fighters a player sends and the odds of a vote decided by chance: team power (each fighter's rarity power plus upgrade power per unlocked upgrade) over team power plus challenger power.",
+  "_about": "The game rules both the frontend (frontend/lib/game/rules) and the backend (backend/app/rules.py) implement. Each side's tests check its implementation against this file. 'assignments' lists, per player count, every artist's subjects (as roster indexes) in the order of the setup prompts. In a test session, every player who joined draws the 'test_setup' prompts of different, randomly picked other players of the whole roster. 'gacha' holds the pull rates in percent and the pity rules; 'tier_fallback' lists [available rarities, rolled rarity, guaranteed pull, rarity pulled from] for pools without the rolled rarity. 'upgrades' lists each rarity's upgrade path, unlocked in order with one duplicate each, and the elements to choose from for the element upgrade. 'themes' are the daily themes in the order the days cycle through them, starting on day 1. 'fights' holds how many fighters a player sends and the odds of a vote decided by chance: team power (each fighter's rarity power plus upgrade power per unlocked upgrade) over team power plus challenger power. 'hurry' is how much drawing time the daily free hurry takes away, and between which fractions of the time limit it hits.",
   "players": {"min": 5, "max": 10},
   "server_code_length": 6,
   "max_title_length": 60,
@@ -104,6 +104,7 @@
     "upgrade_power": 0.3,
     "challenger_power": 5.0
   },
+  "hurry": {"cut_seconds": 30, "earliest": 0.25, "latest": 0.6},
   "themes": ["forest", "beach", "volcano", "snow", "space", "castle"],
   "test_setup": ["basic", "knight", "legend"],
   "assignments": {

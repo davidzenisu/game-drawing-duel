@@ -342,8 +342,7 @@ class MockGameSession extends GameSession {
     _incomingHurry = _promptToDraw != null && _random.nextDouble() < 0.6
         ? HurryPlan(
             by: others[_random.nextInt(others.length)].name,
-            atFraction: 0.25 + _random.nextDouble() * 0.35,
-            cut: const Duration(seconds: 30),
+            atFraction: HurryPlan.earliest + _random.nextDouble() * (HurryPlan.latest - HurryPlan.earliest),
           )
         : null;
 

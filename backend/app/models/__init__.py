@@ -2,6 +2,7 @@ from app.models.character import Character
 from app.models.day import ChallengerPrompt, DayEnd
 from app.models.fight import Fight, Fighter, Vote
 from app.models.gacha import Pull, PullGrant
+from app.models.hurry import Hurry
 from app.models.player import Player
 from app.models.server import Server, ServerSeat
 from app.models.setup import SetupAssignment
@@ -13,6 +14,7 @@ __all__ = [
     "DayEnd",
     "Fight",
     "Fighter",
+    "Hurry",
     "Player",
     "Pull",
     "PullGrant",
