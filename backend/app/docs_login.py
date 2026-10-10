@@ -55,8 +55,14 @@ def configure_docs_login(application: FastAPI) -> None:
         "clientId": client_id,
         "usePkceWithAuthorizationCodeGrant": True,
         "scopes": " ".join(_SCOPES),
-        # Asks for an access token for the API rather than for Auth0 itself.
-        "additionalQueryStringParams": {"audience": audience},
+        "additionalQueryStringParams": {
+            # Asks for an access token for the API rather than for Auth0 itself.
+            "audience": audience,
+            # Returns the code in the URL fragment, which the browser keeps to
+            # itself: Azure Functions takes a `code` query parameter for a
+            # function key and fails the redirect with a 500.
+            "response_mode": "fragment",
+        },
     }
     default_openapi = application.openapi
 
