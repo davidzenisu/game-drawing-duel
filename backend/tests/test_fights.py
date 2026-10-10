@@ -10,7 +10,7 @@ SAM, ROBIN = FRIEND_SUBJECTS[:2]
 PLAYERS = (ADMIN, SAM, ROBIN)
 
 
-class FightTests(LaunchTestCase):
+class FightTestCase(LaunchTestCase):
     def setUp(self) -> None:
         super().setUp()
         # A test session with Alex (seat 0), Sam (1) and Robin (2).
@@ -56,6 +56,9 @@ class FightTests(LaunchTestCase):
         collection = self.get(f"/servers/{self.code}/collection", subject).json()
         return [o["character"]["id"] for o in collection]
 
+
+
+class FightTests(FightTestCase):
     def test_day_three_brings_a_challenger_to_fight(self) -> None:
         fight = self.today()["fight"]
         self.assertEqual(fight["challenger"]["day"], 2)

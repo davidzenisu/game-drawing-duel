@@ -4,6 +4,7 @@ import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
+import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
@@ -266,6 +267,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                   icon: const Icon(Icons.skip_next_rounded),
                 ),
               TicketChip(tickets: _controller.tickets),
+              CancelServerButton(session: _controller),
               SignOutButton(session: _controller),
               const SizedBox(width: 12),
             ],

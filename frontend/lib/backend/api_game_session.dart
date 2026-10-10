@@ -84,6 +84,10 @@ class ApiGameSession extends GameSession {
     } on SignInRequired catch (error) {
       _requireSignIn(error.message);
       rethrow;
+    } on ApiException catch (error) {
+      // Someone cancelled the server while you were in it.
+      if (error.statusCode == 410 && _server != null) await _enterServer(await _get('/servers/${_server!.code}'));
+      rethrow;
     }
   }
 
@@ -131,6 +135,11 @@ class ApiGameSession extends GameSession {
         await _loadPool(server);
         _server = server;
         _setPhase(GamePhase.daily);
+      case 'cancelled':
+        // Seen: from now on it's no longer one of your servers.
+        await _post('/servers/${server.code}/dismiss');
+        final by = json['cancelled_by'];
+        _leaveServer(by is String ? '$by cancelled server ${server.code}.' : 'Server ${server.code} was cancelled.');
       default:
         throw const FormatException('Unexpected server phase.');
     }
@@ -513,7 +522,11 @@ class ApiGameSession extends GameSession {
       _enterServer(await _post('/servers', {'other_names': otherNames, 'is_test': isTest}));
 
   @override
-  Future<ServerSession> previewServer(String code) async => _parseServer(await _get('/servers/$code'));
+  Future<ServerSession> previewServer(String code) async {
+    final json = await _get('/servers/$code');
+    if (json is Map && json['phase'] == 'cancelled') throw const ApiException(410, 'This server was cancelled.');
+    return _parseServer(json);
+  }
 
   @override
   Future<void> joinServer(ServerSession server, Player seat) async =>
@@ -524,15 +537,7 @@ class ApiGameSession extends GameSession {
 
   @override
   Future<void> refreshServer() async {
-    final code = server.code;
-    final Object? json;
-    try {
-      json = await _get('/servers/$code');
-    } on ApiException catch (error) {
-      if (error.statusCode != 404) rethrow;
-      return _leaveServer('Server $code was cancelled.');
-    }
-    await _enterServer(json);
+    await _enterServer(await _get('/servers/${server.code}'));
   }
 
   @override

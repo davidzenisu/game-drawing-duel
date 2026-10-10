@@ -21,7 +21,7 @@ class MockGameSession extends GameSession {
 
   final Random _random;
   final BotArtist _bots;
-  final GachaMachine _gacha;
+  GachaMachine _gacha;
 
   @override
   List<String> get suggestedPlayerNames => suggestedNames;
@@ -145,11 +145,27 @@ class MockGameSession extends GameSession {
   @override
   String? get serverNotice => null;
 
+  /// Throws away the whole game, as on the API.
   @override
   Future<void> cancelServer() async {
     _server = null;
     _assignments = const [];
     _setupDrawings.clear();
+    _pool.clear();
+    _owned.clear();
+    _tickets = 0;
+    _day = 0;
+    _theme = DailyTheme.forest;
+    _gacha = GachaMachine(random: _random);
+    _prompts.clear();
+    _challengers.clear();
+    _fights.clear();
+    _botRosters.clear();
+    _promptSubject = null;
+    _promptToDraw = null;
+    _fightChallenger = null;
+    _incomingHurry = null;
+    _hurrySentTo = null;
     _setPhase(GamePhase.server);
   }
 

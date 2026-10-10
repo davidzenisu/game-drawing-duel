@@ -231,9 +231,10 @@ abstract class GameSession extends ChangeNotifier {
   /// setup, or whether someone cancelled it.
   Future<void> refreshServer();
 
-  /// Cancels the server for everyone and deletes its drawings; anyone who
-  /// joined can, e.g. when dropping out. Everyone returns to creating or
-  /// joining a server.
+  /// Cancels the server for everyone and deletes its drawings and everything
+  /// played so far, at any point of the game; anyone who joined can, e.g.
+  /// when dropping out. Everyone returns to creating or joining a server, the
+  /// others with a [serverNotice] once they return.
   Future<void> cancelServer();
 
   /// Starts the setup for everyone. Only the admin can, see [ServerSession.canStart].

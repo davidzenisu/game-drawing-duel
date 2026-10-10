@@ -42,8 +42,11 @@ class ServerResponse(BaseModel):
     is_test: bool
     is_admin: bool
     # "lobby" while players join, "setup" once the admin started the setup,
-    # "running" once everyone finished their setup drawings.
-    phase: Literal["lobby", "setup", "running"]
+    # "running" once everyone finished their setup drawings, "cancelled" once
+    # a player cancelled it and its game data was deleted.
+    phase: Literal["lobby", "setup", "running", "cancelled"]
+    # The seat name of the player who cancelled the server.
+    cancelled_by: str | None
     # Your seat, or null if you haven't joined (yet).
     your_position: int | None
     seats: list[SeatResponse]

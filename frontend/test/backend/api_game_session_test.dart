@@ -299,6 +299,12 @@ void main() {
       expect(again.setupDrawing(again.assignments[1]), isNull);
     });
 
+    Future<void> drawAll(ApiGameSession player) async {
+      for (final assignment in player.assignments) {
+        await player.submitSetupDrawing(assignment, doodle, assignment.prompt.label);
+      }
+    }
+
     test('cancelling the setup sends everyone back to the server screen', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
       final sam = (await everyoneJoins()).first;
@@ -315,18 +321,53 @@ void main() {
 
       await admin.refreshServer();
       expect(admin.phase, GamePhase.server);
-      expect(admin.serverNotice, 'Server 123456 was cancelled.');
+      expect(admin.serverNotice, 'Sam cancelled server 123456.');
+      expect(backend.requests.last.url.path, '/servers/123456/dismiss');
 
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
       expect(admin.phase, GamePhase.lobby);
       expect(admin.serverNotice, isNull);
     });
 
-    Future<void> drawAll(ApiGameSession player) async {
-      for (final assignment in player.assignments) {
-        await player.submitSetupDrawing(assignment, doodle, assignment.prompt.label);
-      }
-    }
+    test('players returning to a cancelled server are told once', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      final sam = (await everyoneJoins()).first;
+      await sam.cancelServer();
+
+      final back = await signedUpAgain('alex');
+      expect(back.phase, GamePhase.server);
+      expect(back.serverNotice, 'Sam cancelled server 123456.');
+      final later = await signedUpAgain('alex');
+      expect(later.phase, GamePhase.server);
+      expect(later.serverNotice, isNull);
+    });
+
+    test('a running game cancelled by someone else ends on your next action', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      final sam = await signedUp('sam', 'Sam');
+      final preview = await sam.previewServer('123456');
+      await sam.joinServer(preview, preview.players[1]);
+      await admin.startSetup();
+      await sam.refreshServer();
+      await drawAll(admin);
+      await admin.launch();
+      await drawAll(sam);
+      await sam.launch();
+      expect(sam.phase, GamePhase.daily);
+
+      await sam.cancelServer();
+      await expectLater(admin.pull(1), throwsA(isA<ApiException>()));
+      expect(admin.phase, GamePhase.server);
+      expect(admin.serverNotice, 'Sam cancelled server 123456.');
+      expect(admin.pool, isEmpty);
+    });
+
+    test('cancelled servers cannot be joined', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      await admin.cancelServer();
+      final sam = await signedUp('sam', 'Sam');
+      await expectLater(sam.previewServer('123456'), throwsA(isA<ApiException>()));
+    });
 
     test('the game launches once everyone finished their drawings', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
