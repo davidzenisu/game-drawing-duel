@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_auth0_subject
 from app.database import get_db
+from app.docs_login import configure_docs_login
 from app.routers import characters, me, pool, servers, setup, today
 
 app = FastAPI(title="Game Drawing Duel API", version="0.1.0")
@@ -52,3 +53,5 @@ app.include_router(setup.router, dependencies=_authenticated)
 app.include_router(characters.router, dependencies=_authenticated)
 app.include_router(pool.router, dependencies=_authenticated)
 app.include_router(today.router, dependencies=_authenticated)
+
+configure_docs_login(app)

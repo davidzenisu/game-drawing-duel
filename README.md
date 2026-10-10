@@ -53,6 +53,27 @@ linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
 database answers.
 
+#### Signing in to the API docs
+
+With `AUTH0_DOCS_CLIENT_ID` set, the interactive docs at `/docs` sign in with
+Auth0 instead of needing a pasted token: **Authorize** → **Auth0** (leave
+`client_secret` empty) → **Authorize** runs the same login as the game
+(authorization code flow with PKCE, for `AUTH0_AUDIENCE`) and sends the access
+token with every **Try it out**. Use an account that finished signing up in the
+game. Pasting a token under **HTTPBearer** keeps working.
+
+The setting is the client id of an Auth0 **Single Page Application**. The game's
+own application works, or create a separate one (e.g. "API docs") so its
+callback can be removed or the docs login switched off without touching the
+game's. Either way, in its settings:
+
+- **Allowed Callback URLs**: add `<API URL>/docs/oauth2-redirect`, e.g.
+  `https://<function-app>.azurewebsites.net/docs/oauth2-redirect`. Auth0 also
+  allows that origin for the token request (CORS).
+- A separate application needs the same login connections as the game
+  (**Connections** tab), and access to the API: allow it under the API's
+  **Application Access** if the tenant requires authorizing user access.
+
 ### Servers
 
 A player creates a server with the full list of players (5 to 10, including
@@ -202,6 +223,7 @@ The app settings are managed in the infrastructure repository. The API reads:
 | `FRONTEND_URL` | Origin of the web app, allowed for CORS |
 | `AUTH0_DOMAIN` | Auth0 tenant domain without scheme, e.g. `your-tenant.eu.auth0.com` (same as `auth0-domain`) |
 | `AUTH0_AUDIENCE` | Identifier of the Auth0 API (same as `auth0-api-audience`) |
+| `AUTH0_DOCS_CLIENT_ID` | Optional: client id of the Auth0 application the API docs sign in with (see "Signing in to the API docs") |
 | `STORAGE_ACCOUNT_NAME` | Storage account holding the drawings |
 | `STORAGE_CONTAINER_NAME` | Blob container for the drawings |
 | `FUNCTION_APP_CLIENT_ID` | Client id of the Function App's user-assigned managed identity, which needs **Storage Blob Data Contributor** on the container |
