@@ -18,14 +18,6 @@ enum GamePhase {
   daily,
 }
 
-/// An action that is part of the game but not implemented by this session yet.
-class NotAvailableYet implements Exception {
-  const NotAvailableYet();
-
-  @override
-  String toString() => "This isn't available yet. Stay tuned!";
-}
-
 class ServerSession {
   ServerSession({
     required this.code,
@@ -68,7 +60,14 @@ class ServerSession {
 
 /// Another player secretly bought a hurry against your next drawing.
 class HurryPlan {
-  const HurryPlan({required this.by, required this.atFraction, required this.cut});
+  const HurryPlan({required this.by, required this.atFraction, this.cut = defaultCut});
+
+  /// How much drawing time a hurry takes away.
+  static const defaultCut = Duration(seconds: 30);
+
+  /// A hurry hits between these fractions of the time limit.
+  static const earliest = 0.25;
+  static const latest = 0.6;
 
   final String by;
 

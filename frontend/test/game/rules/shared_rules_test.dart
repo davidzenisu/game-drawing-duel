@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
@@ -88,6 +89,12 @@ void main() {
     }, fights['rarity_power']);
     expect(FightSetup.upgradePower, fights['upgrade_power']);
     expect(FightSetup.challengerPower, fights['challenger_power']);
+  });
+
+  test('hurry', () {
+    final hurry = rules['hurry'] as Map<String, dynamic>;
+    expect(HurryPlan.defaultCut.inSeconds, hurry['cut_seconds']);
+    expect((HurryPlan.earliest, HurryPlan.latest), (hurry['earliest'], hurry['latest']));
   });
 
   test('themes', () {

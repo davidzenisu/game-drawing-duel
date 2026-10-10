@@ -196,3 +196,10 @@ def fighter_odds(fighters: list[tuple[Rarity, int]]) -> float:
         RARITY_POWER[rarity] + upgrades * UPGRADE_POWER for rarity, upgrades in fighters
     )
     return team / (team + CHALLENGER_POWER)
+
+
+# How much drawing time the daily free hurry takes away, and between which
+# fractions of the time limit it hits.
+HURRY_CUT_SECONDS = 30
+HURRY_EARLIEST = 0.25
+HURRY_LATEST = 0.6

@@ -102,3 +102,11 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.CHALLENGER_POWER, fights["challenger_power"])
         odds = rules.fighter_odds([(rules.Rarity.LEGEND, 2), (rules.Rarity.BASIC, 0)])
         self.assertAlmostEqual(odds, 4.8 / 9.8)
+
+    def test_hurry(self):
+        hurry = SHARED["hurry"]
+        self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])
+        self.assertEqual(
+            (rules.HURRY_EARLIEST, rules.HURRY_LATEST),
+            (hurry["earliest"], hurry["latest"]),
+        )

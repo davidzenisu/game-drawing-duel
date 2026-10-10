@@ -1,5 +1,6 @@
 """The daily loop: today's prompt and challenger, and moving days on."""
 
+import random
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -15,6 +16,7 @@ from app.models import (
     Character,
     DayEnd,
     Fight,
+    Hurry,
     PullGrant,
     Server,
     ServerSeat,
@@ -23,13 +25,21 @@ from app.models import (
 from app.routers.pool import require_launched
 from app.routers.servers import Code, DbSession, load_server, your_seat
 from app.routers.setup import character_response
-from app.rules import Rarity, theme_of_day
+from app.rules import (
+    HURRY_CUT_SECONDS,
+    HURRY_EARLIEST,
+    HURRY_LATEST,
+    Rarity,
+    theme_of_day,
+)
 from app.schemas import (
     ChallengerSubmit,
     FighterResponse,
     FightersSubmit,
     FightResponse,
     FightStep,
+    HurrySubmit,
+    IncomingHurry,
     OutcomeResponse,
     PromptSubmit,
     PromptToDrawResponse,
@@ -137,7 +147,39 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             for f in fights.fights_on(session, server, day - 2)
             if seat.id in {f.owner_seat_id, f.challenger.artist_seat_id}
         ],
+        hurry_sent_to=_hurry_sent_to(session, server, seat, day),
+        incoming_hurry=_incoming_hurry(session, server, seat, day),
         day_ended=list(ended),
+    )
+
+
+def _hurry_sent_to(
+    session: Session, server: Server, seat: ServerSeat, day: int
+) -> int | None:
+    target = session.scalar(
+        select(Hurry.target_seat_id).where(
+            Hurry.sender_seat_id == seat.id, Hurry.day == day
+        )
+    )
+    return next((s.position for s in server.seats if s.id == target), None)
+
+
+def _incoming_hurry(
+    session: Session, server: Server, seat: ServerSeat, day: int
+) -> IncomingHurry | None:
+    hurry = session.scalar(
+        select(Hurry)
+        .where(Hurry.target_seat_id == seat.id, Hurry.day == day)
+        .order_by(Hurry.sent_at)
+        .limit(1)
+    )
+    if hurry is None:
+        return None
+    positions = {s.id: s.position for s in server.seats}
+    return IncomingHurry(
+        by_position=positions[hurry.sender_seat_id],
+        at_fraction=hurry.at_fraction,
+        cut_seconds=hurry.cut_seconds,
     )
 
 
@@ -306,6 +348,42 @@ def vote(
         session.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You voted on this fight already"
+        ) from error
+    return _today(session, server, seat)
+
+
+@router.post("/{code}/today/hurry", response_model=TodayResponse)
+def send_hurry(
+    code: Code, body: HurrySubmit, player: CurrentPlayer, session: DbSession
+) -> TodayResponse:
+    """Sends today's free hurry: it cuts the target's challenger drawing time
+    at a random moment, which they find out while drawing. Once a day."""
+    server, seat = _running(session, code, player.id)
+    target = next(
+        (s for s in days.active_seats(server) if s.position == body.target_position),
+        None,
+    )
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such player")
+    if target.id == seat.id:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="You can't hurry yourself"
+        )
+    session.add(
+        Hurry(
+            sender_seat_id=seat.id,
+            target_seat_id=target.id,
+            day=days.current_day(server),
+            at_fraction=random.uniform(HURRY_EARLIEST, HURRY_LATEST),
+            cut_seconds=HURRY_CUT_SECONDS,
+        )
+    )
+    try:
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="You sent today's hurry already"
         ) from error
     return _today(session, server, seat)
 

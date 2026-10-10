@@ -66,6 +66,15 @@ class FightStep(BaseModel):
     yours: FightResponse | None
 
 
+class IncomingHurry(BaseModel):
+    """Someone cut your challenger drawing time today."""
+
+    by_position: int
+    # When it hits, as a fraction of the time limit.
+    at_fraction: float
+    cut_seconds: int
+
+
 class TodayResponse(BaseModel):
     day: int
     # An `app.rules.Theme`.
@@ -77,6 +86,10 @@ class TodayResponse(BaseModel):
     to_vote: list[FightResponse]
     # Decided fights you picked the fighters for, or drew the challenger of.
     results: list[FightResponse]
+    # The seat you sent today's free hurry to.
+    hurry_sent_to: int | None
+    # The first hurry sent to you today, for your challenger drawing.
+    incoming_hurry: IncomingHurry | None
     # Test sessions: the seats that ended the day. Empty on regular servers.
     day_ended: list[int]
 
@@ -87,3 +100,7 @@ class FightersSubmit(BaseModel):
 
 class VoteSubmit(BaseModel):
     fighters_win: bool
+
+
+class HurrySubmit(BaseModel):
+    target_position: int
