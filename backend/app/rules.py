@@ -171,3 +171,28 @@ def theme_of_day(day: int) -> Theme:
     """The theme of a day of the game (day 1 is the first)."""
     themes = list(Theme)
     return themes[(day - 1) % len(themes)]
+
+
+# Up to this many fighters face a challenger.
+MAX_FIGHTERS = 4
+
+# How strong a fighter of each rarity is, see `fighter_odds`.
+RARITY_POWER = {
+    Rarity.BASIC: 1.0,
+    Rarity.ADVENTURER: 1.5,
+    Rarity.HERO: 2.2,
+    Rarity.LEGEND: 3.2,
+}
+# Extra power per unlocked upgrade.
+UPGRADE_POWER = 0.3
+# How strong the challenger is against the whole team.
+CHALLENGER_POWER = 5.0
+
+
+def fighter_odds(fighters: list[tuple[Rarity, int]]) -> float:
+    """How likely the fighters win a vote decided by chance, from each
+    fighter's rarity and number of unlocked upgrades."""
+    team = sum(
+        RARITY_POWER[rarity] + upgrades * UPGRADE_POWER for rarity, upgrades in fighters
+    )
+    return team / (team + CHALLENGER_POWER)

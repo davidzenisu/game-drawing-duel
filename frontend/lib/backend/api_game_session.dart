@@ -253,6 +253,62 @@ class ApiGameSession extends GameSession {
   ChallengerPrompt? _promptToDraw;
   CharacterCard? _yourChallenger;
   Set<String> _dayEnded = const {};
+  CharacterCard? _fightChallenger;
+  FightSetup? _yourFight;
+  List<FightSetup> _fightsToVote = const [];
+  List<FightSetup> _results = const [];
+
+  /// A character from the pool, or loaded if it isn't there (yet).
+  Future<CharacterCard> _card(ServerSession server, Object? json) async {
+    if (json case {'id': String id}) {
+      return _pool.where((c) => c.id == id).firstOrNull ?? await _loadCharacter(server, json);
+    }
+    throw const FormatException('Unexpected character.');
+  }
+
+  /// A fight from the API. Your vote is filed under your id; a decided
+  /// fight's votes are filed under made-up ids, as only the counts are known.
+  Future<FightSetup> _parseFight(ServerSession server, Object? json) async {
+    if (json case {
+      'id': String id,
+      'day': int day,
+      'owner_position': int owner,
+      'challenger': final challenger,
+      'fighters': List fighters,
+      'your_vote': bool? yourVote,
+      'outcome': final outcome,
+    }) {
+      final fight = FightSetup(
+        id: id,
+        owner: _seat(server, owner),
+        challenger: await _card(server, challenger),
+        fighters: [
+          for (final fighter in fighters)
+            if (fighter case {'character': final character, 'upgrades': List upgrades, 'element': String? element})
+              FighterEntry(
+                card: await _card(server, character),
+                effects: [
+                  for (final effect in upgrades)
+                    UpgradeEffect.values.asNameMap()[effect] ?? (throw FormatException('Unknown upgrade $effect.')),
+                ],
+                element: element == null ? null : ElementKind.values.asNameMap()[element],
+              )
+            else
+              throw const FormatException('Unexpected fighter.'),
+        ],
+        day: day,
+      );
+      if (outcome case {'fighter_votes': int forFighters, 'challenger_votes': int forChallenger}) {
+        for (var i = 0; i < forFighters + forChallenger; i++) {
+          fight.votes['vote-$i'] = i < forFighters;
+        }
+      } else if (yourVote != null) {
+        fight.votes[server.players.firstWhere((p) => p.isYou).id] = yourVote;
+      }
+      return fight;
+    }
+    throw const FormatException('Unexpected fight.');
+  }
 
   /// Today's step 1 and 2 from the API; [known] is the challenger you just drew.
   Future<void> _setToday(ServerSession server, Object? json, {Sketch? known}) async {
@@ -300,6 +356,14 @@ class ApiGameSession extends GameSession {
         throw const FormatException('Unexpected prompt to draw.');
       }
       _dayEnded = {for (final position in ended) _seat(server, position as int).id};
+      _fightChallenger = null;
+      _yourFight = null;
+      if (json['fight'] case {'challenger': final challenger, 'yours': final yours}) {
+        _fightChallenger = await _card(server, challenger);
+        _yourFight = yours == null ? null : await _parseFight(server, yours);
+      }
+      _fightsToVote = [for (final fight in json['to_vote'] as List? ?? const []) await _parseFight(server, fight)];
+      _results = [for (final fight in json['results'] as List? ?? const []) await _parseFight(server, fight)];
       return;
     }
     throw const FormatException('Unexpected day response.');
@@ -538,19 +602,25 @@ class ApiGameSession extends GameSession {
   CharacterCard? get yourChallenger => _yourChallenger;
 
   @override
-  CharacterCard? get fightChallenger => null;
+  CharacterCard? get fightChallenger => _fightChallenger;
 
   @override
-  FightSetup? get yourFight => null;
+  FightSetup? get yourFight => _yourFight;
 
   @override
-  List<FightSetup> get fightsToVote => const [];
+  List<FightSetup> get fightsToVote => _fightsToVote;
 
   @override
-  List<FightSetup> get yourFightResults => const [];
+  List<FightSetup> get yourFightResults => [
+    for (final fight in _results)
+      if (fight.owner.isYou) fight,
+  ];
 
   @override
-  List<FightSetup> get yourChallengerResults => const [];
+  List<FightSetup> get yourChallengerResults => [
+    for (final fight in _results)
+      if (fight.challenger.artist == you.name) fight,
+  ];
 
   @override
   HurryPlan? get incomingHurry => null;
@@ -578,10 +648,22 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> submitFighters(List<OwnedCard> fighters) => Future.error(const NotAvailableYet());
+  Future<void> submitFighters(List<OwnedCard> fighters) async {
+    final json = await _put('/servers/${server.code}/today/fighters', {
+      'character_ids': [for (final owned in fighters) owned.card.id],
+    });
+    await _setToday(server, json);
+    notifyListeners();
+  }
 
   @override
-  Future<void> vote(FightSetup fight, {required bool fightersWin}) => Future.error(const NotAvailableYet());
+  Future<void> vote(FightSetup fight, {required bool fightersWin}) async {
+    final json = await _post('/servers/${server.code}/today/votes/${fight.id}', {'fighters_win': fightersWin});
+    // Screens may hold on to the fight they showed.
+    fight.votes[you.id] = fightersWin;
+    await _setToday(server, json);
+    notifyListeners();
+  }
 
   @override
   Future<bool> sendHurry(Player target) => Future.error(const NotAvailableYet());

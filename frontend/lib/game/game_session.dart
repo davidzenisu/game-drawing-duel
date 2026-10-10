@@ -152,10 +152,11 @@ abstract class GameSession extends ChangeNotifier {
   /// Yesterday's fights you can vote on (not the ones you're part of).
   List<FightSetup> get fightsToVote;
 
-  /// Finished fights you picked the fighters for (yesterday).
+  /// Decided fights you picked the fighters for: in the mockup yesterday's,
+  /// online the ones whose voting day is over.
   List<FightSetup> get yourFightResults;
 
-  /// Finished fights against the challenger you drew (two days ago).
+  /// Decided fights against a challenger you drew.
   List<FightSetup> get yourChallengerResults;
 
   HurryPlan? get incomingHurry;

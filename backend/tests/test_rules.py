@@ -91,3 +91,14 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual([t.value for t in rules.Theme], SHARED["themes"])
         self.assertEqual(rules.theme_of_day(1), rules.Theme.FOREST)
         self.assertEqual(rules.theme_of_day(len(rules.Theme) + 2), rules.Theme.BEACH)
+
+    def test_fights(self):
+        fights = SHARED["fights"]
+        self.assertEqual(rules.MAX_FIGHTERS, fights["max_fighters"])
+        self.assertEqual(
+            {r.value: p for r, p in rules.RARITY_POWER.items()}, fights["rarity_power"]
+        )
+        self.assertEqual(rules.UPGRADE_POWER, fights["upgrade_power"])
+        self.assertEqual(rules.CHALLENGER_POWER, fights["challenger_power"])
+        odds = rules.fighter_odds([(rules.Rarity.LEGEND, 2), (rules.Rarity.BASIC, 0)])
+        self.assertAlmostEqual(odds, 4.8 / 9.8)

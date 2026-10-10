@@ -7,16 +7,18 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import days
+from app import days, fights
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import (
     ChallengerPrompt,
     Character,
     DayEnd,
+    Fight,
     PullGrant,
     Server,
     ServerSeat,
+    Vote,
 )
 from app.routers.pool import require_launched
 from app.routers.servers import Code, DbSession, load_server, your_seat
@@ -24,9 +26,15 @@ from app.routers.setup import character_response
 from app.rules import Rarity, theme_of_day
 from app.schemas import (
     ChallengerSubmit,
+    FighterResponse,
+    FightersSubmit,
+    FightResponse,
+    FightStep,
+    OutcomeResponse,
     PromptSubmit,
     PromptToDrawResponse,
     TodayResponse,
+    VoteSubmit,
     YourPrompt,
 )
 from app.storage import Files
@@ -49,8 +57,41 @@ def _challenger(session: Session, seat: ServerSeat, day: int) -> Character | Non
     )
 
 
+def _fight_response(
+    session: Session, server: Server, fight: Fight, seat: ServerSeat, *, decided: bool
+) -> FightResponse:
+    positions = {s.id: s.position for s in server.seats}
+    result = fights.outcome(session, server, fight) if decided else None
+    return FightResponse(
+        id=fight.id,
+        day=fight.day,
+        owner_position=positions[fight.owner_seat_id],
+        challenger=character_response(fight.challenger),
+        fighters=[
+            FighterResponse(
+                character=character_response(f.character),
+                upgrades=f.upgrades.split(",") if f.upgrades else [],
+                element=f.element,
+            )
+            for f in fight.fighters
+        ],
+        by_chance=fight.by_chance,
+        your_vote=fights.your_vote(session, fight, seat),
+        outcome=None
+        if result is None
+        else OutcomeResponse(
+            fighter_votes=result.fighter_votes,
+            challenger_votes=result.challenger_votes,
+            fighters_win=result.fighters_win,
+        ),
+    )
+
+
 def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
     day = days.current_day(server)
+    # Fights nobody picked fighters for are needed for voting and results.
+    fights.complete_fights(session, server, day - 1)
+    fights.complete_fights(session, server, day - 2)
     written = session.scalar(
         select(ChallengerPrompt).where(
             ChallengerPrompt.author_seat_id == seat.id, ChallengerPrompt.day == day
@@ -85,7 +126,33 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             premade=to_draw.premade,
             challenger=character_response(drawn) if drawn else None,
         ),
+        fight=_fight_step(session, server, day, seat),
+        to_vote=[
+            _fight_response(session, server, f, seat, decided=False)
+            for f in fights.fights_on(session, server, day - 1)
+            if fights.can_vote(f, seat)
+        ],
+        results=[
+            _fight_response(session, server, f, seat, decided=True)
+            for f in fights.fights_on(session, server, day - 2)
+            if seat.id in {f.owner_seat_id, f.challenger.artist_seat_id}
+        ],
         day_ended=list(ended),
+    )
+
+
+def _fight_step(
+    session: Session, server: Server, day: int, seat: ServerSeat
+) -> FightStep | None:
+    challenger = fights.fight_challenger(session, server, day, seat)
+    if challenger is None:
+        return None
+    yours = fights.fight_of(session, seat, day)
+    return FightStep(
+        challenger=character_response(challenger),
+        yours=None
+        if yours is None
+        else _fight_response(session, server, yours, seat, decided=False),
     )
 
 
@@ -170,6 +237,76 @@ def draw_challenger(
         conflict="You drew today's challenger already",
         before_insert=reward,
     )
+    return _today(session, server, seat)
+
+
+@router.put("/{code}/today/fighters", response_model=TodayResponse)
+def pick_fighters(
+    code: Code, body: FightersSubmit, player: CurrentPlayer, session: DbSession
+) -> TodayResponse:
+    """Step 3: sends up to four of your characters against today's
+    challenger. Once a day."""
+    server, seat = _running(session, code, player.id)
+    day = days.current_day(server)
+    challenger = fights.fight_challenger(session, server, day, seat)
+    if challenger is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="There's no challenger to fight today"
+        )
+    if len(set(body.character_ids)) != len(body.character_ids):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Pick every fighter once"
+        )
+    fighters = fights.owned_characters(session, seat, body.character_ids)
+    if fighters is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="You can only send your own characters"
+        )
+    fights.new_fight(session, seat, day, challenger, fighters)
+    try:
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="You picked today's fighters already"
+        ) from error
+    return _today(session, server, seat)
+
+
+@router.post("/{code}/today/votes/{fight_id}", response_model=TodayResponse)
+def vote(
+    code: Code,
+    fight_id: uuid.UUID,
+    body: VoteSubmit,
+    player: CurrentPlayer,
+    session: DbSession,
+) -> TodayResponse:
+    """Step 4: votes whether the fighters beat the challenger, on one of
+    yesterday's fights. Once per fight."""
+    server, seat = _running(session, code, player.id)
+    day = days.current_day(server)
+    fight = next(
+        (f for f in fights.fights_on(session, server, day - 1) if f.id == fight_id),
+        None,
+    )
+    if fight is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="No fight to vote on today"
+        )
+    if not fights.can_vote(fight, seat):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail="You can't vote on your own fight"
+        )
+    session.add(
+        Vote(fight_id=fight.id, voter_seat_id=seat.id, fighters_win=body.fighters_win)
+    )
+    try:
+        session.commit()
+    except IntegrityError as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="You voted on this fight already"
+        ) from error
     return _today(session, server, seat)
 
 

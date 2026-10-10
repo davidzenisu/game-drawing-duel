@@ -456,6 +456,63 @@ void main() {
       await expectLater(sam.advanceDay(), throwsA(isA<ApiException>()));
     });
 
+    test('fighters on day 3, votes on day 4 and the outcome on day 5', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      final sam = await signedUp('sam', 'Sam');
+      final robin = await signedUp('robin', 'Robin');
+      for (final (i, player) in [sam, robin].indexed) {
+        final preview = await player.previewServer('123456');
+        await player.joinServer(preview, preview.players[i + 1]);
+      }
+      await admin.refreshServer();
+      await admin.startSetup();
+      final players = [admin, sam, robin];
+      for (final player in players) {
+        await player.refreshServer();
+        await drawAll(player);
+        await player.launch();
+      }
+      Future<void> nextDay() async {
+        await admin.advanceDay();
+        for (final player in [sam, robin]) {
+          await player.refreshDay();
+        }
+      }
+
+      await nextDay();
+      for (final player in players) {
+        await player.submitChallenger(doodle);
+      }
+      await nextDay();
+
+      // Day 3: Alex sends two fighters against Sam's challenger.
+      expect(admin.fightChallenger!.artist, 'Sam');
+      await admin.submitFighters(admin.collection.take(2).toList());
+      final put = backend.requests.last;
+      expect(put.url.path, '/servers/123456/today/fighters');
+      expect((jsonDecode(put.body) as Map)['character_ids'], hasLength(2));
+      expect(admin.yourFight!.fighters, hasLength(2));
+      expect(admin.yourFight!.challenger.artist, 'Sam');
+
+      // Day 4: Robin votes; Sam drew the challenger and doesn't.
+      await nextDay();
+      expect(sam.fightsToVote, isEmpty);
+      final fight = robin.fightsToVote.single;
+      expect(fight.owner.name, 'Alex');
+      expect(robin.hasVoted(fight), isFalse);
+      await robin.vote(fight, fightersWin: true);
+      expect(robin.hasVoted(fight), isTrue, reason: 'the shown fight knows the vote too');
+      expect(robin.votesLeft, 0);
+
+      // Day 5: decided.
+      await nextDay();
+      final result = admin.yourFightResults.single;
+      expect(result.fightersWin, isTrue);
+      expect((result.fighterVotes, result.challengerVotes), (1, 0));
+      expect(sam.yourChallengerResults.single.id, result.id);
+      expect(robin.yourFightResults, isEmpty);
+    });
+
     test('a reload keeps the upgrades and the chosen element', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
