@@ -100,6 +100,31 @@ void main() {
     expect(game.setupDrawing(game.assignments.first), isNull, reason: 'a fresh setup');
   });
 
+  test('cancelling a running game throws it away', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    Future<void> launchGame() async {
+      await game.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
+      await game.startSetup();
+      for (final assignment in game.assignments) {
+        await game.submitSetupDrawing(assignment, _doodle, 'Title');
+      }
+      await game.launch();
+    }
+
+    await launchGame();
+    final pool = game.pool.length;
+    await game.pull(1);
+    await game.cancelServer();
+    expect(game.phase, GamePhase.server);
+    expect(game.pool, isEmpty);
+    expect(game.collection, isEmpty);
+
+    await launchGame();
+    expect(game.pool, hasLength(pool));
+    expect(game.gachaStatus.totalPulls, 0);
+  });
+
   test('during the setup, the simulated friends finish one at a time', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

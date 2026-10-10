@@ -63,18 +63,25 @@ Once everyone joined, the admin starts the initial drawing setup for everyone
 their drawing assignments. Once a player drew all of theirs, they finish their
 setup (no more redrawing); when the last one finishes, the game launches
 (`phase` becomes `running`): all drawings form the pool and everyone's own
-drawings start their collection. Until the launch, any player who joined can cancel
-the server, e.g. when dropping out: it is deleted with its drawings, and the
-other players are sent back to creating or joining a server on their next
-refresh.
+drawings start their collection.
+
+Any player who joined can cancel the server at any point of the game, e.g. when
+dropping out (the app asks twice, the second time after a 10-second
+countdown). All its game data is deleted: drawings (also from storage),
+pulls, upgrades, prompts, fights, votes and hurries. The server and its seats
+stay, with `phase` `cancelled` and `cancelled_by` naming who cancelled, so the
+other players find out when they return: any other request for the server
+answers `410 Gone`, and the app shows who cancelled it, dismisses it and goes
+back to creating or joining a server.
 
 | Endpoint | Purpose |
 | --- | --- |
 | `POST /servers` | Create a server; you take the first seat as admin |
-| `GET /servers/mine` | The servers you joined, newest first |
+| `GET /servers/mine` | The servers you joined, newest first, including cancelled ones you haven't dismissed |
 | `GET /servers/{code}` | Roster and who joined |
 | `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
-| `DELETE /servers/{code}` | Cancel the server for everyone, with all its drawings; any player who joined |
+| `DELETE /servers/{code}` | Cancel the server for everyone and delete all its game data; any player who joined |
+| `POST /servers/{code}/dismiss` | You saw that the server was cancelled; it leaves `GET /servers/mine` |
 | `POST /servers/{code}/setup` | Start the initial drawing setup; admin only |
 | `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, the drawing it builds on and what you drew so far |
 | `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |

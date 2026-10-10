@@ -44,6 +44,11 @@ class Server(Base):
     # The current day of a test session, which advances on demand. Regular
     # servers count days from the launch, at midnight UTC.
     test_day: Mapped[int | None] = mapped_column(Integer)
+    # When a player cancelled the server and its game data was deleted. The
+    # server and its seats stay so the others find out when they return.
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The seat name of the player who cancelled it.
+    cancelled_by: Mapped[str | None] = mapped_column(Text)
 
     seats: Mapped[list["ServerSeat"]] = relationship(
         back_populates="server",
@@ -71,5 +76,8 @@ class ServerSeat(Base):
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # When the player finished their setup drawings.
     setup_done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the player saw that the server was cancelled; it then no longer
+    # counts as one of theirs.
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     server: Mapped[Server] = relationship(back_populates="seats")

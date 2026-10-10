@@ -8,6 +8,7 @@ import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/screens/setup_screen.dart';
+import 'package:frontend/game/widgets/cancel_server_button.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 
 void main() {
@@ -126,6 +127,17 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  /// Cancels the server through both confirmations.
+  Future<void> confirmCancel(WidgetTester tester) async {
+    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: CancelServerButton.countdownSeconds));
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancel for everyone'));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('cancelling the server asks first and returns to the server screen', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
@@ -149,10 +161,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.phase, GamePhase.lobby);
 
+    // The second confirmation unlocks after a countdown.
     await tester.tap(find.byTooltip('Cancel server'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
     await tester.pumpAndSettle();
+    expect(find.text('Are you sure?'), findsOneWidget);
+    final countdown = find.widgetWithText(FilledButton, 'Cancel for everyone (10)');
+    expect(tester.widget<FilledButton>(countdown).onPressed, isNull);
+    await tester.pump(const Duration(seconds: 9));
+    expect(find.widgetWithText(FilledButton, 'Cancel for everyone (1)'), findsOneWidget);
+    await tester.tap(find.text('Keep playing'));
+    await tester.pumpAndSettle();
+    expect(controller.phase, GamePhase.lobby);
+
+    await confirmCancel(tester);
     expect(controller.phase, GamePhase.server);
     expect(find.text('Create server'), findsWidgets);
 
@@ -163,9 +186,7 @@ void main() {
     await controller.startSetup();
     await tester.pumpAndSettle();
     expect(find.text('Initial drawings'), findsOneWidget);
-    await tester.tap(find.byTooltip('Cancel server'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
+    await confirmCancel(tester);
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(controller.phase, GamePhase.server);

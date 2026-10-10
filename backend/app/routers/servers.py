@@ -8,8 +8,23 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
-from app.database import get_db
-from app.models import Character, Player, Server, ServerSeat, SetupAssignment
+from app.database import get_db, utc_now
+from app.models import (
+    ChallengerPrompt,
+    Character,
+    DayEnd,
+    Fight,
+    Fighter,
+    Hurry,
+    Player,
+    Pull,
+    PullGrant,
+    Server,
+    ServerSeat,
+    SetupAssignment,
+    Upgrade,
+    Vote,
+)
 from app.rules import SERVER_CODE_LENGTH
 from app.schemas import SeatResponse, ServerCreate, ServerResponse
 from app.setup import assign_setup
@@ -28,7 +43,9 @@ def _new_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(SERVER_CODE_LENGTH))
 
 
-def phase(server: Server) -> Literal["lobby", "setup", "running"]:
+def phase(server: Server) -> Literal["lobby", "setup", "running", "cancelled"]:
+    if server.cancelled_at is not None:
+        return "cancelled"
     if server.launched_at is not None:
         return "running"
     return "lobby" if server.setup_started_at is None else "setup"
@@ -49,6 +66,7 @@ def server_response(server: Server, player: Player) -> ServerResponse:
         is_test=server.is_test,
         is_admin=server.admin_id == player.id,
         phase=phase(server),
+        cancelled_by=server.cancelled_by,
         your_position=your_seat.position if your_seat else None,
         seats=[
             SeatResponse(
@@ -62,12 +80,16 @@ def server_response(server: Server, player: Player) -> ServerResponse:
     )
 
 
-def load_server(session: Session, code: str) -> Server:
+def load_server(session: Session, code: str, *, cancelled_ok: bool = False) -> Server:
+    """The server with `code`; `410 Gone` once it was cancelled, unless
+    `cancelled_ok`."""
     server = session.scalar(
         select(Server).where(Server.code == code).options(selectinload(Server.seats))
     )
     if server is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No server with this code")
+    if server.cancelled_at is not None and not cancelled_ok:
+        raise HTTPException(status.HTTP_410_GONE, detail="The server was cancelled")
     return server
 
 
@@ -113,11 +135,12 @@ def create_server(
 
 @router.get("/mine", response_model=list[ServerResponse])
 def my_servers(player: CurrentPlayer, session: DbSession) -> list[ServerResponse]:
-    """The servers you joined, newest first."""
+    """The servers you joined, newest first. A cancelled one stays until you
+    dismiss it."""
     servers = session.scalars(
         select(Server)
         .join(ServerSeat)
-        .where(ServerSeat.player_id == player.id)
+        .where(ServerSeat.player_id == player.id, ServerSeat.dismissed_at.is_(None))
         .options(selectinload(Server.seats))
         .order_by(Server.created_at.desc())
     ).all()
@@ -127,7 +150,7 @@ def my_servers(player: CurrentPlayer, session: DbSession) -> list[ServerResponse
 @router.get("/{code}", response_model=ServerResponse)
 def get_server(code: Code, player: CurrentPlayer, session: DbSession) -> ServerResponse:
     """The roster and who joined. Knowing the code is the invitation."""
-    return server_response(load_server(session, code), player)
+    return server_response(load_server(session, code, cancelled_ok=True), player)
 
 
 @router.post("/{code}/seats/{position}/claim", response_model=ServerResponse)
@@ -174,29 +197,70 @@ def claim_seat(
     return server_response(load_server(session, code), player)
 
 
+def _delete_game_data(session: Session, server: Server) -> list[uuid.UUID]:
+    """Deletes everything played on `server` but the server and its seats;
+    returns the ids of the deleted characters, whose drawings to delete."""
+    seat_ids = [s.id for s in server.seats]
+    character_ids = list(
+        session.scalars(select(Character.id).where(Character.server_id == server.id))
+    )
+    fight_ids = select(Fight.id).where(Fight.owner_seat_id.in_(seat_ids))
+    for statement in (
+        delete(Vote).where(Vote.fight_id.in_(fight_ids)),
+        delete(Fighter).where(Fighter.fight_id.in_(fight_ids)),
+        delete(Fight).where(Fight.owner_seat_id.in_(seat_ids)),
+        delete(Upgrade).where(Upgrade.seat_id.in_(seat_ids)),
+        delete(Pull).where(Pull.seat_id.in_(seat_ids)),
+        delete(PullGrant).where(PullGrant.seat_id.in_(seat_ids)),
+        delete(Hurry).where(Hurry.sender_seat_id.in_(seat_ids)),
+        delete(DayEnd).where(DayEnd.seat_id.in_(seat_ids)),
+        delete(ChallengerPrompt).where(ChallengerPrompt.author_seat_id.in_(seat_ids)),
+        delete(Character).where(Character.server_id == server.id),
+        delete(SetupAssignment).where(SetupAssignment.artist_seat_id.in_(seat_ids)),
+    ):
+        session.execute(statement)
+    return character_ids
+
+
 @router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)
 def cancel_server(
     code: Code, player: CurrentPlayer, session: DbSession, files: Files
 ) -> None:
-    """Cancels the server for everyone, with all its drawings. Only before
-    the launch.
+    """Cancels the server for everyone and deletes all its drawings and game
+    data, at any point of the game.
 
     Any player who joined can, e.g. the admin when setting it up went wrong
-    or a player dropping out. The others find out when they next refresh.
+    or a player dropping out. The server and its seats stay, marked
+    cancelled, so the others find out when they return (see `dismiss`).
     """
     server = load_server(session, code)
-    your_seat(server, player.id)
-    require_not_launched(server)
-    character_ids = session.scalars(
-        select(Character.id).where(Character.server_id == server.id)
-    ).all()
-    session.execute(delete(Character).where(Character.server_id == server.id))
-    session.execute(
-        delete(SetupAssignment).where(
-            SetupAssignment.artist_seat_id.in_([s.id for s in server.seats])
-        )
-    )
-    session.delete(server)
+    seat = your_seat(server, player.id)
+    # Locked, so a second cancel at the same time waits and then finds out.
+    session.scalar(select(Server.id).where(Server.id == server.id).with_for_update())
+    session.refresh(server)
+    if server.cancelled_at is not None:
+        raise HTTPException(status.HTTP_410_GONE, detail="The server was cancelled")
+    character_ids = _delete_game_data(session, server)
+    now = utc_now()
+    server.cancelled_at = now
+    server.cancelled_by = seat.name
+    seat.dismissed_at = now
     session.commit()
     for character_id in character_ids:
         delete_quietly(files, str(character_id))
+
+
+@router.post("/{code}/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+def dismiss_cancelled_server(
+    code: Code, player: CurrentPlayer, session: DbSession
+) -> None:
+    """You saw that the server was cancelled: it's no longer one of yours."""
+    server = load_server(session, code, cancelled_ok=True)
+    seat = your_seat(server, player.id)
+    if server.cancelled_at is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="The server wasn't cancelled"
+        )
+    if seat.dismissed_at is None:
+        seat.dismissed_at = utc_now()
+        session.commit()

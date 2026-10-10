@@ -88,16 +88,11 @@ class LaunchTests(LaunchTestCase):
             self.get(f"/servers/{code}/pool", "auth0|stranger").status_code, 403
         )
 
-    def test_a_launched_game_cannot_be_cancelled(self) -> None:
+    def test_nobody_joins_a_launched_game(self) -> None:
         code = self.create(is_test=True).json()["code"]
         self.start(code)
         self.draw_all(code, ADMIN)
         self.assertEqual(self.finish(code).json()["phase"], "running")
-        response = self.client.delete(
-            f"/servers/{code}", headers=bearer(make_token(ADMIN))
-        )
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()["detail"], "The game already launched")
         self.sign_up(FRIEND_SUBJECTS[0], "Sam")
         self.assertEqual(self.claim(code, 1, FRIEND_SUBJECTS[0]).status_code, 409)
 

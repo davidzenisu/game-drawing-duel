@@ -60,6 +60,12 @@ class FakeBackend {
   /// Codes of the servers that launched.
   final Set<String> launched = {};
 
+  /// Who cancelled a server, by its code.
+  final Map<String, String> cancelled = {};
+
+  /// Server codes and player ids of the players who saw the cancellation.
+  final Set<(String, String)> dismissed = {};
+
   /// Pulled character ids by server code and player id; everyone gets
   /// [launchBonus] pulls at the launch.
   final Map<(String, String), List<String>> pulls = {};
@@ -139,19 +145,29 @@ class FakeBackend {
       return _json(201, _server(code, myId));
     }
     if (request.method == 'GET' && request.url.path == '/servers/mine') {
-      final mine = servers.keys.where((c) => servers[c]!.seats.any((s) => s['player'] == myId)).toList().reversed;
+      final mine = servers.keys
+          .where((c) => servers[c]!.seats.any((s) => s['player'] == myId) && !dismissed.contains((c, myId)))
+          .toList()
+          .reversed;
       return _json(200, [for (final code in mine) _server(code, myId)]);
     }
     if (path.length >= 2 && path[0] == 'servers' && servers.containsKey(path[1])) {
       final code = path[1];
       if (request.method == 'GET' && path.length == 2) return _json(200, _server(code, myId));
+      if (request.method == 'POST' && path.length == 3 && path[2] == 'dismiss') {
+        if (!cancelled.containsKey(code)) return _json(409, {'detail': "The server wasn't cancelled"});
+        dismissed.add((code, myId));
+        return http.Response('', 204);
+      }
+      if (cancelled.containsKey(code)) return _json(410, {'detail': 'The server was cancelled'});
       if (request.method == 'DELETE' && path.length == 2) {
-        if (!servers[code]!.seats.any((s) => s['player'] == myId)) {
-          return _json(403, {'detail': "You haven't joined this server"});
-        }
-        servers.remove(code);
-        started.remove(code);
+        final seat = servers[code]!.seats.where((s) => s['player'] == myId).firstOrNull;
+        if (seat == null) return _json(403, {'detail': "You haven't joined this server"});
+        cancelled[code] = seat['name'] as String;
+        dismissed.add((code, myId));
         drawings.removeWhere((key, _) => key.$1 == code);
+        pulls.removeWhere((key, _) => key.$1 == code);
+        fights.remove(code);
         return http.Response('', 204);
       }
       if (request.method == 'POST' && path.length == 5 && path[4] == 'claim') {
@@ -266,11 +282,14 @@ class FakeBackend {
       'created_at': '2026-10-09T10:00:00Z',
       'is_test': server.isTest,
       'is_admin': server.admin == playerId,
-      'phase': launched.contains(code)
+      'phase': cancelled.containsKey(code)
+          ? 'cancelled'
+          : launched.contains(code)
           ? 'running'
           : started.contains(code)
           ? 'setup'
           : 'lobby',
+      'cancelled_by': cancelled[code],
       'your_position': yours < 0 ? null : yours,
       'seats': [
         for (final (i, s) in server.seats.indexed)
