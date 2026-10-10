@@ -57,7 +57,20 @@ class DocsLoginTests(unittest.TestCase):
         self.assertIn('"clientId": "docs-client"', docs)
         self.assertIn('"usePkceWithAuthorizationCodeGrant": true', docs)
         self.assertIn('"audience": "https://api.drawing-duel.example"', docs)
-        self.assertIn('"response_mode": "fragment"', docs)
+        self.assertIn('"response_mode": "form_post"', docs)
+
+    def test_the_posted_login_moves_to_the_url_fragment(self) -> None:
+        client = docs_app(SETTINGS)
+        response = client.post(
+            "/docs/oauth2-redirect",
+            data={"code": "abc", "state": "U2F0="},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(
+            response.headers["location"], "/docs/oauth2-redirect#code=abc&state=U2F0%3D"
+        )
+        self.assertEqual(client.get("/docs/oauth2-redirect").status_code, 200)
 
     def test_without_a_docs_client_the_docs_take_a_pasted_token(self) -> None:
         settings = {k: v for k, v in SETTINGS.items() if k != "AUTH0_DOCS_CLIENT_ID"}
@@ -65,3 +78,4 @@ class DocsLoginTests(unittest.TestCase):
         schema = client.get("/openapi.json").json()
         self.assertNotIn("Auth0", schema["components"]["securitySchemes"])
         self.assertNotIn("clientId", client.get("/docs").text)
+        self.assertEqual(client.post("/docs/oauth2-redirect").status_code, 405)
