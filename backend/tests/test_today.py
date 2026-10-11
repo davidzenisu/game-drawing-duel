@@ -92,7 +92,7 @@ class TodayTests(TodayTestCase):
         self.assertIn(alex["title"], PREMADE_PROMPTS[Theme.FOREST])
         self.assertEqual(alex["theme"], "forest")
 
-    def test_a_challenger_joins_the_pool_and_earns_a_pull(self) -> None:
+    def test_a_challenger_earns_a_pull_but_stays_out_of_the_pool(self) -> None:
         self.post("days/next")
         response = self.draw(SAM)
         self.assertEqual(response.status_code, 200, response.text)
@@ -103,7 +103,15 @@ class TodayTests(TodayTestCase):
         )
         self.assertEqual(challenger["theme"], "forest")
         pool = [c["id"] for c in self.get(f"/servers/{self.code}/pool").json()]
-        self.assertIn(challenger["id"], pool)
+        self.assertNotIn(challenger["id"], pool)
+        [listed] = self.get(f"/servers/{self.code}/challengers", SAM).json()
+        self.assertEqual(listed["character"]["id"], challenger["id"])
+        self.assertEqual((listed["fights"], listed["wins"]), (0, 0))
+        self.assertEqual(
+            self.get(f"/servers/{self.code}/challengers").json(),
+            [],
+            "the others haven't encountered it yet",
+        )
         self.assertEqual(
             self.get(f"/servers/{self.code}/gacha", SAM).json()["tickets"], 11
         )

@@ -158,6 +158,10 @@ abstract class GameSession extends ChangeNotifier {
   /// Decided fights against a challenger you drew.
   List<FightSetup> get yourChallengerResults;
 
+  /// The challengers you encountered, newest first: the ones you drew,
+  /// fought against or voted on. They don't join the gacha [pool].
+  List<ChallengerRecord> get challengers;
+
   HurryPlan? get incomingHurry;
 
   /// The player you sent today's free hurry to.

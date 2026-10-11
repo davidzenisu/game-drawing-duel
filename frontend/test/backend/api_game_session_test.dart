@@ -489,7 +489,11 @@ void main() {
       expect(sam.yourChallenger!.rarity, Rarity.hero);
       expect(sam.yourChallenger!.sketch, same(doodle));
       expect(sam.challengerDrawn, isTrue);
-      expect(sam.pool, contains(sam.yourChallenger));
+      expect(sam.pool, isNot(contains(sam.yourChallenger)), reason: 'challengers stay out of the gacha pool');
+      expect(sam.challengers.single.card.id, sam.yourChallenger!.id);
+      expect((sam.challengers.single.fights, sam.challengers.single.winRate), (0, null));
+      await admin.refreshDay();
+      expect(admin.challengers, isEmpty, reason: 'Alex has not encountered it');
       expect(sam.tickets, 11, reason: 'a challenger earns a pull');
 
       await admin.advanceDay();
@@ -539,11 +543,13 @@ void main() {
       // Day 3: Alex sends two fighters against Sam's challenger.
       expect(admin.fightChallenger!.artist, 'Sam');
       await admin.submitFighters(admin.collection.take(2).toList());
-      final put = backend.requests.last;
+      final put = backend.requests.lastWhere((r) => r.method == 'PUT');
       expect(put.url.path, '/servers/123456/today/fighters');
       expect((jsonDecode(put.body) as Map)['character_ids'], hasLength(2));
       expect(admin.yourFight!.fighters, hasLength(2));
       expect(admin.yourFight!.challenger.artist, 'Sam');
+      final samsChallenger = admin.yourFight!.challenger.id;
+      expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
 
       // Day 4: Robin votes; Sam drew the challenger and doesn't.
       await nextDay();
@@ -551,7 +557,9 @@ void main() {
       final fight = robin.fightsToVote.single;
       expect(fight.owner.name, 'Alex');
       expect(robin.hasVoted(fight), isFalse);
+      expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
       await robin.vote(fight, fightersWin: true);
+      expect(robin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'voted on');
       expect(robin.hasVoted(fight), isTrue, reason: 'the shown fight knows the vote too');
       expect(robin.votesLeft, 0);
 
@@ -562,6 +570,8 @@ void main() {
       expect((result.fighterVotes, result.challengerVotes), (1, 0));
       expect(sam.yourChallengerResults.single.id, result.id);
       expect(robin.yourFightResults, isEmpty);
+      final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);
+      expect((record.fights, record.wins, record.winRate), (1, 0, 0.0), reason: "Alex's fighters won");
     });
 
     test('a reload keeps the upgrades and the chosen element', () async {

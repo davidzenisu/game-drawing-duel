@@ -172,3 +172,48 @@ def owned_characters(
     if any(i not in owned for i in ids):
         return None
     return [session.get(Character, i) for i in ids]
+
+
+@dataclass(frozen=True)
+class ChallengerRecord:
+    challenger: Character
+    # Decided fights against it, and how many it won.
+    fights: int
+    wins: int
+
+
+def encountered_challengers(
+    session: Session, server: Server, seat: ServerSeat
+) -> list[ChallengerRecord]:
+    """The challengers `seat` encountered, newest first: the ones they drew,
+    fought against or voted on, with their record in decided fights."""
+    drawn = select(Character.id).where(
+        Character.artist_seat_id == seat.id, Character.assignment_id.is_(None)
+    )
+    fought = select(Fight.challenger_id).where(Fight.owner_seat_id == seat.id)
+    voted = (
+        select(Fight.challenger_id)
+        .join(Vote, Vote.fight_id == Fight.id)
+        .where(Vote.voter_seat_id == seat.id)
+    )
+    challengers = session.scalars(
+        select(Character)
+        .where(
+            Character.server_id == server.id,
+            Character.id.in_(drawn.union(fought, voted)),
+        )
+        .options(selectinload(Character.artist), selectinload(Character.subject))
+        .order_by(Character.day.desc(), Character.created_at.desc())
+    ).all()
+    # A fight is decided once the day after it, its voting day, is over.
+    decided_before = days.current_day(server) - 1
+    records = []
+    for challenger in challengers:
+        decided = session.scalars(
+            select(Fight)
+            .where(Fight.challenger_id == challenger.id, Fight.day < decided_before)
+            .options(selectinload(Fight.fighters), selectinload(Fight.challenger))
+        ).all()
+        wins = sum(not outcome(session, server, f).fighters_win for f in decided)
+        records.append(ChallengerRecord(challenger, len(decided), wins))
+    return records

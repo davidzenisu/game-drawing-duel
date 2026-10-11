@@ -9,6 +9,7 @@ import '../widgets/game_action.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
+import 'challengers_screen.dart';
 import 'collection_screen.dart';
 import 'drawing_screen.dart';
 import 'fight_setup_screen.dart';
@@ -82,7 +83,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     );
     if (result == null || !mounted) return;
     if (!await runGameAction(context, () => _controller.submitChallenger(result.sketch)) || !mounted) return;
-    _toast('Challenger added to the pool. +1 pull!');
+    _toast('Challenger drawn. +1 pull!');
   }
 
   Future<void> _sendHurry() async {
@@ -202,7 +203,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         subtitle: !c.stepUnlocked(LoopStep.draw) || toDraw == null
             ? _unlocksOn(LoopStep.draw)
             : c.challengerDrawn
-            ? 'Done. "${toDraw.title}" joined the pool as a hero.'
+            ? 'Done. "${toDraw.title}" joined the challengers.'
             : 'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 2 min · +1 pull',
         done: c.challengerDrawn,
         onTap: toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
@@ -315,6 +316,14 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                                 '${_controller.upgradesAvailable > 0 ? ' · ${_controller.upgradesAvailable} upgrades ready' : ''}',
                             badge: _controller.upgradesAvailable,
                             onTap: () => _open(CollectionScreen(controller: _controller)),
+                          ),
+                          _ActionCard(
+                            icon: Icons.shield_rounded,
+                            title: 'Challengers',
+                            subtitle: _controller.challengers.isEmpty
+                                ? 'The challengers you draw, fight and vote on, with their win rates.'
+                                : '${_controller.challengers.length} encountered · see how they fare',
+                            onTap: () => _open(ChallengersScreen(controller: _controller)),
                           ),
                           _ActionCard(
                             icon: Icons.bolt_rounded,

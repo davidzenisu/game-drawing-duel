@@ -6,6 +6,7 @@ from app.schemas.character import (
     SketchData,
 )
 from app.schemas.day import (
+    ChallengerResponse,
     FighterResponse,
     FightersSubmit,
     FightResponse,
@@ -36,6 +37,7 @@ from app.schemas.server import (
 
 __all__ = [
     "AssignmentResponse",
+    "ChallengerResponse",
     "ChallengerSubmit",
     "CharacterResponse",
     "DrawingSubmit",

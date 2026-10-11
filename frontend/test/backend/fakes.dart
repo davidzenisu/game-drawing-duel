@@ -203,12 +203,12 @@ class FakeBackend {
       if (request.method == 'GET' && path.length == 3 && path[2] == 'collection') {
         final copies = _copies(code, myId);
         return _json(200, [
-          for (final character in _pool(code))
+          for (final character in _characters(code))
             if (copies[character['id']] case final int n) _owned(code, myId, character, n),
         ]);
       }
       if (request.method == 'POST' && path.length == 5 && path[2] == 'collection' && path[4] == 'upgrades') {
-        final character = _pool(code).firstWhere((c) => c['id'] == path[3]);
+        final character = _characters(code).firstWhere((c) => c['id'] == path[3]);
         final copies = _copies(code, myId)[path[3]] ?? 0;
         final done = upgrades.putIfAbsent((code, myId, path[3]), () => (effects: <String>[], element: null));
         final rarity = Rarity.values.byName(character['rarity'] as String);
@@ -225,6 +225,9 @@ class FakeBackend {
           element: next == UpgradeEffect.element ? body!['element'] as String : done.element,
         );
         return _json(200, _owned(code, myId, character, copies));
+      }
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'challengers') {
+        return _json(200, _challengers(code, myId));
       }
       if (path.length >= 3 && (path[2] == 'today' || path[2] == 'days')) {
         return _day(code, myId, request.method, path.sublist(2), body);
@@ -303,16 +306,23 @@ class FakeBackend {
     };
   }
 
-  List<Map<String, Object?>> _pool(String code) => [
+  /// Every character: the setup drawings and the challengers.
+  List<Map<String, Object?>> _characters(String code) => [
     for (final MapEntry(:key, :value) in drawings.entries)
       if (key.$1 == code) value.character,
+  ];
+
+  /// The gacha pool: the setup drawings only.
+  List<Map<String, Object?>> _pool(String code) => [
+    for (final character in _characters(code))
+      if (character['prompt'] != 'challenger') character,
   ];
 
   /// Copies by character id: your setup drawings and your pulls.
   Map<String, int> _copies(String code, String playerId) {
     final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
     final copies = <String, int>{};
-    for (final character in _pool(code)) {
+    for (final character in _characters(code)) {
       if (character['artist_position'] == yours) copies[character['id'] as String] = 1;
     }
     for (final id in pulls[(code, playerId)] ?? const <String>[]) {
@@ -333,7 +343,9 @@ class FakeBackend {
 
   int _tickets(String code, String playerId) {
     final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
-    final challengers = _pool(code).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
+    final challengers = _characters(
+      code,
+    ).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
     return launchBonus + challengers - (pulls[(code, playerId)]?.length ?? 0);
   }
 
@@ -353,11 +365,11 @@ class FakeBackend {
     final author = joined[(joined.indexOf(yours) - 1) % joined.length];
     int subjectOf(int seat) => (seat + 2) % server.seats.length;
     Map<String, Object?>? challenger() =>
-        _pool(code).where((c) => c['artist_position'] == yours && c['day'] == day).firstOrNull;
+        _characters(code).where((c) => c['artist_position'] == yours && c['day'] == day).firstOrNull;
     // The first of yesterday's challengers that isn't yours.
     Map<String, Object?>? fightChallenger() => days[code]! < 3
         ? null
-        : _pool(code).where((c) => c['day'] == days[code]! - 1 && c['artist_position'] != yours).firstOrNull;
+        : _characters(code).where((c) => c['day'] == days[code]! - 1 && c['artist_position'] != yours).firstOrNull;
     Map<String, Object?> fightJson(
       ({
         String id,
@@ -418,7 +430,7 @@ class FakeBackend {
         if (list.any((f) => f.owner == yours && f.day == day)) {
           return _json(409, {'detail': "You picked today's fighters already"});
         }
-        final pool = _pool(code);
+        final pool = _characters(code);
         list.add((
           id: 'fight-$day-$yours',
           owner: yours,
@@ -459,7 +471,9 @@ class FakeBackend {
               'title': written ?? 'Premade prompt',
               'theme': theme(today - 1),
               'premade': written == null,
-              'challenger': _pool(code).where((c) => c['artist_position'] == yours && c['day'] == today).firstOrNull,
+              'challenger': _characters(
+                code,
+              ).where((c) => c['artist_position'] == yours && c['day'] == today).firstOrNull,
             },
       'fight': switch (fightChallenger()) {
         null => null,
@@ -489,6 +503,25 @@ class FakeBackend {
       ].firstOrNull,
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
     });
+  }
+
+  /// The challengers you drew, fought or voted on; fights from two days
+  /// ago on are decided.
+  List<Map<String, Object?>> _challengers(String code, String playerId) {
+    final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
+    final all = fights[code] ?? const [];
+    bool encountered(Map<String, Object?> c) =>
+        c['artist_position'] == yours ||
+        all.any((f) => f.challenger['id'] == c['id'] && (f.owner == yours || f.votes.containsKey(yours)));
+    return [
+      for (final c in _characters(code).reversed)
+        if (c['prompt'] == 'challenger' && encountered(c))
+          () {
+            final decided = all.where((f) => f.challenger['id'] == c['id'] && f.day <= days[code]! - 2);
+            final wins = decided.where((f) => f.votes.values.where((v) => v).length * 2 <= f.votes.length);
+            return {'character': c, 'fights': decided.length, 'wins': wins.length};
+          }(),
+    ];
   }
 
   Map<String, Object?> _gacha(String code, String playerId) {

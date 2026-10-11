@@ -94,6 +94,15 @@ class TodayResponse(BaseModel):
     day_ended: list[int]
 
 
+class ChallengerResponse(BaseModel):
+    """A challenger you encountered and how it fared."""
+
+    character: CharacterResponse
+    # Its decided fights, and how many of them it won.
+    fights: int
+    wins: int
+
+
 class FightersSubmit(BaseModel):
     character_ids: list[uuid.UUID] = Field(min_length=1, max_length=MAX_FIGHTERS)
 

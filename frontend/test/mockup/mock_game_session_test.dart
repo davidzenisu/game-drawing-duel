@@ -225,6 +225,33 @@ void main() {
     expect(game.yourChallengerResults.first.challenger.day, 2);
   });
 
+  test('challengers stay out of the pool, listed once encountered with their record', () async {
+    final game = await launchedGame();
+    final pool = game.pool.length;
+    await game.submitPrompt('Sunburnt');
+    await game.advanceDay();
+    expect(game.challengers, isEmpty, reason: 'the others drew some, but you met none');
+    await game.submitChallenger(_doodle);
+    expect(game.pool, hasLength(pool), reason: 'challengers never join the gacha pool');
+    expect(game.challengers.single.card, game.yourChallenger);
+
+    // Day 3: fighting one makes it encountered too.
+    await game.advanceDay();
+    final opponent = game.fightChallenger!;
+    expect(game.challengers.map((c) => c.card), isNot(contains(opponent)));
+    await game.submitFighters(game.collection.take(2).toList());
+    expect(game.challengers.map((c) => c.card), contains(opponent));
+    expect(game.challengers.firstWhere((c) => c.card == opponent).winRate, isNull, reason: 'not decided yet');
+
+    // Day 4: your fight is decided.
+    await game.advanceDay();
+    final fight = game.yourFightResults.single;
+    final record = game.challengers.firstWhere((c) => c.card == opponent);
+    expect(record.fights, greaterThanOrEqualTo(1));
+    expect(record.wins, fight.fightersWin ? lessThan(record.fights) : greaterThanOrEqualTo(1));
+    expect(game.pool, hasLength(pool));
+  });
+
   test('pulls turn duplicates into upgrade points', () async {
     final game = await launchedGame();
     final outcomes = await game.pull(10);
