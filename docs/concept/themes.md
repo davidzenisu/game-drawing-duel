@@ -10,15 +10,15 @@ Every day has a fantasy theme, set by the real weekday in UTC. The game only sho
 
 Hints don't stick to one real-life setting. Anything that fits the fantasy theme works: Volcano Lair covers saunas, burnt dinners, hot coffee and short tempers alike. Both lists live in the database, so new ones can be added at any time.
 
-| Weekday | Theme | Everyday ideas |
-| --- | --- | --- |
-| Monday | Enchanted Forest | commute, parks, dog walks, gardens, flat-pack furniture, Monday mornings |
-| Tuesday | Hot Sandy Beaches | lunch break sun, public pools, bath time, holidays, ice cream vans, playground sandboxes |
-| Wednesday | Volcano Lair | saunas, cooking, spicy food, hot coffee, overheating laptops, short tempers, barbecues |
-| Thursday | Frozen Peaks | freezer aisles, air conditioning, fridges, cold showers, scraping windshields |
-| Friday | Misty Jungle | nights out, houseplants, overgrown gardens, steamy bathrooms, tangled cables, festivals |
-| Saturday | Outer Space | laundromats, furniture store mazes, self-checkouts, treadmills, waiting rooms, gaming |
-| Sunday | Royal Castle | the sofa, Sunday lunch, board games, blanket forts, breakfast in bed, family life |
+| Weekday   | Theme             | Everyday ideas                                                                           |
+| --------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| Monday    | Enchanted Forest  | commute, parks, dog walks, gardens, Monday mornings                                      |
+| Tuesday   | Hot Sandy Beaches | lunch break sun, public pools, bath time, holidays, playground sandboxes                 |
+| Wednesday | Volcano Lair      | saunas, cooking, spicy food, hot coffee, overheating laptops, short tempers, barbecues   |
+| Thursday  | Frozen Peaks      | freezer aisles, air conditioning, fridges, cold showers, scraping windshields, ice cream |
+| Friday    | Misty Jungle      | nights out, houseplants, overgrown gardens, steamy bathrooms, tangled cables, festivals  |
+| Saturday  | Outer Space       | furniture store mazes, treadmills, waiting rooms, gaming, technology research            |
+| Sunday    | Royal Castle      | the sofa, Sunday lunch, board games, blanket forts, breakfast in bed, family life        |
 
 ## Prompt hints
 
@@ -30,17 +30,13 @@ Shown as "Think of …" while writing the day's challenger title. Each player ge
 - a challenger waiting at a bus stop in the rain
 - a challenger hiding from Monday morning
 - a challenger jogging laps in the park
-- a challenger building a flat-pack wardrobe
-- a challenger who forages at the farmers' market
-- a challenger who takes the scenic route to school
+- a challenger cultivating their balcony garden
 
 ### Hot Sandy Beaches (Tuesday)
-- a challenger soaking up their lunch break sun
-- a challenger who reserves the sunbeds at dawn
 - a challenger doing laps at the public pool
-- a challenger planning a holiday they'll never take
+- a challenger planning a holiday in spreadsheets
 - a challenger building castles in the playground sandbox
-- a challenger chasing the ice cream van
+- a challenger fixing their broken down car on a road trip
 - a challenger relaxing in a bubble bath
 - a challenger who forgot the sunscreen
 
@@ -50,7 +46,6 @@ Shown as "Think of …" while writing the day's challenger title. Each player ge
 - a challenger whose laptop is overheating
 - a challenger who orders the spiciest dish
 - a challenger about to lose their temper in a meeting
-- a challenger guarding the office radiator
 - a challenger who drinks their coffee scalding hot
 - a challenger in charge of the barbecue
 
@@ -59,26 +54,20 @@ Shown as "Think of …" while writing the day's challenger title. Each player ge
 - a challenger scraping ice off the windshield
 - a challenger who keeps the air conditioning on full
 - a challenger braving a cold shower
-- a challenger who forgot the frozen pizza in the oven
 - a challenger defrosting the freezer
 - a challenger who wears shorts in winter
-- a challenger guarding the office thermostat
 
 ### Misty Jungle (Friday)
-- a challenger lost in the fog machine on a night out
+- a challenger who gets lost in the club
+- a challenger ruling the dance floor
 - a challenger whose houseplants have taken over
-- a challenger who hasn't mowed the lawn in months
-- a challenger in a steamy bathroom after a long shower
 - a challenger untangling the cables behind the TV
-- a challenger fighting through the Friday rush hour
+- a challenger fighting through the Friday rush hour jungle
 - a challenger at a muddy music festival
-- a challenger conquering the indoor playground
 
 ### Outer Space (Saturday)
-- a challenger orbiting the spin cycle at the laundromat
 - a challenger lost in a furniture store maze
-- a challenger battling the self-checkout
-- a challenger running nowhere on a treadmill
+- a challenger fixing their washing machine
 - a challenger stuck in a waiting room for hours
 - a challenger who stays up all night gaming
 - a challenger hunting for a parking space at the mall
@@ -86,13 +75,11 @@ Shown as "Think of …" while writing the day's challenger title. Each player ge
 
 ### Royal Castle (Sunday)
 - a challenger who rules from the couch
-- a challenger hosting Sunday lunch
-- a challenger who never loses at board games
+- a challenger hosting Sunday bruch
 - a challenger building a fort out of blankets
-- a challenger who expects breakfast in bed
-- a challenger defending the last slice of cake
 - a challenger who refuses to tidy their room
 - a challenger guarding the TV remote
+- a challanger bad at losing board games
 
 ## Premade titles
 
@@ -101,22 +88,14 @@ Drawn instead of a title when the player before you wrote none that day.
 ### Enchanted Forest (Monday)
 - Keeper of the Last Bus Seat
 - Druid of the Delayed 7:42
-- The One Who Stands on the Left
-- Whisperer of Ticket Machines
 - Ranger of the Dog Park
-- Hermit of the Bus Shelter
-- Lord of the Flat-Pack Wardrobe
-- Oracle of the Weather App
 - Moss-Covered Monday Survivor
 - Guardian of the Bike Rack
 - Elder of the Allotment
 - Squirrel-Feeding Sage
 
 ### Hot Sandy Beaches (Tuesday)
-- Sunbather of the Office Lawn
 - Guardian of the Last Sandwich
-- Microwave Queue Champion
-- The Desk-Lunch Castaway
 - Towel Warlord of Sunbed Row
 - Lifeguard of the Kiddie Pool
 - Captain of the Rubber Duck
@@ -128,20 +107,16 @@ Drawn instead of a title when the player before you wrote none that day.
 
 ### Volcano Lair (Wednesday)
 - Lord of the Top Sauna Bench
-- Ladle-Wielder of the Infusion
-- The Towel That Never Slipped
 - Grill Master of the Burnt Sausage
 - Fire-Breather of the Hot Sauce
 - Keeper of the Overheating Laptop
 - Smoke Alarm Summoner
 - Midweek Meltdown Monarch
-- Radiator Hugger Supreme
 - Espresso Eruption
 - The Toast Incinerator
 - Baron of the Hot Tub
 
 ### Frozen Peaks (Thursday)
-- Yeti of Aisle 7
 - Frost Baron of the Frozen Peas
 - Pizza-Box Mountaineer
 - The One Who Holds the Freezer Door Open
