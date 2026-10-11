@@ -25,21 +25,18 @@ class MockGameSession extends GameSession {
   /// A few of the prompt hints the API keeps in its database, per theme.
   static const _hints = {
     DailyTheme.forest: ['a challenger lost on the way to work', 'a challenger who walks the dog at dawn'],
-    DailyTheme.beach: ['a challenger soaking up their lunch break sun', 'a challenger chasing the ice cream van'],
+    DailyTheme.beach: ['a challenger doing laps at the public pool', 'a challenger planning a holiday in spreadsheets'],
     DailyTheme.volcano: [
       'a challenger who can take the heat in the sauna',
       'a challenger who burns dinner every night',
     ],
-    DailyTheme.snow: ['a challenger scraping ice off the windshield', 'a challenger guarding the office thermostat'],
-    DailyTheme.jungle: [
-      'a challenger lost in the fog machine on a night out',
-      'a challenger whose houseplants have taken over',
+    DailyTheme.snow: [
+      "a challenger who can't decide on an ice cream flavour",
+      'a challenger scraping ice off the windshield',
     ],
-    DailyTheme.space: [
-      'a challenger orbiting the spin cycle at the laundromat',
-      'a challenger battling the self-checkout',
-    ],
-    DailyTheme.castle: ['a challenger who rules from the couch', 'a challenger who never loses at board games'],
+    DailyTheme.jungle: ['a challenger who gets lost in the club', 'a challenger ruling the dance floor'],
+    DailyTheme.space: ['a challenger lost in a furniture store maze', 'a challenger fixing their washing machine'],
+    DailyTheme.castle: ['a challenger who rules from the couch', 'a challenger hosting Sunday brunch'],
   };
 
   static const suggestedNames = ['Alex', 'Sam', 'Robin', 'Kim', 'Charlie', 'Jo', 'Mika', 'Toni', 'Lou', 'Nico'];

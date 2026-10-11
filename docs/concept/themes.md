@@ -75,11 +75,11 @@ Shown as "Think of …" while writing the day's challenger title. Each player ge
 
 ### Royal Castle (Sunday)
 - a challenger who rules from the couch
-- a challenger hosting Sunday bruch
+- a challenger hosting Sunday brunch
 - a challenger building a fort out of blankets
 - a challenger who refuses to tidy their room
 - a challenger guarding the TV remote
-- a challanger bad at losing board games
+- a challenger bad at losing board games
 
 ## Premade titles
 
