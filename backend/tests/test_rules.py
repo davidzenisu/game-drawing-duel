@@ -4,6 +4,7 @@ check its own implementation against too."""
 import json
 import random
 import unittest
+from datetime import date
 from pathlib import Path
 
 from app import rules
@@ -89,8 +90,10 @@ class SharedRulesTest(unittest.TestCase):
 
     def test_themes(self):
         self.assertEqual([t.value for t in rules.Theme], SHARED["themes"])
-        self.assertEqual(rules.theme_of_day(1), rules.Theme.FOREST)
-        self.assertEqual(rules.theme_of_day(len(rules.Theme) + 2), rules.Theme.BEACH)
+        # One per weekday, from Monday (2026-10-05) to Sunday.
+        week = [rules.theme_of_date(date(2026, 10, 5 + i)) for i in range(7)]
+        self.assertEqual(week, list(rules.Theme))
+        self.assertEqual(rules.theme_of_date(date(2026, 10, 12)), rules.Theme.FOREST)
 
     def test_fights(self):
         fights = SHARED["fights"]

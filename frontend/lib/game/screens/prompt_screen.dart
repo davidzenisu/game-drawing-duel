@@ -60,7 +60,7 @@ class _PromptScreenState extends State<PromptScreen> {
                     children: [
                       Text('Theme', style: textTheme.labelLarge),
                       Text(theme.label, style: textTheme.headlineSmall),
-                      Text('Think of ${theme.prompt}.', style: textTheme.bodyMedium),
+                      if (controller.promptHint case final hint?) Text('Think of $hint.', style: textTheme.bodyMedium),
                       const SizedBox(height: 16),
                       Row(
                         children: [

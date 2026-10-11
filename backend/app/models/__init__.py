@@ -6,6 +6,7 @@ from app.models.hurry import Hurry
 from app.models.player import Player
 from app.models.server import Server, ServerSeat
 from app.models.setup import SetupAssignment
+from app.models.theme import PremadeTitle, ThemeHint
 from app.models.upgrade import Upgrade
 
 __all__ = [
@@ -16,11 +17,13 @@ __all__ = [
     "Fighter",
     "Hurry",
     "Player",
+    "PremadeTitle",
     "Pull",
     "PullGrant",
     "Server",
     "ServerSeat",
     "SetupAssignment",
+    "ThemeHint",
     "Upgrade",
     "Vote",
 ]

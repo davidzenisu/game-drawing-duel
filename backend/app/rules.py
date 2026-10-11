@@ -6,6 +6,7 @@ checked against `shared/rules.json`.
 
 import random
 from dataclasses import dataclass
+from datetime import date
 from enum import StrEnum
 
 MIN_PLAYERS = 5
@@ -157,20 +158,20 @@ UPGRADE_PATHS = {
 
 
 class Theme(StrEnum):
-    """The daily prompt themes, in the order the days cycle through them."""
+    """The daily prompt themes, one per weekday from Monday to Sunday."""
 
     FOREST = "forest"
     BEACH = "beach"
     VOLCANO = "volcano"
     SNOW = "snow"
+    JUNGLE = "jungle"
     SPACE = "space"
     CASTLE = "castle"
 
 
-def theme_of_day(day: int) -> Theme:
-    """The theme of a day of the game (day 1 is the first)."""
-    themes = list(Theme)
-    return themes[(day - 1) % len(themes)]
+def theme_of_date(day: date) -> Theme:
+    """The theme of a calendar day (UTC): Monday's is the forest."""
+    return list(Theme)[day.weekday()]
 
 
 # Up to this many fighters face a challenger.

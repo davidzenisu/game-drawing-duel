@@ -1,15 +1,21 @@
 from datetime import UTC, datetime
 
+from sqlalchemy import select
+
 from app import days
-from app.models import Server
-from app.premade_prompts import PREMADE_PROMPTS
-from app.rules import Theme
+from app.models import PremadeTitle, Server, ThemeHint
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_launch import LaunchTestCase
 from tests.test_setup import ADMIN, FRIEND_SUBJECTS
 
 SAM = FRIEND_SUBJECTS[0]
+
+# A Monday, so the test session's day 1 is a forest day and day 2 a beach day.
+MONDAY = datetime(2026, 10, 5, 9, tzinfo=UTC)
+SEEDED = datetime(2026, 1, 1, tzinfo=UTC)
+HINTS = {"forest": ["a lost commuter", "a dog walker"], "beach": ["a sunbather"]}
+TITLES = {"forest": ["Keeper of the Bus Seat", "Druid of the 7:42"]}
 
 
 class TodayTestCase(LaunchTestCase):
@@ -25,6 +31,19 @@ class TodayTestCase(LaunchTestCase):
         for subject in (ADMIN, SAM):
             self.draw_all(self.code, subject)
             self.finish(self.code, subject)
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            server.launched_at = MONDAY
+            for theme, texts in HINTS.items():
+                session.add_all(
+                    ThemeHint(theme=theme, text=t, created_at=SEEDED) for t in texts
+                )
+            for theme, titles in TITLES.items():
+                session.add_all(
+                    PremadeTitle(theme=theme, title=t, created_at=SEEDED)
+                    for t in titles
+                )
+            session.commit()
 
     def today(self, subject: str = ADMIN):
         return self.get(f"/servers/{self.code}/today", subject).json()
@@ -89,7 +108,7 @@ class TodayTests(TodayTestCase):
         alex = self.today()["to_draw"]
         self.assertTrue(alex["premade"])
         self.assertEqual(alex["author_position"], 1)
-        self.assertIn(alex["title"], PREMADE_PROMPTS[Theme.FOREST])
+        self.assertIn(alex["title"], TITLES["forest"])
         self.assertEqual(alex["theme"], "forest")
 
     def test_a_challenger_earns_a_pull_but_stays_out_of_the_pool(self) -> None:
@@ -192,3 +211,45 @@ class HurryTests(TodayTestCase):
         self.assertEqual(
             self.post("today/hurry", json={"target_position": 3}).status_code, 404
         )
+
+
+class ThemeTests(TodayTestCase):
+    def test_each_player_gets_a_hint_of_the_days_theme(self) -> None:
+        alex, sam = self.today()["prompt"], self.today(SAM)["prompt"]
+        self.assertIn(alex["hint"], HINTS["forest"])
+        self.assertIn(sam["hint"], HINTS["forest"])
+        self.assertEqual(self.today()["prompt"], alex, "the hint stays the same")
+
+        self.post("days/next")
+        tuesday = self.today()
+        self.assertEqual(tuesday["theme"], "beach")
+        self.assertEqual(tuesday["prompt"]["hint"], "a sunbather")
+
+        # Wednesday's volcano has no hints, and nobody wrote a beach title
+        # on Tuesday, for which there are no premade titles either.
+        self.post("days/next")
+        wednesday = self.today()
+        self.assertEqual(wednesday["theme"], "volcano")
+        self.assertIsNone(wednesday["prompt"]["hint"])
+        self.assertEqual(wednesday["to_draw"]["title"], days.FALLBACK_TITLE)
+        self.assertEqual(wednesday["to_draw"]["theme"], "beach")
+
+    def test_new_hints_count_from_the_day_after_they_were_added(self) -> None:
+        before = self.today()["prompt"]["hint"]
+        with self.session_factory() as session:
+            # Added now, long after the test session's Monday began.
+            session.add(ThemeHint(theme="forest", text="a brand new hint"))
+            session.commit()
+        self.assertEqual(self.today()["prompt"]["hint"], before)
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            self.assertNotIn(
+                "a brand new hint",
+                {days.prompt_hint(session, server, 1, s) for s in server.seats},
+            )
+
+    def test_the_theme_follows_the_weekday(self) -> None:
+        sunday = Server(launched_at=datetime(2026, 10, 11, 23, 59, tzinfo=UTC))
+        self.assertEqual(days.theme_of(sunday, 1).value, "castle")
+        self.assertEqual(days.theme_of(sunday, 2).value, "forest")
+        self.assertEqual(days.theme_of(sunday, 6).value, "jungle")

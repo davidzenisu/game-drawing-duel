@@ -30,7 +30,6 @@ from app.rules import (
     HURRY_EARLIEST,
     HURRY_LATEST,
     Rarity,
-    theme_of_day,
 )
 from app.schemas import (
     ChallengerResponse,
@@ -122,10 +121,11 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
     )
     return TodayResponse(
         day=day,
-        theme=theme_of_day(day).value,
+        theme=days.theme_of(server, day).value,
         prompt=YourPrompt(
             subject_position=days.prompt_subject(server, day, seat).position,
             title=written.title if written else None,
+            hint=days.prompt_hint(session, server, day, seat),
         ),
         to_draw=None
         if to_draw is None
@@ -220,7 +220,7 @@ def write_prompt(
             day=day,
             subject_seat_id=days.prompt_subject(server, day, seat).id,
             title=body.title,
-            theme=theme_of_day(day).value,
+            theme=days.theme_of(server, day).value,
         )
     )
     try:

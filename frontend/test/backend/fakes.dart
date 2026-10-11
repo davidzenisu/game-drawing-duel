@@ -349,7 +349,7 @@ class FakeBackend {
     return launchBonus + challengers - (pulls[(code, playerId)]?.length ?? 0);
   }
 
-  static const themes = ['forest', 'beach', 'volcano', 'snow', 'space', 'castle'];
+  static const themes = ['forest', 'beach', 'volcano', 'snow', 'jungle', 'space', 'castle'];
 
   /// The daily loop, simplified: you write a prompt for the player two seats
   /// on and draw the previous joined player's prompt from the day before.
@@ -462,7 +462,11 @@ class FakeBackend {
     return _json(200, {
       'day': today,
       'theme': theme(today),
-      'prompt': {'subject_position': subjectOf(yours), 'title': prompts[(code, yours, today)]},
+      'prompt': {
+        'subject_position': subjectOf(yours),
+        'title': prompts[(code, yours, today)],
+        'hint': 'a challenger on a ${theme(today)} day',
+      },
       'to_draw': today == 1
           ? null
           : {

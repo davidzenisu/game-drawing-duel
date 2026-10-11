@@ -256,6 +256,10 @@ class ApiGameSession extends GameSession {
   int _day = 0;
   DailyTheme _dayTheme = DailyTheme.forest;
   Player? _promptSubject;
+  String? _promptHint;
+
+  @override
+  String? get promptHint => _promptHint;
   ChallengerPrompt? _yourPrompt;
   ChallengerPrompt? _promptToDraw;
   CharacterCard? _yourChallenger;
@@ -343,13 +347,14 @@ class ApiGameSession extends GameSession {
     if (json case {
       'day': int day,
       'theme': String theme,
-      'prompt': {'subject_position': int subject, 'title': String? title},
+      'prompt': {'subject_position': int subject, 'title': String? title, 'hint': String? hint},
       'day_ended': List ended,
     }) {
       _day = day;
       _dayTheme = _theme(theme);
       final you = server.players.firstWhere((p) => p.isYou);
       _promptSubject = _seat(server, subject);
+      _promptHint = hint;
       _yourPrompt = title == null
           ? null
           : ChallengerPrompt(

@@ -12,10 +12,35 @@ import 'bot_artist.dart';
 /// The mockup of the gameplay loop: everything happens in memory within a
 /// single session and all other players are simulated locally.
 class MockGameSession extends GameSession {
-  MockGameSession({int? seed})
+  /// [launchDate] fixes the calendar day of day 1, which sets the themes;
+  /// by default it's the day the game launches.
+  MockGameSession({int? seed, this.launchDate})
     : _random = Random(seed),
       _bots = BotArtist(seed ?? DateTime.now().microsecondsSinceEpoch),
       _gacha = GachaMachine(random: Random(seed));
+
+  final DateTime? launchDate;
+  DateTime _launchedOn = DateTime.now().toUtc();
+
+  /// A few of the prompt hints the API keeps in its database, per theme.
+  static const _hints = {
+    DailyTheme.forest: ['a challenger lost on the way to work', 'a challenger who walks the dog at dawn'],
+    DailyTheme.beach: ['a challenger soaking up their lunch break sun', 'a challenger chasing the ice cream van'],
+    DailyTheme.volcano: [
+      'a challenger who can take the heat in the sauna',
+      'a challenger who burns dinner every night',
+    ],
+    DailyTheme.snow: ['a challenger scraping ice off the windshield', 'a challenger guarding the office thermostat'],
+    DailyTheme.jungle: [
+      'a challenger lost in the fog machine on a night out',
+      'a challenger whose houseplants have taken over',
+    ],
+    DailyTheme.space: [
+      'a challenger orbiting the spin cycle at the laundromat',
+      'a challenger battling the self-checkout',
+    ],
+    DailyTheme.castle: ['a challenger who rules from the couch', 'a challenger who never loses at board games'],
+  };
 
   static const suggestedNames = ['Alex', 'Sam', 'Robin', 'Kim', 'Charlie', 'Jo', 'Mika', 'Toni', 'Lou', 'Nico'];
 
@@ -162,6 +187,7 @@ class MockGameSession extends GameSession {
     _fights.clear();
     _botRosters.clear();
     _promptSubject = null;
+    _promptHint = null;
     _promptToDraw = null;
     _fightChallenger = null;
     _incomingHurry = null;
@@ -217,6 +243,7 @@ class MockGameSession extends GameSession {
   /// Every artist's setup drawings also land in their own roster.
   @override
   Future<void> launch() async {
+    _launchedOn = (launchDate ?? DateTime.now()).toUtc();
     server.setupDone.addAll(server.artists.map((p) => p.id));
     for (final artist in server.artists) {
       if (artist.isYou) continue;
@@ -262,6 +289,10 @@ class MockGameSession extends GameSession {
   @override
   Player get promptSubject => _promptSubject!;
   Player? _promptSubject;
+
+  @override
+  String? get promptHint => _promptHint;
+  String? _promptHint;
 
   @override
   ChallengerPrompt? get yourPrompt => _prompts[_day]?.where((p) => p.author.isYou).firstOrNull;
@@ -326,7 +357,9 @@ class MockGameSession extends GameSession {
 
   void _startDay() {
     _day++;
-    _theme = DailyTheme.ofDay(_day);
+    _theme = DailyTheme.ofDate(_launchedOn.add(Duration(days: _day - 1)));
+    final hints = _hints[_theme]!;
+    _promptHint = hints[_random.nextInt(hints.length)];
     _hurrySentTo = null;
     final others = otherPlayers;
 

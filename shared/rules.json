@@ -105,7 +105,7 @@
     "challenger_power": 5.0
   },
   "hurry": {"cut_seconds": 30, "earliest": 0.25, "latest": 0.6},
-  "themes": ["forest", "beach", "volcano", "snow", "space", "castle"],
+  "themes": ["forest", "beach", "volcano", "snow", "jungle", "space", "castle"],
   "test_setup": ["basic", "knight", "legend"],
   "assignments": {
     "5": [

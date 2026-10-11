@@ -466,6 +466,7 @@ void main() {
       expect((admin.canEndDay, admin.canAdvanceDay), (true, true));
       expect((sam.canEndDay, sam.canAdvanceDay), (true, false), reason: 'only the admin skips ahead');
 
+      expect(admin.promptHint, 'a challenger on a forest day');
       await admin.submitPrompt('  The Owl King ');
       expect(admin.yourPrompt!.title, 'The Owl King');
       expect(admin.yourPrompt!.theme, DailyTheme.forest);
