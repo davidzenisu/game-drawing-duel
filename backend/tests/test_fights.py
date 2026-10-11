@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import select
 
 from app import fights
-from app.models import Fight, Server
+from app.models import Fight, Player, Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_launch import LaunchTestCase
@@ -171,9 +171,22 @@ class ChallengerListTests(FightTestCase):
         self.assertEqual(self.challengers()[opponent]["fights"], 0, "not decided yet")
         self.next_day()
 
-        # Day 4: the one player who may vote on Alex's fight encounters its challenger.
+        # Day 4: the one player who may vote on Alex's fight encounters its
+        # challenger, unless chance already sent their own fighters against it.
         voter = PLAYERS[3 - alex_fight["challenger"]["artist_position"]]
-        self.assertNotIn(opponent, self.challengers(voter))
+        self.today(voter)  # Picks yesterday's missing fighters by chance.
+        with self.session_factory() as session:
+            fought_it = session.scalar(
+                select(Fight.id)
+                .join(ServerSeat, ServerSeat.id == Fight.owner_seat_id)
+                .join(Player, Player.id == ServerSeat.player_id)
+                .where(
+                    Player.auth0_id == voter,
+                    Fight.challenger_id == uuid.UUID(opponent),
+                )
+            )
+        if fought_it is None:
+            self.assertNotIn(opponent, self.challengers(voter))
         self.post(f"today/votes/{alex_fight['id']}", voter, json={"fighters_win": True})
         self.assertIn(opponent, self.challengers(voter))
         self.next_day()
