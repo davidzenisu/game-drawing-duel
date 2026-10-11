@@ -10,6 +10,7 @@ import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/screens/setup_screen.dart';
 import 'package:frontend/game/widgets/cancel_server_button.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
+import 'package:frontend/theme/palette.dart';
 
 void main() {
   testWidgets('walks from signup through the lobby into the drawing setup', (tester) async {
@@ -192,6 +193,39 @@ void main() {
     expect(controller.phase, GamePhase.server);
     expect(tester.takeException(), isNull);
 
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('draws in brown', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = MockGameSession(seed: 1);
+    await tester.pumpWidget(GameApp(session: controller));
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pump();
+    await tester.tap(find.text('Finish account'));
+    await tester.pumpAndSettle();
+    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
+    await controller.startSetup();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Draw').first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is AnimatedContainer && (widget.decoration as BoxDecoration?)?.color == AppPalette.brown,
+      ),
+    );
+    await tester.pump();
+    await tester.drag(find.byType(SketchPad), const Offset(80, 60));
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Brown');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    final drawing = controller.setupDrawing(controller.assignments.first)!;
+    expect(drawing.sketch.strokes.single.color, AppPalette.brown);
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -50,7 +50,11 @@ abstract final class AppPalette {
     Color(0xFF3B82F6),
     Color(0xFF9A5CF5),
     Color(0xFFE85AAD),
+    brown,
   ];
+
+  /// Brown brush, e.g. for hair, wood and earth.
+  static const brown = Color(0xFF8B5A2B);
 
   /// Colour used by the canvas eraser (the cardboard itself).
   static const eraser = cardboard;
