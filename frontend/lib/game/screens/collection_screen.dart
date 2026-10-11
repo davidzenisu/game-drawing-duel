@@ -25,9 +25,22 @@ class _CollectionScreenState extends State<CollectionScreen> {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final owned = controller.collection.where((o) => _filter == null || o.card.rarity == _filter).toList();
+        // Every character of the pool, owned or not yet, plus anything you
+        // own from outside it (challengers pulled before they left it).
+        final owned = {for (final o in controller.collection) o.card.id: o};
+        final entries = [
+          for (final card in controller.pool)
+            if (_filter == null || card.rarity == _filter) (card: card, owned: owned[card.id]),
+          for (final o in controller.collection)
+            if (!controller.pool.any((c) => c.id == o.card.id) && (_filter == null || o.card.rarity == _filter))
+              (card: o.card, owned: o),
+        ];
         return Scaffold(
-          appBar: AppBar(title: Text('Collection ${controller.collection.length}/${controller.pool.length}')),
+          appBar: AppBar(
+            title: Text(
+              'Collection ${controller.pool.where((c) => owned.containsKey(c.id)).length}/${controller.pool.length}',
+            ),
+          ),
           body: Column(
             children: [
               SingleChildScrollView(
@@ -51,8 +64,8 @@ class _CollectionScreenState extends State<CollectionScreen> {
                 ),
               ),
               Expanded(
-                child: owned.isEmpty
-                    ? const Center(child: Text('Nothing here yet. Go summon some characters!'))
+                child: entries.isEmpty
+                    ? const Center(child: Text('No characters of this rarity.'))
                     : GridView.builder(
                         padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -61,15 +74,18 @@ class _CollectionScreenState extends State<CollectionScreen> {
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
-                        itemCount: owned.length,
-                        itemBuilder: (context, index) => _CollectionTile(
-                          owned: owned[index],
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => CharacterDetailScreen(controller: controller, owned: owned[index]),
+                        itemCount: entries.length,
+                        itemBuilder: (context, index) => switch (entries[index]) {
+                          (card: final card, owned: null) => _LockedTile(card: card),
+                          (card: _, owned: final OwnedCard owned) => _CollectionTile(
+                            owned: owned,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => CharacterDetailScreen(controller: controller, owned: owned),
+                              ),
                             ),
                           ),
-                        ),
+                        },
                       ),
               ),
             ],
@@ -106,6 +122,28 @@ class _CollectionTile extends StatelessWidget {
             if (owned.copies > 1) Text('×${owned.copies}', style: Theme.of(context).textTheme.labelSmall),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A character of the pool you haven't summoned yet: its name and rarity,
+/// but not the drawing.
+class _LockedTile extends StatelessWidget {
+  const _LockedTile({required this.card});
+
+  final CharacterCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Not summoned yet',
+      child: Column(
+        children: [
+          Standee(card: card, width: 120, hidden: true),
+          const SizedBox(height: 6),
+          Nameplate(name: card.subject, title: '???', rarity: card.rarity, compact: true),
+        ],
       ),
     );
   }
