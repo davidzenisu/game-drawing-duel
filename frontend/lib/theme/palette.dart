@@ -37,24 +37,34 @@ abstract final class AppPalette {
 
   // Elements unlocked through duplicate upgrades.
   static const elementFire = Color(0xFFFF6A2B);
+
+  /// The hot yellow core of fire flames.
+  static const elementFireCore = Color(0xFFFFE066);
   static const elementIce = Color(0xFF52C7F2);
   static const elementStorm = Color(0xFFB98CFF);
 
-  /// Brush colours offered on the drawing canvas.
+  // Brush colours offered on the drawing canvas, besides [ink].
+  static const brushRed = Color(0xFFE5484D);
+  static const brushOrange = Color(0xFFFF8A3D);
+  static const brushYellow = Color(0xFFF5C518);
+  static const brushGreen = Color(0xFF3FB27F);
+  static const brushBlue = Color(0xFF3B82F6);
+  static const brushPurple = Color(0xFF9A5CF5);
+  static const brushPink = Color(0xFFE85AAD);
+  static const brushBrown = Color(0xFF8B5A2B);
+
+  /// Brush colours in the order the canvas offers them.
   static const brushes = [
     ink,
-    Color(0xFFE5484D),
-    Color(0xFFFF8A3D),
-    Color(0xFFF5C518),
-    Color(0xFF3FB27F),
-    Color(0xFF3B82F6),
-    Color(0xFF9A5CF5),
-    Color(0xFFE85AAD),
-    brown,
+    brushRed,
+    brushOrange,
+    brushYellow,
+    brushGreen,
+    brushBlue,
+    brushPurple,
+    brushPink,
+    brushBrown,
   ];
-
-  /// Brown brush, e.g. for hair, wood and earth.
-  static const brown = Color(0xFF8B5A2B);
 
   /// Colour used by the canvas eraser (the cardboard itself).
   static const eraser = cardboard;

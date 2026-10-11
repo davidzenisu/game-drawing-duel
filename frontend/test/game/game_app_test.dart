@@ -214,7 +214,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(
       find.byWidgetPredicate(
-        (widget) => widget is AnimatedContainer && (widget.decoration as BoxDecoration?)?.color == AppPalette.brown,
+        (widget) =>
+            widget is AnimatedContainer && (widget.decoration as BoxDecoration?)?.color == AppPalette.brushBrown,
       ),
     );
     await tester.pump();
@@ -225,7 +226,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final drawing = controller.setupDrawing(controller.assignments.first)!;
-    expect(drawing.sketch.strokes.single.color, AppPalette.brown);
+    expect(drawing.sketch.strokes.single.color, AppPalette.brushBrown);
     await tester.pumpWidget(const SizedBox());
   });
 
