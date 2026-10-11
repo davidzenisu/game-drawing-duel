@@ -7,6 +7,7 @@ import 'package:frontend/game/game_app.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/screens/collection_screen.dart';
 import 'package:frontend/game/screens/setup_screen.dart';
 import 'package:frontend/game/widgets/cancel_server_button.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
@@ -262,6 +263,42 @@ void main() {
     expect(find.text('No fights decided yet'), findsOneWidget);
     expect(find.textContaining('Day 2 · by Pat'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the collection shows characters not summoned yet as question marks', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const doodle = Sketch([
+      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
+    ]);
+    final controller = MockGameSession(seed: 1);
+    await controller.signUp('Pat');
+    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
+    while (!controller.server.everyoneJoined) {
+      await controller.refreshServer();
+    }
+    await controller.startSetup();
+    for (final assignment in controller.assignments) {
+      await controller.submitSetupDrawing(assignment, doodle, 'Title');
+    }
+    await controller.launch();
+    await tester.pumpWidget(MaterialApp(home: CollectionScreen(controller: controller)));
+    await tester.pumpAndSettle();
+
+    final owned = controller.collection.length;
+    final locked = controller.pool.length - owned;
+    expect(locked, greaterThan(0));
+    expect(find.text('Collection $owned/${controller.pool.length}'), findsOneWidget);
+    expect(find.text('???'), findsNWidgets(locked));
+    expect(find.byIcon(Icons.question_mark_rounded), findsNWidgets(locked));
+    final hidden = controller.pool.firstWhere((c) => !controller.collection.any((o) => o.card.id == c.id));
+    expect(find.text(hidden.title), findsNothing, reason: 'the title stays a secret');
+
+    // Tapping a hidden one opens nothing.
+    await tester.tap(find.text('???').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(CharacterDetailScreen), findsNothing);
   });
 
   testWidgets('uploads and the launch show a progress circle', (tester) async {

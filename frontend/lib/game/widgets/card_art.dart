@@ -41,12 +41,23 @@ class CardboardCard extends StatelessWidget {
 /// A character slotted into a plastic standee base, decorated with the
 /// effects unlocked through duplicates.
 class Standee extends StatelessWidget {
-  const Standee({super.key, required this.card, this.width = 140, this.effects = const [], this.element});
+  const Standee({
+    super.key,
+    required this.card,
+    this.width = 140,
+    this.effects = const [],
+    this.element,
+    this.hidden = false,
+  });
 
   final CharacterCard card;
   final double width;
   final List<UpgradeEffect> effects;
   final ElementKind? element;
+
+  /// Shows a question mark instead of the drawing, for a character you
+  /// don't own yet.
+  final bool hidden;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +76,15 @@ class Standee extends StatelessWidget {
                 Positioned.fill(
                   child: CardboardCard(
                     shadow: effects.contains(UpgradeEffect.shadow),
-                    child: effects.isEmpty
+                    child: hidden
+                        ? Center(
+                            child: Icon(
+                              Icons.question_mark_rounded,
+                              size: width * 0.45,
+                              color: AppPalette.plasticShade,
+                            ),
+                          )
+                        : effects.isEmpty
                         ? SketchView(card.sketch)
                         : EffectSketchView(
                             sketch: card.sketch,
