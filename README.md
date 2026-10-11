@@ -111,7 +111,7 @@ back to creating or joining a server.
 | `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, the drawing it builds on and what you drew so far |
 | `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |
 | `POST /servers/{code}/setup/done` | Finish your setup drawings; the last player to finish launches the game |
-| `GET /servers/{code}/pool` | Every character of a launched game |
+| `GET /servers/{code}/pool` | The gacha pool of a launched game: everyone's setup drawings |
 | `GET /servers/{code}/collection` | Your characters (your setup drawings and pulls) with how many copies you own |
 | `GET /servers/{code}/gacha` | Your pulls left and pity progress |
 | `POST /servers/{code}/pulls` | Spend 1 to 10 pulls on random characters of the pool |
@@ -126,8 +126,8 @@ UTC, and each day has a theme. Every day each player:
    character (not themselves and not the player who draws it),
 2. draws the title the previous player wrote the day before; if they wrote
    none, a premade title (`app/premade_prompts.py`) stands in. The challenger
-   joins the pool as a hero and earns the day's only pull
-   (`challenger:day-N`).
+   is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
+   join the gacha pool, which holds only the setup drawings.
 3. sends up to four characters of their collection against a random
    challenger drawn the day before (not their own),
 4. votes on the day before's fights, except their own and those against
@@ -155,6 +155,7 @@ quarter and 60% of the time limit, which they only find out while drawing.
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
 | `POST /servers/{code}/today/votes/{fight}` | Vote on one of yesterday's fights, once |
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
+| `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or voted on), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
 

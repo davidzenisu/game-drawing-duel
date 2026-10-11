@@ -45,11 +45,12 @@ def _characters(session: DbSession, *conditions) -> list[CharacterResponse]:
 def get_pool(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> list[CharacterResponse]:
-    """Every character of the game, which the gacha pulls from."""
+    """The characters the gacha pulls from: everyone's setup drawings.
+    Challengers are listed separately, see `get_challengers`."""
     server = load_server(session, code)
     your_seat(server, player.id)
     require_launched(server)
-    return _characters(session, Character.server_id == server.id)
+    return _characters(session, Character.server_id == server.id, pulls.in_pool())
 
 
 def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:

@@ -416,7 +416,27 @@ class MockGameSession extends GameSession {
       theme: prompt.theme,
     );
     _challengers[_day]!.add(card);
-    _pool.add(card);
+  }
+
+  /// The challengers you drew, fought against or voted on. A fight counts
+  /// as decided once its day is over, as the simulated players vote right away.
+  @override
+  List<ChallengerRecord> get challengers {
+    final allFights = [for (final day in _fights.values) ...day];
+    bool encountered(CharacterCard card) =>
+        card.artist == you.name ||
+        allFights.any((f) => f.challenger.id == card.id && (f.owner.isYou || f.votes.containsKey(you.id)));
+    ChallengerRecord record(CharacterCard card) {
+      final decided = allFights.where((f) => f.challenger.id == card.id && f.day < _day).toList();
+      return ChallengerRecord(card: card, fights: decided.length, wins: decided.where((f) => !f.fightersWin).length);
+    }
+
+    final days = _challengers.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      for (final day in days)
+        for (final card in _challengers[day]!)
+          if (encountered(card)) record(card),
+    ];
   }
 
   @override
@@ -458,7 +478,8 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Step 2: drawing the challenger adds it to the pool as a hero and earns a pull.
+  /// Step 2: drawing the challenger adds it to the challengers (not the gacha
+  /// pool) as a hero and earns a pull.
   @override
   Future<void> submitChallenger(Sketch sketch) async {
     final prompt = _promptToDraw;

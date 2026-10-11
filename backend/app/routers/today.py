@@ -33,6 +33,7 @@ from app.rules import (
     theme_of_day,
 )
 from app.schemas import (
+    ChallengerResponse,
     ChallengerSubmit,
     FighterResponse,
     FightersSubmit,
@@ -449,3 +450,21 @@ def next_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayResp
     session.commit()
     session.refresh(server)
     return _today(session, server, seat)
+
+
+@router.get("/{code}/challengers", response_model=list[ChallengerResponse])
+def get_challengers(
+    code: Code, player: CurrentPlayer, session: DbSession
+) -> list[ChallengerResponse]:
+    """The challengers you encountered, newest first: the ones you drew,
+    fought against or voted on, with their decided fights and wins.
+    Challengers aren't part of the gacha pool."""
+    server, seat = _running(session, code, player.id)
+    return [
+        ChallengerResponse(
+            character=character_response(record.challenger),
+            fights=record.fights,
+            wins=record.wins,
+        )
+        for record in fights.encountered_challengers(session, server, seat)
+    ]

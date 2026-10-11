@@ -13,6 +13,11 @@ from app.models import Character, Pull, PullGrant, ServerSeat
 from app.rules import Rarity
 
 
+def in_pool():
+    """The gacha pool holds the setup drawings; challengers stay out of it."""
+    return Character.assignment_id.is_not(None)
+
+
 def grant_launch_bonus(session: Session, seats: list[ServerSeat]) -> None:
     """The pulls every player receives when the game launches."""
     session.add_all(
@@ -100,7 +105,7 @@ def pull(
     by_rarity: dict[Rarity, list[Character]] = defaultdict(list)
     for character in session.scalars(
         select(Character)
-        .where(Character.server_id == seat.server_id)
+        .where(Character.server_id == seat.server_id, in_pool())
         .order_by(Character.id)
     ):
         by_rarity[Rarity(character.rarity)].append(character)

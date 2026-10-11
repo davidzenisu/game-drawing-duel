@@ -68,6 +68,7 @@ class ApiGameSession extends GameSession {
     _setupDrawings = {};
     _pool = const [];
     _collection = const [];
+    _challengers = const [];
     _tickets = 0;
     _setPhase(GamePhase.signIn);
   }
@@ -230,23 +231,24 @@ class ApiGameSession extends GameSession {
 
   /// The pool, your collection and today of a running game.
   Future<void> _loadPool(ServerSession server) async {
-    final (pool, collection, gacha, today) = await (
+    final (pool, collection, gacha, today, challengers) = await (
       _get('/servers/${server.code}/pool'),
       _get('/servers/${server.code}/collection'),
       _get('/servers/${server.code}/gacha'),
       _get('/servers/${server.code}/today'),
+      _get('/servers/${server.code}/challengers'),
     ).wait;
     if (pool is! List || collection is! List) throw const FormatException('Unexpected pool response.');
-    final cards = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
-    final byId = {for (final card in cards) card.id: card};
-    _pool = cards;
+    _pool = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
     _collection = [
       for (final owned in collection)
-        if (owned case {'character': {'id': String id}} when byId.containsKey(id))
-          _setOwned(OwnedCard(byId[id]!), owned)
+        if (owned case {'character': final Object character})
+          // Challengers pulled before they left the pool are still yours.
+          _setOwned(OwnedCard(await _card(server, character)), owned)
         else
           throw const FormatException('Unexpected character in collection.'),
     ];
+    await _setChallengers(server, challengers);
     _setGacha(gacha);
     await _setToday(server, today);
   }
@@ -264,6 +266,25 @@ class ApiGameSession extends GameSession {
   FightSetup? _yourFight;
   List<FightSetup> _fightsToVote = const [];
   List<FightSetup> _results = const [];
+  List<ChallengerRecord> _challengers = const [];
+
+  @override
+  List<ChallengerRecord> get challengers => _challengers;
+
+  Future<void> _setChallengers(ServerSession server, Object? json) async {
+    if (json is! List) throw const FormatException('Unexpected challengers response.');
+    _challengers = [
+      for (final record in json)
+        if (record case {'character': final Object character, 'fights': int fights, 'wins': int wins})
+          ChallengerRecord(card: await _card(server, character), fights: fights, wins: wins)
+        else
+          throw const FormatException('Unexpected challenger.'),
+    ];
+  }
+
+  /// Drawing, fighting and voting add to the challengers you encountered.
+  Future<void> _reloadChallengers(ServerSession server) async =>
+      _setChallengers(server, await _get('/servers/${server.code}/challengers'));
 
   /// A character from the pool, or loaded if it isn't there (yet).
   Future<CharacterCard> _card(ServerSession server, Object? json) async {
@@ -506,6 +527,7 @@ class ApiGameSession extends GameSession {
     _setupDrawings = {};
     _pool = const [];
     _collection = const [];
+    _challengers = const [];
     _tickets = 0;
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
@@ -553,6 +575,7 @@ class ApiGameSession extends GameSession {
     _setupDrawings = {};
     _pool = const [];
     _collection = const [];
+    _challengers = const [];
     _tickets = 0;
     _serverNotice = notice;
     _setPhase(GamePhase.server);
@@ -657,7 +680,7 @@ class ApiGameSession extends GameSession {
   Future<void> submitChallenger(Sketch sketch) async {
     final json = await _put('/servers/${server.code}/today/challenger', {'sketch': SketchJson.encode(sketch)});
     await _setToday(server, json, known: sketch);
-    if (_yourChallenger case final challenger?) _pool = [..._pool, challenger];
+    await _reloadChallengers(server);
     _setGacha(await _get('/servers/${server.code}/gacha'));
     notifyListeners();
   }
@@ -668,6 +691,7 @@ class ApiGameSession extends GameSession {
       'character_ids': [for (final owned in fighters) owned.card.id],
     });
     await _setToday(server, json);
+    await _reloadChallengers(server);
     notifyListeners();
   }
 
@@ -677,6 +701,7 @@ class ApiGameSession extends GameSession {
     // Screens may hold on to the fight they showed.
     fight.votes[you.id] = fightersWin;
     await _setToday(server, json);
+    await _reloadChallengers(server);
     notifyListeners();
   }
 

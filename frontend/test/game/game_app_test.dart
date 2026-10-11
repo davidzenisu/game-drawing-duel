@@ -230,6 +230,40 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the hub lists the challengers you encountered', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const doodle = Sketch([
+      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
+    ]);
+    final controller = MockGameSession(seed: 1);
+    await controller.signUp('Pat');
+    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
+    await controller.startSetup();
+    for (final assignment in controller.assignments) {
+      await controller.submitSetupDrawing(assignment, doodle, 'Title');
+    }
+    await controller.launch();
+    await controller.submitPrompt('Sunburnt');
+    await controller.advanceDay();
+    await controller.submitChallenger(doodle);
+    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpAndSettle();
+    if (find.text("Let's go").evaluate().isNotEmpty) {
+      await tester.tap(find.text("Let's go"));
+      await tester.pumpAndSettle();
+    }
+
+    final card = find.text('Challengers');
+    await tester.ensureVisible(card);
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.text('No fights decided yet'), findsOneWidget);
+    expect(find.textContaining('Day 2 · by Pat'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('uploads and the launch show a progress circle', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;

@@ -1,6 +1,9 @@
+import uuid
+
 from sqlalchemy import select
 
-from app.models import Fight
+from app import fights
+from app.models import Fight, Player, Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_launch import LaunchTestCase
@@ -148,3 +151,66 @@ class FightTests(FightTestCase):
             headers=bearer(make_token(ADMIN)),
         )
         self.assertEqual(response.status_code, 409)
+
+
+class ChallengerListTests(FightTestCase):
+    def challengers(self, subject: str = ADMIN) -> dict[str, dict]:
+        listed = self.get(f"/servers/{self.code}/challengers", subject).json()
+        return {c["character"]["id"]: c for c in listed}
+
+    def test_challengers_you_drew_fought_or_voted_on_with_their_record(self) -> None:
+        drawn = {
+            subject: self.client.get(
+                f"/servers/{self.code}/challengers", headers=bearer(make_token(subject))
+            ).json()[0]["character"]["id"]
+            for subject in PLAYERS
+        }
+        alex_fight = self.pick(self.owned()[:2]).json()["fight"]["yours"]
+        opponent = alex_fight["challenger"]["id"]
+        self.assertEqual(set(self.challengers()), {drawn[ADMIN], opponent})
+        self.assertEqual(self.challengers()[opponent]["fights"], 0, "not decided yet")
+        self.next_day()
+
+        # Day 4: the one player who may vote on Alex's fight encounters its
+        # challenger, unless chance already sent their own fighters against it.
+        voter = PLAYERS[3 - alex_fight["challenger"]["artist_position"]]
+        self.today(voter)  # Picks yesterday's missing fighters by chance.
+        with self.session_factory() as session:
+            fought_it = session.scalar(
+                select(Fight.id)
+                .join(ServerSeat, ServerSeat.id == Fight.owner_seat_id)
+                .join(Player, Player.id == ServerSeat.player_id)
+                .where(
+                    Player.auth0_id == voter,
+                    Fight.challenger_id == uuid.UUID(opponent),
+                )
+            )
+        if fought_it is None:
+            self.assertNotIn(opponent, self.challengers(voter))
+        self.post(f"today/votes/{alex_fight['id']}", voter, json={"fighters_win": True})
+        self.assertIn(opponent, self.challengers(voter))
+        self.next_day()
+
+        # Day 5: the day 3 fights are decided.
+        record = self.challengers()[opponent]
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            against = session.scalars(
+                select(Fight).where(Fight.challenger_id == uuid.UUID(opponent))
+            ).all()
+            wins = sum(not fights.outcome(session, server, f).fighters_win for f in against)
+        self.assertEqual((record["fights"], record["wins"]), (len(against), wins))
+        self.assertGreaterEqual(record["fights"], 1)
+        self.assertLess(record["wins"], record["fights"], "Alex's fighters won")
+
+    def test_pulls_never_return_challengers(self) -> None:
+        challengers = set()
+        for subject in PLAYERS:
+            challengers |= set(self.challengers(subject))
+        self.assertTrue(challengers)
+        response = self.post("pulls", json={"count": 10})
+        self.assertEqual(response.status_code, 200, response.text)
+        pulled = {o["character"]["id"] for o in response.json()["outcomes"]}
+        self.assertFalse(pulled & challengers)
+        pool = {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
+        self.assertFalse(pool & challengers)

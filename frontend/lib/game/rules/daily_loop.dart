@@ -102,6 +102,23 @@ class FightSetup {
   }
 }
 
+/// A challenger you encountered (drew, fought against or voted on) and how
+/// it fared in its decided fights. Challengers aren't part of the gacha pool.
+class ChallengerRecord {
+  const ChallengerRecord({required this.card, required this.fights, required this.wins});
+
+  final CharacterCard card;
+
+  /// Decided fights against it.
+  final int fights;
+
+  /// Decided fights it won.
+  final int wins;
+
+  /// The share of its decided fights it won, or null before any was decided.
+  double? get winRate => fights == 0 ? null : wins / fights;
+}
+
 /// One hit of an animated fight.
 class FightBeat {
   const FightBeat({
