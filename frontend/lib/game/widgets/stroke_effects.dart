@@ -210,7 +210,7 @@ class _EffectPainter extends CustomPainter {
           _strokePaint(
             stroke,
             size,
-            color: Color.lerp(AppPalette.elementFire, const Color(0xFFFFE066), flicker)!,
+            color: Color.lerp(AppPalette.elementFire, AppPalette.elementFireCore, flicker)!,
             widthFactor: 0.45,
           ),
         );
@@ -300,7 +300,7 @@ class _EffectPainter extends CustomPainter {
         final height = size.width * (strong ? 0.09 : 0.065) * (1 - phase * 0.7);
         final tip = base + Offset(sway, -rise);
         final color = Color.lerp(
-          const Color(0xFFFFE066),
+          AppPalette.elementFireCore,
           AppPalette.elementFire,
           phase * 1.4 > 1 ? 1 : phase * 1.4,
         )!.withValues(alpha: 0.85 * (1 - phase));
