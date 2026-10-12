@@ -77,7 +77,13 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   Duration _cut = Duration.zero;
   Duration _lastCut = Duration.zero;
 
+  /// When the last hurry hit; its banner shows for [_bannerTime].
+  Duration? _hitAt;
+  static const _bannerTime = Duration(seconds: 3);
+
   bool get _hurried => _hits > 0;
+
+  bool get _showBanner => _hitAt != null && !_timeUp && _stopwatch.elapsed - _hitAt! < _bannerTime;
 
   Duration? get _limit => widget.timeLimit ?? widget.rarity.drawTime;
 
@@ -107,6 +113,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       _lastCut = _remaining * HurryPlan.cutFraction;
       _cut += _lastCut;
       _hits++;
+      _hitAt = _stopwatch.elapsed;
       _shake.forward(from: 0);
     }
     if (_remaining == Duration.zero) {
@@ -146,11 +153,6 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _header(context),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutBack,
-                  child: _hurried ? _hurryBanner(context) : const SizedBox(width: double.infinity),
-                ),
                 const SizedBox(height: 12),
                 Expanded(child: _canvas()),
                 const SizedBox(height: 12),
@@ -270,26 +272,46 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
+  /// Floats over the top of the canvas, so the canvas never changes size,
+  /// and lets the strokes through.
   Widget _hurryBanner(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Material(
-        color: AppPalette.hurry,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              const Icon(Icons.bolt_rounded, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${widget.hurries[_hits - 1].by} sent a hurry! -${_lastCut.inSeconds}s',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+    return Positioned(
+      top: 8,
+      left: 8,
+      right: 8,
+      child: IgnorePointer(
+        child: AnimatedSlide(
+          offset: _showBanner ? Offset.zero : const Offset(0, -0.3),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutBack,
+          child: AnimatedOpacity(
+            opacity: _showBanner ? 1 : 0,
+            duration: const Duration(milliseconds: 300),
+            child: _hurried ? _hurryMessage() : const SizedBox.shrink(),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _hurryMessage() {
+    return Material(
+      elevation: 4,
+      color: AppPalette.hurry,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            const Icon(Icons.bolt_rounded, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${widget.hurries[_hits - 1].by} sent a hurry! -${_lastCut.inSeconds}s',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -302,6 +324,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           fit: StackFit.expand,
           children: [
             SketchPad(controller: _pad),
+            _hurryBanner(context),
             IgnorePointer(
               child: AnimatedOpacity(
                 opacity: _timeUp ? 1 : 0,
