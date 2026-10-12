@@ -5,6 +5,9 @@ token for the configured Auth0 API (see `AUTH0_DOMAIN` and `AUTH0_AUDIENCE`)
 that carries the player permission. Auth0 grants it through the `user` role and
 adds it to the `permissions` claim (RBAC with "Add Permissions in the Access
 Token" enabled on the API).
+
+The content routes also need `edit:content`, for the accounts that manage the
+prompt hints and premade titles (see `require_content_editor`).
 """
 
 import os
@@ -25,6 +28,8 @@ ALGORITHMS = ["RS256"]
 
 # Every player has it; tokens without it (e.g. machine-to-machine) are rejected.
 REQUIRED_PERMISSION = "read:api"
+# For the accounts that manage the prompt hints and premade titles.
+CONTENT_PERMISSION = "edit:content"
 
 
 class TokenVerifier:
@@ -88,11 +93,20 @@ def _unauthorized(detail: str) -> HTTPException:
     )
 
 
-def get_auth0_subject(
+def _forbidden(permission: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Missing permission {permission}",
+        headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'},
+    )
+
+
+def get_token_claims(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     verifier: Annotated[TokenVerifier, Depends(get_token_verifier)],
-) -> str:
-    """The Auth0 user id of the caller, from a verified access token."""
+) -> dict[str, Any]:
+    """The claims of the caller's verified access token, which carries the
+    player permission."""
     if credentials is None:
         raise _unauthorized("Not authenticated")
     try:
@@ -106,12 +120,22 @@ def get_auth0_subject(
         raise _unauthorized("Invalid access token") from error
     permissions = claims.get("permissions")
     if not isinstance(permissions, list) or REQUIRED_PERMISSION not in permissions:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Missing permission {REQUIRED_PERMISSION}",
-            headers={"WWW-Authenticate": 'Bearer error="insufficient_scope"'},
-        )
+        raise _forbidden(REQUIRED_PERMISSION)
+    return claims
+
+
+TokenClaims = Annotated[dict[str, Any], Depends(get_token_claims)]
+
+
+def get_auth0_subject(claims: TokenClaims) -> str:
+    """The Auth0 user id of the caller, from a verified access token."""
     return claims["sub"]
+
+
+def require_content_editor(claims: TokenClaims) -> None:
+    """Lets only accounts with the content permission through."""
+    if CONTENT_PERMISSION not in claims["permissions"]:
+        raise _forbidden(CONTENT_PERMISSION)
 
 
 Auth0Subject = Annotated[str, Depends(get_auth0_subject)]

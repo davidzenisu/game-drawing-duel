@@ -5,6 +5,7 @@ from app.schemas.character import (
     PromptSubmit,
     SketchData,
 )
+from app.schemas.content import ContentAdd, ContentAdded, ContentItem
 from app.schemas.day import (
     BoostSubmit,
     BoostTarget,
@@ -43,6 +44,9 @@ __all__ = [
     "ChallengerResponse",
     "ChallengerSubmit",
     "CharacterResponse",
+    "ContentAdd",
+    "ContentAdded",
+    "ContentItem",
     "DrawingSubmit",
     "FightResponse",
     "FightStep",

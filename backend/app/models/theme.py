@@ -13,7 +13,8 @@ class ThemeHint(Base):
     e.g. "a challenger who burns dinner every night" for the volcano.
 
     Add rows any time; a hint is used from the day after it was created on,
-    so a day's picks never change.
+    and retired ones until the end of the day they were retired, so a day's
+    picks never change.
     """
 
     __tablename__ = "theme_hint"
@@ -34,11 +35,17 @@ class ThemeHint(Base):
         default=utc_now,
         server_default=func.now(),
     )
+    # When it was retired (see `app.routers.content`): it still counts for
+    # the rest of that day, like new rows count from the next one.
+    retired_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class PremadeTitle(Base):
     """A challenger title that stands in when nobody wrote one on a day of
-    the theme. Like hints, used from the day after it was created on."""
+    the theme. Like hints, used from the day after it was created on until
+    the day it was retired."""
 
     __tablename__ = "premade_title"
 
@@ -57,4 +64,9 @@ class PremadeTitle(Base):
         nullable=False,
         default=utc_now,
         server_default=func.now(),
+    )
+    # When it was retired (see `app.routers.content`): it still counts for
+    # the rest of that day, like new rows count from the next one.
+    retired_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )

@@ -10,7 +10,7 @@ import random
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models import ChallengerPrompt, PremadeTitle, Server, ServerSeat, ThemeHint
@@ -69,14 +69,19 @@ def _options(
     session: Session, server: Server, day: int, theme: Theme, column
 ) -> list[str]:
     """`theme`'s hints or premade titles (`column`) on `day`. Only rows
-    created before the day began count, so adding rows never changes a
-    day's picks."""
+    created before the day began count, and retired ones until the end of the
+    day they were retired, so adding or retiring rows never changes a day's
+    picks."""
     day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
     model = column.class_
     return list(
         session.scalars(
             select(column)
-            .where(model.theme == theme.value, model.created_at < day_start)
+            .where(
+                model.theme == theme.value,
+                model.created_at < day_start,
+                or_(model.retired_at.is_(None), model.retired_at >= day_start),
+            )
             .order_by(model.created_at, model.id)
         ).all()
     )
