@@ -372,6 +372,7 @@ class ApiGameSession extends GameSession {
               theme: _promptTheme,
               title: title,
               day: day,
+              hint: hint,
             );
       _promptToDraw = null;
       _yourChallenger = null;
@@ -380,6 +381,7 @@ class ApiGameSession extends GameSession {
         'subject_position': int drawnSubject,
         'title': String drawnTitle,
         'theme': String drawnTheme,
+        'hint': String? drawnHint,
         'premade': bool premade,
         'challenger': final challenger,
       }) {
@@ -390,6 +392,7 @@ class ApiGameSession extends GameSession {
           theme: _theme(drawnTheme),
           title: drawnTitle,
           day: day - 1,
+          hint: drawnHint,
           premade: premade,
         );
         if (challenger != null) _yourChallenger = await _loadCharacter(server, challenger, known: known);

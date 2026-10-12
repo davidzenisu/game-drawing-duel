@@ -128,9 +128,10 @@ day each player:
    and writes a challenger title for them. The challenger takes the theme of
    the day its heroes are picked, two days later, so each day's theme is the
    one of the challengers fought on it,
-2. draws the title the previous player wrote the day before; if they wrote
-   none, one of the theme's premade titles stands in, for a random person
-   other than them. The challenger
+2. draws the title the previous player wrote the day before, seeing the
+   description it was written for too; if they wrote none, one of the
+   theme's premade titles stands in, for a random person other than them.
+   The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool, which holds only the setup drawings.
 3. sends up to four characters of their collection against a random
@@ -186,9 +187,15 @@ insert into premade_title (theme, title) values ('volcano', 'Lord of the Office 
 
 `theme` is one of `forest`, `beach`, `volcano`, `snow`, `jungle`, `space` and
 `castle`; titles are at most 60 characters. A new row counts from the day
-after it was added, so the picks of a day never change. Which hint a player
-gets and which premade title stands in is random, but derived from the
-server, day and seat like the other daily picks.
+after it was added, so the picks of a day never change. The players take
+turns through a theme's hints in an order of their server's own: every week
+each player moves on by the same number of hints, at least the number of
+players and without a common factor with the number of hints. So on a day
+everyone gets a different hint, as long as the theme has at least as many
+hints as the server has players, and nobody gets one again before they had
+all of them; more hints mean more weeks without repeats. Which premade title
+stands in is random, but derived from the server, day and seat like the
+other daily picks.
 
 ### Gacha
 

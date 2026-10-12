@@ -359,14 +359,15 @@ class MockGameSession extends GameSession {
     _theme = _themeOfDay(_day);
     // Today's prompts are for challengers fought in two days, in that day's theme.
     _promptTheme = _themeOfDay(_day + 2);
-    final hints = _hints[_promptTheme]!;
-    _promptHint = hints[_random.nextInt(hints.length)];
+    // Everyone gets a different hint, as far as the theme has enough.
+    final hints = [..._hints[_promptTheme]!]..shuffle(_random);
+    _promptHint = hints.first;
     _hurrySentTo = null;
     final others = otherPlayers;
 
     // Step 1: everyone chooses a person and writes a title.
     _prompts[_day] = [
-      for (final author in others)
+      for (final (i, author) in others.indexed)
         ChallengerPrompt(
           id: 'prompt$_day-${author.id}',
           author: author,
@@ -374,6 +375,7 @@ class MockGameSession extends GameSession {
           theme: _promptTheme,
           title: _bots.title(),
           day: _day,
+          hint: hints[(i + 1) % hints.length],
         ),
     ];
 
@@ -507,6 +509,7 @@ class MockGameSession extends GameSession {
         theme: _promptTheme,
         title: title.trim(),
         day: _day,
+        hint: _promptHint,
       ),
     );
     notifyListeners();

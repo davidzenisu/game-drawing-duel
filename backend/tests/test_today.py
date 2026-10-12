@@ -121,6 +121,8 @@ class TodayTests(TodayTestCase):
         self.assertEqual(
             sam["to_draw"]["subject_position"], written["prompt"]["subject_position"]
         )
+        self.assertEqual(sam["to_draw"]["hint"], written["prompt"]["hint"])
+        self.assertIn(sam["to_draw"]["hint"], HINTS["volcano"])
         self.assertFalse(sam["to_draw"]["premade"])
         self.assertEqual(sam["to_draw"]["theme"], "volcano")
 
@@ -132,6 +134,7 @@ class TodayTests(TodayTestCase):
         self.assertIn(alex["title"], TITLES["volcano"])
         self.assertEqual(alex["theme"], "volcano")
         self.assertNotEqual(alex["subject_position"], 1)
+        self.assertIsNone(alex["hint"], "nobody got a description for it")
 
     def test_a_challenger_earns_a_pull_but_stays_out_of_the_pool(self) -> None:
         self.post("days/next")
@@ -261,6 +264,17 @@ class ThemeTests(TodayTestCase):
         self.assertEqual(wednesday["to_draw"]["title"], days.FALLBACK_TITLE)
         self.assertEqual(wednesday["to_draw"]["theme"], "snow")
 
+    def test_every_player_gets_another_hint_and_a_new_one_next_week(self) -> None:
+        monday = {s: self.today(s)["prompt"]["hint"] for s in (ADMIN, SAM)}
+        self.assertEqual(set(monday.values()), set(HINTS["volcano"]))
+        for _ in range(7):
+            self.post("days/next")
+        next_monday = {s: self.today(s)["prompt"] for s in (ADMIN, SAM)}
+        self.assertEqual(next_monday[ADMIN]["theme"], "volcano")
+        for subject in (ADMIN, SAM):
+            self.assertIn(next_monday[subject]["hint"], HINTS["volcano"])
+            self.assertNotEqual(next_monday[subject]["hint"], monday[subject])
+
     def test_new_hints_count_from_the_day_after_they_were_added(self) -> None:
         before = self.today()["prompt"]["hint"]
         with self.session_factory() as session:
@@ -272,7 +286,10 @@ class ThemeTests(TodayTestCase):
             server = session.scalar(select(Server).where(Server.code == self.code))
             self.assertNotIn(
                 "a brand new hint",
-                {days.prompt_hint(session, server, 1, s) for s in server.seats},
+                {
+                    days.prompt_hint(session, server, 1, s)
+                    for s in days.active_seats(server)
+                },
             )
 
     def test_the_theme_follows_the_weekday(self) -> None:

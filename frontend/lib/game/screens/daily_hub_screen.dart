@@ -74,6 +74,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               ? 'A premade prompt, as ${prompt.author.name} wrote none · ${prompt.theme.label}'
               : 'A challenger prompt by ${prompt.author.name} · ${prompt.theme.label}',
           rarity: Rarity.hero,
+          description: prompt.question,
           initialTitle: prompt.title,
           titleLocked: true,
           theme: prompt.theme,
@@ -204,7 +205,10 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? _unlocksOn(LoopStep.draw)
             : c.challengerDrawn
             ? 'Done. "${toDraw.title}" joined the challengers.'
-            : 'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 2 min · +1 pull',
+            : [
+                toDraw.question,
+                'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 2 min · +1 pull',
+              ].nonNulls.join(' '),
         done: c.challengerDrawn,
         onTap: toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
       ),

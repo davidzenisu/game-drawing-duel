@@ -29,6 +29,9 @@ class PromptToDrawResponse(BaseModel):
     title: str
     # An `app.rules.Theme`.
     theme: str
+    # The description the author chose the person and wrote the title for;
+    # null for a premade title.
+    hint: str | None
     # Nobody wrote it: a premade title stands in.
     premade: bool
     # What you drew, or null.

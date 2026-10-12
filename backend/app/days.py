@@ -4,6 +4,8 @@ Every choice is random but derived from the server, day and seat, so it
 stays the same on every request without being stored beforehand.
 """
 
+import hashlib
+import math
 import random
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
@@ -57,6 +59,23 @@ def challenger_theme(server: Server, prompt_day: int) -> Theme:
     return theme_of(server, prompt_day + HEROES_DAY_OFFSET)
 
 
+def _options(
+    session: Session, server: Server, day: int, theme: Theme, column
+) -> list[str]:
+    """`theme`'s hints or premade titles (`column`) on `day`. Only rows
+    created before the day began count, so adding rows never changes a
+    day's picks."""
+    day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
+    model = column.class_
+    return list(
+        session.scalars(
+            select(column)
+            .where(model.theme == theme.value, model.created_at < day_start)
+            .order_by(model.created_at, model.id)
+        ).all()
+    )
+
+
 def _pick(
     session: Session,
     server: Server,
@@ -66,15 +85,8 @@ def _pick(
     rng: random.Random,
 ) -> str | None:
     """One of `theme`'s hints or premade titles (`column`) on `day`, or None
-    if there are none. Only rows created before the day began count, so
-    adding rows never changes a day's pick."""
-    day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
-    model = column.class_
-    options = session.scalars(
-        select(column)
-        .where(model.theme == theme.value, model.created_at < day_start)
-        .order_by(model.created_at, model.id)
-    ).all()
+    if there are none."""
+    options = _options(session, server, day, theme, column)
     return rng.choice(options) if options else None
 
 
@@ -105,15 +117,25 @@ def prompt_hint(
     session: Session, server: Server, day: int, author: ServerSeat
 ) -> str | None:
     """The description `author` picks a person and writes a title for on
-    `day`: one of the hints of the challenger's theme."""
-    return _pick(
-        session,
-        server,
-        day,
-        challenger_theme(server, day),
-        ThemeHint.text,
-        _rng(server, day, author, "hint"),
-    )
+    `day`: one of the hints of the challenger's theme.
+
+    A theme's prompts are written once a week, and every week each player
+    moves on by the same number of hints, at least the number of players and
+    without a common factor with the number of hints. So everyone gets a
+    different hint (unless there are more players than hints), and nobody
+    gets one again before they had them all. The hints are in an order of
+    the server's own; new ones slot into it."""
+    theme = challenger_theme(server, day)
+    hints = _options(session, server, day, theme, ThemeHint.text)
+    if not hints:
+        return None
+    hints.sort(key=lambda hint: hashlib.sha256(f"{server.id}:{hint}".encode()).digest())
+    seats = active_seats(server)
+    step = len(seats)
+    while math.gcd(step, len(hints)) != 1:
+        step += 1
+    week = date_of_day(server, day).toordinal() // 7
+    return hints[(seats.index(author) + week * step) % len(hints)]
 
 
 def can_be_subject(author: ServerSeat, subject: ServerSeat) -> bool:
@@ -133,6 +155,8 @@ class PromptToDraw:
     subject: ServerSeat
     title: str
     theme: Theme
+    # The description the author chose the person and wrote the title for.
+    hint: str | None
     # Nobody wrote it: a premade title stands in.
     premade: bool
 
@@ -158,6 +182,7 @@ def prompt_to_draw(
             subject=seats[written.subject_seat_id],
             title=written.title,
             theme=Theme(written.theme),
+            hint=written.hint,
             premade=False,
         )
     theme = challenger_theme(server, day - 1)
@@ -168,5 +193,6 @@ def prompt_to_draw(
         subject=premade_subject(server, day - 1, author),
         title=title or FALLBACK_TITLE,
         theme=theme,
+        hint=None,
         premade=True,
     )

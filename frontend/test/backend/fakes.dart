@@ -480,6 +480,8 @@ class FakeBackend {
               'subject_position': written?.subject ?? subjectOf(author),
               'title': written?.title ?? 'Premade prompt',
               'theme': theme(today + 1),
+              // The hint the author got yesterday.
+              'hint': written == null ? null : 'a challenger on a ${theme(today + 1)} day',
               'premade': written == null,
               'challenger': _characters(
                 code,

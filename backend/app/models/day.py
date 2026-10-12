@@ -34,6 +34,9 @@ class ChallengerPrompt(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     # An `app.rules.Theme`.
     theme: Mapped[str] = mapped_column(String(20), nullable=False)
+    # The description the author chose the person and wrote the title for,
+    # if the theme had any.
+    hint: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

@@ -139,6 +139,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             subject_position=to_draw.subject.position,
             title=to_draw.title,
             theme=to_draw.theme.value,
+            hint=to_draw.hint,
             premade=to_draw.premade,
             challenger=character_response(drawn) if drawn else None,
         ),
@@ -235,6 +236,7 @@ def write_prompt(
             subject_seat_id=subject.id,
             title=body.title,
             theme=days.challenger_theme(server, day).value,
+            hint=days.prompt_hint(session, server, day, seat),
         )
     )
     try:

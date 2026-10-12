@@ -186,12 +186,16 @@ void main() {
     final you = game.you;
 
     // Day 1: write a prompt.
+    final hint = game.promptHint;
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
+    expect(game.yourPrompt?.hint, hint);
 
-    // Day 2: draw someone else's prompt from yesterday.
+    // Day 2: draw someone else's prompt from yesterday, with its description.
     await game.advanceDay();
     final toDraw = game.promptToDraw!;
     expect(toDraw.author.isYou, isFalse);
+    expect(toDraw.hint, isNotNull);
+    expect(toDraw.question, 'Who is ${toDraw.hint}?');
     expect(toDraw.day, 1);
     expect(toDraw.subject.id, isNot(you.id));
     final tickets = game.tickets;

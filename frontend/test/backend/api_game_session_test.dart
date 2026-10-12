@@ -485,8 +485,10 @@ void main() {
 
       final toDraw = sam.promptToDraw!;
       expect((toDraw.title, toDraw.author.name, toDraw.premade), ('The Owl King', 'Alex', false));
+      expect(toDraw.question, 'Who is a challenger on a volcano day?', reason: "the description Alex got");
       await admin.refreshDay();
       expect(admin.promptToDraw!.premade, isTrue, reason: 'Sam wrote nothing');
+      expect(admin.promptToDraw!.hint, isNull);
 
       await sam.submitChallenger(doodle);
       expect(sam.yourChallenger!.title, 'The Owl King');

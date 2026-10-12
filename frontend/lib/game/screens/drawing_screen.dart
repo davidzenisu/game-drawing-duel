@@ -26,6 +26,7 @@ class DrawingScreen extends StatefulWidget {
     required this.prompt,
     required this.hint,
     required this.rarity,
+    this.description,
     this.initialTitle = '',
     this.titleLocked = false,
     this.reference,
@@ -37,6 +38,10 @@ class DrawingScreen extends StatefulWidget {
   final String prompt;
   final String hint;
   final Rarity rarity;
+
+  /// The description the prompt was written for, e.g. "Who is a sauna
+  /// regular?", shown above it.
+  final String? description;
   final String initialTitle;
 
   /// The title was given by a prompt and can't be changed.
@@ -196,6 +201,8 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   StarRow(rarity: widget.rarity),
+                  if (widget.description case final description?)
+                    Text(description, style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
                   Text(widget.prompt, style: textTheme.titleMedium),
                   Text(widget.hint, style: textTheme.bodySmall),
                 ],
