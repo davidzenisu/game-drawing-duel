@@ -7,13 +7,18 @@ from app.schemas.character import CharacterResponse
 
 
 class YourPrompt(BaseModel):
-    """Step 1: the challenger title you write today."""
+    """Step 1: the person you choose for today's description, and the title
+    you write for them."""
 
-    subject_position: int
-    # What you wrote, or null.
-    title: str | None
-    # An idea for the title that fits today's theme, or null if there's none.
+    # The description to choose a person and write a title for, or null if
+    # there's none.
     hint: str | None
+    # The challenger's `app.rules.Theme`: the theme of the day its heroes are
+    # picked, two days from now.
+    theme: str
+    # Who you chose and what you wrote, or null.
+    subject_position: int | None
+    title: str | None
 
 
 class PromptToDrawResponse(BaseModel):
@@ -24,6 +29,9 @@ class PromptToDrawResponse(BaseModel):
     title: str
     # An `app.rules.Theme`.
     theme: str
+    # The description the author chose the person and wrote the title for;
+    # null for a premade title.
+    hint: str | None
     # Nobody wrote it: a premade title stands in.
     premade: bool
     # What you drew, or null.

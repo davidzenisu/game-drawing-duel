@@ -50,6 +50,9 @@ class DrawingSubmit(BaseModel):
 
 
 class PromptSubmit(BaseModel):
+    """Step 1: the person who fits the description best, and a title."""
+
+    subject_position: int
     title: Title
 
 

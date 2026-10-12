@@ -75,7 +75,7 @@ class FakeBackend {
   final Map<String, int> days = {};
 
   /// Written prompts by server code, author's seat and day.
-  final Map<(String, int, int), String> prompts = {};
+  final Map<(String, int, int), ({String title, int subject})> prompts = {};
 
   /// Fights by server code: owner seat, day, challenger, fighters and votes
   /// by voter seat.
@@ -406,20 +406,25 @@ class FakeBackend {
     switch ((method, path)) {
       case ('POST', ['today', 'prompt']):
         if (prompts.containsKey((code, yours, day))) return _json(409, {'detail': "You wrote today's prompt already"});
-        prompts[(code, yours, day)] = (body!['title'] as String).trim();
+        final subject = body!['subject_position'] as int;
+        if (subject == yours || subject >= server.seats.length) {
+          return _json(422, {'detail': 'Choose another player of the server'});
+        }
+        prompts[(code, yours, day)] = (title: (body['title'] as String).trim(), subject: subject);
       case ('PUT', ['today', 'challenger']):
         if (challenger() != null) return _json(409, {'detail': "You drew today's challenger already"});
         final written = prompts[(code, author, day - 1)];
         drawings[(code, 'challenger-$day-$yours')] = (
           character: {
             'id': 'challenger-$day-$yours',
-            'title': written ?? 'Premade prompt',
+            'title': written?.title ?? 'Premade prompt',
             'rarity': 'hero',
             'prompt': 'challenger',
             'artist_position': yours,
-            'subject_position': subjectOf(author),
+            'subject_position': written?.subject ?? subjectOf(author),
             'day': day,
-            'theme': theme(day - 1),
+            // A challenger takes the theme of the day its heroes are picked.
+            'theme': theme(day + 1),
           },
           sketch: body!['sketch'],
         );
@@ -463,17 +468,20 @@ class FakeBackend {
       'day': today,
       'theme': theme(today),
       'prompt': {
-        'subject_position': subjectOf(yours),
-        'title': prompts[(code, yours, today)],
-        'hint': 'a challenger on a ${theme(today)} day',
+        'hint': 'a challenger on a ${theme(today + 2)} day',
+        'theme': theme(today + 2),
+        'subject_position': prompts[(code, yours, today)]?.subject,
+        'title': prompts[(code, yours, today)]?.title,
       },
       'to_draw': today == 1
           ? null
           : {
               'author_position': author,
-              'subject_position': subjectOf(author),
-              'title': written ?? 'Premade prompt',
-              'theme': theme(today - 1),
+              'subject_position': written?.subject ?? subjectOf(author),
+              'title': written?.title ?? 'Premade prompt',
+              'theme': theme(today + 1),
+              // The hint the author got yesterday.
+              'hint': written == null ? null : 'a challenger on a ${theme(today + 1)} day',
               'premade': written == null,
               'challenger': _characters(
                 code,

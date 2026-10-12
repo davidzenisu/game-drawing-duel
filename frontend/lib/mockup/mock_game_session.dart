@@ -183,7 +183,7 @@ class MockGameSession extends GameSession {
     _challengers.clear();
     _fights.clear();
     _botRosters.clear();
-    _promptSubject = null;
+    _promptTheme = DailyTheme.forest;
     _promptHint = null;
     _promptToDraw = null;
     _fightChallenger = null;
@@ -284,8 +284,8 @@ class MockGameSession extends GameSession {
 
   /// The character you write today's prompt for.
   @override
-  Player get promptSubject => _promptSubject!;
-  Player? _promptSubject;
+  DailyTheme get promptTheme => _promptTheme;
+  DailyTheme _promptTheme = DailyTheme.forest;
 
   @override
   String? get promptHint => _promptHint;
@@ -346,31 +346,36 @@ class MockGameSession extends GameSession {
     return players[(players.indexOf(author) + 1) % players.length];
   }
 
+  /// The person a simulated player chooses: anyone but themselves.
   Player _randomSubject(Player author) {
-    final excluded = {author.id, _drawerOf(author).id};
-    final candidates = server.players.where((p) => !excluded.contains(p.id)).toList();
+    final candidates = server.players.where((p) => p.id != author.id).toList();
     return candidates[_random.nextInt(candidates.length)];
   }
 
+  DailyTheme _themeOfDay(int day) => DailyTheme.ofDate(_launchedOn.add(Duration(days: day - 1)));
+
   void _startDay() {
     _day++;
-    _theme = DailyTheme.ofDate(_launchedOn.add(Duration(days: _day - 1)));
-    final hints = _hints[_theme]!;
-    _promptHint = hints[_random.nextInt(hints.length)];
+    _theme = _themeOfDay(_day);
+    // Today's prompts are for challengers fought in two days, in that day's theme.
+    _promptTheme = _themeOfDay(_day + 2);
+    // Everyone gets a different hint, as far as the theme has enough.
+    final hints = [..._hints[_promptTheme]!]..shuffle(_random);
+    _promptHint = hints.first;
     _hurrySentTo = null;
     final others = otherPlayers;
 
-    // Step 1: everyone writes a prompt for today's theme.
-    _promptSubject = _randomSubject(you);
+    // Step 1: everyone chooses a person and writes a title.
     _prompts[_day] = [
-      for (final author in others)
+      for (final (i, author) in others.indexed)
         ChallengerPrompt(
           id: 'prompt$_day-${author.id}',
           author: author,
           subject: _randomSubject(author),
-          theme: _theme,
+          theme: _promptTheme,
           title: _bots.title(),
           day: _day,
+          hint: hints[(i + 1) % hints.length],
         ),
     ];
 
@@ -491,18 +496,20 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Step 1: write the title prompt for today's theme and character.
+  /// Step 1: choose a person and write their title.
   @override
-  Future<void> submitPrompt(String title) async {
+  Future<void> submitPrompt(String title, Player subject) async {
     if (yourPrompt != null) return;
+    if (subject.id == you.id) throw ArgumentError('Choose another player');
     _prompts[_day]!.add(
       ChallengerPrompt(
         id: 'prompt$_day-${you.id}',
         author: you,
-        subject: promptSubject,
-        theme: _theme,
+        subject: subject,
+        theme: _promptTheme,
         title: title.trim(),
         day: _day,
+        hint: _promptHint,
       ),
     );
     notifyListeners();

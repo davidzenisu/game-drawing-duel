@@ -123,9 +123,14 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         day=day,
         theme=days.theme_of(server, day).value,
         prompt=YourPrompt(
-            subject_position=days.prompt_subject(server, day, seat).position,
-            title=written.title if written else None,
             hint=days.prompt_hint(session, server, day, seat),
+            theme=days.challenger_theme(server, day).value,
+            subject_position=next(
+                s.position for s in server.seats if s.id == written.subject_seat_id
+            )
+            if written
+            else None,
+            title=written.title if written else None,
         ),
         to_draw=None
         if to_draw is None
@@ -134,6 +139,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             subject_position=to_draw.subject.position,
             title=to_draw.title,
             theme=to_draw.theme.value,
+            hint=to_draw.hint,
             premade=to_draw.premade,
             challenger=character_response(drawn) if drawn else None,
         ),
@@ -210,17 +216,27 @@ def get_today(code: Code, player: CurrentPlayer, session: DbSession) -> TodayRes
 def write_prompt(
     code: Code, body: PromptSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
-    """Step 1: writes today's challenger title; the next player draws it
-    tomorrow. Once a day."""
+    """Step 1: chooses the person who fits today's description best (anyone
+    but yourself) and writes their challenger title; the next player draws
+    it tomorrow. Once a day."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
+    subject = next(
+        (s for s in server.seats if s.position == body.subject_position), None
+    )
+    if subject is None or not days.can_be_subject(seat, subject):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Choose another player of the server",
+        )
     session.add(
         ChallengerPrompt(
             author_seat_id=seat.id,
             day=day,
-            subject_seat_id=days.prompt_subject(server, day, seat).id,
+            subject_seat_id=subject.id,
             title=body.title,
-            theme=days.theme_of(server, day).value,
+            theme=days.challenger_theme(server, day).value,
+            hint=days.prompt_hint(session, server, day, seat),
         )
     )
     try:

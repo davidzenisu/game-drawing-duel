@@ -28,6 +28,7 @@ class ChallengerPrompt {
     required this.theme,
     required this.title,
     required this.day,
+    this.hint,
     this.premade = false,
   });
 
@@ -37,6 +38,13 @@ class ChallengerPrompt {
   final DailyTheme theme;
   final String title;
   final int day;
+
+  /// The description [author] chose [subject] and wrote [title] for, e.g. "a
+  /// sauna regular"; null for a premade title.
+  final String? hint;
+
+  /// The question [author] answered, e.g. "Who is a sauna regular?".
+  String? get question => hint == null ? null : 'Who is $hint?';
 
   /// [author] wrote nothing that day, so a premade title stands in.
   final bool premade;
