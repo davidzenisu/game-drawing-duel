@@ -271,6 +271,7 @@ class ApiGameSession extends GameSession {
   Player? _hurrySentTo;
   List<HurryPlan> _incomingHurries = const [];
   FightSetup? _yourFight;
+  Set<String> _resting = const {};
   List<BoostTarget> _boostTargets = const [];
   String? _boostedChallengerId;
   List<FightSetup> _results = const [];
@@ -395,9 +396,11 @@ class ApiGameSession extends GameSession {
       _dayEnded = {for (final position in ended) _seat(server, position as int).id};
       _fightChallenger = null;
       _yourFight = null;
-      if (json['fight'] case {'challenger': final challenger, 'yours': final yours}) {
+      _resting = const {};
+      if (json['fight'] case {'challenger': final challenger, 'yours': final yours, 'resting': List resting}) {
         _fightChallenger = await _card(server, challenger);
         _yourFight = yours == null ? null : await _parseFight(server, yours);
+        _resting = {for (final id in resting) id as String};
       }
       _boostTargets = [
         for (final target in json['to_boost'] as List? ?? const [])
@@ -659,6 +662,9 @@ class ApiGameSession extends GameSession {
 
   @override
   FightSetup? get yourFight => _yourFight;
+
+  @override
+  Set<String> get restingCharacterIds => _resting;
 
   @override
   List<BoostTarget> get boostTargets => _boostTargets;

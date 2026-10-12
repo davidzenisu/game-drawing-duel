@@ -47,6 +47,12 @@ def theme_of(server: Server, day: int) -> Theme:
     return theme_of_date(date_of_day(server, day))
 
 
+def week_start(server: Server, day: int) -> int:
+    """The first day of the game in `day`'s week. Weeks start on Monday (UTC),
+    like the themes; the launch week may start before day 1."""
+    return day - date_of_day(server, day).weekday()
+
+
 # Heroes are picked against a challenger two days after its prompt was
 # written, the day whose theme the challenger takes.
 HEROES_DAY_OFFSET = 2

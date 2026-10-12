@@ -556,9 +556,17 @@ void main() {
       expect(admin.yourFight!.challenger.artist, 'Sam');
       final samsChallenger = admin.yourFight!.challenger.id;
       expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
+      expect(admin.restingCharacterIds, isEmpty);
+      for (final player in players) {
+        await player.submitChallenger(doodle);
+      }
 
-      // Day 4: Robin boosts Sam's challenger; Sam drew it and can't.
+      // Day 4: Alex's two fighters rest until Monday.
       await nextDay();
+      expect(admin.restingCharacterIds, {for (final o in admin.collection.take(2)) o.card.id});
+      expect(admin.availableFighters, hasLength(admin.collection.length - 2));
+
+      // Robin boosts Sam's challenger; Sam drew it and can't.
       expect(sam.boostTargets, isEmpty);
       expect(admin.boostTargets, isEmpty, reason: 'Alex fought it');
       final target = robin.boostTargets.single;

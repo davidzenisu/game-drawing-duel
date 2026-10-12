@@ -281,6 +281,27 @@ void main() {
     expect(game.pool, hasLength(pool));
   });
 
+  test('characters fight once a week, until Monday', () async {
+    // A Monday: day 3 is a Wednesday, day 8 the next Monday.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+    await game.advanceDay();
+    await game.advanceDay();
+    final fighters = game.collection.take(2).toList();
+    await game.submitFighters(fighters);
+    expect(game.restingCharacterIds, isEmpty, reason: 'they rest from tomorrow on');
+
+    await game.advanceDay();
+    expect(game.restingCharacterIds, {for (final o in fighters) o.card.id});
+    expect(game.availableFighters, isNot(contains(fighters.first)));
+    await expectLater(game.submitFighters([fighters.first]), throwsArgumentError);
+    await game.submitFighters(game.availableFighters.take(1).toList());
+
+    for (var day = 5; day <= 8; day++) {
+      await game.advanceDay();
+    }
+    expect(game.restingCharacterIds, isEmpty, reason: 'a new week');
+  });
+
   test('the theme follows the weekday, with a hint for it', () async {
     // A Friday: the misty jungle, then space on Saturday and the castle on Sunday.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 9, 12));

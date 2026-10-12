@@ -1,9 +1,10 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
 from app import fights
-from app.models import Boost, Fight, Server, ServerSeat
+from app.models import Boost, Fight, Fighter, Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_launch import LaunchTestCase
@@ -257,6 +258,82 @@ class ChallengerListTests(FightTestCase):
         self.assertFalse(pulled & challengers)
         pool = {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
         self.assertFalse(pool & challengers)
+
+
+class WeeklyRestTests(FightTestCase):
+    """Every character fights once a week, from Monday to Sunday (UTC)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # Day 1 is a Monday: days 1 to 7 are a week, day 8 starts the next.
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            server.launched_at = datetime(2026, 10, 5, 9, tzinfo=UTC)
+            session.commit()
+
+    def next_day(self):
+        # Everyone draws a challenger, so there's one to fight tomorrow.
+        for subject in PLAYERS:
+            self.client.put(
+                f"/servers/{self.code}/today/challenger",
+                json={"sketch": SKETCH},
+                headers=bearer(make_token(subject)),
+            )
+        return super().next_day()
+
+    def fighters_of(self, subject: str, day: int) -> set[str]:
+        with self.session_factory() as session:
+            return {
+                str(c)
+                for c in session.scalars(
+                    select(Fighter.character_id)
+                    .join(Fight, Fight.id == Fighter.fight_id)
+                    .join(ServerSeat, ServerSeat.id == Fight.owner_seat_id)
+                    .join(Server, Server.id == ServerSeat.server_id)
+                    .where(
+                        Server.code == self.code,
+                        ServerSeat.position == PLAYERS.index(subject),
+                        Fight.day == day,
+                    )
+                )
+            }
+
+    def test_characters_rest_until_monday_after_a_fight(self) -> None:
+        owned = self.owned()
+        self.assertEqual(self.today()["fight"]["resting"], [])
+        self.assertEqual(self.pick(owned[:2]).status_code, 200)
+        self.next_day()
+
+        # Day 4: the two fighters rest for the rest of the week.
+        self.assertEqual(set(self.today()["fight"]["resting"]), set(owned[:2]))
+        again = self.pick([owned[0], owned[2]])
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(
+            again.json()["detail"],
+            "Every character fights once a week; they're back on Monday",
+        )
+        self.assertEqual(self.pick(owned[2:3]).status_code, 200)
+
+        # Day 8 is the next Monday: everyone is back.
+        for _ in range(4):
+            self.next_day()
+        self.assertEqual(self.today()["day"], 8)
+        self.assertEqual(self.today()["fight"]["resting"], [])
+        self.assertEqual(self.pick(owned[:1]).status_code, 200)
+
+    def test_fighters_picked_by_chance_rest_too(self) -> None:
+        # Sam picks nobody on days 3 and 4, so chance does, from the
+        # characters that didn't fight yet that week.
+        self.next_day()
+        self.today(SAM)
+        day_three = self.fighters_of(SAM, 3)
+        self.assertTrue(day_three)
+        self.assertEqual(set(self.today(SAM)["fight"]["resting"]), day_three)
+        self.next_day()
+        self.today(SAM)
+        day_four = self.fighters_of(SAM, 4)
+        self.assertTrue(day_four)
+        self.assertFalse(day_three & day_four)
 
 
 class StackedHurryTests(FightTestCase):

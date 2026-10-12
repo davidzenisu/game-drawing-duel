@@ -206,6 +206,7 @@ def _fight_step(
         yours=None
         if yours is None
         else _fight_response(session, server, yours, seat, decided=False),
+        resting=sorted(fights.resting(session, server, seat, day), key=str),
     )
 
 
@@ -308,7 +309,7 @@ def pick_fighters(
     code: Code, body: FightersSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
     """Step 3: sends up to four of your characters against today's
-    challenger. Once a day."""
+    challenger. Once a day, and every character once a week."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
     challenger = fights.fight_challenger(session, server, day, seat)
@@ -324,6 +325,11 @@ def pick_fighters(
     if fighters is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You can only send your own characters"
+        )
+    if fights.resting(session, server, seat, day) & set(body.character_ids):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Every character fights once a week; they're back on Monday",
         )
     fights.new_fight(session, seat, day, challenger, fighters)
     try:

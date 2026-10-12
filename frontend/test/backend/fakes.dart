@@ -511,6 +511,12 @@ class FakeBackend {
             for (final f in fights[code] ?? const [])
               if (f.owner == yours && f.day == today) fightJson(f, decided: false),
           ].firstOrNull,
+          // Day 1 is a Monday in the fake, so weeks start on days 1, 8, ...
+          'resting': {
+            for (final f in fights[code] ?? const [])
+              if (f.owner == yours && f.day < today && f.day >= today - (today - 1) % 7)
+                for (final c in f.fighters) c['id'],
+          }.toList(),
         },
       },
       'to_boost': [
