@@ -132,31 +132,49 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: locked != null
-                  ? const Text('The other players vote tomorrow on who would win.', textAlign: TextAlign.center)
-                  : Row(
+                  ? Text(
+                      '${locked.fighterStars} ★ against ${Stars.challengerBase} ★. The others may boost the challenger tomorrow; '
+                      'the day after, the stars decide.',
+                      textAlign: TextAlign.center,
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _openRoster,
-                            icon: const Icon(Icons.groups_rounded),
-                            label: const Text('Roster'),
-                          ),
+                        Text(
+                          'Bring more than ${Stars.challengerBase} ★: ties go to the challenger, and the others may '
+                          'boost it tomorrow.',
+                          textAlign: TextAlign.center,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: _picked.isEmpty
-                                ? null
-                                : () async {
-                                    final locked = await runGameAction(
-                                      context,
-                                      () => controller.submitFighters(_picked),
-                                    );
-                                    if (locked && context.mounted) Navigator.of(context).pop(true);
-                                  },
-                            icon: const Icon(Icons.lock_rounded),
-                            label: Text('Lock in ${_picked.length}/${FightSetup.maxFighters}'),
-                          ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _openRoster,
+                                icon: const Icon(Icons.groups_rounded),
+                                label: const Text('Roster'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: _picked.isEmpty
+                                    ? null
+                                    : () async {
+                                        final locked = await runGameAction(
+                                          context,
+                                          () => controller.submitFighters(_picked),
+                                        );
+                                        if (locked && context.mounted) Navigator.of(context).pop(true);
+                                      },
+                                icon: const Icon(Icons.lock_rounded),
+                                label: Text(
+                                  'Lock in ${_picked.length}/${FightSetup.maxFighters} · '
+                                  '${Stars.ofTeam(_picked.map((o) => o.card.rarity))} ★',
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

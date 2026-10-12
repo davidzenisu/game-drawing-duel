@@ -6,16 +6,41 @@ import 'upgrades.dart';
 
 /// Every challenger goes through a 4 day loop, and every day each player
 /// works on a different stage of it:
-///   1. write a title prompt for a theme and a character,
+///   1. choose a player for a description and write their challenger title,
 ///   2. draw a challenger from a prompt someone wrote the day before,
 ///   3. pick up to four fighters against a challenger drawn the day before,
-///   4. vote on the fights the others set up the day before.
-/// Afterwards the fights play out and everyone involved sees the outcome.
+///   4. boost one of the challengers the others fought the day before.
+/// The day after, the stars decide the fights and everyone involved sees
+/// the outcome.
 abstract final class LoopStep {
   static const prompt = 1;
   static const draw = 2;
   static const fight = 3;
-  static const vote = 4;
+  static const boost = 4;
+
+  /// The first day with decided fights.
+  static const results = 5;
+}
+
+/// Stars decide the fights: the fighters' rarities against the challenger's
+/// stars, which grow with every boost.
+abstract final class Stars {
+  /// A challenger's stars before boosts.
+  static const challengerBase = 3;
+
+  /// The stars [boosts] add to a challenger: the first adds 1, the second 2,
+  /// the third 3, and so on (1, 3, 6, … in total).
+  static int ofBoosts(int boosts) => boosts * (boosts + 1) ~/ 2;
+
+  /// A challenger's stars with [boosts].
+  static int ofChallenger(int boosts) => challengerBase + ofBoosts(boosts);
+
+  /// The stars of a team: its rarities'. Upgrades don't count (yet).
+  static int ofTeam(Iterable<Rarity> team) => team.fold(0, (sum, rarity) => sum + rarity.stars);
+
+  /// The fighters win with more stars than the boosted challenger; ties go
+  /// to the challenger.
+  static bool fightersWin(int fighterStars, int boosts) => fighterStars > ofChallenger(boosts);
 }
 
 /// The time limit for drawing a challenger.
@@ -66,7 +91,8 @@ class FighterEntry {
 }
 
 /// Step 3 of the daily loop: up to four fighters against a new challenger.
-/// The other players vote on the winner the next day (step 4).
+/// The other players may boost the challenger the next day (step 4), and the
+/// day after, the stars decide.
 class FightSetup {
   FightSetup({
     required this.id,
@@ -74,6 +100,7 @@ class FightSetup {
     required this.challenger,
     required this.fighters,
     required this.day,
+    this.boosts = 0,
   }) : assert(fighters.isNotEmpty && fighters.length <= maxFighters);
 
   static const maxFighters = 4;
@@ -86,34 +113,28 @@ class FightSetup {
   /// The day the fighters were picked.
   final int day;
 
-  /// Voter id to whether they think the fighters win.
-  final Map<String, bool> votes = {};
+  /// How many players boosted the challenger. Online, it's only known once
+  /// the fight is decided.
+  int boosts;
 
-  int get fighterVotes => votes.values.where((v) => v).length;
+  int get fighterStars => Stars.ofTeam(fighters.map((f) => f.card.rarity));
 
-  int get challengerVotes => votes.length - fighterVotes;
+  int get challengerStars => Stars.ofChallenger(boosts);
 
   /// Ties go to the challenger.
-  bool get fightersWin => fighterVotes > challengerVotes;
-
-  /// How strong a fighter of each rarity is, for [fighterOdds].
-  static const rarityPower = {Rarity.basic: 1.0, Rarity.adventurer: 1.5, Rarity.hero: 2.2, Rarity.legend: 3.2};
-
-  /// Extra power per unlocked upgrade.
-  static const upgradePower = 0.3;
-
-  /// How strong the challenger is against the whole team.
-  static const challengerPower = 5.0;
-
-  /// How likely the fighters win a vote decided by chance (and a simulated
-  /// player thinks they win). The server decides missing votes the same way.
-  double get fighterOdds {
-    final team = fighters.fold(0.0, (sum, f) => sum + rarityPower[f.card.rarity]! + f.effects.length * upgradePower);
-    return team / (team + challengerPower);
-  }
+  bool get fightersWin => Stars.fightersWin(fighterStars, boosts);
 }
 
-/// A challenger you encountered (drew, fought against or voted on) and how
+/// Step 4 of the daily loop: one of yesterday's challengers you may boost,
+/// with the teams that were sent against it.
+class BoostTarget {
+  const BoostTarget({required this.challenger, required this.matchups});
+
+  final CharacterCard challenger;
+  final List<FightSetup> matchups;
+}
+
+/// A challenger you encountered (drew, fought against or boosted) and how
 /// it fared in its decided fights. Challengers aren't part of the gacha pool.
 class ChallengerRecord {
   const ChallengerRecord({required this.card, required this.fights, required this.wins});
@@ -160,7 +181,7 @@ class FightBeat {
 abstract final class FightScript {
   static const maxHp = 100;
 
-  /// A fight that ends with the outcome the votes decided. The fighters
+  /// A fight that ends with the outcome the stars decided. The fighters
   /// attack together, the challenger strikes one of them back.
   static List<FightBeat> build({required int fighterCount, required bool fightersWin, Random? random}) {
     final rng = random ?? Random();
@@ -203,7 +224,7 @@ abstract final class FightScript {
     return beats;
   }
 
-  /// A few undecided exchanges for the voting screen. Nobody drops low
+  /// A few undecided exchanges for the boost screen. Nobody drops low
   /// enough to give the outcome away.
   static List<FightBeat> skirmish({required int fighterCount, Random? random}) {
     final rng = random ?? Random();

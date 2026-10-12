@@ -9,6 +9,7 @@ import '../widgets/game_action.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
+import 'boost_screen.dart';
 import 'challengers_screen.dart';
 import 'collection_screen.dart';
 import 'drawing_screen.dart';
@@ -16,7 +17,6 @@ import 'fight_setup_screen.dart';
 import 'gacha_screen.dart';
 import 'prompt_screen.dart';
 import 'results_screen.dart';
-import 'vote_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
 class DailyHubScreen extends StatefulWidget {
@@ -221,29 +221,29 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? _unlocksOn(LoopStep.fight)
             : fight != null
             ? 'Locked in ${fight.fighters.length} fighters against ${fight.challenger.subject}.'
-            : 'Send up to 4 fighters against a new challenger. The others vote tomorrow.',
+            : 'Beat a new challenger\'s ${Stars.challengerBase} ★ with up to 4 fighters. The others may boost it tomorrow.',
         done: fight != null,
         onTap: c.fightChallenger == null ? null : () => _openStep(FightSetupScreen(controller: c)),
       ),
       _ActionCard(
-        icon: Icons.how_to_vote_rounded,
-        step: LoopStep.vote,
-        title: 'Vote: who would win?',
-        subtitle: !c.stepUnlocked(LoopStep.vote) || c.fightsToVote.isEmpty
-            ? _unlocksOn(LoopStep.vote)
-            : c.votesLeft == 0
-            ? 'All ${c.fightsToVote.length} votes cast.'
-            : '${c.votesLeft} of yesterday\'s fights waiting for your vote.',
-        done: c.fightsToVote.isNotEmpty && c.votesLeft == 0,
-        badge: c.votesLeft,
-        onTap: c.fightsToVote.isEmpty ? null : () => _openStep(VoteScreen(controller: c)),
+        icon: Icons.keyboard_double_arrow_up_rounded,
+        step: LoopStep.boost,
+        title: 'Boost a challenger',
+        subtitle: !c.stepUnlocked(LoopStep.boost) || c.boostTargets.isEmpty
+            ? _unlocksOn(LoopStep.boost)
+            : c.boostedChallengerId != null
+            ? 'Boosted for today.'
+            : 'Pick one of yesterday\'s ${c.boostTargets.length} challengers to boost: +1 ★, +2 ★, +3 ★ …',
+        done: c.boostedChallengerId != null,
+        badge: c.canBoost ? 1 : 0,
+        onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c)),
       ),
       _ActionCard(
         icon: Icons.sports_martial_arts_rounded,
         title: 'Battle results',
         subtitle: hasResults
             ? 'Watch the fights of your fighters and your challenger.'
-            : 'Your first results arrive on day ${LoopStep.vote}.',
+            : 'Your first results arrive on day ${LoopStep.results}.',
         onTap: hasResults ? () => _openStep(ResultsScreen(controller: c)) : null,
       ),
     ];
@@ -326,7 +326,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                             icon: Icons.shield_rounded,
                             title: 'Challengers',
                             subtitle: _controller.challengers.isEmpty
-                                ? 'The challengers you draw, fight and vote on, with their win rates.'
+                                ? 'The challengers you draw, fight and boost, with their win rates.'
                                 : '${_controller.challengers.length} encountered · see how they fare',
                             onTap: () => _open(ChallengersScreen(controller: _controller)),
                           ),

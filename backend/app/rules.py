@@ -20,6 +20,11 @@ class Rarity(StrEnum):
     HERO = "hero"
     LEGEND = "legend"
 
+    @property
+    def stars(self) -> int:
+        """1 for a basic up to 4 for a legend."""
+        return list(Rarity).index(self) + 1
+
 
 class SetupPrompt(StrEnum):
     """The default prompts of the initial drawing setup."""
@@ -177,26 +182,29 @@ def theme_of_date(day: date) -> Theme:
 # Up to this many fighters face a challenger.
 MAX_FIGHTERS = 4
 
-# How strong a fighter of each rarity is, see `fighter_odds`.
-RARITY_POWER = {
-    Rarity.BASIC: 1.0,
-    Rarity.ADVENTURER: 1.5,
-    Rarity.HERO: 2.2,
-    Rarity.LEGEND: 3.2,
-}
-# Extra power per unlocked upgrade.
-UPGRADE_POWER = 0.3
-# How strong the challenger is against the whole team.
-CHALLENGER_POWER = 5.0
+# The stars of a challenger before boosts.
+CHALLENGER_STARS = 3
 
 
-def fighter_odds(fighters: list[tuple[Rarity, int]]) -> float:
-    """How likely the fighters win a vote decided by chance, from each
-    fighter's rarity and number of unlocked upgrades."""
-    team = sum(
-        RARITY_POWER[rarity] + upgrades * UPGRADE_POWER for rarity, upgrades in fighters
-    )
-    return team / (team + CHALLENGER_POWER)
+def boost_stars(boosts: int) -> int:
+    """The stars `boosts` add to a challenger: the first adds 1, the second 2,
+    the third 3, and so on (1, 3, 6, … in total)."""
+    return boosts * (boosts + 1) // 2
+
+
+def team_stars(team: list[Rarity]) -> int:
+    """The stars of a team: its rarities'. Upgrades don't count (yet)."""
+    return sum(r.stars for r in team)
+
+
+def challenger_stars(boosts: int) -> int:
+    return CHALLENGER_STARS + boost_stars(boosts)
+
+
+def fighters_win(fighter_stars: int, boosts: int) -> bool:
+    """The fighters win with more stars than the boosted challenger; ties go
+    to the challenger."""
+    return fighter_stars > challenger_stars(boosts)
 
 
 # The time limit for drawing a challenger.

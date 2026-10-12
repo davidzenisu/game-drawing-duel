@@ -20,7 +20,8 @@ from app.models.character import Character
 
 class Fight(Base):
     """Step 3 of the daily loop: up to four fighters a seat sent against a
-    challenger drawn the day before. The others vote on it the next day."""
+    challenger drawn the day before. The others may boost the challenger the
+    next day; the day after, the stars decide."""
 
     __tablename__ = "fight"
     __table_args__ = (UniqueConstraint("owner_seat_id", "day"),)
@@ -76,21 +77,23 @@ class Fighter(Base):
     character: Mapped[Character] = relationship()
 
 
-class Vote(Base):
-    """Step 4: whether a seat thinks the fighters beat the challenger."""
+class Boost(Base):
+    """Step 4: a seat's daily boost for one of the day before's challengers.
+    Each boost adds more stars than the one before, see `rules.boost_stars`."""
 
-    __tablename__ = "vote"
-    __table_args__ = (UniqueConstraint("fight_id", "voter_seat_id"),)
+    __tablename__ = "boost"
+    __table_args__ = (UniqueConstraint("booster_seat_id", "day"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    fight_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("fight.id", ondelete="CASCADE"), nullable=False
-    )
-    voter_seat_id: Mapped[uuid.UUID] = mapped_column(
+    booster_seat_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
-    fighters_win: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    voted_at: Mapped[datetime] = mapped_column(
+    challenger_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("character.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # The day of the boost, the day after the challenger's fights.
+    day: Mapped[int] = mapped_column(Integer, nullable=False)
+    boosted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=utc_now,

@@ -6,6 +6,8 @@ from app.schemas.character import (
     SketchData,
 )
 from app.schemas.day import (
+    BoostSubmit,
+    BoostTarget,
     ChallengerResponse,
     FighterResponse,
     FightersSubmit,
@@ -16,7 +18,6 @@ from app.schemas.day import (
     OutcomeResponse,
     PromptToDrawResponse,
     TodayResponse,
-    VoteSubmit,
     YourPrompt,
 )
 from app.schemas.gacha import (
@@ -37,6 +38,8 @@ from app.schemas.server import (
 
 __all__ = [
     "AssignmentResponse",
+    "BoostSubmit",
+    "BoostTarget",
     "ChallengerResponse",
     "ChallengerSubmit",
     "CharacterResponse",
@@ -63,6 +66,5 @@ __all__ = [
     "SketchData",
     "TodayResponse",
     "UpgradeRequest",
-    "VoteSubmit",
     "YourPrompt",
 ]

@@ -25,21 +25,23 @@ FightSetup _fight(int fighters) => FightSetup(
 );
 
 void main() {
-  test('votes decide the winner, ties go to the challenger', () {
-    final fight = _fight(2);
-    fight.votes.addAll({'a': true, 'b': false});
-    expect(fight.fightersWin, isFalse);
-    fight.votes['c'] = true;
-    expect(fight.fightersWin, isTrue);
-    expect(fight.fighterVotes, 2);
-    expect(fight.challengerVotes, 1);
+  test('stars decide the winner, ties go to the challenger', () {
+    // Heroes have 3 stars, like a challenger before boosts.
+    expect((_fight(1).fighterStars, _fight(1).challengerStars), (3, 3));
+    expect(_fight(1).fightersWin, isFalse);
+    expect(_fight(2).fightersWin, isTrue);
+    // Two boosts add 1 + 2 stars.
+    final boosted = _fight(2)..boosts = 2;
+    expect((boosted.fighterStars, boosted.challengerStars), (6, 6));
+    expect(boosted.fightersWin, isFalse);
+    expect((_fight(4)..boosts = 2).fightersWin, isTrue);
   });
 
-  test('more and rarer fighters have better odds', () {
-    expect(_fight(4).fighterOdds, greaterThan(_fight(1).fighterOdds));
+  test('every boost adds a star more than the one before', () {
+    expect([for (var n = 0; n <= 4; n++) Stars.ofBoosts(n)], [0, 1, 3, 6, 10]);
   });
 
-  test('fight scripts always end with the voted outcome', () {
+  test('fight scripts always end with the decided outcome', () {
     for (var fighters = 1; fighters <= FightSetup.maxFighters; fighters++) {
       for (final fightersWin in [true, false]) {
         for (var seed = 0; seed < 100; seed++) {

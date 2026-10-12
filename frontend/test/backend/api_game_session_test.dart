@@ -517,7 +517,7 @@ void main() {
       expect(admin.incomingHurries, isEmpty);
     });
 
-    test('fighters on day 3, votes on day 4 and the outcome on day 5', () async {
+    test('fighters on day 3, boosts on day 4 and the outcome on day 5', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       final sam = await signedUp('sam', 'Sam');
       final robin = await signedUp('robin', 'Robin');
@@ -557,27 +557,32 @@ void main() {
       final samsChallenger = admin.yourFight!.challenger.id;
       expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
 
-      // Day 4: Robin votes; Sam drew the challenger and doesn't.
+      // Day 4: Robin boosts Sam's challenger; Sam drew it and can't.
       await nextDay();
-      expect(sam.fightsToVote, isEmpty);
-      final fight = robin.fightsToVote.single;
-      expect(fight.owner.name, 'Alex');
-      expect(robin.hasVoted(fight), isFalse);
+      expect(sam.boostTargets, isEmpty);
+      expect(admin.boostTargets, isEmpty, reason: 'Alex fought it');
+      final target = robin.boostTargets.single;
+      expect(target.challenger.id, samsChallenger);
+      expect(target.matchups.single.owner.name, 'Alex');
+      expect(robin.canBoost, isTrue);
       expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
-      await robin.vote(fight, fightersWin: true);
-      expect(robin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'voted on');
-      expect(robin.hasVoted(fight), isTrue, reason: 'the shown fight knows the vote too');
-      expect(robin.votesLeft, 0);
+      await robin.boost(target.challenger);
+      final post = backend.requests.lastWhere((r) => r.method == 'POST');
+      expect(post.url.path, '/servers/123456/today/boosts');
+      expect(jsonDecode(post.body), {'challenger_id': samsChallenger});
+      expect(robin.boostedChallengerId, samsChallenger);
+      expect(robin.canBoost, isFalse);
+      expect(robin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'boosted');
 
-      // Day 5: decided.
+      // Day 5: decided by the stars, 4 against the boosted challenger's 3 + 1.
       await nextDay();
       final result = admin.yourFightResults.single;
-      expect(result.fightersWin, isTrue);
-      expect((result.fighterVotes, result.challengerVotes), (1, 0));
+      expect((result.boosts, result.challengerStars), (1, 4));
+      expect(result.fightersWin, result.fighterStars > 4);
       expect(sam.yourChallengerResults.single.id, result.id);
       expect(robin.yourFightResults, isEmpty);
       final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);
-      expect((record.fights, record.wins, record.winRate), (1, 0, 0.0), reason: "Alex's fighters won");
+      expect((record.fights, record.wins), (1, result.fightersWin ? 0 : 1));
     });
 
     test('a reload keeps the upgrades and the chosen element', () async {

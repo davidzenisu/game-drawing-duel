@@ -7,7 +7,7 @@ Game Drawing Duel is a daily, sketch-based competitive game where players draw c
 - Daily prompt and challenger assignment
 - One quick drawing pass each cycle
 - Party-building battle phase
-- Vote-based resolution at the end of the round
+- Boosts for the challengers, and the stars decide the fights
 
 ## Design docs
 
@@ -93,7 +93,7 @@ drawings start their collection.
 Any player who joined can cancel the server at any point of the game, e.g. when
 dropping out (the app asks twice, the second time after a 10-second
 countdown). All its game data is deleted: drawings (also from storage),
-pulls, upgrades, prompts, fights, votes and hurries. The server and its seats
+pulls, upgrades, prompts, fights, boosts and hurries. The server and its seats
 stay, with `phase` `cancelled` and `cancelled_by` naming who cancelled, so the
 other players find out when they return: any other request for the server
 answers `410 Gone`, and the app shows who cancelled it, dismisses it and goes
@@ -136,18 +136,20 @@ day each player:
    join the gacha pool, which holds only the setup drawings.
 3. sends up to four characters of their collection against a random
    challenger drawn the day before (not their own),
-4. votes on the day before's fights, except their own and those against
-   their challenger: do the fighters beat the challenger?
+4. browses the day before's challengers and the teams sent against them,
+   all but the one they drew and the one they fought, and boosts one of them.
 
-A fight is decided once its voting day is over, i.e. two days after the
-fighters were picked; ties go to the challenger. Whatever a player leaves
-out is decided by chance: a player who picked no fighters gets random ones
-from their collection (stored the first time the next day is opened), and a
-missing vote is random, weighted by the team's strength
-(`rules.fighter_odds`, shared with the mockup).
+A fight is decided once its boosting day is over, i.e. two days after the
+fighters were picked, by stars: the fighters' rarities (1 for a basic up to
+4 for a legend; upgrades don't count yet) against the challenger's 3 plus
+its boosts. Every boost adds a star more than the one before (+1, +2, +3, …,
+so 1, 3, 6 in total). The fighters need more stars to win; ties go to the
+challenger (`rules.fighters_win`, shared with the mockup). A player who
+picked no fighters gets random ones from their collection (stored the first
+time the next day is opened).
 
-The random picks are derived from the server, day and seat (or fight), so
-they stay the same without being stored ahead of time.
+The random picks are derived from the server, day and seat, so they stay the
+same without being stored ahead of time.
 
 Every day each player can also send one free hurry to another player: at a
 random moment between a quarter and 60% of the time limit, it takes 10% of
@@ -157,13 +159,13 @@ hits (`GET today` lists them as `incoming_hurries`).
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the fights to vote on and your decided fights |
+| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the challengers to boost (with the fights against them) and your decided fights |
 | `POST /servers/{code}/today/prompt` | Choose a person for today's description (`subject_position`, anyone but you) and write their challenger title, once |
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
-| `POST /servers/{code}/today/votes/{fight}` | Vote on one of yesterday's fights, once |
+| `POST /servers/{code}/today/boosts` | Boost one of yesterday's challengers (`challenger_id`), once a day |
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
-| `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or voted on), newest first, with their decided fights and wins |
+| `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
 

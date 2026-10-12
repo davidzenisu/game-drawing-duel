@@ -46,8 +46,13 @@ class FighterResponse(BaseModel):
 
 
 class OutcomeResponse(BaseModel):
-    fighter_votes: int
-    challenger_votes: int
+    """The stars decide: the fighters win with more than the challenger."""
+
+    # The fighters' stars: their rarities' (upgrades don't count yet).
+    fighter_stars: int
+    # How many players boosted the challenger, and its stars with the boosts.
+    boosts: int
+    challenger_stars: int
     # Ties go to the challenger.
     fighters_win: bool
 
@@ -61,11 +66,16 @@ class FightResponse(BaseModel):
     fighters: list[FighterResponse]
     # The owner picked nobody, so chance did.
     by_chance: bool
-    # What you voted, or null.
-    your_vote: bool | None
-    # Once the voting day is over: the votes, including the ones decided by
-    # chance for everyone who didn't vote.
+    # Once the boosting day is over: the stars of both sides.
     outcome: OutcomeResponse | None
+
+
+class BoostTarget(BaseModel):
+    """Step 4: one of yesterday's challengers you may boost, with the teams
+    that were sent against it."""
+
+    challenger: CharacterResponse
+    matchups: list[FightResponse]
 
 
 class FightStep(BaseModel):
@@ -92,8 +102,10 @@ class TodayResponse(BaseModel):
     prompt: YourPrompt
     to_draw: PromptToDrawResponse | None
     fight: FightStep | None
-    # Step 4: yesterday's fights you vote on.
-    to_vote: list[FightResponse]
+    # Step 4: yesterday's challengers you may boost, all but the one you drew
+    # and the one you fought, and the one you boosted today if you did.
+    to_boost: list[BoostTarget]
+    boosted: uuid.UUID | None
     # Decided fights you picked the fighters for, or drew the challenger of.
     results: list[FightResponse]
     # The seat you sent today's free hurry to.
@@ -118,8 +130,8 @@ class FightersSubmit(BaseModel):
     character_ids: list[uuid.UUID] = Field(min_length=1, max_length=MAX_FIGHTERS)
 
 
-class VoteSubmit(BaseModel):
-    fighters_win: bool
+class BoostSubmit(BaseModel):
+    challenger_id: uuid.UUID
 
 
 class HurrySubmit(BaseModel):
