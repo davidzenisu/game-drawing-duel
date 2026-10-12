@@ -6,14 +6,23 @@ stays the same on every request without being stored beforehand.
 
 import random
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import ChallengerPrompt, Server, ServerSeat
-from app.premade_prompts import PREMADE_PROMPTS
-from app.rules import Theme, theme_of_day
+from app.models import ChallengerPrompt, PremadeTitle, Server, ServerSeat, ThemeHint
+from app.rules import Theme, theme_of_date
+
+# Stands in if the database has no premade title for a theme yet.
+FALLBACK_TITLE = "The Mystery Challenger"
+
+
+def _launch_date(server: Server) -> date:
+    launched = server.launched_at
+    if launched.tzinfo is None:  # SQLite drops the time zone.
+        launched = launched.replace(tzinfo=UTC)
+    return launched.astimezone(UTC).date()
 
 
 def current_day(server: Server, now: datetime | None = None) -> int:
@@ -21,11 +30,35 @@ def current_day(server: Server, now: datetime | None = None) -> int:
     test sessions when the admin or everyone ends the day."""
     if server.is_test:
         return server.test_day or 1
-    launched = server.launched_at
-    if launched.tzinfo is None:  # SQLite drops the time zone.
-        launched = launched.replace(tzinfo=UTC)
     today = (now or datetime.now(UTC)).astimezone(UTC).date()
-    return (today - launched.astimezone(UTC).date()).days + 1
+    return (today - _launch_date(server)).days + 1
+
+
+def date_of_day(server: Server, day: int) -> date:
+    """The calendar day (UTC) a day of the game falls on. Test sessions count
+    on from their launch date as the days advance."""
+    return _launch_date(server) + timedelta(days=day - 1)
+
+
+def theme_of(server: Server, day: int) -> Theme:
+    """The theme of a day of the game: the one of its weekday."""
+    return theme_of_date(date_of_day(server, day))
+
+
+def _pick(
+    session: Session, server: Server, day: int, column, rng: random.Random
+) -> str | None:
+    """One of the theme's hints or premade titles (`column`) for `day`, or
+    None if there are none. Only rows created before the day began count, so
+    adding rows never changes a day's pick."""
+    day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
+    model = column.class_
+    options = session.scalars(
+        select(column)
+        .where(model.theme == theme_of(server, day).value, model.created_at < day_start)
+        .order_by(model.created_at, model.id)
+    ).all()
+    return rng.choice(options) if options else None
 
 
 def active_seats(server: Server) -> list[ServerSeat]:
@@ -49,6 +82,13 @@ def author_for(server: Server, drawer: ServerSeat) -> ServerSeat:
 
 def _rng(server: Server, day: int, seat: ServerSeat, purpose: str) -> random.Random:
     return random.Random(f"{server.id}:{day}:{seat.id}:{purpose}")
+
+
+def prompt_hint(
+    session: Session, server: Server, day: int, author: ServerSeat
+) -> str | None:
+    """An idea for the title `author` writes on `day`, one of the theme's."""
+    return _pick(session, server, day, ThemeHint.text, _rng(server, day, author, "hint"))
 
 
 def prompt_subject(server: Server, day: int, author: ServerSeat) -> ServerSeat:
@@ -92,11 +132,12 @@ def prompt_to_draw(
             theme=Theme(written.theme),
             premade=False,
         )
-    theme = theme_of_day(day - 1)
+    rng = _rng(server, day - 1, author, "premade")
+    title = _pick(session, server, day - 1, PremadeTitle.title, rng)
     return PromptToDraw(
         author=author,
         subject=prompt_subject(server, day - 1, author),
-        title=_rng(server, day - 1, author, "premade").choice(PREMADE_PROMPTS[theme]),
-        theme=theme,
+        title=title or FALLBACK_TITLE,
+        theme=theme_of(server, day - 1),
         premade=True,
     )

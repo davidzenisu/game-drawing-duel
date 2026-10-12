@@ -99,8 +99,10 @@ void main() {
 
   test('themes', () {
     expect([for (final t in DailyTheme.values) t.name], rules['themes']);
-    expect(DailyTheme.ofDay(1), DailyTheme.forest);
-    expect(DailyTheme.ofDay(DailyTheme.values.length + 2), DailyTheme.beach);
+    // One per weekday, from Monday (2026-10-05) to Sunday.
+    final week = [for (var i = 0; i < 7; i++) DailyTheme.ofDate(DateTime.utc(2026, 10, 5 + i))];
+    expect(week, DailyTheme.values);
+    expect(DailyTheme.ofDate(DateTime.utc(2026, 10, 12)), DailyTheme.forest);
   });
 
   group('gacha', () {

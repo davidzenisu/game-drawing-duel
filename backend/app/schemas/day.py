@@ -12,6 +12,8 @@ class YourPrompt(BaseModel):
     subject_position: int
     # What you wrote, or null.
     title: str | None
+    # An idea for the title that fits today's theme, or null if there's none.
+    hint: str | None
 
 
 class PromptToDrawResponse(BaseModel):

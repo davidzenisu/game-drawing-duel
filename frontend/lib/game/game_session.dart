@@ -136,6 +136,9 @@ abstract class GameSession extends ChangeNotifier {
   /// The character you write today's prompt for, once the day has one.
   Player? get promptSubject;
 
+  /// An idea for today's prompt that fits the [theme], if there is one.
+  String? get promptHint;
+
   ChallengerPrompt? get yourPrompt;
 
   /// The prompt you draw today, written by someone else yesterday.

@@ -120,12 +120,14 @@ back to creating or joining a server.
 ### Daily loop
 
 Day 1 is the launch day; regular servers move to the next day at midnight
-UTC, and each day has a theme. Every day each player:
+UTC, and each day has the theme of its weekday (see "Themes" below). Every
+day each player:
 
 1. writes a challenger title for the day's theme and a randomly picked
-   character (not themselves and not the player who draws it),
+   character (not themselves and not the player who draws it), with one of
+   the theme's prompt hints as an idea,
 2. draws the title the previous player wrote the day before; if they wrote
-   none, a premade title (`app/premade_prompts.py`) stands in. The challenger
+   none, one of the theme's premade titles stands in. The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool, which holds only the setup drawings.
 3. sends up to four characters of their collection against a random
@@ -158,6 +160,31 @@ quarter and 60% of the time limit, which they only find out while drawing.
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or voted on), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
+
+### Themes
+
+Every weekday has a fantasy theme, by the calendar in UTC: Monday the
+Enchanted Forest, then Hot Sandy Beaches, Volcano Lair, Frozen Peaks, Misty
+Jungle, Outer Space and the Royal Castle on Sunday. Test sessions count the
+calendar on from their launch date as their days advance. The app shows only
+the fantasy name; everyday situations that fit it come with the **prompt
+hints** (`theme_hint`, an idea shown while writing a title) and the **premade
+titles** (`premade_title`, used when nobody wrote one). The first ones are in
+`docs/concept/themes.md`.
+
+Both are database tables, so new ones can be added any time, e.g. in the
+Supabase table editor or with SQL:
+
+```sql
+insert into theme_hint (theme, text) values ('volcano', 'a challenger who microwaves fish at work');
+insert into premade_title (theme, title) values ('volcano', 'Lord of the Office Microwave');
+```
+
+`theme` is one of `forest`, `beach`, `volcano`, `snow`, `jungle`, `space` and
+`castle`; titles are at most 60 characters. A new row counts from the day
+after it was added, so the picks of a day never change. Which hint a player
+gets and which premade title stands in is random, but derived from the
+server, day and seat like the other daily picks.
 
 ### Gacha
 

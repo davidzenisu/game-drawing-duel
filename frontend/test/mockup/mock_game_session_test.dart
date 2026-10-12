@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/gacha.dart';
+import 'package:frontend/game/rules/themes.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
@@ -12,8 +13,8 @@ const _doodle = Sketch([
   Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
 ]);
 
-Future<MockGameSession> launchedGame({int seed = 1}) async {
-  final game = MockGameSession(seed: seed);
+Future<MockGameSession> launchedGame({int seed = 1, DateTime? launchDate}) async {
+  final game = MockGameSession(seed: seed, launchDate: launchDate);
   await game.signUp('Pat');
   await game.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
   while (!game.server.everyoneJoined) {
@@ -250,6 +251,19 @@ void main() {
     expect(record.fights, greaterThanOrEqualTo(1));
     expect(record.wins, fight.fightersWin ? lessThan(record.fights) : greaterThanOrEqualTo(1));
     expect(game.pool, hasLength(pool));
+  });
+
+  test('the theme follows the weekday, with a hint for it', () async {
+    // A Friday: the misty jungle, then space on Saturday and the castle on Sunday.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 9, 12));
+    expect(game.theme, DailyTheme.jungle);
+    expect(game.promptHint, isNotNull);
+    final themes = <DailyTheme>[];
+    for (var i = 0; i < 3; i++) {
+      await game.advanceDay();
+      themes.add(game.theme);
+    }
+    expect(themes, [DailyTheme.space, DailyTheme.castle, DailyTheme.forest]);
   });
 
   test('pulls turn duplicates into upgrade points', () async {
