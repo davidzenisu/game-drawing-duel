@@ -33,7 +33,8 @@ class ChallengersScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 170,
-                    mainAxisExtent: 316,
+                    // Room for titles on two lines.
+                    mainAxisExtent: 336,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),

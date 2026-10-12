@@ -125,6 +125,12 @@ class FakeBackend {
   int _nextCharacter = 1;
   final List<http.Request> requests = [];
 
+  /// Tokens with the content permission.
+  final Set<String> contentEditors = {};
+
+  /// Descriptions and premade titles by path (`hints`, `premade-titles`).
+  final Map<String, List<Map<String, Object?>>> content = {'hints': [], 'premade-titles': []};
+
   /// Rejects every request with this status and detail, like the real API
   /// does for a bad token.
   ({int status, String detail})? rejectAll;
@@ -138,12 +144,57 @@ class FakeBackend {
     final me = players[token];
     final body = request.body.isEmpty ? null : jsonDecode(request.body) as Map<String, Object?>;
 
+    final canEditContent = contentEditors.contains(token);
     if (request.url.path == '/me') {
       if (request.method == 'PUT') {
         players[token] = {'id': me?['id'] ?? 'player-uuid-${players.length + 1}', 'first_name': body!['first_name']};
-        return _json(200, {...players[token]!, 'created_at': '2026-10-09T10:00:00Z'});
+        return _json(200, {
+          ...players[token]!,
+          'created_at': '2026-10-09T10:00:00Z',
+          'can_edit_content': canEditContent,
+        });
       }
-      return me == null ? _json(404, {'detail': 'Not signed up yet'}) : _json(200, me);
+      return me == null
+          ? _json(404, {'detail': 'Not signed up yet'})
+          : _json(200, {...me, 'can_edit_content': canEditContent});
+    }
+    if (path.first == 'content') {
+      if (!canEditContent) return _json(403, {'detail': 'Missing permission edit:content'});
+      final entries = content[path[1]]!;
+      switch ((request.method, path.length)) {
+        case ('GET', 2):
+          final theme = request.url.queryParameters['theme'];
+          return _json(200, [
+            for (final e in entries)
+              if (e['retired'] != true && (theme == null || e['theme'] == theme)) e,
+          ]);
+        case ('POST', 2):
+          final added = <Map<String, Object?>>[];
+          final skipped = <String>[];
+          for (final text in (body!['texts'] as List).cast<String>()) {
+            final known = entries.any(
+              (e) => e['retired'] != true && e['theme'] == body['theme'] && e['text'] == text.trim(),
+            );
+            if (known) {
+              skipped.add(text.trim());
+              continue;
+            }
+            final entry = {
+              'id': 'content-${entries.length + 1}',
+              'theme': body['theme'],
+              'text': text.trim(),
+              'created_at': '2026-10-12T10:00:00Z',
+            };
+            entries.add(entry);
+            added.add(entry);
+          }
+          return _json(201, {'added': added, 'skipped': skipped});
+        case ('DELETE', 3):
+          final entry = entries.where((e) => e['id'] == path[2] && e['retired'] != true).firstOrNull;
+          if (entry == null) return _json(404, {'detail': 'No such hint'});
+          entry['retired'] = true;
+          return http.Response('', 204);
+      }
     }
     if (me == null) return _json(403, {'detail': 'Finish signing up first'});
     final myId = me['id'] as String;

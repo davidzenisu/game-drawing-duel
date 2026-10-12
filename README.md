@@ -216,7 +216,9 @@ other daily picks.
 | `GET` / `POST /content/premade-titles`, `DELETE /content/premade-titles/{id}` | The same for premade titles |
 
 The content endpoints need the `edit:content` permission of the Auth0 API on
-top of the player permission (`read:api`). Give it through a role, like the
+top of the player permission (`read:api`). `GET /me` tells the app with
+`can_edit_content`: content editors get a "Game content" button in the app
+bar to list, add and retire descriptions and premade titles per theme. Give it through a role, like the
 `user` role gives `read:api`; the Auth0 setup lives in the infrastructure
 repository.
 

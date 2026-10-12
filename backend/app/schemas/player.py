@@ -19,3 +19,11 @@ class PlayerResponse(BaseModel):
     id: uuid.UUID
     first_name: str
     created_at: datetime
+
+
+class MeResponse(PlayerResponse):
+    """The signed-in player."""
+
+    # Whether they may manage the prompt hints and premade titles
+    # (`auth.CONTENT_PERMISSION`).
+    can_edit_content: bool

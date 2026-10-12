@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
+import 'package:frontend/game/rules/content.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/themes.dart';
@@ -303,6 +304,34 @@ void main() {
       await game.advanceDay();
     }
     expect(game.restingCharacterIds, isEmpty, reason: 'a new week');
+  });
+
+  test('the content screen works on the mockup, from the next day on', () async {
+    // A Monday: prompts are written for Wednesday's volcano on days 1 and 8.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+    expect(game.canEditContent, isTrue);
+    expect(game.promptTheme, DailyTheme.volcano);
+    final hint = game.promptHint;
+    for (final kind in ContentKind.values) {
+      for (final entry in await game.contentEntries(kind, DailyTheme.volcano)) {
+        await game.retireContent(kind, entry);
+      }
+    }
+    final hints = await game.addContent(ContentKind.hints, DailyTheme.volcano, [' a chili lover ', 'A Chili Lover']);
+    expect(hints.added.single.text, 'a chili lover');
+    expect(hints.skipped, ['A Chili Lover']);
+    await game.addContent(ContentKind.premadeTitles, DailyTheme.volcano, ['The Chili King']);
+    await expectLater(game.addContent(ContentKind.premadeTitles, DailyTheme.volcano, ['x' * 61]), throwsArgumentError);
+    expect((await game.contentEntries(ContentKind.hints, DailyTheme.volcano)).map((e) => e.text), ['a chili lover']);
+    expect(game.promptHint, hint, reason: "today's picks stay");
+
+    for (var day = 2; day <= 9; day++) {
+      await game.advanceDay();
+      if (day == 8) expect(game.promptHint, 'a chili lover');
+    }
+    // Drawn on day 9: a simulated player's title from day 8.
+    expect(game.promptToDraw!.title, 'The Chili King');
+    expect(game.promptToDraw!.hint, 'a chili lover');
   });
 
   test('the theme follows the weekday, with a hint for it', () async {

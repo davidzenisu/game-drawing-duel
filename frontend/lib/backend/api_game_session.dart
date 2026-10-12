@@ -1,4 +1,5 @@
 import '../game/game_session.dart';
+import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
 import '../game/rules/gacha.dart';
 import '../game/rules/models.dart';
@@ -63,6 +64,7 @@ class ApiGameSession extends GameSession {
     _signInProblem = problem;
     _freshSignInNeeded = true;
     _account = null;
+    _canEditContent = false;
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
@@ -78,6 +80,8 @@ class ApiGameSession extends GameSession {
   Future<Object?> _put(String path, Object body) => _guard(() => _api!.put(path, body));
 
   Future<Object?> _post(String path, [Object? body]) => _guard(() => _api!.post(path, body));
+
+  Future<Object?> _delete(String path) => _guard(() => _api!.delete(path));
 
   Future<Object?> _guard(Future<Object?> Function() request) async {
     try {
@@ -110,6 +114,43 @@ class ApiGameSession extends GameSession {
       throw const FormatException('Unexpected player response.');
     }
     _account = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
+    _canEditContent = json['can_edit_content'] == true;
+  }
+
+  bool _canEditContent = false;
+
+  @override
+  bool get canEditContent => _canEditContent;
+
+  ContentEntry _contentEntry(Object? json) {
+    if (json case {'id': String id, 'theme': String theme, 'text': String text, 'created_at': String createdAt}) {
+      return ContentEntry(id: id, theme: _theme(theme), text: text, createdAt: DateTime.parse(createdAt));
+    }
+    throw const FormatException('Unexpected content entry.');
+  }
+
+  @override
+  Future<List<ContentEntry>> contentEntries(ContentKind kind, DailyTheme theme) async {
+    final json = await _get('/content/${kind.path}?theme=${theme.name}');
+    if (json is! List) throw const FormatException('Unexpected content response.');
+    return [for (final entry in json) _contentEntry(entry)];
+  }
+
+  @override
+  Future<ContentAddResult> addContent(ContentKind kind, DailyTheme theme, List<String> texts) async {
+    final json = await _post('/content/${kind.path}', {'theme': theme.name, 'texts': texts});
+    if (json case {'added': List added, 'skipped': List skipped}) {
+      return ContentAddResult(
+        added: [for (final entry in added) _contentEntry(entry)],
+        skipped: [for (final text in skipped) text as String],
+      );
+    }
+    throw const FormatException('Unexpected content response.');
+  }
+
+  @override
+  Future<void> retireContent(ContentKind kind, ContentEntry entry) async {
+    await _delete('/content/${kind.path}/${entry.id}');
   }
 
   /// Back to your newest server, or to creating or joining one.
@@ -543,6 +584,7 @@ class ApiGameSession extends GameSession {
   Future<void> signOut() async {
     await _auth.signOut();
     _account = null;
+    _canEditContent = false;
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
