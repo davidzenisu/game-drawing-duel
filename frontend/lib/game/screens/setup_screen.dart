@@ -8,6 +8,7 @@ import '../widgets/cancel_server_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
+import '../widgets/content_editor_button.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
 import 'drawing_screen.dart';
@@ -97,6 +98,7 @@ class _SetupScreenState extends State<SetupScreen> {
             title: const Text('Initial drawings'),
             actions: [
               CancelServerButton(session: controller),
+              ContentEditorButton(session: controller),
               SignOutButton(session: controller),
             ],
           ),

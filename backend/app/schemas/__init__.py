@@ -29,7 +29,7 @@ from app.schemas.gacha import (
     PullsResponse,
     UpgradeRequest,
 )
-from app.schemas.player import PlayerResponse, PlayerUpdate
+from app.schemas.player import MeResponse, PlayerResponse, PlayerUpdate
 from app.schemas.server import (
     AssignmentResponse,
     SeatResponse,
@@ -55,6 +55,7 @@ __all__ = [
     "GachaResponse",
     "HurrySubmit",
     "IncomingHurry",
+    "MeResponse",
     "OutcomeResponse",
     "OwnedCharacterResponse",
     "PlayerResponse",

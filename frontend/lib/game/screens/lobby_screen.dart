@@ -7,6 +7,7 @@ import '../game_session.dart';
 import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
+import '../widgets/content_editor_button.dart';
 import '../widgets/sign_out_button.dart';
 import '../rules/setup_plan.dart';
 
@@ -55,6 +56,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
         title: const Text('Lobby'),
         actions: [
           CancelServerButton(session: controller),
+          ContentEditorButton(session: controller),
           SignOutButton(session: controller),
         ],
       ),

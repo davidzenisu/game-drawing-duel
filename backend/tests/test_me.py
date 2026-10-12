@@ -13,7 +13,10 @@ class SignupTests(ApiTestCase):
     def test_first_signup_creates_a_player_linked_to_the_auth0_account(self) -> None:
         created = self.sign_up("auth0|alex", "  Alex ")
         self.assertEqual(created["first_name"], "Alex")
-        self.assertEqual(set(created), {"id", "first_name", "created_at"})
+        self.assertEqual(
+            set(created), {"id", "first_name", "created_at", "can_edit_content"}
+        )
+        self.assertFalse(created["can_edit_content"])
 
         with self.session_factory() as session:
             player = session.scalar(select(Player))
@@ -31,6 +34,12 @@ class SignupTests(ApiTestCase):
         self.assertEqual(second["first_name"], "Alexandra")
         with self.session_factory() as session:
             self.assertEqual(len(session.scalars(select(Player)).all()), 1)
+
+    def test_content_editors_are_told_so(self) -> None:
+        self.sign_up()
+        editor = make_token(permissions=["read:api", "edit:content"])
+        response = self.client.get("/me", headers=bearer(editor))
+        self.assertTrue(response.json()["can_edit_content"])
 
     def test_players_are_separated_by_auth0_account(self) -> None:
         alex = self.sign_up("auth0|alex", "Alex")
