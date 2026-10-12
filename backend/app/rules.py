@@ -199,8 +199,12 @@ def fighter_odds(fighters: list[tuple[Rarity, int]]) -> float:
     return team / (team + CHALLENGER_POWER)
 
 
-# How much drawing time the daily free hurry takes away, and between which
-# fractions of the time limit it hits.
-HURRY_CUT_SECONDS = 30
+# The time limit for drawing a challenger.
+CHALLENGER_DRAW_SECONDS = 90
+
+# A free daily hurry takes away this share of the drawing time left when it
+# hits, somewhere between these fractions of the time limit. Every hurry a
+# player receives counts.
+HURRY_CUT_FRACTION = 0.1
 HURRY_EARLIEST = 0.25
 HURRY_LATEST = 0.6

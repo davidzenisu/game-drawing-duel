@@ -30,9 +30,9 @@ class Hurry(Base):
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
     day: Mapped[int] = mapped_column(Integer, nullable=False)
-    # When it hits, as a fraction of the time limit.
+    # When it hits, as a fraction of the time limit. It takes away
+    # `rules.HURRY_CUT_FRACTION` of the time left then.
     at_fraction: Mapped[float] = mapped_column(Float, nullable=False)
-    cut_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

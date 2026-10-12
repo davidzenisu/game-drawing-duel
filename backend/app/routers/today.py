@@ -26,7 +26,6 @@ from app.routers.pool import require_launched
 from app.routers.servers import Code, DbSession, load_server, your_seat
 from app.routers.setup import character_response
 from app.rules import (
-    HURRY_CUT_SECONDS,
     HURRY_EARLIEST,
     HURRY_LATEST,
     Rarity,
@@ -155,7 +154,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             if seat.id in {f.owner_seat_id, f.challenger.artist_seat_id}
         ],
         hurry_sent_to=_hurry_sent_to(session, server, seat, day),
-        incoming_hurry=_incoming_hurry(session, server, seat, day),
+        incoming_hurries=_incoming_hurries(session, server, seat, day),
         day_ended=list(ended),
     )
 
@@ -171,23 +170,21 @@ def _hurry_sent_to(
     return next((s.position for s in server.seats if s.id == target), None)
 
 
-def _incoming_hurry(
+def _incoming_hurries(
     session: Session, server: Server, seat: ServerSeat, day: int
-) -> IncomingHurry | None:
-    hurry = session.scalar(
-        select(Hurry)
-        .where(Hurry.target_seat_id == seat.id, Hurry.day == day)
-        .order_by(Hurry.sent_at)
-        .limit(1)
-    )
-    if hurry is None:
-        return None
+) -> list[IncomingHurry]:
     positions = {s.id: s.position for s in server.seats}
-    return IncomingHurry(
-        by_position=positions[hurry.sender_seat_id],
-        at_fraction=hurry.at_fraction,
-        cut_seconds=hurry.cut_seconds,
-    )
+    return [
+        IncomingHurry(
+            by_position=positions[hurry.sender_seat_id],
+            at_fraction=hurry.at_fraction,
+        )
+        for hurry in session.scalars(
+            select(Hurry)
+            .where(Hurry.target_seat_id == seat.id, Hurry.day == day)
+            .order_by(Hurry.at_fraction)
+        )
+    ]
 
 
 def _fight_step(
@@ -392,7 +389,6 @@ def send_hurry(
             target_seat_id=target.id,
             day=days.current_day(server),
             at_fraction=random.uniform(HURRY_EARLIEST, HURRY_LATEST),
-            cut_seconds=HURRY_CUT_SECONDS,
         )
     )
     try:

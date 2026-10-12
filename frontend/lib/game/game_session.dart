@@ -58,12 +58,13 @@ class ServerSession {
       : players;
 }
 
-/// Another player secretly bought a hurry against your next drawing.
+/// Another player secretly sent a hurry against your next challenger
+/// drawing. Every hurry you receive counts.
 class HurryPlan {
-  const HurryPlan({required this.by, required this.atFraction, this.cut = defaultCut});
+  const HurryPlan({required this.by, required this.atFraction});
 
-  /// How much drawing time a hurry takes away.
-  static const defaultCut = Duration(seconds: 30);
+  /// The share of the drawing time left that a hurry takes away when it hits.
+  static const cutFraction = 0.1;
 
   /// A hurry hits between these fractions of the time limit.
   static const earliest = 0.25;
@@ -73,7 +74,6 @@ class HurryPlan {
 
   /// When the hurry hits, as a fraction of the original time limit.
   final double atFraction;
-  final Duration cut;
 }
 
 class PullOutcome {
@@ -174,7 +174,9 @@ abstract class GameSession extends ChangeNotifier {
   /// fought against or voted on. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
 
-  HurryPlan? get incomingHurry;
+  /// The hurries sent against your challenger drawing today, in the order
+  /// they hit.
+  List<HurryPlan> get incomingHurries;
 
   /// The player you sent today's free hurry to.
   Player? get hurrySentTo;

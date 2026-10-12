@@ -78,7 +78,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           initialTitle: prompt.title,
           titleLocked: true,
           theme: prompt.theme,
-          hurry: _controller.incomingHurry,
+          timeLimit: challengerDrawTime,
+          hurries: _controller.incomingHurries,
         ),
       ),
     );
@@ -207,7 +208,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? 'Done. "${toDraw.title}" joined the challengers.'
             : [
                 toDraw.question,
-                'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 2 min · +1 pull',
+                'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 1:30 · +1 pull',
               ].nonNulls.join(' '),
         done: c.challengerDrawn,
         onTap: toDraw != null && !c.challengerDrawn ? _drawChallenger : null,

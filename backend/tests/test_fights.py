@@ -214,3 +214,14 @@ class ChallengerListTests(FightTestCase):
         self.assertFalse(pulled & challengers)
         pool = {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
         self.assertFalse(pool & challengers)
+
+
+class StackedHurryTests(FightTestCase):
+    def test_every_hurry_a_player_receives_counts(self) -> None:
+        for sender in (ADMIN, SAM):
+            response = self.post("today/hurry", sender, json={"target_position": 2})
+            self.assertEqual(response.status_code, 200, response.text)
+        hurries = self.today(ROBIN)["incoming_hurries"]
+        self.assertEqual({h["by_position"] for h in hurries}, {0, 1})
+        fractions = [h["at_fraction"] for h in hurries]
+        self.assertEqual(fractions, sorted(fractions), "in the order they hit")
