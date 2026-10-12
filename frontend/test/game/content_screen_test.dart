@@ -68,7 +68,7 @@ void main() {
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add').last).onPressed, isNull);
   });
 
-  testWidgets('only content editors get the button', (tester) async {
+  testWidgets('content editors and the mockup get the button', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -76,9 +76,29 @@ void main() {
         ),
       ),
     );
-    expect(find.byTooltip('Game content'), findsNothing, reason: 'the mockup has no account');
+    expect(find.byTooltip('Game content'), findsOneWidget, reason: 'the mockup lets you try it');
 
     final backend = FakeBackend()..contentEditors.add('kim');
+    final player = ApiGameSession(
+      api: ApiClient(
+        baseUrl: 'https://api.example',
+        auth: FakeAuthClient(token: 'sam', profile: const AuthProfile()),
+        httpClient: backend.client,
+      ),
+    );
+    await tester.runAsync(() async {
+      await player.start();
+      await player.signUp('Sam');
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(actions: [ContentEditorButton(session: player)]),
+        ),
+      ),
+    );
+    expect(find.byTooltip('Game content'), findsNothing, reason: 'players without the permission');
+
     final editor = ApiGameSession(
       api: ApiClient(
         baseUrl: 'https://api.example',
