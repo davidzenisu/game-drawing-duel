@@ -179,7 +179,6 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
   List<Widget> _steps() {
     final c = _controller;
     final prompt = c.yourPrompt;
-    final subject = c.promptSubject;
     final toDraw = c.promptToDraw;
     final fight = c.yourFight;
     final hasResults = c.yourFightResults.isNotEmpty || c.yourChallengerResults.isNotEmpty;
@@ -187,14 +186,15 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       _ActionCard(
         icon: Icons.edit_note_rounded,
         step: LoopStep.prompt,
-        title: 'Write a challenger prompt',
+        title: 'Choose a challenger',
         subtitle: prompt != null
             ? 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.'
-            : subject == null
-            ? "Today's prompt isn't ready yet."
-            : 'Give ${subject.name} a challenger title for "${c.theme.label}".',
+            : switch (c.promptHint) {
+                final hint? => 'Who is $hint? Choose them and give them a title.',
+                null => 'Choose a player and give them a challenger title.',
+              },
         done: prompt != null,
-        onTap: prompt == null && subject != null ? () => _openStep(PromptScreen(controller: c)) : null,
+        onTap: prompt == null ? () => _openStep(PromptScreen(controller: c)) : null,
       ),
       _ActionCard(
         icon: Icons.brush_rounded,

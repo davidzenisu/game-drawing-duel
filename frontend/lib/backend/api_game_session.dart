@@ -255,8 +255,11 @@ class ApiGameSession extends GameSession {
 
   int _day = 0;
   DailyTheme _dayTheme = DailyTheme.forest;
-  Player? _promptSubject;
+  DailyTheme _promptTheme = DailyTheme.forest;
   String? _promptHint;
+
+  @override
+  DailyTheme get promptTheme => _promptTheme;
 
   @override
   String? get promptHint => _promptHint;
@@ -347,21 +350,26 @@ class ApiGameSession extends GameSession {
     if (json case {
       'day': int day,
       'theme': String theme,
-      'prompt': {'subject_position': int subject, 'title': String? title, 'hint': String? hint},
+      'prompt': {
+        'hint': String? hint,
+        'theme': String promptTheme,
+        'subject_position': int? subject,
+        'title': String? title,
+      },
       'day_ended': List ended,
     }) {
       _day = day;
       _dayTheme = _theme(theme);
       final you = server.players.firstWhere((p) => p.isYou);
-      _promptSubject = _seat(server, subject);
+      _promptTheme = _theme(promptTheme);
       _promptHint = hint;
-      _yourPrompt = title == null
+      _yourPrompt = title == null || subject == null
           ? null
           : ChallengerPrompt(
               id: 'prompt-$day-${you.id}',
               author: you,
-              subject: _promptSubject!,
-              theme: _dayTheme,
+              subject: _seat(server, subject),
+              theme: _promptTheme,
               title: title,
               day: day,
             );
@@ -633,9 +641,6 @@ class ApiGameSession extends GameSession {
   DailyTheme get theme => _dayTheme;
 
   @override
-  Player? get promptSubject => _promptSubject;
-
-  @override
   ChallengerPrompt? get yourPrompt => _yourPrompt;
 
   @override
@@ -675,8 +680,14 @@ class ApiGameSession extends GameSession {
   Future<void> launch() async => _enterServer(await _post('/servers/${server.code}/setup/done'));
 
   @override
-  Future<void> submitPrompt(String title) async {
-    await _setToday(server, await _post('/servers/${server.code}/today/prompt', {'title': title.trim()}));
+  Future<void> submitPrompt(String title, Player subject) async {
+    await _setToday(
+      server,
+      await _post('/servers/${server.code}/today/prompt', {
+        'title': title.trim(),
+        'subject_position': _seatPosition(subject),
+      }),
+    );
     notifyListeners();
   }
 

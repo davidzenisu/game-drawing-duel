@@ -392,7 +392,8 @@ void main() {
       expect(sam.collection.map((o) => o.card.artist), everyElement('Sam'));
       expect(sam.collection, hasLength(3));
       expect((sam.day, sam.theme), (1, DailyTheme.forest));
-      expect(sam.promptSubject!.isYou, isFalse);
+      expect(sam.promptCandidates.map((p) => p.name), ['Alex', 'Robin', 'Kim', 'Jo'], reason: 'anyone but Sam');
+      expect(sam.promptTheme, DailyTheme.volcano, reason: "the theme of day 3, the challenger's heroes day");
       expect(sam.promptToDraw, isNull, reason: 'nothing was written yet');
 
       await admin.refreshServer();
@@ -466,10 +467,12 @@ void main() {
       expect((admin.canEndDay, admin.canAdvanceDay), (true, true));
       expect((sam.canEndDay, sam.canAdvanceDay), (true, false), reason: 'only the admin skips ahead');
 
-      expect(admin.promptHint, 'a challenger on a forest day');
-      await admin.submitPrompt('  The Owl King ');
+      expect(admin.promptHint, 'a challenger on a volcano day');
+      await admin.submitPrompt('  The Owl King ', admin.server.players[2]);
+      expect((jsonDecode(backend.requests.last.body) as Map)['subject_position'], 2);
+      expect(admin.yourPrompt!.subject.name, 'Robin');
       expect(admin.yourPrompt!.title, 'The Owl King');
-      expect(admin.yourPrompt!.theme, DailyTheme.forest);
+      expect(admin.yourPrompt!.theme, DailyTheme.volcano);
 
       await admin.endDay();
       expect(admin.dayEnded, {admin.you.id});

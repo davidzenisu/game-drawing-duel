@@ -133,11 +133,20 @@ abstract class GameSession extends ChangeNotifier {
 
   DailyTheme get theme;
 
-  /// The character you write today's prompt for, once the day has one.
-  Player? get promptSubject;
+  /// The theme of the challenger you choose today: the theme of the day its
+  /// heroes are picked, two days from now. Today's [theme] is the one of the
+  /// challengers fought today.
+  DailyTheme get promptTheme;
 
-  /// An idea for today's prompt that fits the [theme], if there is one.
+  /// The description to choose a person and write a title for today, if
+  /// there is one.
   String? get promptHint;
+
+  /// Who you can choose for today's prompt: anyone but yourself.
+  List<Player> get promptCandidates => [
+    for (final player in server.players)
+      if (!player.isYou) player,
+  ];
 
   ChallengerPrompt? get yourPrompt;
 
@@ -253,8 +262,9 @@ abstract class GameSession extends ChangeNotifier {
   /// the pool fills with everyone's setup drawings and day 1 starts.
   Future<void> launch();
 
-  /// Step 1: write the title prompt for today's theme and character.
-  Future<void> submitPrompt(String title);
+  /// Step 1: choose the person who fits today's description best, one of
+  /// [promptCandidates], and write their challenger title.
+  Future<void> submitPrompt(String title, Player subject);
 
   /// Step 2: draw the challenger for the prompt you were given.
   Future<void> submitChallenger(Sketch sketch);

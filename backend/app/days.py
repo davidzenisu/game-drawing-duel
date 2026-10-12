@@ -45,17 +45,34 @@ def theme_of(server: Server, day: int) -> Theme:
     return theme_of_date(date_of_day(server, day))
 
 
+# Heroes are picked against a challenger two days after its prompt was
+# written, the day whose theme the challenger takes.
+HEROES_DAY_OFFSET = 2
+
+
+def challenger_theme(server: Server, prompt_day: int) -> Theme:
+    """The theme of a challenger whose prompt is written on `prompt_day`: the
+    theme of the day its heroes are picked, so a day shows the theme of the
+    challengers fought on it."""
+    return theme_of(server, prompt_day + HEROES_DAY_OFFSET)
+
+
 def _pick(
-    session: Session, server: Server, day: int, column, rng: random.Random
+    session: Session,
+    server: Server,
+    day: int,
+    theme: Theme,
+    column,
+    rng: random.Random,
 ) -> str | None:
-    """One of the theme's hints or premade titles (`column`) for `day`, or
-    None if there are none. Only rows created before the day began count, so
+    """One of `theme`'s hints or premade titles (`column`) on `day`, or None
+    if there are none. Only rows created before the day began count, so
     adding rows never changes a day's pick."""
     day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
     model = column.class_
     options = session.scalars(
         select(column)
-        .where(model.theme == theme_of(server, day).value, model.created_at < day_start)
+        .where(model.theme == theme.value, model.created_at < day_start)
         .order_by(model.created_at, model.id)
     ).all()
     return rng.choice(options) if options else None
@@ -87,15 +104,26 @@ def _rng(server: Server, day: int, seat: ServerSeat, purpose: str) -> random.Ran
 def prompt_hint(
     session: Session, server: Server, day: int, author: ServerSeat
 ) -> str | None:
-    """An idea for the title `author` writes on `day`, one of the theme's."""
-    return _pick(session, server, day, ThemeHint.text, _rng(server, day, author, "hint"))
+    """The description `author` picks a person and writes a title for on
+    `day`: one of the hints of the challenger's theme."""
+    return _pick(
+        session,
+        server,
+        day,
+        challenger_theme(server, day),
+        ThemeHint.text,
+        _rng(server, day, author, "hint"),
+    )
 
 
-def prompt_subject(server: Server, day: int, author: ServerSeat) -> ServerSeat:
-    """The character `author` writes a prompt for on `day`: anyone of the
-    roster but themselves and the player who draws it."""
-    drawer = drawer_of(server, author)
-    candidates = [s for s in server.seats if s.id not in {author.id, drawer.id}]
+def can_be_subject(author: ServerSeat, subject: ServerSeat) -> bool:
+    """Anyone of the roster but yourself, whether they joined or not."""
+    return subject.server_id == author.server_id and subject.id != author.id
+
+
+def premade_subject(server: Server, day: int, author: ServerSeat) -> ServerSeat:
+    """The person of a premade prompt that stands in for `author`'s on `day`."""
+    candidates = [s for s in server.seats if can_be_subject(author, s)]
     return _rng(server, day, author, "subject").choice(candidates)
 
 
@@ -132,12 +160,13 @@ def prompt_to_draw(
             theme=Theme(written.theme),
             premade=False,
         )
+    theme = challenger_theme(server, day - 1)
     rng = _rng(server, day - 1, author, "premade")
-    title = _pick(session, server, day - 1, PremadeTitle.title, rng)
+    title = _pick(session, server, day - 1, theme, PremadeTitle.title, rng)
     return PromptToDraw(
         author=author,
-        subject=prompt_subject(server, day - 1, author),
+        subject=premade_subject(server, day - 1, author),
         title=title or FALLBACK_TITLE,
-        theme=theme_of(server, day - 1),
+        theme=theme,
         premade=True,
     )

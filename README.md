@@ -123,11 +123,14 @@ Day 1 is the launch day; regular servers move to the next day at midnight
 UTC, and each day has the theme of its weekday (see "Themes" below). Every
 day each player:
 
-1. writes a challenger title for the day's theme and a randomly picked
-   character (not themselves and not the player who draws it), with one of
-   the theme's prompt hints as an idea,
+1. gets a description (one of the prompt hints), chooses the person who fits
+   it best (anyone but themselves; several players may choose the same one)
+   and writes a challenger title for them. The challenger takes the theme of
+   the day its heroes are picked, two days later, so each day's theme is the
+   one of the challengers fought on it,
 2. draws the title the previous player wrote the day before; if they wrote
-   none, one of the theme's premade titles stands in. The challenger
+   none, one of the theme's premade titles stands in, for a random person
+   other than them. The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool, which holds only the setup drawings.
 3. sends up to four characters of their collection against a random
@@ -152,7 +155,7 @@ quarter and 60% of the time limit, which they only find out while drawing.
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the fights to vote on and your decided fights |
-| `POST /servers/{code}/today/prompt` | Write today's challenger title, once |
+| `POST /servers/{code}/today/prompt` | Choose a person for today's description (`subject_position`, anyone but you) and write their challenger title, once |
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
 | `POST /servers/{code}/today/votes/{fight}` | Vote on one of yesterday's fights, once |
@@ -168,7 +171,8 @@ Enchanted Forest, then Hot Sandy Beaches, Volcano Lair, Frozen Peaks, Misty
 Jungle, Outer Space and the Royal Castle on Sunday. Test sessions count the
 calendar on from their launch date as their days advance. The app shows only
 the fantasy name; everyday situations that fit it come with the **prompt
-hints** (`theme_hint`, an idea shown while writing a title) and the **premade
+hints** (`theme_hint`, the description a player chooses a person and writes a
+title for) and the **premade
 titles** (`premade_title`, used when nobody wrote one). The first ones are in
 `docs/concept/themes.md`.
 

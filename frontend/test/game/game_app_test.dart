@@ -8,6 +8,7 @@ import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/screens/collection_screen.dart';
+import 'package:frontend/game/screens/prompt_screen.dart';
 import 'package:frontend/game/screens/setup_screen.dart';
 import 'package:frontend/game/widgets/cancel_server_button.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
@@ -246,7 +247,7 @@ void main() {
       await controller.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await controller.launch();
-    await controller.submitPrompt('Sunburnt');
+    await controller.submitPrompt('Sunburnt', controller.promptCandidates.first);
     await controller.advanceDay();
     await controller.submitChallenger(doodle);
     await tester.pumpWidget(GameApp(session: controller));
@@ -299,6 +300,38 @@ void main() {
     await tester.tap(find.text('???').first);
     await tester.pumpAndSettle();
     expect(find.byType(CharacterDetailScreen), findsNothing);
+  });
+
+  testWidgets('choosing a challenger: a person and a title', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const doodle = Sketch([
+      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
+    ]);
+    final controller = MockGameSession(seed: 1);
+    await controller.signUp('Pat');
+    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
+    await controller.startSetup();
+    for (final assignment in controller.assignments) {
+      await controller.submitSetupDrawing(assignment, doodle, 'Title');
+    }
+    await controller.launch();
+    await tester.pumpWidget(MaterialApp(home: PromptScreen(controller: controller)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Who is ${controller.promptHint}?'), findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'Pat'), findsNothing, reason: 'anyone but yourself');
+    final send = find.widgetWithText(FilledButton, 'Send prompt');
+    await tester.enterText(find.byType(TextField), 'Sunburnt');
+    await tester.pump();
+    expect(tester.widget<FilledButton>(send).onPressed, isNull, reason: 'nobody chosen yet');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Sam'));
+    await tester.pump();
+    await tester.tap(send);
+    await tester.pumpAndSettle();
+    expect(controller.yourPrompt!.subject.name, 'Sam');
+    expect(controller.yourPrompt!.title, 'Sunburnt');
   });
 
   testWidgets('uploads and the launch show a progress circle', (tester) async {

@@ -169,13 +169,16 @@ void main() {
   test('day 1 only unlocks the prompt step', () async {
     final game = await launchedGame();
     expect(game.yourPrompt, isNull);
-    expect(game.promptSubject.isYou, isFalse);
+    expect(game.promptCandidates.where((p) => p.isYou), isEmpty);
     expect(game.promptToDraw, isNull);
     expect(game.fightChallenger, isNull);
     expect(game.fightsToVote, isEmpty);
-    await game.submitPrompt('Sunburnt');
+    await expectLater(game.submitPrompt('Myself', game.you), throwsArgumentError);
+    final subject = game.promptCandidates.last;
+    await game.submitPrompt('Sunburnt', subject);
     expect(game.yourPrompt?.title, 'Sunburnt');
-    expect(game.yourPrompt?.theme, game.theme);
+    expect(game.yourPrompt?.subject, subject);
+    expect(game.yourPrompt?.theme, game.promptTheme);
   });
 
   test('the 4 day loop: prompt, draw, fighters, vote and results', () async {
@@ -183,7 +186,7 @@ void main() {
     final you = game.you;
 
     // Day 1: write a prompt.
-    await game.submitPrompt('Sunburnt');
+    await game.submitPrompt('Sunburnt', game.promptCandidates.first);
 
     // Day 2: draw someone else's prompt from yesterday.
     await game.advanceDay();
@@ -197,7 +200,7 @@ void main() {
     expect(game.yourChallenger?.title, toDraw.title);
     await game.submitChallenger(_doodle);
     expect(game.tickets, tickets + 1, reason: 'one challenger per day');
-    await game.submitPrompt('Day two prompt');
+    await game.submitPrompt('Day two prompt', game.promptCandidates.first);
 
     // Day 3: pick up to four fighters against one new challenger.
     await game.advanceDay();
@@ -229,7 +232,7 @@ void main() {
   test('challengers stay out of the pool, listed once encountered with their record', () async {
     final game = await launchedGame();
     final pool = game.pool.length;
-    await game.submitPrompt('Sunburnt');
+    await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     await game.advanceDay();
     expect(game.challengers, isEmpty, reason: 'the others drew some, but you met none');
     await game.submitChallenger(_doodle);
@@ -257,6 +260,7 @@ void main() {
     // A Friday: the misty jungle, then space on Saturday and the castle on Sunday.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 9, 12));
     expect(game.theme, DailyTheme.jungle);
+    expect(game.promptTheme, DailyTheme.castle, reason: "Sunday's, when today's challengers are fought");
     expect(game.promptHint, isNotNull);
     final themes = <DailyTheme>[];
     for (var i = 0; i < 3; i++) {
