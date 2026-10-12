@@ -269,7 +269,7 @@ class ApiGameSession extends GameSession {
   Set<String> _dayEnded = const {};
   CharacterCard? _fightChallenger;
   Player? _hurrySentTo;
-  HurryPlan? _incomingHurry;
+  List<HurryPlan> _incomingHurries = const [];
   FightSetup? _yourFight;
   List<FightSetup> _fightsToVote = const [];
   List<FightSetup> _results = const [];
@@ -412,14 +412,13 @@ class ApiGameSession extends GameSession {
         final int position => _seat(server, position),
         _ => null,
       };
-      _incomingHurry = switch (json['incoming_hurry']) {
-        {'by_position': int by, 'at_fraction': num at, 'cut_seconds': int cut} => HurryPlan(
-          by: _seat(server, by).name,
-          atFraction: at.toDouble(),
-          cut: Duration(seconds: cut),
-        ),
-        _ => null,
-      };
+      _incomingHurries = [
+        for (final hurry in json['incoming_hurries'] as List? ?? const [])
+          if (hurry case {'by_position': int by, 'at_fraction': num at})
+            HurryPlan(by: _seat(server, by).name, atFraction: at.toDouble())
+          else
+            throw const FormatException('Unexpected hurry.'),
+      ];
       return;
     }
     throw const FormatException('Unexpected day response.');
@@ -674,7 +673,7 @@ class ApiGameSession extends GameSession {
   ];
 
   @override
-  HurryPlan? get incomingHurry => _incomingHurry;
+  List<HurryPlan> get incomingHurries => _incomingHurries;
 
   @override
   Player? get hurrySentTo => _hurrySentTo;

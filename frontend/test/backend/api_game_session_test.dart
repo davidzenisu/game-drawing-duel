@@ -512,9 +512,9 @@ void main() {
       expect(admin.hurrySentTo!.name, 'Sam');
       expect(await admin.sendHurry(admin.server.players[1]), isFalse, reason: 'once a day');
       await sam.refreshDay();
-      expect(sam.incomingHurry!.by, 'Alex');
-      expect(sam.incomingHurry!.cut, const Duration(seconds: 30));
-      expect(admin.incomingHurry, isNull);
+      expect(sam.incomingHurries.single.by, 'Alex');
+      expect(sam.incomingHurries.single.atFraction, 0.4);
+      expect(admin.incomingHurries, isEmpty);
     });
 
     test('fighters on day 3, votes on day 4 and the outcome on day 5', () async {

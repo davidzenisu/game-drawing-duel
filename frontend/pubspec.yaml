@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   auth0_flutter: ^2.6.2
+  clock: ^1.1.2
   flutter:
     sdk: flutter
   http: ^1.6.0

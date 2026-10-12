@@ -93,7 +93,8 @@ void main() {
 
   test('hurry', () {
     final hurry = rules['hurry'] as Map<String, dynamic>;
-    expect(HurryPlan.defaultCut.inSeconds, hurry['cut_seconds']);
+    expect(HurryPlan.cutFraction, hurry['cut_fraction']);
+    expect(challengerDrawTime.inSeconds, rules['challenger_draw_seconds']);
     expect((HurryPlan.earliest, HurryPlan.latest), (hurry['earliest'], hurry['latest']));
   });
 

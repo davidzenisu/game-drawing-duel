@@ -108,7 +108,8 @@ class SharedRulesTest(unittest.TestCase):
 
     def test_hurry(self):
         hurry = SHARED["hurry"]
-        self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])
+        self.assertEqual(rules.HURRY_CUT_FRACTION, hurry["cut_fraction"])
+        self.assertEqual(rules.CHALLENGER_DRAW_SECONDS, SHARED["challenger_draw_seconds"])
         self.assertEqual(
             (rules.HURRY_EARLIEST, rules.HURRY_LATEST),
             (hurry["earliest"], hurry["latest"]),

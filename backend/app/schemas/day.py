@@ -77,12 +77,12 @@ class FightStep(BaseModel):
 
 
 class IncomingHurry(BaseModel):
-    """Someone cut your challenger drawing time today."""
+    """Someone cut your challenger drawing time today: by
+    `rules.HURRY_CUT_FRACTION` of the time left when it hits."""
 
     by_position: int
     # When it hits, as a fraction of the time limit.
     at_fraction: float
-    cut_seconds: int
 
 
 class TodayResponse(BaseModel):
@@ -98,8 +98,9 @@ class TodayResponse(BaseModel):
     results: list[FightResponse]
     # The seat you sent today's free hurry to.
     hurry_sent_to: int | None
-    # The first hurry sent to you today, for your challenger drawing.
-    incoming_hurry: IncomingHurry | None
+    # Every hurry sent to you today, for your challenger drawing, in the
+    # order they hit.
+    incoming_hurries: list[IncomingHurry]
     # Test sessions: the seats that ended the day. Empty on regular servers.
     day_ended: list[int]
 

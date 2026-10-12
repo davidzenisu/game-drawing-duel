@@ -508,11 +508,10 @@ class FakeBackend {
             fightJson(f, decided: true),
       ],
       'hurry_sent_to': hurries[(code, today, yours)],
-      'incoming_hurry': [
+      'incoming_hurries': [
         for (final MapEntry(:key, :value) in hurries.entries)
-          if (key.$1 == code && key.$2 == today && value == yours)
-            {'by_position': key.$3, 'at_fraction': 0.4, 'cut_seconds': 30},
-      ].firstOrNull,
+          if (key.$1 == code && key.$2 == today && value == yours) {'by_position': key.$3, 'at_fraction': 0.4},
+      ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
     });
   }

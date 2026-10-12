@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -31,7 +32,8 @@ class DrawingScreen extends StatefulWidget {
     this.titleLocked = false,
     this.reference,
     this.theme,
-    this.hurry,
+    this.timeLimit,
+    this.hurries = const [],
   });
 
   final String subject;
@@ -51,8 +53,11 @@ class DrawingScreen extends StatefulWidget {
   final Sketch? reference;
   final DailyTheme? theme;
 
-  /// A hurry another player bought, revealed only while drawing.
-  final HurryPlan? hurry;
+  /// Overrides the [rarity]'s drawing time, e.g. for challengers.
+  final Duration? timeLimit;
+
+  /// Hurries other players sent, revealed only while drawing as they hit.
+  final List<HurryPlan> hurries;
 
   @override
   State<DrawingScreen> createState() => _DrawingScreenState();
@@ -61,18 +66,23 @@ class DrawingScreen extends StatefulWidget {
 class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProviderStateMixin {
   final _pad = SketchPadController();
   late final _title = TextEditingController(text: widget.initialTitle);
-  final _stopwatch = Stopwatch();
+  // From `clock`, so tests can control the time.
+  final _stopwatch = clock.stopwatch();
   late final AnimationController _shake;
   Timer? _ticker;
-  bool _hurried = false;
   bool _timeUp = false;
 
-  Duration? get _limit => widget.rarity.drawTime;
+  /// How many of the hurries hit so far, and the time they took away.
+  int _hits = 0;
+  Duration _cut = Duration.zero;
+  Duration _lastCut = Duration.zero;
+
+  bool get _hurried => _hits > 0;
+
+  Duration? get _limit => widget.timeLimit ?? widget.rarity.drawTime;
 
   Duration get _remaining {
-    final limit = _limit!;
-    final cut = _hurried ? widget.hurry!.cut : Duration.zero;
-    final left = limit - cut - _stopwatch.elapsed;
+    final left = _limit! - _cut - _stopwatch.elapsed;
     return left.isNegative ? Duration.zero : left;
   }
 
@@ -92,9 +102,11 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   void _rebuild() => setState(() {});
 
   void _tick() {
-    final hurry = widget.hurry;
-    if (!_hurried && hurry != null && _stopwatch.elapsed >= _limit! * hurry.atFraction) {
-      _hurried = true;
+    // Each hurry takes away a share of the time left when it hits.
+    while (_hits < widget.hurries.length && _stopwatch.elapsed >= _limit! * widget.hurries[_hits].atFraction) {
+      _lastCut = _remaining * HurryPlan.cutFraction;
+      _cut += _lastCut;
+      _hits++;
       _shake.forward(from: 0);
     }
     if (_remaining == Duration.zero) {
@@ -223,7 +235,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     }
     final remaining = _remaining;
     final urgent = remaining.inSeconds < 10;
-    final total = _limit! - (_hurried ? widget.hurry!.cut : Duration.zero);
+    final total = _limit! - _cut;
     final seconds = remaining.inMilliseconds / 1000;
     final label = '${remaining.inMinutes}:${(remaining.inSeconds % 60).toString().padLeft(2, '0')}';
     return AnimatedBuilder(
@@ -272,7 +284,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${widget.hurry!.by} bought a hurry! -${widget.hurry!.cut.inSeconds}s',
+                  '${widget.hurries[_hits - 1].by} sent a hurry! -${_lastCut.inSeconds}s',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),

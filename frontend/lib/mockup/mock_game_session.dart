@@ -187,7 +187,7 @@ class MockGameSession extends GameSession {
     _promptHint = null;
     _promptToDraw = null;
     _fightChallenger = null;
-    _incomingHurry = null;
+    _incomingHurries = const [];
     _hurrySentTo = null;
     _setPhase(GamePhase.server);
   }
@@ -332,9 +332,9 @@ class MockGameSession extends GameSession {
       if (fight.challenger.artist == you.name) fight,
   ];
 
-  HurryPlan? _incomingHurry;
+  List<HurryPlan> _incomingHurries = const [];
   @override
-  HurryPlan? get incomingHurry => _incomingHurry;
+  List<HurryPlan> get incomingHurries => _incomingHurries;
 
   /// The player you sent today's free hurry to.
   @override
@@ -390,12 +390,16 @@ class MockGameSession extends GameSession {
         _addChallenger(prompt, drawer, _bots.doodle('challenger'));
       }
     }
-    _incomingHurry = _promptToDraw != null && _random.nextDouble() < 0.6
-        ? HurryPlan(
-            by: others[_random.nextInt(others.length)].name,
-            atFraction: HurryPlan.earliest + _random.nextDouble() * (HurryPlan.latest - HurryPlan.earliest),
-          )
-        : null;
+    // Each simulated player may spend their free hurry on you.
+    _incomingHurries = [
+      if (_promptToDraw != null)
+        for (final sender in others)
+          if (_random.nextDouble() < 0.3)
+            HurryPlan(
+              by: sender.name,
+              atFraction: HurryPlan.earliest + _random.nextDouble() * (HurryPlan.latest - HurryPlan.earliest),
+            ),
+    ]..sort((a, b) => a.atFraction.compareTo(b.atFraction));
 
     // Step 3: pick fighters against one of yesterday's challengers.
     final yesterday = _challengers[_day - 1] ?? const <CharacterCard>[];

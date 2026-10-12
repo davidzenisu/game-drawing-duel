@@ -128,9 +128,9 @@ day each player:
    and writes a challenger title for them. The challenger takes the theme of
    the day its heroes are picked, two days later, so each day's theme is the
    one of the challengers fought on it,
-2. draws the title the previous player wrote the day before, seeing the
-   description it was written for too; if they wrote none, one of the
-   theme's premade titles stands in, for a random person other than them.
+2. draws, within 1:30, the title the previous player wrote the day before,
+   seeing the description it was written for too; if they wrote none, one of
+   the theme's premade titles stands in, for a random person other than them.
    The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool, which holds only the setup drawings.
@@ -149,9 +149,11 @@ missing vote is random, weighted by the team's strength
 The random picks are derived from the server, day and seat (or fight), so
 they stay the same without being stored ahead of time.
 
-Every day each player can also send one free hurry to another player: it
-takes 30 seconds off their challenger drawing at a random moment between a
-quarter and 60% of the time limit, which they only find out while drawing.
+Every day each player can also send one free hurry to another player: at a
+random moment between a quarter and 60% of the time limit, it takes 10% of
+the time left off their challenger drawing, which they only find out while
+drawing. Every hurry a player receives counts, each on the time left when it
+hits (`GET today` lists them as `incoming_hurries`).
 
 | Endpoint | Purpose |
 | --- | --- |

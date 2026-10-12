@@ -18,6 +18,9 @@ abstract final class LoopStep {
   static const vote = 4;
 }
 
+/// The time limit for drawing a challenger.
+const challengerDrawTime = Duration(seconds: 90);
+
 /// Step 1 of the daily loop: a title prompt for a challenger, written for a
 /// theme and a character. Another player draws it the next day.
 class ChallengerPrompt {
