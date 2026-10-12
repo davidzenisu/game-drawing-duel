@@ -85,16 +85,37 @@ def new_fight(
     return fight
 
 
+def resting(
+    session: Session, server: Server, seat: ServerSeat, day: int
+) -> set[uuid.UUID]:
+    """The characters `seat` sent into a fight earlier in `day`'s week. Every
+    character fights once a week; they're back on Monday."""
+    return set(
+        session.scalars(
+            select(Fighter.character_id)
+            .join(Fight, Fight.id == Fighter.fight_id)
+            .where(
+                Fight.owner_seat_id == seat.id,
+                Fight.day >= days.week_start(server, day),
+                Fight.day < day,
+            )
+        ).all()
+    )
+
+
 def complete_fights(session: Session, server: Server, day: int) -> None:
     """Picks fighters by chance for everyone who picked none on `day`, so the
-    others can boost their challenger. Commits."""
+    others can boost their challenger, out of their characters that didn't
+    fight yet that week. Commits."""
     if day < FIRST_FIGHT_DAY:
         return
     for seat in days.active_seats(server):
         if fight_of(session, seat, day) is not None:
             continue
         challenger = fight_challenger(session, server, day, seat)
-        owned = sorted(pulls.copies(session, seat))
+        owned = sorted(
+            set(pulls.copies(session, seat)) - resting(session, server, seat, day)
+        )
         if challenger is None or not owned:
             continue
         rng = _rng(server.id, day, seat.id, "fighters")

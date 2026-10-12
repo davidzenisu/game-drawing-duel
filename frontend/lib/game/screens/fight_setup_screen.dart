@@ -8,7 +8,8 @@ import '../widgets/fight_stage.dart';
 import '../widgets/game_action.dart';
 
 /// Step 3: pick up to four fighters against a new challenger. The other
-/// players decide the winner tomorrow.
+/// players may boost it tomorrow, and the day after, the stars decide. Every
+/// character fights once a week.
 class FightSetupScreen extends StatefulWidget {
   const FightSetupScreen({super.key, required this.controller});
 
@@ -39,7 +40,9 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
             setSheetState(() {});
           }
 
-          final roster = widget.controller.collection;
+          // The characters that already fought this week come last.
+          final controller = widget.controller;
+          final roster = [...controller.availableFighters, ...controller.collection.where(controller.isResting)];
           return SizedBox(
             height: MediaQuery.sizeOf(context).height * 0.7,
             child: Column(
@@ -62,9 +65,11 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                       final owned = roster[index];
                       final selected = _picked.contains(owned);
                       final full = _picked.length >= FightSetup.maxFighters;
+                      final resting = controller.isResting(owned);
+                      final pickable = !resting && (selected || !full);
                       return InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: selected || !full ? () => toggle(owned) : null,
+                        onTap: pickable ? () => toggle(owned) : null,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.all(6),
@@ -76,7 +81,7 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                             ),
                           ),
                           child: Opacity(
-                            opacity: selected || !full ? 1 : 0.4,
+                            opacity: pickable ? 1 : 0.4,
                             child: Column(
                               children: [
                                 Standee(card: owned.card, width: 90, effects: owned.unlocked, element: owned.element),
@@ -84,7 +89,7 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                                 StarRow(rarity: owned.card.rarity, size: 12),
                                 Text(owned.card.subject, overflow: TextOverflow.ellipsis),
                                 Text(
-                                  owned.card.title,
+                                  resting ? 'Resting until Monday' : owned.card.title,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.labelSmall,
                                 ),

@@ -221,9 +221,13 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? _unlocksOn(LoopStep.fight)
             : fight != null
             ? 'Locked in ${fight.fighters.length} fighters against ${fight.challenger.subject}.'
+            : c.availableFighters.isEmpty
+            ? 'All your characters fought this week. They\'re back on Monday.'
             : 'Beat a new challenger\'s ${Stars.challengerBase} ★ with up to 4 fighters. The others may boost it tomorrow.',
         done: fight != null,
-        onTap: c.fightChallenger == null ? null : () => _openStep(FightSetupScreen(controller: c)),
+        onTap: c.fightChallenger == null || (fight == null && c.availableFighters.isEmpty)
+            ? null
+            : () => _openStep(FightSetupScreen(controller: c)),
       ),
       _ActionCard(
         icon: Icons.keyboard_double_arrow_up_rounded,

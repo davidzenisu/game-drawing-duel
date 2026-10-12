@@ -160,6 +160,10 @@ abstract class GameSession extends ChangeNotifier {
 
   FightSetup? get yourFight;
 
+  /// Ids of your characters that fought earlier this week. Every character
+  /// fights once a week; they're back on Monday (UTC).
+  Set<String> get restingCharacterIds;
+
   /// Yesterday's challengers you may boost, with the fights against them:
   /// all but the one you drew and the one you fought.
   List<BoostTarget> get boostTargets;
@@ -205,6 +209,11 @@ abstract class GameSession extends ChangeNotifier {
 
   bool get challengerDrawn => yourChallenger != null;
 
+  bool isResting(OwnedCard owned) => restingCharacterIds.contains(owned.card.id);
+
+  /// Your characters that can fight today.
+  List<OwnedCard> get availableFighters => collection.where((o) => !isResting(o)).toList();
+
   /// Whether you can still boost a challenger today.
   bool get canBoost => boostTargets.isNotEmpty && boostedChallengerId == null;
 
@@ -221,7 +230,7 @@ abstract class GameSession extends ChangeNotifier {
   bool get hasOpenSteps =>
       yourPrompt == null ||
       (promptToDraw != null && !challengerDrawn) ||
-      (fightChallenger != null && yourFight == null && collection.isNotEmpty) ||
+      (fightChallenger != null && yourFight == null && availableFighters.isNotEmpty) ||
       canBoost;
 
   // Actions ------------------------------------------------------------------

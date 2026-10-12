@@ -312,6 +312,19 @@ class MockGameSession extends GameSession {
   @override
   FightSetup? get yourFight => _fights[_day]?.where((f) => f.owner.isYou).firstOrNull;
 
+  /// Like online: your characters that fought earlier this week, which
+  /// starts on Monday.
+  @override
+  Set<String> get restingCharacterIds {
+    final weekStart = _day - (_launchedOn.add(Duration(days: _day - 1)).weekday - DateTime.monday);
+    return {
+      for (var day = weekStart; day < _day; day++)
+        for (final fight in _fights[day] ?? const <FightSetup>[])
+          if (fight.owner.isYou)
+            for (final fighter in fight.fighters) fighter.card.id,
+    };
+  }
+
   @override
   List<BoostTarget> get boostTargets => _boostTargets(you);
 
@@ -561,6 +574,7 @@ class MockGameSession extends GameSession {
     if (fighters.isEmpty || fighters.length > FightSetup.maxFighters) {
       throw ArgumentError('Pick between 1 and ${FightSetup.maxFighters} fighters.');
     }
+    if (fighters.any(isResting)) throw ArgumentError("Every character fights once a week; they're back on Monday.");
     _fights[_day]!.add(
       FightSetup(
         id: 'fight$_day-${you.id}',

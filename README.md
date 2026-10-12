@@ -135,7 +135,11 @@ day each player:
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool, which holds only the setup drawings.
 3. sends up to four characters of their collection against a random
-   challenger drawn the day before (not their own),
+   challenger drawn the day before (not their own). Every character fights
+   once a week: after a fight it rests until Monday (UTC, the week of the
+   themes), and `GET today` lists the resting ones as `fight.resting`.
+   Fighters picked by chance come from the characters that didn't fight yet
+   that week,
 4. browses the day before's challengers and the teams sent against them,
    all but the one they drew and the one they fought, and boosts one of them.
 
