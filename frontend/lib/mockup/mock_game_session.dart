@@ -321,7 +321,8 @@ class MockGameSession extends GameSession {
       for (var day = weekStart; day < _day; day++)
         for (final fight in _fights[day] ?? const <FightSetup>[])
           if (fight.owner.isYou)
-            for (final fighter in fight.fighters) fighter.card.id,
+            for (final fighter in fight.fighters)
+              if (fighter.card.rarity != Rarity.basic) fighter.card.id,
     };
   }
 

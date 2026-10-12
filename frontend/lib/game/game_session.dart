@@ -161,7 +161,8 @@ abstract class GameSession extends ChangeNotifier {
   FightSetup? get yourFight;
 
   /// Ids of your characters that fought earlier this week. Every character
-  /// fights once a week; they're back on Monday (UTC).
+  /// fights once a week, they're back on Monday (UTC); basic ones can fight
+  /// every day, so nobody runs out.
   Set<String> get restingCharacterIds;
 
   /// Yesterday's challengers you may boost, with the fights against them:

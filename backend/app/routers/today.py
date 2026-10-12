@@ -309,7 +309,8 @@ def pick_fighters(
     code: Code, body: FightersSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
     """Step 3: sends up to four of your characters against today's
-    challenger. Once a day, and every character once a week."""
+    challenger. Once a day, and every character but the basic ones once a
+    week."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
     challenger = fights.fight_challenger(session, server, day, seat)

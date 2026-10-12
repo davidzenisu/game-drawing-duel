@@ -281,20 +281,23 @@ void main() {
     expect(game.pool, hasLength(pool));
   });
 
-  test('characters fight once a week, until Monday', () async {
+  test('characters fight once a week, until Monday, but basic ones every day', () async {
     // A Monday: day 3 is a Wednesday, day 8 the next Monday.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
     await game.advanceDay();
     await game.advanceDay();
-    final fighters = game.collection.take(2).toList();
-    await game.submitFighters(fighters);
+    final rare = game.collection.where((o) => o.card.rarity != Rarity.basic).first;
+    final basic = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
+    await game.submitFighters([rare, basic]);
     expect(game.restingCharacterIds, isEmpty, reason: 'they rest from tomorrow on');
 
     await game.advanceDay();
-    expect(game.restingCharacterIds, {for (final o in fighters) o.card.id});
-    expect(game.availableFighters, isNot(contains(fighters.first)));
-    await expectLater(game.submitFighters([fighters.first]), throwsArgumentError);
-    await game.submitFighters(game.availableFighters.take(1).toList());
+    expect(game.restingCharacterIds, {rare.card.id});
+    expect(game.availableFighters, isNot(contains(rare)));
+    expect(game.availableFighters, contains(basic));
+    await expectLater(game.submitFighters([rare]), throwsArgumentError);
+    await game.submitFighters([basic]);
+    expect(game.yourFight, isNotNull);
 
     for (var day = 5; day <= 8; day++) {
       await game.advanceDay();

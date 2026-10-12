@@ -563,8 +563,12 @@ void main() {
 
       // Day 4: Alex's two fighters rest until Monday.
       await nextDay();
-      expect(admin.restingCharacterIds, {for (final o in admin.collection.take(2)) o.card.id});
-      expect(admin.availableFighters, hasLength(admin.collection.length - 2));
+      final rested = {
+        for (final o in admin.collection.take(2))
+          if (o.card.rarity != Rarity.basic) o.card.id,
+      };
+      expect(admin.restingCharacterIds, rested, reason: 'basic ones fight every day');
+      expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
 
       // Robin boosts Sam's challenger; Sam drew it and can't.
       expect(sam.boostTargets, isEmpty);

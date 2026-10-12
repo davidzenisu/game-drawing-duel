@@ -89,13 +89,17 @@ def resting(
     session: Session, server: Server, seat: ServerSeat, day: int
 ) -> set[uuid.UUID]:
     """The characters `seat` sent into a fight earlier in `day`'s week. Every
-    character fights once a week; they're back on Monday."""
+    character fights once a week, they're back on Monday; basic ones can
+    fight every day, so nobody ever runs out (everyone draws one during the
+    setup)."""
     return set(
         session.scalars(
             select(Fighter.character_id)
             .join(Fight, Fight.id == Fighter.fight_id)
+            .join(Character, Character.id == Fighter.character_id)
             .where(
                 Fight.owner_seat_id == seat.id,
+                Character.rarity != Rarity.BASIC.value,
                 Fight.day >= days.week_start(server, day),
                 Fight.day < day,
             )
