@@ -195,6 +195,7 @@ class MockGameSession extends GameSession {
     _challengers.clear();
     _fights.clear();
     _boosted.clear();
+    _usedHints.clear();
     _botRosters.clear();
     _promptTheme = DailyTheme.forest;
     _promptHint = null;
@@ -354,6 +355,9 @@ class MockGameSession extends GameSession {
   };
   int _nextContent = 1;
 
+  /// The hints the server gave out, by theme: every one is used once only.
+  final Set<(DailyTheme, String)> _usedHints = {};
+
   /// The texts of [kind] for [theme] used on [day].
   List<String> _contentOn(ContentKind kind, DailyTheme theme, int day) => [
     for (final c in _content[kind]!)
@@ -473,16 +477,27 @@ class MockGameSession extends GameSession {
     _theme = _themeOfDay(_day);
     // Today's prompts are for challengers fought in two days, in that day's theme.
     _promptTheme = _themeOfDay(_day + 2);
-    // Everyone gets a different hint, as far as the theme has enough.
-    final hints = _contentOn(ContentKind.hints, _promptTheme, _day)..shuffle(_random);
+    // Like online, every hint is used once at most; you get the first.
+    final hints = _contentOn(
+      ContentKind.hints,
+      _promptTheme,
+      _day,
+    ).where((h) => !_usedHints.contains((_promptTheme, h))).toList()..shuffle(_random);
+    String? nextHint() {
+      if (hints.isEmpty) return null;
+      final hint = hints.removeAt(0);
+      _usedHints.add((_promptTheme, hint));
+      return hint;
+    }
+
     final titles = _contentOn(ContentKind.premadeTitles, _promptTheme, _day);
-    _promptHint = hints.firstOrNull;
+    _promptHint = nextHint();
     _hurrySentTo = null;
     final others = otherPlayers;
 
     // Step 1: everyone chooses a person and writes a title.
     _prompts[_day] = [
-      for (final (i, author) in others.indexed)
+      for (final author in others)
         ChallengerPrompt(
           id: 'prompt$_day-${author.id}',
           author: author,
@@ -490,7 +505,7 @@ class MockGameSession extends GameSession {
           theme: _promptTheme,
           title: titles.isEmpty ? _bots.title() : titles[_random.nextInt(titles.length)],
           day: _day,
-          hint: hints.isEmpty ? null : hints[(i + 1) % hints.length],
+          hint: nextHint(),
         ),
     ];
 

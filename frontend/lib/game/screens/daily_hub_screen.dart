@@ -194,7 +194,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.'
             : switch (c.promptHint) {
                 final hint? => 'Who is $hint? Choose them and give them a title.',
-                null => 'Choose a player and give them a challenger title.',
+                null => 'NO PROMPT',
               },
         done: prompt != null,
         onTap: prompt == null ? () => _openStep(PromptScreen(controller: c)) : null,

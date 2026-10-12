@@ -196,8 +196,8 @@ void main() {
     await game.advanceDay();
     final toDraw = game.promptToDraw!;
     expect(toDraw.author.isYou, isFalse);
-    expect(toDraw.hint, isNotNull);
-    expect(toDraw.question, 'Who is ${toDraw.hint}?');
+    // The mockup has two descriptions a theme: the others may have none.
+    expect(toDraw.question, toDraw.hint == null ? isNull : 'Who is ${toDraw.hint}?');
     expect(toDraw.day, 1);
     expect(toDraw.subject.id, isNot(you.id));
     final tickets = game.tickets;
@@ -306,6 +306,22 @@ void main() {
     expect(game.restingCharacterIds, isEmpty, reason: 'a new week');
   });
 
+  test('every description is used once only, then there is none', () async {
+    // A Monday: prompts are written for Wednesday's volcano on days 1 and 8.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+    final first = game.promptHint;
+    expect(first, isNotNull);
+    final seen = <String>{first!};
+    for (var day = 2; day <= 8; day++) {
+      await game.advanceDay();
+      final hint = game.promptHint;
+      if (hint != null) expect(seen.add(hint), isTrue, reason: 'day $day: $hint again');
+    }
+    // Five players, two volcano descriptions: used up on day 1.
+    expect(game.promptTheme, DailyTheme.volcano);
+    expect(game.promptHint, isNull);
+  });
+
   test('the content screen works on the mockup, from the next day on', () async {
     // A Monday: prompts are written for Wednesday's volcano on days 1 and 8.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
@@ -329,9 +345,10 @@ void main() {
       await game.advanceDay();
       if (day == 8) expect(game.promptHint, 'a chili lover');
     }
-    // Drawn on day 9: a simulated player's title from day 8.
+    // Drawn on day 9: a simulated player's title from day 8. You got the
+    // one description, so they had none.
     expect(game.promptToDraw!.title, 'The Chili King');
-    expect(game.promptToDraw!.hint, 'a chili lover');
+    expect(game.promptToDraw!.hint, isNull);
   });
 
   test('the theme follows the weekday, with a hint for it', () async {

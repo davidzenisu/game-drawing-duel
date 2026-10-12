@@ -1,19 +1,28 @@
 """The days of a running game: which day it is, and who writes and draws what.
 
-Every choice is random but derived from the server, day and seat, so it
-stays the same on every request without being stored beforehand.
+Most choices are random but derived from the server, day and seat, so they
+stay the same on every request without being stored beforehand. The prompt
+hints are stored when first given out, as a server uses each one once only.
 """
 
 import hashlib
-import math
 import random
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, selectinload
 
-from app.models import ChallengerPrompt, PremadeTitle, Server, ServerSeat, ThemeHint
+from app.models import (
+    ChallengerPrompt,
+    HintAssignment,
+    PremadeTitle,
+    Server,
+    ServerSeat,
+    ThemeHint,
+)
 from app.rules import Theme, theme_of_date
 
 # Stands in if the database has no premade title for a theme yet.
@@ -65,23 +74,28 @@ def challenger_theme(server: Server, prompt_day: int) -> Theme:
     return theme_of(server, prompt_day + HEROES_DAY_OFFSET)
 
 
+def _in_use(server: Server, day: int, theme: Theme, model) -> tuple:
+    """Filters `model`'s rows (hints or premade titles) to `theme`'s on
+    `day`. Only rows created before the day began count, and retired ones
+    until the end of the day they were retired, so adding or retiring rows
+    never changes a day's picks."""
+    day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
+    return (
+        model.theme == theme.value,
+        model.created_at < day_start,
+        or_(model.retired_at.is_(None), model.retired_at >= day_start),
+    )
+
+
 def _options(
     session: Session, server: Server, day: int, theme: Theme, column
 ) -> list[str]:
-    """`theme`'s hints or premade titles (`column`) on `day`. Only rows
-    created before the day began count, and retired ones until the end of the
-    day they were retired, so adding or retiring rows never changes a day's
-    picks."""
-    day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
+    """`theme`'s hints or premade titles (`column`) on `day`."""
     model = column.class_
     return list(
         session.scalars(
             select(column)
-            .where(
-                model.theme == theme.value,
-                model.created_at < day_start,
-                or_(model.retired_at.is_(None), model.retired_at >= day_start),
-            )
+            .where(*_in_use(server, day, theme, model))
             .order_by(model.created_at, model.id)
         ).all()
     )
@@ -124,29 +138,73 @@ def _rng(server: Server, day: int, seat: ServerSeat, purpose: str) -> random.Ran
     return random.Random(f"{server.id}:{day}:{seat.id}:{purpose}")
 
 
+def _hint_assignments(
+    session: Session, server: Server, day: int
+) -> dict[uuid.UUID, HintAssignment]:
+    return {
+        a.seat_id: a
+        for a in session.scalars(
+            select(HintAssignment)
+            .where(HintAssignment.server_id == server.id, HintAssignment.day == day)
+            .options(selectinload(HintAssignment.hint))
+        )
+    }
+
+
+def _assign_hints(session: Session, server: Server, day: int) -> None:
+    """Gives every seat without one a hint of the challenger's theme for
+    `day` that the server never used, in an order of the server's own, and
+    none once they're used up. Commits."""
+    assigned = _hint_assignments(session, server, day)
+    used = set(
+        session.scalars(
+            select(HintAssignment.hint_id).where(
+                HintAssignment.server_id == server.id,
+                HintAssignment.hint_id.is_not(None),
+            )
+        )
+    )
+    theme = challenger_theme(server, day)
+    unused = sorted(
+        (
+            hint
+            for hint in session.scalars(
+                select(ThemeHint).where(*_in_use(server, day, theme, ThemeHint))
+            )
+            if hint.id not in used
+        ),
+        key=lambda hint: hashlib.sha256(f"{server.id}:{hint.id}".encode()).digest(),
+    )
+    try:
+        with session.begin_nested():
+            for seat in active_seats(server):
+                if seat.id not in assigned:
+                    hint = unused.pop(0) if unused else None
+                    session.add(
+                        HintAssignment(
+                            server_id=server.id,
+                            seat_id=seat.id,
+                            day=day,
+                            hint_id=hint.id if hint else None,
+                        )
+                    )
+    except IntegrityError:
+        pass  # Someone else assigned them at the same time.
+    session.commit()
+
+
 def prompt_hint(
     session: Session, server: Server, day: int, author: ServerSeat
 ) -> str | None:
     """The description `author` picks a person and writes a title for on
-    `day`: one of the hints of the challenger's theme.
-
-    A theme's prompts are written once a week, and every week each player
-    moves on by the same number of hints, at least the number of players and
-    without a common factor with the number of hints. So everyone gets a
-    different hint (unless there are more players than hints), and nobody
-    gets one again before they had them all. The hints are in an order of
-    the server's own; new ones slot into it."""
-    theme = challenger_theme(server, day)
-    hints = _options(session, server, day, theme, ThemeHint.text)
-    if not hints:
-        return None
-    hints.sort(key=lambda hint: hashlib.sha256(f"{server.id}:{hint}".encode()).digest())
-    seats = active_seats(server)
-    step = len(seats)
-    while math.gcd(step, len(hints)) != 1:
-        step += 1
-    week = date_of_day(server, day).toordinal() // 7
-    return hints[(seats.index(author) + week * step) % len(hints)]
+    `day`: one of the hints of the challenger's theme. A server uses every
+    hint once at most; once the theme's hints are used up, there's none."""
+    assigned = _hint_assignments(session, server, day)
+    if author.id not in assigned:
+        _assign_hints(session, server, day)
+        assigned = _hint_assignments(session, server, day)
+    assignment = assigned.get(author.id)
+    return assignment.hint.text if assignment and assignment.hint else None
 
 
 def can_be_subject(author: ServerSeat, subject: ServerSeat) -> bool:

@@ -264,16 +264,32 @@ class ThemeTests(TodayTestCase):
         self.assertEqual(wednesday["to_draw"]["title"], days.FALLBACK_TITLE)
         self.assertEqual(wednesday["to_draw"]["theme"], "snow")
 
-    def test_every_player_gets_another_hint_and_a_new_one_next_week(self) -> None:
+    def test_a_server_uses_every_hint_once(self) -> None:
         monday = {s: self.today(s)["prompt"]["hint"] for s in (ADMIN, SAM)}
         self.assertEqual(set(monday.values()), set(HINTS["volcano"]))
+        self.assertEqual(self.today()["prompt"]["hint"], monday[ADMIN], "it stays")
         for _ in range(7):
             self.post("days/next")
-        next_monday = {s: self.today(s)["prompt"] for s in (ADMIN, SAM)}
-        self.assertEqual(next_monday[ADMIN]["theme"], "volcano")
-        for subject in (ADMIN, SAM):
-            self.assertIn(next_monday[subject]["hint"], HINTS["volcano"])
-            self.assertNotEqual(next_monday[subject]["hint"], monday[subject])
+
+        # Next Monday, the two volcano hints are used up.
+        prompt = self.today()["prompt"]
+        self.assertEqual(prompt["theme"], "volcano")
+        self.assertIsNone(prompt["hint"])
+        self.assertIsNone(self.today(SAM)["prompt"]["hint"])
+        written = self.post(
+            "today/prompt", json={"title": "Untold", "subject_position": 1}
+        )
+        self.assertEqual(written.status_code, 200, "a title can be written anyway")
+
+        # A new hint goes to one player the Monday after.
+        with self.session_factory() as session:
+            session.add(ThemeHint(theme="volcano", text="a chili lover", created_at=SEEDED))
+            session.commit()
+        self.assertIsNone(self.today()["prompt"]["hint"], "today's stay")
+        for _ in range(7):
+            self.post("days/next")
+        hints = [self.today(s)["prompt"]["hint"] for s in (ADMIN, SAM)]
+        self.assertCountEqual(hints, ["a chili lover", None])
 
     def test_new_hints_count_from_the_day_after_they_were_added(self) -> None:
         before = self.today()["prompt"]["hint"]
