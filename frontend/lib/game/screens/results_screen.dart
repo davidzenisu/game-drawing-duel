@@ -9,8 +9,8 @@ import '../widgets/card_art.dart';
 import '../widgets/sketch_canvas.dart';
 import '../widgets/animated_fight.dart';
 
-/// Fights you were part of: the fighters you picked yesterday and the
-/// challenger you drew two days ago.
+/// Decided fights you were part of: the fighters you picked two days ago
+/// and the challenger you drew three days ago.
 class ResultsScreen extends StatelessWidget {
   const ResultsScreen({super.key, required this.controller});
 
@@ -31,7 +31,11 @@ class ResultsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _Section(title: 'Your fighters', empty: 'You did not pick fighters yesterday.', fights: yourFights),
+                  _Section(
+                    title: 'Your fighters',
+                    empty: 'You did not pick fighters two days ago.',
+                    fights: yourFights,
+                  ),
                   const SizedBox(height: 16),
                   _Section(
                     title: 'Your challenger',
@@ -70,7 +74,7 @@ class _Section extends StatelessWidget {
               title: Text('${fight.challenger.subject} · ${fight.challenger.title}'),
               subtitle: Text(
                 "${fight.owner.isYou ? 'Your' : "${fight.owner.name}'s"} ${fight.fighters.length} fighter${fight.fighters.length == 1 ? '' : 's'} · "
-                '${fight.votes.length} votes',
+                '${fight.fighterStars} ★ vs. ${fight.challengerStars} ★',
               ),
               trailing: const Icon(Icons.play_circle_fill_rounded, size: 32),
               onTap: () =>
@@ -82,7 +86,7 @@ class _Section extends StatelessWidget {
   }
 }
 
-/// Plays out a fight that ends with the outcome the votes decided.
+/// Plays out a fight that ends with the outcome the stars decided.
 class FightReplayScreen extends StatefulWidget {
   const FightReplayScreen({super.key, required this.fight});
 
@@ -148,7 +152,10 @@ class _FightReplayScreenState extends State<FightReplayScreen> {
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 8),
-                    Text('Votes: ${fight.fighterVotes} for the fighters · ${fight.challengerVotes} for the challenger'),
+                    Text(
+                      'Fighters ${fight.fighterStars} ★ · challenger ${fight.challengerStars} ★ '
+                      '(${fight.boosts} boost${fight.boosts == 1 ? '' : 's'})',
+                    ),
                     const SizedBox(height: 16),
                     FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Back')),
                   ],

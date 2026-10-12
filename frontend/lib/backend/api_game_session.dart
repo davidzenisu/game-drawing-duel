@@ -271,7 +271,8 @@ class ApiGameSession extends GameSession {
   Player? _hurrySentTo;
   List<HurryPlan> _incomingHurries = const [];
   FightSetup? _yourFight;
-  List<FightSetup> _fightsToVote = const [];
+  List<BoostTarget> _boostTargets = const [];
+  String? _boostedChallengerId;
   List<FightSetup> _results = const [];
   List<ChallengerRecord> _challengers = const [];
 
@@ -289,7 +290,7 @@ class ApiGameSession extends GameSession {
     ];
   }
 
-  /// Drawing, fighting and voting add to the challengers you encountered.
+  /// Drawing, fighting and boosting add to the challengers you encountered.
   Future<void> _reloadChallengers(ServerSession server) async =>
       _setChallengers(server, await _get('/servers/${server.code}/challengers'));
 
@@ -301,8 +302,7 @@ class ApiGameSession extends GameSession {
     throw const FormatException('Unexpected character.');
   }
 
-  /// A fight from the API. Your vote is filed under your id; a decided
-  /// fight's votes are filed under made-up ids, as only the counts are known.
+  /// A fight from the API, with the challenger's boosts once it's decided.
   Future<FightSetup> _parseFight(ServerSession server, Object? json) async {
     if (json case {
       'id': String id,
@@ -310,7 +310,6 @@ class ApiGameSession extends GameSession {
       'owner_position': int owner,
       'challenger': final challenger,
       'fighters': List fighters,
-      'your_vote': bool? yourVote,
       'outcome': final outcome,
     }) {
       final fight = FightSetup(
@@ -333,13 +332,7 @@ class ApiGameSession extends GameSession {
         ],
         day: day,
       );
-      if (outcome case {'fighter_votes': int forFighters, 'challenger_votes': int forChallenger}) {
-        for (var i = 0; i < forFighters + forChallenger; i++) {
-          fight.votes['vote-$i'] = i < forFighters;
-        }
-      } else if (yourVote != null) {
-        fight.votes[server.players.firstWhere((p) => p.isYou).id] = yourVote;
-      }
+      if (outcome case {'boosts': int boosts}) fight.boosts = boosts;
       return fight;
     }
     throw const FormatException('Unexpected fight.');
@@ -406,7 +399,17 @@ class ApiGameSession extends GameSession {
         _fightChallenger = await _card(server, challenger);
         _yourFight = yours == null ? null : await _parseFight(server, yours);
       }
-      _fightsToVote = [for (final fight in json['to_vote'] as List? ?? const []) await _parseFight(server, fight)];
+      _boostTargets = [
+        for (final target in json['to_boost'] as List? ?? const [])
+          if (target case {'challenger': final challenger, 'matchups': List matchups})
+            BoostTarget(
+              challenger: await _card(server, challenger),
+              matchups: [for (final fight in matchups) await _parseFight(server, fight)],
+            )
+          else
+            throw const FormatException('Unexpected challenger to boost.'),
+      ];
+      _boostedChallengerId = json['boosted'] as String?;
       _results = [for (final fight in json['results'] as List? ?? const []) await _parseFight(server, fight)];
       _hurrySentTo = switch (json['hurry_sent_to']) {
         final int position => _seat(server, position),
@@ -658,7 +661,10 @@ class ApiGameSession extends GameSession {
   FightSetup? get yourFight => _yourFight;
 
   @override
-  List<FightSetup> get fightsToVote => _fightsToVote;
+  List<BoostTarget> get boostTargets => _boostTargets;
+
+  @override
+  String? get boostedChallengerId => _boostedChallengerId;
 
   @override
   List<FightSetup> get yourFightResults => [
@@ -714,10 +720,8 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> vote(FightSetup fight, {required bool fightersWin}) async {
-    final json = await _post('/servers/${server.code}/today/votes/${fight.id}', {'fighters_win': fightersWin});
-    // Screens may hold on to the fight they showed.
-    fight.votes[you.id] = fightersWin;
+  Future<void> boost(CharacterCard challenger) async {
+    final json = await _post('/servers/${server.code}/today/boosts', {'challenger_id': challenger.id});
     await _setToday(server, json);
     await _reloadChallengers(server);
     notifyListeners();

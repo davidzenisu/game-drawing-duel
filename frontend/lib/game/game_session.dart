@@ -160,18 +160,22 @@ abstract class GameSession extends ChangeNotifier {
 
   FightSetup? get yourFight;
 
-  /// Yesterday's fights you can vote on (not the ones you're part of).
-  List<FightSetup> get fightsToVote;
+  /// Yesterday's challengers you may boost, with the fights against them:
+  /// all but the one you drew and the one you fought.
+  List<BoostTarget> get boostTargets;
 
-  /// Decided fights you picked the fighters for: in the mockup yesterday's,
-  /// online the ones whose voting day is over.
+  /// The id of the challenger you boosted today.
+  String? get boostedChallengerId;
+
+  /// Decided fights you picked the fighters for: the ones whose boosting day
+  /// is over.
   List<FightSetup> get yourFightResults;
 
   /// Decided fights against a challenger you drew.
   List<FightSetup> get yourChallengerResults;
 
   /// The challengers you encountered, newest first: the ones you drew,
-  /// fought against or voted on. They don't join the gacha [pool].
+  /// fought against or boosted. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
 
   /// The hurries sent against your challenger drawing today, in the order
@@ -201,9 +205,8 @@ abstract class GameSession extends ChangeNotifier {
 
   bool get challengerDrawn => yourChallenger != null;
 
-  bool hasVoted(FightSetup fight) => fight.votes.containsKey(you.id);
-
-  int get votesLeft => fightsToVote.where((f) => !hasVoted(f)).length;
+  /// Whether you can still boost a challenger today.
+  bool get canBoost => boostTargets.isNotEmpty && boostedChallengerId == null;
 
   /// Whether a step of the daily loop is available today.
   bool stepUnlocked(int step) => day >= step;
@@ -219,7 +222,7 @@ abstract class GameSession extends ChangeNotifier {
       yourPrompt == null ||
       (promptToDraw != null && !challengerDrawn) ||
       (fightChallenger != null && yourFight == null && collection.isNotEmpty) ||
-      votesLeft > 0;
+      canBoost;
 
   // Actions ------------------------------------------------------------------
 
@@ -274,8 +277,8 @@ abstract class GameSession extends ChangeNotifier {
   /// Step 3: lock in up to four fighters against today's challenger.
   Future<void> submitFighters(List<OwnedCard> fighters);
 
-  /// Step 4: vote whether the fighters or the challenger would win.
-  Future<void> vote(FightSetup fight, {required bool fightersWin});
+  /// Step 4: boost one of [boostTargets]' challengers, once a day.
+  Future<void> boost(CharacterCard challenger);
 
   /// Sends today's free hurry. Completes with false if it was already used.
   Future<bool> sendHurry(Player target);

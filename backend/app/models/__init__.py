@@ -1,6 +1,6 @@
 from app.models.character import Character
 from app.models.day import ChallengerPrompt, DayEnd
-from app.models.fight import Fight, Fighter, Vote
+from app.models.fight import Boost, Fight, Fighter
 from app.models.gacha import Pull, PullGrant
 from app.models.hurry import Hurry
 from app.models.player import Player
@@ -10,6 +10,7 @@ from app.models.theme import PremadeTitle, ThemeHint
 from app.models.upgrade import Upgrade
 
 __all__ = [
+    "Boost",
     "ChallengerPrompt",
     "Character",
     "DayEnd",
@@ -25,5 +26,4 @@ __all__ = [
     "SetupAssignment",
     "ThemeHint",
     "Upgrade",
-    "Vote",
 ]

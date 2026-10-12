@@ -1,22 +1,23 @@
 """Steps 3 and 4 of the daily loop: fighters against yesterday's challengers,
-and votes on who wins.
+and boosts for them.
 
-A fight set up on day F is voted on during day F + 1 and decided from day
-F + 2 on. Whatever a player leaves out is decided by chance: fighters picked
-at random from their collection, votes weighted by `rules.fighter_odds`.
+Fighters are picked against a challenger on day F, the other players may
+boost it during day F + 1, and from day F + 2 on the stars decide: the
+fighters win with more stars than the challenger (`rules.fighters_win`).
+Players who pick no fighters get random ones from their collection.
 """
 
 import random
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import days, pulls, upgrades
-from app.models import Character, Fight, Fighter, Server, ServerSeat, Vote
-from app.rules import MAX_FIGHTERS, Rarity, fighter_odds
+from app import days, pulls, rules, upgrades
+from app.models import Boost, Character, Fight, Fighter, Server, ServerSeat
+from app.rules import MAX_FIGHTERS, Rarity
 
 # The first day with challengers drawn the day before.
 FIRST_FIGHT_DAY = 3
@@ -86,7 +87,7 @@ def new_fight(
 
 def complete_fights(session: Session, server: Server, day: int) -> None:
     """Picks fighters by chance for everyone who picked none on `day`, so the
-    others can vote on their fight. Commits."""
+    others can boost their challenger. Commits."""
     if day < FIRST_FIGHT_DAY:
         return
     for seat in days.active_seats(server):
@@ -119,47 +120,58 @@ def fights_on(session: Session, server: Server, day: int) -> list[Fight]:
     )
 
 
-def can_vote(fight: Fight, seat: ServerSeat) -> bool:
-    """Everyone votes but the owner and the challenger's artist."""
-    return seat.id not in {fight.owner_seat_id, fight.challenger.artist_seat_id}
+def boosts(session: Session, challenger_id: uuid.UUID) -> int:
+    """How many players boosted the challenger."""
+    return session.scalar(
+        select(func.count())
+        .select_from(Boost)
+        .where(Boost.challenger_id == challenger_id)
+    )
 
 
 @dataclass(frozen=True)
 class Outcome:
-    fighter_votes: int
-    challenger_votes: int
+    fighter_stars: int
+    boosts: int
+
+    @property
+    def challenger_stars(self) -> int:
+        return rules.challenger_stars(self.boosts)
 
     @property
     def fighters_win(self) -> bool:
-        """Ties go to the challenger."""
-        return self.fighter_votes > self.challenger_votes
+        return rules.fighters_win(self.fighter_stars, self.boosts)
 
 
-def outcome(session: Session, server: Server, fight: Fight) -> Outcome:
-    """The votes cast, and a vote by chance for everyone who didn't."""
-    cast = {
-        vote.voter_seat_id: vote.fighters_win
-        for vote in session.scalars(select(Vote).where(Vote.fight_id == fight.id))
-    }
-    unlocked = [
-        (Rarity(f.character.rarity), len(f.upgrades.split(",")) if f.upgrades else 0)
-        for f in fight.fighters
-    ]
-    odds = fighter_odds(unlocked)
-    votes = [
-        cast[seat.id]
-        if seat.id in cast
-        else _rng(fight.id, seat.id, "vote").random() < odds
-        for seat in days.active_seats(server)
-        if can_vote(fight, seat)
-    ]
-    return Outcome(sum(votes), len(votes) - sum(votes))
+def outcome(session: Session, fight: Fight) -> Outcome:
+    """The stars of the fighters and of the boosted challenger."""
+    team = [Rarity(f.character.rarity) for f in fight.fighters]
+    return Outcome(rules.team_stars(team), boosts(session, fight.challenger_id))
 
 
-def your_vote(session: Session, fight: Fight, seat: ServerSeat) -> bool | None:
+def boost_targets(
+    session: Session, server: Server, day: int, seat: ServerSeat
+) -> dict[uuid.UUID, list[Fight]]:
+    """The challengers `seat` may boost on `day`, with the fights against
+    them: the day before's, but not the one they drew or the one they
+    fought."""
+    fought = fight_of(session, seat, day - 1)
+    targets: dict[uuid.UUID, list[Fight]] = {}
+    for fight in fights_on(session, server, day - 1):
+        challenger = fight.challenger
+        if challenger.artist_seat_id == seat.id or (
+            fought is not None and challenger.id == fought.challenger_id
+        ):
+            continue
+        targets.setdefault(challenger.id, []).append(fight)
+    return targets
+
+
+def boosted(session: Session, seat: ServerSeat, day: int) -> uuid.UUID | None:
+    """The challenger `seat` boosted on `day`, if any."""
     return session.scalar(
-        select(Vote.fighters_win).where(
-            Vote.fight_id == fight.id, Vote.voter_seat_id == seat.id
+        select(Boost.challenger_id).where(
+            Boost.booster_seat_id == seat.id, Boost.day == day
         )
     )
 
@@ -186,26 +198,22 @@ def encountered_challengers(
     session: Session, server: Server, seat: ServerSeat
 ) -> list[ChallengerRecord]:
     """The challengers `seat` encountered, newest first: the ones they drew,
-    fought against or voted on, with their record in decided fights."""
+    fought against or boosted, with their record in decided fights."""
     drawn = select(Character.id).where(
         Character.artist_seat_id == seat.id, Character.assignment_id.is_(None)
     )
     fought = select(Fight.challenger_id).where(Fight.owner_seat_id == seat.id)
-    voted = (
-        select(Fight.challenger_id)
-        .join(Vote, Vote.fight_id == Fight.id)
-        .where(Vote.voter_seat_id == seat.id)
-    )
+    boosted_ids = select(Boost.challenger_id).where(Boost.booster_seat_id == seat.id)
     challengers = session.scalars(
         select(Character)
         .where(
             Character.server_id == server.id,
-            Character.id.in_(drawn.union(fought, voted)),
+            Character.id.in_(drawn.union(fought, boosted_ids)),
         )
         .options(selectinload(Character.artist), selectinload(Character.subject))
         .order_by(Character.day.desc(), Character.created_at.desc())
     ).all()
-    # A fight is decided once the day after it, its voting day, is over.
+    # A fight is decided once the day after it, its boosting day, is over.
     decided_before = days.current_day(server) - 1
     records = []
     for challenger in challengers:
@@ -214,6 +222,6 @@ def encountered_challengers(
             .where(Fight.challenger_id == challenger.id, Fight.day < decided_before)
             .options(selectinload(Fight.fighters), selectinload(Fight.challenger))
         ).all()
-        wins = sum(not outcome(session, server, f).fighters_win for f in decided)
+        wins = sum(not outcome(session, f).fighters_win for f in decided)
         records.append(ChallengerRecord(challenger, len(decided), wins))
     return records

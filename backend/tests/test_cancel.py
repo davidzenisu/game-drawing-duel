@@ -1,6 +1,7 @@
 from sqlalchemy import func, select
 
 from app.models import (
+    Boost,
     ChallengerPrompt,
     Character,
     DayEnd,
@@ -13,7 +14,6 @@ from app.models import (
     ServerSeat,
     SetupAssignment,
     Upgrade,
-    Vote,
 )
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
@@ -21,6 +21,7 @@ from tests.test_fights import ROBIN, SAM, FightTestCase
 from tests.test_setup import ADMIN, FRIEND_SUBJECTS, SetupTestCase
 
 GAME_DATA = (
+    Boost,
     ChallengerPrompt,
     Character,
     DayEnd,
@@ -31,7 +32,6 @@ GAME_DATA = (
     PullGrant,
     SetupAssignment,
     Upgrade,
-    Vote,
 )
 
 

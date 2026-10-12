@@ -12,6 +12,7 @@ from app import days, fights
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import (
+    Boost,
     ChallengerPrompt,
     Character,
     DayEnd,
@@ -20,7 +21,6 @@ from app.models import (
     PullGrant,
     Server,
     ServerSeat,
-    Vote,
 )
 from app.routers.pool import require_launched
 from app.routers.servers import Code, DbSession, load_server, your_seat
@@ -31,6 +31,8 @@ from app.rules import (
     Rarity,
 )
 from app.schemas import (
+    BoostSubmit,
+    BoostTarget,
     ChallengerResponse,
     ChallengerSubmit,
     FighterResponse,
@@ -43,7 +45,6 @@ from app.schemas import (
     PromptSubmit,
     PromptToDrawResponse,
     TodayResponse,
-    VoteSubmit,
     YourPrompt,
 )
 from app.storage import Files
@@ -70,7 +71,7 @@ def _fight_response(
     session: Session, server: Server, fight: Fight, seat: ServerSeat, *, decided: bool
 ) -> FightResponse:
     positions = {s.id: s.position for s in server.seats}
-    result = fights.outcome(session, server, fight) if decided else None
+    result = fights.outcome(session, fight) if decided else None
     return FightResponse(
         id=fight.id,
         day=fight.day,
@@ -85,12 +86,12 @@ def _fight_response(
             for f in fight.fighters
         ],
         by_chance=fight.by_chance,
-        your_vote=fights.your_vote(session, fight, seat),
         outcome=None
         if result is None
         else OutcomeResponse(
-            fighter_votes=result.fighter_votes,
-            challenger_votes=result.challenger_votes,
+            fighter_stars=result.fighter_stars,
+            boosts=result.boosts,
+            challenger_stars=result.challenger_stars,
             fighters_win=result.fighters_win,
         ),
     )
@@ -143,11 +144,17 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             challenger=character_response(drawn) if drawn else None,
         ),
         fight=_fight_step(session, server, day, seat),
-        to_vote=[
-            _fight_response(session, server, f, seat, decided=False)
-            for f in fights.fights_on(session, server, day - 1)
-            if fights.can_vote(f, seat)
+        to_boost=[
+            BoostTarget(
+                challenger=character_response(matchups[0].challenger),
+                matchups=[
+                    _fight_response(session, server, f, seat, decided=False)
+                    for f in matchups
+                ],
+            )
+            for matchups in fights.boost_targets(session, server, day, seat).values()
         ],
+        boosted=fights.boosted(session, seat, day),
         results=[
             _fight_response(session, server, f, seat, decided=True)
             for f in fights.fights_on(session, server, day - 2)
@@ -329,39 +336,28 @@ def pick_fighters(
     return _today(session, server, seat)
 
 
-@router.post("/{code}/today/votes/{fight_id}", response_model=TodayResponse)
-def vote(
-    code: Code,
-    fight_id: uuid.UUID,
-    body: VoteSubmit,
-    player: CurrentPlayer,
-    session: DbSession,
+@router.post("/{code}/today/boosts", response_model=TodayResponse)
+def boost(
+    code: Code, body: BoostSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
-    """Step 4: votes whether the fighters beat the challenger, on one of
-    yesterday's fights. Once per fight."""
+    """Step 4: boosts one of yesterday's challengers, but not the one you drew
+    or the one you fought. Once a day; every boost adds more stars than the
+    one before (`rules.boost_stars`)."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
-    fight = next(
-        (f for f in fights.fights_on(session, server, day - 1) if f.id == fight_id),
-        None,
-    )
-    if fight is None:
+    if body.challenger_id not in fights.boost_targets(session, server, day, seat):
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail="No fight to vote on today"
-        )
-    if not fights.can_vote(fight, seat):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, detail="You can't vote on your own fight"
+            status.HTTP_404_NOT_FOUND, detail="No challenger to boost today"
         )
     session.add(
-        Vote(fight_id=fight.id, voter_seat_id=seat.id, fighters_win=body.fighters_win)
+        Boost(booster_seat_id=seat.id, challenger_id=body.challenger_id, day=day)
     )
     try:
         session.commit()
     except IntegrityError as error:
         session.rollback()
         raise HTTPException(
-            status.HTTP_409_CONFLICT, detail="You voted on this fight already"
+            status.HTTP_409_CONFLICT, detail="You boosted a challenger today already"
         ) from error
     return _today(session, server, seat)
 
@@ -469,7 +465,7 @@ def get_challengers(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> list[ChallengerResponse]:
     """The challengers you encountered, newest first: the ones you drew,
-    fought against or voted on, with their decided fights and wins.
+    fought against or boosted, with their decided fights and wins.
     Challengers aren't part of the gacha pool."""
     server, seat = _running(session, code, player.id)
     return [

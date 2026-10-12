@@ -29,6 +29,9 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(
             [r.value for r in rules.Rarity], [r["name"] for r in SHARED["rarities"]]
         )
+        self.assertEqual(
+            [r.stars for r in rules.Rarity], [r["stars"] for r in SHARED["rarities"]]
+        )
 
     def test_setup_prompts(self):
         self.assertEqual(
@@ -98,13 +101,19 @@ class SharedRulesTest(unittest.TestCase):
     def test_fights(self):
         fights = SHARED["fights"]
         self.assertEqual(rules.MAX_FIGHTERS, fights["max_fighters"])
+        self.assertEqual(rules.CHALLENGER_STARS, fights["challenger_stars"])
         self.assertEqual(
-            {r.value: p for r, p in rules.RARITY_POWER.items()}, fights["rarity_power"]
+            [rules.boost_stars(n) for n in range(len(fights["boost_stars"]))],
+            fights["boost_stars"],
         )
-        self.assertEqual(rules.UPGRADE_POWER, fights["upgrade_power"])
-        self.assertEqual(rules.CHALLENGER_POWER, fights["challenger_power"])
-        odds = rules.fighter_odds([(rules.Rarity.LEGEND, 2), (rules.Rarity.BASIC, 0)])
-        self.assertAlmostEqual(odds, 4.8 / 9.8)
+        for team, boosts, fighters_win in fights["cases"]:
+            self.assertEqual(
+                rules.fighters_win(
+                    rules.team_stars([rules.Rarity(r) for r in team]), boosts
+                ),
+                fighters_win,
+                (team, boosts),
+            )
 
     def test_hurry(self):
         hurry = SHARED["hurry"]

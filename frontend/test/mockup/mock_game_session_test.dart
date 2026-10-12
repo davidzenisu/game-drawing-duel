@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/themes.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
@@ -172,7 +173,7 @@ void main() {
     expect(game.promptCandidates.where((p) => p.isYou), isEmpty);
     expect(game.promptToDraw, isNull);
     expect(game.fightChallenger, isNull);
-    expect(game.fightsToVote, isEmpty);
+    expect(game.boostTargets, isEmpty);
     await expectLater(game.submitPrompt('Myself', game.you), throwsArgumentError);
     final subject = game.promptCandidates.last;
     await game.submitPrompt('Sunburnt', subject);
@@ -181,7 +182,7 @@ void main() {
     expect(game.yourPrompt?.theme, game.promptTheme);
   });
 
-  test('the 4 day loop: prompt, draw, fighters, vote and results', () async {
+  test('the 4 day loop: prompt, draw, fighters, boost and results', () async {
     final game = await launchedGame();
     final you = game.you;
 
@@ -215,20 +216,33 @@ void main() {
     await game.submitFighters(game.collection.take(4).toList());
     expect(game.yourFight?.fighters, hasLength(4));
 
-    // Day 4: vote on the others' fights, see the results of yours.
+    // Day 4: boost one of yesterday's challengers, but not the one you drew
+    // or the one you fought.
     await game.advanceDay();
-    final toVote = game.fightsToVote;
-    // One player fights your challenger, everyone else's fight is up for your vote.
-    expect(toVote, hasLength(game.otherPlayers.length - 1));
-    expect(toVote.every((f) => !f.owner.isYou && f.challenger.artist != you.name), isTrue);
-    await game.vote(toVote.first, fightersWin: true);
-    expect(game.hasVoted(toVote.first), isTrue);
-    expect(game.votesLeft, toVote.length - 1);
+    expect(game.yourFightResults, isEmpty, reason: 'decided tomorrow');
+    final targets = game.boostTargets;
+    expect(targets, isNotEmpty);
+    for (final target in targets) {
+      expect(target.challenger.artist, isNot(you.name));
+      expect(target.challenger.id, isNot(challenger.id));
+      expect(target.matchups.every((f) => f.challenger.id == target.challenger.id && !f.owner.isYou), isTrue);
+    }
+    expect(game.canBoost, isTrue);
+    final target = targets.first;
+    final boosts = target.matchups.first.boosts;
+    await game.boost(target.challenger);
+    expect(game.boostedChallengerId, target.challenger.id);
+    expect(target.matchups.first.boosts, boosts + 1);
+    expect(game.canBoost, isFalse);
+    await game.boost(targets.last.challenger);
+    expect(game.boostedChallengerId, target.challenger.id, reason: 'once a day');
 
-    final fights = game.yourFightResults;
-    expect(fights, hasLength(1));
-    expect(fights.single.votes, hasLength(game.otherPlayers.length));
-    // Somebody fought the challenger you drew two days ago.
+    // Day 5: the stars decide your fight.
+    await game.advanceDay();
+    final fight = game.yourFightResults.single;
+    expect(fight.fighterStars, Stars.ofTeam(fight.fighters.map((f) => f.card.rarity)));
+    expect(fight.fightersWin, fight.fighterStars > Stars.ofChallenger(fight.boosts));
+    // Somebody fought the challenger you drew three days ago.
     expect(game.yourChallengerResults, hasLength(1));
     expect(game.yourChallengerResults.first.challenger.day, 2);
   });
@@ -251,7 +265,14 @@ void main() {
     expect(game.challengers.map((c) => c.card), contains(opponent));
     expect(game.challengers.firstWhere((c) => c.card == opponent).winRate, isNull, reason: 'not decided yet');
 
-    // Day 4: your fight is decided.
+    // Day 4: boosting one makes it encountered too.
+    await game.advanceDay();
+    final boosted = game.boostTargets.first.challenger;
+    expect(game.challengers.map((c) => c.card), isNot(contains(boosted)));
+    await game.boost(boosted);
+    expect(game.challengers.map((c) => c.card), contains(boosted));
+
+    // Day 5: your fight is decided.
     await game.advanceDay();
     final fight = game.yourFightResults.single;
     final record = game.challengers.firstWhere((c) => c.card == opponent);

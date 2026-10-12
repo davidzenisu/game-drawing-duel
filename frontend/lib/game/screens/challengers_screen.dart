@@ -4,7 +4,7 @@ import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../widgets/card_art.dart';
 
-/// The challengers you encountered (drew, fought against or voted on) with
+/// The challengers you encountered (drew, fought against or boosted) with
 /// their win rates. Challengers don't join the gacha pool.
 class ChallengersScreen extends StatelessWidget {
   const ChallengersScreen({super.key, required this.controller});
@@ -24,7 +24,7 @@ class ChallengersScreen extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.all(24),
                     child: Text(
-                      'No challengers yet. Draw one, fight one or vote on a fight to meet them.',
+                      'No challengers yet. Draw one, fight one or boost one to meet them.',
                       textAlign: TextAlign.center,
                     ),
                   ),

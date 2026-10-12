@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import CurrentPlayer
 from app.database import get_db, utc_now
 from app.models import (
+    Boost,
     ChallengerPrompt,
     Character,
     DayEnd,
@@ -23,7 +24,6 @@ from app.models import (
     ServerSeat,
     SetupAssignment,
     Upgrade,
-    Vote,
 )
 from app.rules import SERVER_CODE_LENGTH
 from app.schemas import SeatResponse, ServerCreate, ServerResponse
@@ -206,7 +206,7 @@ def _delete_game_data(session: Session, server: Server) -> list[uuid.UUID]:
     )
     fight_ids = select(Fight.id).where(Fight.owner_seat_id.in_(seat_ids))
     for statement in (
-        delete(Vote).where(Vote.fight_id.in_(fight_ids)),
+        delete(Boost).where(Boost.booster_seat_id.in_(seat_ids)),
         delete(Fighter).where(Fighter.fight_id.in_(fight_ids)),
         delete(Fight).where(Fight.owner_seat_id.in_(seat_ids)),
         delete(Upgrade).where(Upgrade.seat_id.in_(seat_ids)),

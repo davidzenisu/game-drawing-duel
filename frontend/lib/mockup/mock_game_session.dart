@@ -182,6 +182,7 @@ class MockGameSession extends GameSession {
     _prompts.clear();
     _challengers.clear();
     _fights.clear();
+    _boosted.clear();
     _botRosters.clear();
     _promptTheme = DailyTheme.forest;
     _promptHint = null;
@@ -311,24 +312,46 @@ class MockGameSession extends GameSession {
   @override
   FightSetup? get yourFight => _fights[_day]?.where((f) => f.owner.isYou).firstOrNull;
 
-  /// Yesterday's fights you can vote on (not the ones you're part of).
   @override
-  List<FightSetup> get fightsToVote => [
-    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
-      if (!fight.owner.isYou && fight.challenger.artist != you.name) fight,
-  ];
+  List<BoostTarget> get boostTargets => _boostTargets(you);
 
-  /// Finished fights you picked the fighters for (yesterday).
+  /// Yesterday's challengers [player] may boost: all but the one they drew
+  /// and the one they fought.
+  List<BoostTarget> _boostTargets(Player player) {
+    final yesterday = _fights[_day - 1] ?? const <FightSetup>[];
+    final fought = yesterday.where((f) => f.owner.id == player.id).firstOrNull?.challenger;
+    final matchups = <String, List<FightSetup>>{};
+    for (final fight in yesterday) {
+      final challenger = fight.challenger;
+      if (challenger.artist == player.name || challenger.id == fought?.id) continue;
+      matchups.putIfAbsent(challenger.id, () => []).add(fight);
+    }
+    return [for (final fights in matchups.values) BoostTarget(challenger: fights.first.challenger, matchups: fights)];
+  }
+
+  @override
+  String? get boostedChallengerId => _boosted[_day];
+
+  /// The challengers you boosted, by day.
+  final Map<int, String> _boosted = {};
+
+  void _boost(BoostTarget target) {
+    for (final fight in target.matchups) {
+      fight.boosts++;
+    }
+  }
+
+  /// Decided fights you picked the fighters for (two days ago).
   @override
   List<FightSetup> get yourFightResults => [
-    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
+    for (final fight in _fights[_day - 2] ?? const <FightSetup>[])
       if (fight.owner.isYou) fight,
   ];
 
-  /// Finished fights against the challenger you drew (two days ago).
+  /// Decided fights against the challenger you drew (three days ago).
   @override
   List<FightSetup> get yourChallengerResults => [
-    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
+    for (final fight in _fights[_day - 2] ?? const <FightSetup>[])
       if (fight.challenger.artist == you.name) fight,
   ];
 
@@ -428,12 +451,11 @@ class MockGameSession extends GameSession {
       );
     }
 
-    // Step 4: the simulated players vote on yesterday's fights.
-    for (final fight in _fights[_day - 1] ?? const <FightSetup>[]) {
-      for (final voter in others) {
-        if (voter.id == fight.owner.id) continue;
-        fight.votes[voter.id] = _random.nextDouble() < fight.fighterOdds;
-      }
+    // Step 4: most simulated players boost one of yesterday's challengers.
+    for (final booster in others) {
+      final targets = _boostTargets(booster);
+      if (targets.isEmpty || _random.nextDouble() < 0.3) continue;
+      _boost(targets[_random.nextInt(targets.length)]);
     }
 
     // The simulated players pull a character every day.
@@ -457,16 +479,17 @@ class MockGameSession extends GameSession {
     _challengers[_day]!.add(card);
   }
 
-  /// The challengers you drew, fought against or voted on. A fight counts
-  /// as decided once its day is over, as the simulated players vote right away.
+  /// The challengers you drew, fought against or boosted. A fight is
+  /// decided once the day after it, its boosting day, is over.
   @override
   List<ChallengerRecord> get challengers {
     final allFights = [for (final day in _fights.values) ...day];
     bool encountered(CharacterCard card) =>
         card.artist == you.name ||
-        allFights.any((f) => f.challenger.id == card.id && (f.owner.isYou || f.votes.containsKey(you.id)));
+        _boosted.containsValue(card.id) ||
+        allFights.any((f) => f.challenger.id == card.id && f.owner.isYou);
     ChallengerRecord record(CharacterCard card) {
-      final decided = allFights.where((f) => f.challenger.id == card.id && f.day < _day).toList();
+      final decided = allFights.where((f) => f.challenger.id == card.id && f.day < _day - 1).toList();
       return ChallengerRecord(card: card, fights: decided.length, wins: decided.where((f) => !f.fightersWin).length);
     }
 
@@ -550,11 +573,13 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Step 4: vote whether the fighters or the challenger would win.
+  /// Step 4: boost one of yesterday's challengers, once a day.
   @override
-  Future<void> vote(FightSetup fight, {required bool fightersWin}) async {
-    if (!fightsToVote.contains(fight) || hasVoted(fight)) return;
-    fight.votes[you.id] = fightersWin;
+  Future<void> boost(CharacterCard challenger) async {
+    final target = boostTargets.where((t) => t.challenger.id == challenger.id).firstOrNull;
+    if (target == null || boostedChallengerId != null) return;
+    _boosted[_day] = challenger.id;
+    _boost(target);
     notifyListeners();
   }
 
