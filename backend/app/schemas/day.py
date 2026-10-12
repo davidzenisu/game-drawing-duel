@@ -84,8 +84,8 @@ class FightStep(BaseModel):
     challenger: CharacterResponse
     # Your fighters, once picked.
     yours: FightResponse | None
-    # Your characters that fought earlier this week: every character fights
-    # once a week, they're back on Monday (UTC).
+    # Your characters that fought earlier this week: every character but the
+    # basic ones fights once a week, they're back on Monday (UTC).
     resting: list[uuid.UUID]
 
 

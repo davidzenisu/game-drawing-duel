@@ -138,8 +138,9 @@ day each player:
    challenger drawn the day before (not their own). Every character fights
    once a week: after a fight it rests until Monday (UTC, the week of the
    themes), and `GET today` lists the resting ones as `fight.resting`.
-   Fighters picked by chance come from the characters that didn't fight yet
-   that week,
+   Basic (1-star) characters can fight every day, and everyone draws one
+   during the setup, so nobody runs out. Fighters picked by chance come from
+   the characters that can fight that day,
 4. browses the day before's challengers and the teams sent against them,
    all but the one they drew and the one they fought, and boosts one of them.
 

@@ -515,7 +515,8 @@ class FakeBackend {
           'resting': {
             for (final f in fights[code] ?? const [])
               if (f.owner == yours && f.day < today && f.day >= today - (today - 1) % 7)
-                for (final c in f.fighters) c['id'],
+                for (final c in f.fighters)
+                  if (c['rarity'] != 'basic') c['id'],
           }.toList(),
         },
       },
