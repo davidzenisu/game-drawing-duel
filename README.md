@@ -51,7 +51,9 @@ Access Token** turned on so it appears in the token's `permissions` claim.
 Tokens without it (e.g. machine-to-machine) get `403`. A player's first `PUT /me` creates their database record
 linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
-database answers.
+database answers. The backend deployment sets the API version in
+`/openapi.json` to `0.1.0+<commit>` and fails unless the live API reports it
+within 10 minutes.
 
 #### Signing in to the API docs
 
