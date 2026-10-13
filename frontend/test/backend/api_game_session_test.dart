@@ -598,6 +598,28 @@ void main() {
       expect((record.fights, record.wins), (1, result.fightersWin ? 0 : 1));
     });
 
+    test('a content entry from an older API names what is missing', () async {
+      backend.contentEditors.add('kim');
+      final editor = await signedUp('kim', 'Kim');
+      // As the API returned them before hints had premade titles.
+      backend.hints.add({
+        'id': 'content-1',
+        'theme': 'volcano',
+        'text': 'a sauna regular',
+        'created_at': '2026-10-12T10:00:00Z',
+      });
+      await expectLater(
+        editor.contentEntries(DailyTheme.volcano),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            'Unexpected content entry: "premade_title" is missing.',
+          ),
+        ),
+      );
+    });
+
     test('content editors manage the descriptions and premade titles', () async {
       // Players don't get the content screen.
       expect(admin.canEditContent, isFalse);
