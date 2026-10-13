@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, status
@@ -14,6 +15,18 @@ from app.docs_login import configure_docs_login
 from app.routers import characters, content, me, pool, servers, setup, today
 
 app = FastAPI(title="Game Drawing Duel API", version="0.1.0")
+
+# The backend deployment writes the commit it deploys into this file; local
+# runs and tests have none.
+COMMIT_FILE = Path(__file__).resolve().parent / "commit.txt"
+
+
+def running_commit() -> str:
+    """The deployed commit hash, or "dev" when not deployed."""
+    try:
+        return COMMIT_FILE.read_text().strip() or "dev"
+    except OSError:
+        return "dev"
 
 
 def configure_frontend_cors(application: FastAPI) -> None:
@@ -34,15 +47,17 @@ configure_frontend_cors(app)
 def health_check(
     session: Annotated[Session, Depends(get_db)],
 ) -> JSONResponse:
-    """Public: reports whether the API can reach its database."""
+    """Public: reports whether the API can reach its database, and which
+    commit is running (`version`)."""
+    version = running_commit()
     try:
         session.execute(text("SELECT 1"))
     except SQLAlchemyError:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "error", "database": "unavailable"},
+            content={"status": "error", "database": "unavailable", "version": version},
         )
-    return JSONResponse(content={"status": "ok", "database": "ok"})
+    return JSONResponse(content={"status": "ok", "database": "ok", "version": version})
 
 
 # Everything except the health check and the API docs requires a signed-in user.
