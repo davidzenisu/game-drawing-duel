@@ -51,7 +51,10 @@ Access Token** turned on so it appears in the token's `permissions` claim.
 Tokens without it (e.g. machine-to-machine) get `403`. A player's first `PUT /me` creates their database record
 linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
-database answers.
+database answers, and reports the commit that's running as `version` (`dev`
+outside a deployment). The backend deployment writes it into the package and
+fails unless the live API reports it within 10 minutes, as Azure has accepted
+packages before without switching to them.
 
 #### Signing in to the API docs
 

@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app import build
 from app.auth import get_auth0_subject
 from app.database import get_db
 from app.docs_login import configure_docs_login
@@ -34,15 +35,17 @@ configure_frontend_cors(app)
 def health_check(
     session: Annotated[Session, Depends(get_db)],
 ) -> JSONResponse:
-    """Public: reports whether the API can reach its database."""
+    """Public: reports whether the API can reach its database, and which
+    commit is running (`version`, see `app.build`)."""
+    version = build.version()
     try:
         session.execute(text("SELECT 1"))
     except SQLAlchemyError:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "error", "database": "unavailable"},
+            content={"status": "error", "database": "unavailable", "version": version},
         )
-    return JSONResponse(content={"status": "ok", "database": "ok"})
+    return JSONResponse(content={"status": "ok", "database": "ok", "version": version})
 
 
 # Everything except the health check and the API docs requires a signed-in user.

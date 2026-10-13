@@ -31,3 +31,6 @@ __pycache__/
 # Any .env files or config files
 .env
 config.json
+
+# Written by the backend deployment, see app/build.py.
+backend/BUILD_SHA
