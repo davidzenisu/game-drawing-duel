@@ -66,7 +66,8 @@ class _PromptScreenState extends State<PromptScreen> {
                       Text(theme.label, style: textTheme.labelLarge),
                       Text(switch (controller.promptHint) {
                         final hint? => 'Who is $hint?',
-                        null => 'Who would make a good challenger?',
+                        // The server used up the theme's descriptions.
+                        null => 'NO PROMPT',
                       }, style: textTheme.headlineSmall),
                       const SizedBox(height: 16),
                       Wrap(

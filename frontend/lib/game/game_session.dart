@@ -139,8 +139,9 @@ abstract class GameSession extends ChangeNotifier {
   /// challengers fought today.
   DailyTheme get promptTheme;
 
-  /// The description to choose a person and write a title for today, if
-  /// there is one.
+  /// The description to choose a person and write a title for today. A
+  /// server uses every description once only; null once the theme's are
+  /// used up ("NO PROMPT").
   String? get promptHint;
 
   /// Who you can choose for today's prompt: anyone but yourself.

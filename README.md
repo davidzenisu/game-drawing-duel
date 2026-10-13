@@ -198,15 +198,14 @@ insert into premade_title (theme, title) values ('volcano', 'Lord of the Office 
 `theme` is one of `forest`, `beach`, `volcano`, `snow`, `jungle`, `space` and
 `castle`; titles are at most 60 characters. A new row counts from the day
 after it was added, and a retired one (`retired_at`) until the end of the day
-it was retired, so the picks of a day never change. The players take
-turns through a theme's hints in an order of their server's own: every week
-each player moves on by the same number of hints, at least the number of
-players and without a common factor with the number of hints. So on a day
-everyone gets a different hint, as long as the theme has at least as many
-hints as the server has players, and nobody gets one again before they had
-all of them; more hints mean more weeks without repeats. Which premade title
-stands in is random, but derived from the server, day and seat like the
-other daily picks.
+it was retired, so the picks of a day never change. A server uses every hint
+once only, ever: when a day's hints are first asked for, every player gets a
+different one the server never gave out (`hint_assignment`), in an order of
+the server's own. Once a theme's hints are used up, players get none and the
+app shows "NO PROMPT" (they still choose a person and write a title), so a
+theme needs about as many new hints a week as the server has players. Which
+premade title stands in is random, but derived from the server, day and seat
+like the other daily picks.
 
 | Endpoint | Purpose |
 | --- | --- |
