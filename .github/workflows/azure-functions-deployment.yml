@@ -92,6 +92,32 @@ jobs:
           package: backend
           remote-build: true
 
+      # The deploy ends by syncing the app's routes, and that sync has timed
+      # out before ("Function triggers synchronization failed ... 500"),
+      # leaving every endpoint at 404 until someone redeploys. Sync again
+      # until Azure accepts it; it's safe to repeat.
+      - name: Sync function triggers
+        uses: Azure/cli@v3
+        env:
+          APP_NAME: ${{ steps.get_function_app_name.outputs.app_name }}
+        with:
+          inlineScript: |
+            app_id=$(az functionapp list --query "[?name=='$APP_NAME'].id | [0]" -o tsv)
+            if [ -z "$app_id" ]; then
+              echo "::error::Couldn't find the Function App $APP_NAME."
+              exit 1
+            fi
+            for attempt in 1 2 3 4 5; do
+              if az rest --method post --url "https://management.azure.com${app_id}/syncfunctiontriggers?api-version=2023-12-01"; then
+                echo "Synced the function triggers."
+                exit 0
+              fi
+              echo "Sync failed (attempt $attempt of 5), trying again in 30 seconds."
+              sleep 30
+            done
+            echo "::error::Azure didn't accept the trigger sync; the API may answer 404 until it does."
+            exit 1
+
       - name: Get API address
         id: get_api_url
         uses: Azure/cli@v3
