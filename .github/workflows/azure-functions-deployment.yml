@@ -134,33 +134,15 @@ jobs:
           remote-build: false
 
       # The deploy step only reports that Azure accepted the package; the
-      # switch to it happens afterwards and sometimes silently fails, leaving
-      # the old code running or every route at 404. Deploying again has fixed
-      # it each time, so do that once before failing the run. A deploy that
-      # works is live at once, so 5 minutes is plenty here.
+      # switch to it happens afterwards and has failed silently before,
+      # leaving the old code running or every route at 404. Fail the run
+      # unless the live API reports this commit within 10 minutes.
       - name: Check that the new code is live
-        id: first_check
-        continue-on-error: true
-        env:
-          API_URL: ${{ steps.get_api_url.outputs.api_url }}
-          ATTEMPTS: '20'
-        run: .github/scripts/check-live.sh
-
-      - name: Deploy Azure Function App again
-        if: steps.first_check.outcome == 'failure'
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ steps.get_function_app_name.outputs.app_name }}
-          package: backend
-          remote-build: false
-
-      - name: Check that the new code is live after deploying again
-        if: steps.first_check.outcome == 'failure'
         env:
           API_URL: ${{ steps.get_api_url.outputs.api_url }}
           ATTEMPTS: '40'
         run: |
           if ! .github/scripts/check-live.sh; then
-            echo "::error::The API still doesn't serve $GITHUB_SHA after deploying twice. Re-run this job; the migrations already ran."
+            echo "::error::The API still doesn't serve $GITHUB_SHA after 10 minutes. Re-run this job; the migrations already ran."
             exit 1
           fi

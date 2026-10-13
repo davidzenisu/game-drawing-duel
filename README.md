@@ -53,8 +53,7 @@ linked to the Auth0 user id; game routes load that record for every request and
 answer `403` until the signup is finished. `/health` also checks that the
 database answers, and reports the commit that's running as `version` (`dev`
 outside a deployment). The backend deployment writes it into the package and
-waits for the live API to report it; if it doesn't within 5 minutes, it
-deploys once more and fails unless the API reports it within 10 more.
+fails unless the live API reports it within 10 minutes.
 
 #### Signing in to the API docs
 
