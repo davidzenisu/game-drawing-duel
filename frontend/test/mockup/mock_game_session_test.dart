@@ -306,6 +306,29 @@ void main() {
     expect(game.restingCharacterIds, isEmpty, reason: 'a new week');
   });
 
+  test('the simulated players write the premade title of their description', () async {
+    // A Monday: the prompts of day 1 are for Wednesday's volcano.
+    final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 10, 5, 12));
+    await game.signUp('Pat');
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
+    while (!game.server.everyoneJoined) {
+      await game.refreshServer();
+    }
+    // Enough for everyone, added before day 1.
+    await game.addContent(DailyTheme.volcano, [
+      for (var i = 0; i < 6; i++) HintDraft(text: 'a volcano hint $i', premadeTitle: 'Volcano Title $i'),
+    ]);
+    await game.startSetup();
+    for (final assignment in game.assignments) {
+      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+    }
+    await game.launch();
+    await game.advanceDay();
+    final toDraw = game.promptToDraw!;
+    final entry = (await game.contentEntries(DailyTheme.volcano)).firstWhere((e) => e.text == toDraw.hint);
+    expect(toDraw.title, entry.premadeTitle);
+  });
+
   test('every description is used once only, then there is none', () async {
     // A Monday: prompts are written for Wednesday's volcano on days 1 and 8.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
@@ -328,26 +351,28 @@ void main() {
     expect(game.canEditContent, isTrue);
     expect(game.promptTheme, DailyTheme.volcano);
     final hint = game.promptHint;
-    for (final kind in ContentKind.values) {
-      for (final entry in await game.contentEntries(kind, DailyTheme.volcano)) {
-        await game.retireContent(kind, entry);
-      }
+    for (final entry in await game.contentEntries(DailyTheme.volcano)) {
+      await game.retireContent(entry);
     }
-    final hints = await game.addContent(ContentKind.hints, DailyTheme.volcano, [' a chili lover ', 'A Chili Lover']);
-    expect(hints.added.single.text, 'a chili lover');
+    final hints = await game.addContent(DailyTheme.volcano, const [
+      HintDraft(text: ' a chili lover ', premadeTitle: ' The Chili King '),
+      HintDraft(text: 'A Chili Lover', premadeTitle: 'Another'),
+    ]);
+    expect((hints.added.single.text, hints.added.single.premadeTitle), ('a chili lover', 'The Chili King'));
     expect(hints.skipped, ['A Chili Lover']);
-    await game.addContent(ContentKind.premadeTitles, DailyTheme.volcano, ['The Chili King']);
-    await expectLater(game.addContent(ContentKind.premadeTitles, DailyTheme.volcano, ['x' * 61]), throwsArgumentError);
-    expect((await game.contentEntries(ContentKind.hints, DailyTheme.volcano)).map((e) => e.text), ['a chili lover']);
+    await expectLater(
+      game.addContent(DailyTheme.volcano, [HintDraft(text: 'long', premadeTitle: 'x' * 61)]),
+      throwsArgumentError,
+    );
+    expect((await game.contentEntries(DailyTheme.volcano)).map((e) => e.text), ['a chili lover']);
     expect(game.promptHint, hint, reason: "today's picks stay");
 
     for (var day = 2; day <= 9; day++) {
       await game.advanceDay();
       if (day == 8) expect(game.promptHint, 'a chili lover');
     }
-    // Drawn on day 9: a simulated player's title from day 8. You got the
+    // Drawn on day 9: a simulated player's prompt from day 8. You got the
     // one description, so they had none.
-    expect(game.promptToDraw!.title, 'The Chili King');
     expect(game.promptToDraw!.hint, isNull);
   });
 

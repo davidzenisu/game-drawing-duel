@@ -192,8 +192,8 @@ abstract class GameSession extends ChangeNotifier {
   /// The player you sent today's free hurry to.
   Player? get hurrySentTo;
 
-  /// Whether you may manage the descriptions and premade titles
-  /// ([ContentKind]): online, with the content permission.
+  /// Whether you may manage the prompt hints, each a description with its
+  /// premade title: online, with the content permission.
   bool get canEditContent => false;
 
   /// Whether this is the offline mockup: the other players are simulated,
@@ -299,17 +299,16 @@ abstract class GameSession extends ChangeNotifier {
   /// Sends today's free hurry. Completes with false if it was already used.
   Future<bool> sendHurry(Player target);
 
-  /// The descriptions or premade titles of [theme] in use, see [canEditContent].
-  Future<List<ContentEntry>> contentEntries(ContentKind kind, DailyTheme theme) =>
+  /// The hints of [theme] in use, see [canEditContent].
+  Future<List<ContentEntry>> contentEntries(DailyTheme theme) =>
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
-  /// Adds descriptions or premade titles to [theme], used from tomorrow on.
-  Future<ContentAddResult> addContent(ContentKind kind, DailyTheme theme, List<String> texts) =>
+  /// Adds hints to [theme], used from tomorrow on.
+  Future<ContentAddResult> addContent(DailyTheme theme, List<HintDraft> hints) =>
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
-  /// Retires a description or premade title; it's still used for the rest
-  /// of the day.
-  Future<void> retireContent(ContentKind kind, ContentEntry entry) =>
+  /// Retires a hint; it's still used for the rest of the day.
+  Future<void> retireContent(ContentEntry entry) =>
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
   Future<List<PullOutcome>> pull(int count);

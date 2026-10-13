@@ -6,9 +6,9 @@ repo:
 title: themes
 category: concept
 ---
-Every day has a fantasy theme, set by the real weekday in UTC. The game only shows the fantasy name and its background. The everyday side comes through the **prompt hints** (shown while writing a challenger title) and the **premade titles** (used when nobody wrote one).
+Every day has a fantasy theme, set by the real weekday in UTC. The game only shows the fantasy name and its background. The everyday side comes through the **prompts**: a description shown while writing a challenger title, each with a **premade title** used when the player writes none.
 
-Hints don't stick to one real-life setting. Anything that fits the fantasy theme works: Volcano Lair covers saunas, burnt dinners, hot coffee and short tempers alike. Both lists live in the database, so new ones can be added at any time.
+Hints don't stick to one real-life setting. Anything that fits the fantasy theme works: Volcano Lair covers saunas, burnt dinners, hot coffee and short tempers alike. They live in the database, so new ones can be added at any time, e.g. on the Game content screen.
 
 | Weekday   | Theme             | Everyday ideas                                                                           |
 | --------- | ----------------- | ---------------------------------------------------------------------------------------- |
@@ -20,153 +20,96 @@ Hints don't stick to one real-life setting. Anything that fits the fantasy theme
 | Saturday  | Outer Space       | furniture store mazes, treadmills, waiting rooms, gaming, technology research            |
 | Sunday    | Royal Castle      | the sofa, Sunday lunch, board games, blanket forts, breakfast in bed, family life        |
 
-## Prompt hints
+## Prompts
 
-Shown as "Think of …" while writing the day's challenger title. Each player gets one of the theme's hints at random.
-
-### Enchanted Forest (Monday)
-- a challenger lost on the way to work
-- a challenger who walks the dog at dawn
-- a challenger waiting at a bus stop in the rain
-- a challenger hiding from Monday morning
-- a challenger jogging laps in the park
-- a challenger cultivating their balcony garden
-
-### Hot Sandy Beaches (Tuesday)
-- a challenger doing laps at the public pool
-- a challenger planning a holiday in spreadsheets
-- a challenger building castles in the playground sandbox
-- a challenger fixing their broken down car on a road trip
-- a challenger relaxing in a bubble bath
-- a challenger who forgot the sunscreen
-
-### Volcano Lair (Wednesday)
-- a challenger who can take the heat in the sauna
-- a challenger who burns dinner every night
-- a challenger whose laptop is overheating
-- a challenger who orders the spiciest dish
-- a challenger about to lose their temper in a meeting
-- a challenger who drinks their coffee scalding hot
-- a challenger in charge of the barbecue
-
-### Frozen Peaks (Thursday)
-- a challenger who can't decide on an ice cream flavour
-- a challenger scraping ice off the windshield
-- a challenger who keeps the air conditioning on full
-- a challenger braving a cold shower
-- a challenger defrosting the freezer
-- a challenger who wears shorts in winter
-
-### Misty Jungle (Friday)
-- a challenger who gets lost in the club
-- a challenger ruling the dance floor
-- a challenger whose houseplants have taken over
-- a challenger untangling the cables behind the TV
-- a challenger fighting through the Friday rush hour jungle
-- a challenger at a muddy music festival
-
-### Outer Space (Saturday)
-- a challenger lost in a furniture store maze
-- a challenger fixing their washing machine
-- a challenger stuck in a waiting room for hours
-- a challenger who stays up all night gaming
-- a challenger hunting for a parking space at the mall
-- a challenger stargazing from the rooftop
-
-### Royal Castle (Sunday)
-- a challenger who rules from the couch
-- a challenger hosting Sunday brunch
-- a challenger building a fort out of blankets
-- a challenger who refuses to tidy their room
-- a challenger guarding the TV remote
-- a challenger bad at losing board games
-
-## Premade titles
-
-Drawn instead of a title when the player before you wrote none that day.
+Every prompt is a description, shown as "Who is …?" while choosing a person and writing the day's challenger title, and the premade title that is drawn instead if that player writes none. A server gives every prompt to one player once only; once a theme's prompts are used up, players get "NO PROMPT".
 
 ### Enchanted Forest (Monday)
-- Keeper of the Last Bus Seat
-- Druid of the Delayed 7:42
-- Ranger of the Dog Park
-- Moss-Covered Monday Survivor
-- Guardian of the Bike Rack
-- Elder of the Allotment
-- Squirrel-Feeding Sage
+
+| Description | Premade title |
+| --- | --- |
+| a challenger lost on the way to work | Druid of the Delayed 7:42 |
+| a challenger who walks the dog at dawn | Ranger of the Dog Park |
+| a challenger waiting at a bus stop in the rain | Keeper of the Last Bus Seat |
+| a challenger hiding from Monday morning | Moss-Covered Monday Survivor |
+| a challenger jogging laps in the park | Squirrel-Feeding Sage |
+| a challenger cultivating their balcony garden | Elder of the Allotment |
 
 ### Hot Sandy Beaches (Tuesday)
-- Guardian of the Last Sandwich
-- Towel Warlord of Sunbed Row
-- Lifeguard of the Kiddie Pool
-- Captain of the Rubber Duck
-- Ice Cream Van Pursuer
-- The Flip-Flop Philosopher
-- Sunscreen Skeptic
-- Ruler of the Balcony Deckchair
-- Sandbox Architect
+
+| Description | Premade title |
+| --- | --- |
+| a challenger doing laps at the public pool | Lifeguard of the Kiddie Pool |
+| a challenger planning a holiday in spreadsheets | Towel Warlord of Sunbed Row |
+| a challenger building castles in the playground sandbox | Sandbox Architect |
+| a challenger fixing their broken down car on a road trip | Guardian of the Last Sandwich |
+| a challenger relaxing in a bubble bath | Captain of the Rubber Duck |
+| a challenger who forgot the sunscreen | Sunscreen Skeptic |
 
 ### Volcano Lair (Wednesday)
-- Lord of the Top Sauna Bench
-- Grill Master of the Burnt Sausage
-- Fire-Breather of the Hot Sauce
-- Keeper of the Overheating Laptop
-- Smoke Alarm Summoner
-- Midweek Meltdown Monarch
-- Espresso Eruption
-- The Toast Incinerator
-- Baron of the Hot Tub
+
+| Description | Premade title |
+| --- | --- |
+| a challenger who can take the heat in the sauna | Lord of the Top Sauna Bench |
+| a challenger who burns dinner every night | Smoke Alarm Summoner |
+| a challenger whose laptop is overheating | Keeper of the Overheating Laptop |
+| a challenger who orders the spiciest dish | Fire-Breather of the Hot Sauce |
+| a challenger about to lose their temper in a meeting | Midweek Meltdown Monarch |
+| a challenger who drinks their coffee scalding hot | Espresso Eruption |
+| a challenger in charge of the barbecue | Grill Master of the Burnt Sausage |
 
 ### Frozen Peaks (Thursday)
-- Frost Baron of the Frozen Peas
-- Pizza-Box Mountaineer
-- The One Who Holds the Freezer Door Open
-- Windshield Scraper Knight
-- Ice Cube Hoarder
-- Thermostat Tyrant
-- The Shorts-in-January Legend
-- Snowplough of the Office Kitchen
-- Keeper of Last Year's Leftovers
-- Brain-Freeze Champion
-- Duke of the Defrosted Fridge
+
+| Description | Premade title |
+| --- | --- |
+| a challenger who can't decide on an ice cream flavour | Brain-Freeze Champion |
+| a challenger scraping ice off the windshield | Windshield Scraper Knight |
+| a challenger who keeps the air conditioning on full | Thermostat Tyrant |
+| a challenger braving a cold shower | Ice Cube Hoarder |
+| a challenger defrosting the freezer | Duke of the Defrosted Fridge |
+| a challenger who wears shorts in winter | The Shorts-in-January Legend |
 
 ### Misty Jungle (Friday)
-- Dancer in the Dry-Ice Mist
-- Chieftain of the Coat Check
-- Explorer of the Sticky Floor
-- The Last One at the Kebab Shop
-- Monstera Whisperer
-- Lord of the Unmowed Lawn
-- Cable Tangle Tamer
-- Sage of the Steamed-Up Mirror
-- Festival Mud Wrestler
-- Ball Pit Survivor
-- Vine-Swinging Commuter
-- Keeper of the Office Fern
+
+| Description | Premade title |
+| --- | --- |
+| a challenger who gets lost in the club | Explorer of the Sticky Floor |
+| a challenger ruling the dance floor | Dancer in the Dry-Ice Mist |
+| a challenger whose houseplants have taken over | Monstera Whisperer |
+| a challenger untangling the cables behind the TV | Cable Tangle Tamer |
+| a challenger fighting through the Friday rush hour jungle | Vine-Swinging Commuter |
+| a challenger at a muddy music festival | Festival Mud Wrestler |
 
 ### Outer Space (Saturday)
-- Commander of Machine No. 4
-- Astronaut of the Endless Spin
-- Finder of the Lost Socks
-- The Fabric Softener Alien
-- Navigator of the Showroom Maze
-- Unexpected Item in the Bagging Area
-- Treadmill Cosmonaut
-- Waiting Room Time Traveller
-- Parking Lot Satellite
-- Midnight Console Pilot
-- Explorer of the Meatball Station
-- The Shopping Trolley Rover
+
+| Description | Premade title |
+| --- | --- |
+| a challenger lost in a furniture store maze | Navigator of the Showroom Maze |
+| a challenger fixing their washing machine | Astronaut of the Endless Spin |
+| a challenger stuck in a waiting room for hours | Waiting Room Time Traveller |
+| a challenger who stays up all night gaming | Midnight Console Pilot |
+| a challenger hunting for a parking space at the mall | Parking Lot Satellite |
+| a challenger stargazing from the rooftop | Captain of the Rooftop Telescope |
 
 ### Royal Castle (Sunday)
-- Sovereign of the Remote
-- Duke of the Duvet Fort
-- Keeper of the Breakfast Crumbs
-- Monarch of the Sweatpants
-- Lord of the Sunday Roast
-- Board Game Tyrant
-- Defender of the Last Cake Slice
-- Knight of the Messy Bedroom
-- Baron of the Brunch Table
-- The Nap Emperor
-- Grandma's Favourite Heir
-- Jester of the Family Group Chat
+
+| Description | Premade title |
+| --- | --- |
+| a challenger who rules from the couch | The Nap Emperor |
+| a challenger hosting Sunday brunch | Baron of the Brunch Table |
+| a challenger building a fort out of blankets | Duke of the Duvet Fort |
+| a challenger who refuses to tidy their room | Knight of the Messy Bedroom |
+| a challenger guarding the TV remote | Sovereign of the Remote |
+| a challenger bad at losing board games | Board Game Tyrant |
+
+## Unused titles
+
+Premade titles from the first draft without a description yet, to pair with new ones.
+
+- Enchanted Forest: Guardian of the Bike Rack
+- Hot Sandy Beaches: Ice Cream Van Pursuer, The Flip-Flop Philosopher, Ruler of the Balcony Deckchair
+- Volcano Lair: The Toast Incinerator, Baron of the Hot Tub
+- Frozen Peaks: Frost Baron of the Frozen Peas, Pizza-Box Mountaineer, The One Who Holds the Freezer Door Open, Snowplough of the Office Kitchen, Keeper of Last Year's Leftovers
+- Misty Jungle: Chieftain of the Coat Check, The Last One at the Kebab Shop, Lord of the Unmowed Lawn, Sage of the Steamed-Up Mirror, Ball Pit Survivor, Keeper of the Office Fern
+- Outer Space: Commander of Machine No. 4, Finder of the Lost Socks, The Fabric Softener Alien, Unexpected Item in the Bagging Area, Treadmill Cosmonaut, Explorer of the Meatball Station, The Shopping Trolley Rover
+- Royal Castle: Keeper of the Breakfast Crumbs, Monarch of the Sweatpants, Lord of the Sunday Roast, Defender of the Last Cake Slice, Grandma's Favourite Heir, Jester of the Family Group Chat
