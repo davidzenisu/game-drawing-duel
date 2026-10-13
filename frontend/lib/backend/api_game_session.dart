@@ -138,7 +138,18 @@ class ApiGameSession extends GameSession {
         createdAt: DateTime.parse(createdAt),
       );
     }
-    throw const FormatException('Unexpected content entry.');
+    throw _unexpected('content entry', json, const ['id', 'theme', 'text', 'premade_title', 'created_at']);
+  }
+
+  /// Names what's wrong with a response object: the first of [textFields]
+  /// that's missing or not a string, e.g. after the API changed.
+  static FormatException _unexpected(String what, Object? json, List<String> textFields) {
+    if (json is! Map) return FormatException('Unexpected $what: not an object.');
+    for (final field in textFields) {
+      if (!json.containsKey(field)) return FormatException('Unexpected $what: "$field" is missing.');
+      if (json[field] is! String) return FormatException('Unexpected $what: "$field" is not text.');
+    }
+    return FormatException('Unexpected $what.');
   }
 
   @override
