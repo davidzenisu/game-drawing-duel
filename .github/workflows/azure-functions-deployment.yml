@@ -81,9 +81,45 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: uv run alembic check
 
+      # GET /health reports it as `version`, see the last step.
+      - name: Mark the build with its commit
+        run: echo "$GITHUB_SHA" > backend/BUILD_SHA
+
       - name: Deploy Azure Function App
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ steps.get_function_app_name.outputs.app_name }}
           package: backend
           remote-build: true
+
+      - name: Get API address
+        id: get_api_url
+        uses: Azure/cli@v3
+        env:
+          AZURE_KEY_VAULT_NAME: ${{ secrets.AZURE_KEY_VAULT_NAME }}
+        with:
+          inlineScript: |
+            api_url=$(az keyvault secret show --vault-name "$AZURE_KEY_VAULT_NAME" --name "api-custom-domain" --query "value" -o tsv)
+            echo "api_url=$api_url" >> "$GITHUB_OUTPUT"
+
+      # The deploy step only reports that Azure accepted the package; the
+      # remote build and the switch to it happen afterwards and have failed
+      # silently before, leaving old code on the migrated schema. Fail the run
+      # unless the API serves this commit within 10 minutes.
+      - name: Check that the new code is live
+        env:
+          API_URL: ${{ steps.get_api_url.outputs.api_url }}
+        run: |
+          api="${API_URL%/}"
+          case "$api" in http://*|https://*) ;; *) api="https://$api" ;; esac
+          for attempt in $(seq 1 40); do
+            live=$(curl -sS --max-time 10 "$api/health" | jq -r '.version // empty' 2>/dev/null || true)
+            if [ "$live" = "$GITHUB_SHA" ]; then
+              echo "The API serves $GITHUB_SHA."
+              exit 0
+            fi
+            echo "Waiting for $GITHUB_SHA; the API reports ${live:-no version} (attempt $attempt of 40)."
+            sleep 15
+          done
+          echo "::error::The API still doesn't serve $GITHUB_SHA after 10 minutes. Re-run this job or restart the Function App; the migrations already ran."
+          exit 1
