@@ -85,6 +85,37 @@ jobs:
       - name: Mark the build with its commit
         run: echo "$GITHUB_SHA" > backend/app/commit.txt
 
+      # Build the package here instead of in Azure (remote build), whose
+      # switch to a new package has failed silently on many deploys. The
+      # dependencies have to match the Function App's Python, so ask it.
+      - name: Get the Function App's Python version
+        id: get_python_version
+        uses: Azure/cli@v3
+        env:
+          APP_NAME: ${{ steps.get_function_app_name.outputs.app_name }}
+        with:
+          inlineScript: |
+            app_id=$(az resource list --name "$APP_NAME" --resource-type Microsoft.Web/sites --query "[0].id" -o tsv)
+            runtime=$(az resource show --ids "$app_id" --query "properties.functionAppConfig.runtime.[name, version]" -o tsv | tr '\n\t' '  ')
+            read -r name version <<< "$runtime"
+            if [ "$name" != "python" ] || [ -z "$version" ]; then
+              echo "::error::Couldn't read the Python version of $APP_NAME (got: $runtime)."
+              exit 1
+            fi
+            echo "Function App runs Python $version."
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install the dependencies into the package
+        env:
+          PYTHON_VERSION: ${{ steps.get_python_version.outputs.version }}
+        run: >-
+          uv pip install
+          --target backend/.python_packages/lib/site-packages
+          --python-version "$PYTHON_VERSION"
+          --python-platform x86_64-manylinux_2_28
+          --only-binary :all:
+          -r backend/requirements.txt
+
       - name: Get API address
         id: get_api_url
         uses: Azure/cli@v3
@@ -100,36 +131,18 @@ jobs:
         with:
           app-name: ${{ steps.get_function_app_name.outputs.app_name }}
           package: backend
-          remote-build: true
+          remote-build: false
 
       # The deploy step only reports that Azure accepted the package; the
-      # switch to it happens afterwards and sometimes silently fails, leaving
-      # the old code running or every route at 404. Deploying again has fixed
-      # it each time, so do that once before failing the run. A deploy that
-      # works is live at once, so 5 minutes is plenty here.
+      # switch to it happens afterwards and has failed silently before,
+      # leaving the old code running or every route at 404. Fail the run
+      # unless the live API reports this commit within 10 minutes.
       - name: Check that the new code is live
-        id: first_check
-        continue-on-error: true
-        env:
-          API_URL: ${{ steps.get_api_url.outputs.api_url }}
-          ATTEMPTS: '20'
-        run: .github/scripts/check-live.sh
-
-      - name: Deploy Azure Function App again
-        if: steps.first_check.outcome == 'failure'
-        uses: Azure/functions-action@v1
-        with:
-          app-name: ${{ steps.get_function_app_name.outputs.app_name }}
-          package: backend
-          remote-build: true
-
-      - name: Check that the new code is live after deploying again
-        if: steps.first_check.outcome == 'failure'
         env:
           API_URL: ${{ steps.get_api_url.outputs.api_url }}
           ATTEMPTS: '40'
         run: |
           if ! .github/scripts/check-live.sh; then
-            echo "::error::The API still doesn't serve $GITHUB_SHA after deploying twice. Re-run this job; the migrations already ran."
+            echo "::error::The API still doesn't serve $GITHUB_SHA after 10 minutes. Re-run this job; the migrations already ran."
             exit 1
           fi
