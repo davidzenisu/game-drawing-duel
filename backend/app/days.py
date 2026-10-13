@@ -18,14 +18,13 @@ from sqlalchemy.orm import Session, selectinload
 from app.models import (
     ChallengerPrompt,
     HintAssignment,
-    PremadeTitle,
     Server,
     ServerSeat,
     ThemeHint,
 )
 from app.rules import Theme, theme_of_date
 
-# Stands in if the database has no premade title for a theme yet.
+# Stands in if the author of a missing prompt got no hint ("NO PROMPT").
 FALLBACK_TITLE = "The Mystery Challenger"
 
 
@@ -75,8 +74,7 @@ def challenger_theme(server: Server, prompt_day: int) -> Theme:
 
 
 def _in_use(server: Server, day: int, theme: Theme, model) -> tuple:
-    """Filters `model`'s rows (hints or premade titles) to `theme`'s on
-    `day`. Only rows created before the day began count, and retired ones
+    """Filters `model`'s rows (hints) to `theme`'s on `day`. Only rows created before the day began count, and retired ones
     until the end of the day they were retired, so adding or retiring rows
     never changes a day's picks."""
     day_start = datetime.combine(date_of_day(server, day), time(), tzinfo=UTC)
@@ -87,32 +85,17 @@ def _in_use(server: Server, day: int, theme: Theme, model) -> tuple:
     )
 
 
-def _options(
-    session: Session, server: Server, day: int, theme: Theme, column
-) -> list[str]:
-    """`theme`'s hints or premade titles (`column`) on `day`."""
-    model = column.class_
+def hints_on(
+    session: Session, server: Server, day: int, theme: Theme
+) -> list[ThemeHint]:
+    """`theme`'s hints in use on `day`."""
     return list(
         session.scalars(
-            select(column)
-            .where(*_in_use(server, day, theme, model))
-            .order_by(model.created_at, model.id)
-        ).all()
+            select(ThemeHint)
+            .where(*_in_use(server, day, theme, ThemeHint))
+            .order_by(ThemeHint.created_at, ThemeHint.id)
+        )
     )
-
-
-def _pick(
-    session: Session,
-    server: Server,
-    day: int,
-    theme: Theme,
-    column,
-    rng: random.Random,
-) -> str | None:
-    """One of `theme`'s hints or premade titles (`column`) on `day`, or None
-    if there are none."""
-    options = _options(session, server, day, theme, column)
-    return rng.choice(options) if options else None
 
 
 def active_seats(server: Server) -> list[ServerSeat]:
@@ -166,13 +149,7 @@ def _assign_hints(session: Session, server: Server, day: int) -> None:
     )
     theme = challenger_theme(server, day)
     unused = sorted(
-        (
-            hint
-            for hint in session.scalars(
-                select(ThemeHint).where(*_in_use(server, day, theme, ThemeHint))
-            )
-            if hint.id not in used
-        ),
+        (hint for hint in hints_on(session, server, day, theme) if hint.id not in used),
         key=lambda hint: hashlib.sha256(f"{server.id}:{hint.id}".encode()).digest(),
     )
     try:
@@ -193,18 +170,26 @@ def _assign_hints(session: Session, server: Server, day: int) -> None:
     session.commit()
 
 
-def prompt_hint(
+def assigned_hint(
     session: Session, server: Server, day: int, author: ServerSeat
-) -> str | None:
-    """The description `author` picks a person and writes a title for on
-    `day`: one of the hints of the challenger's theme. A server uses every
-    hint once at most; once the theme's hints are used up, there's none."""
+) -> ThemeHint | None:
+    """The hint `author` picks a person and writes a title for on `day`, of
+    the challenger's theme. A server uses every hint once at most; once the
+    theme's hints are used up, there's none."""
     assigned = _hint_assignments(session, server, day)
     if author.id not in assigned:
         _assign_hints(session, server, day)
         assigned = _hint_assignments(session, server, day)
     assignment = assigned.get(author.id)
-    return assignment.hint.text if assignment and assignment.hint else None
+    return assignment.hint if assignment else None
+
+
+def prompt_hint(
+    session: Session, server: Server, day: int, author: ServerSeat
+) -> str | None:
+    """The description of `author`'s hint on `day`, see `assigned_hint`."""
+    hint = assigned_hint(session, server, day, author)
+    return hint.text if hint else None
 
 
 def can_be_subject(author: ServerSeat, subject: ServerSeat) -> bool:
@@ -254,14 +239,13 @@ def prompt_to_draw(
             hint=written.hint,
             premade=False,
         )
-    theme = challenger_theme(server, day - 1)
-    rng = _rng(server, day - 1, author, "premade")
-    title = _pick(session, server, day - 1, theme, PremadeTitle.title, rng)
+    # The premade title of the hint the author got, with its description.
+    hint = assigned_hint(session, server, day - 1, author)
     return PromptToDraw(
         author=author,
         subject=premade_subject(server, day - 1, author),
-        title=title or FALLBACK_TITLE,
-        theme=theme,
-        hint=None,
+        title=hint.premade_title if hint else FALLBACK_TITLE,
+        theme=challenger_theme(server, day - 1),
+        hint=hint.text if hint else None,
         premade=True,
     )

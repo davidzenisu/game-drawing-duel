@@ -123,22 +123,39 @@ class ApiGameSession extends GameSession {
   bool get canEditContent => _canEditContent;
 
   ContentEntry _contentEntry(Object? json) {
-    if (json case {'id': String id, 'theme': String theme, 'text': String text, 'created_at': String createdAt}) {
-      return ContentEntry(id: id, theme: _theme(theme), text: text, createdAt: DateTime.parse(createdAt));
+    if (json case {
+      'id': String id,
+      'theme': String theme,
+      'text': String text,
+      'premade_title': String premadeTitle,
+      'created_at': String createdAt,
+    }) {
+      return ContentEntry(
+        id: id,
+        theme: _theme(theme),
+        text: text,
+        premadeTitle: premadeTitle,
+        createdAt: DateTime.parse(createdAt),
+      );
     }
     throw const FormatException('Unexpected content entry.');
   }
 
   @override
-  Future<List<ContentEntry>> contentEntries(ContentKind kind, DailyTheme theme) async {
-    final json = await _get('/content/${kind.path}?theme=${theme.name}');
+  Future<List<ContentEntry>> contentEntries(DailyTheme theme) async {
+    final json = await _get('/content/hints?theme=${theme.name}');
     if (json is! List) throw const FormatException('Unexpected content response.');
     return [for (final entry in json) _contentEntry(entry)];
   }
 
   @override
-  Future<ContentAddResult> addContent(ContentKind kind, DailyTheme theme, List<String> texts) async {
-    final json = await _post('/content/${kind.path}', {'theme': theme.name, 'texts': texts});
+  Future<ContentAddResult> addContent(DailyTheme theme, List<HintDraft> hints) async {
+    final json = await _post('/content/hints', {
+      'theme': theme.name,
+      'hints': [
+        for (final hint in hints) {'text': hint.text, 'premade_title': hint.premadeTitle},
+      ],
+    });
     if (json case {'added': List added, 'skipped': List skipped}) {
       return ContentAddResult(
         added: [for (final entry in added) _contentEntry(entry)],
@@ -149,8 +166,8 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> retireContent(ContentKind kind, ContentEntry entry) async {
-    await _delete('/content/${kind.path}/${entry.id}');
+  Future<void> retireContent(ContentEntry entry) async {
+    await _delete('/content/hints/${entry.id}');
   }
 
   /// Back to your newest server, or to creating or joining one.

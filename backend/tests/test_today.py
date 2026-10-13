@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from app import days
-from app.models import PremadeTitle, Server, ThemeHint
+from app.models import Server, ThemeHint
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_launch import LaunchTestCase
@@ -17,7 +17,12 @@ SAM = FRIEND_SUBJECTS[0]
 MONDAY = datetime(2026, 10, 5, 9, tzinfo=UTC)
 SEEDED = datetime(2026, 1, 1, tzinfo=UTC)
 HINTS = {"volcano": ["a sauna regular", "a toast burner"], "snow": ["a freezer fan"]}
-TITLES = {"volcano": ["Lord of the Top Bench", "The Toast Incinerator"]}
+# The premade title that comes with each hint.
+TITLES = {
+    "a sauna regular": "Lord of the Top Bench",
+    "a toast burner": "The Toast Incinerator",
+    "a freezer fan": "The Freezer Door Holder",
+}
 
 
 class TodayTestCase(LaunchTestCase):
@@ -38,12 +43,13 @@ class TodayTestCase(LaunchTestCase):
             server.launched_at = MONDAY
             for theme, texts in HINTS.items():
                 session.add_all(
-                    ThemeHint(theme=theme, text=t, created_at=SEEDED) for t in texts
-                )
-            for theme, titles in TITLES.items():
-                session.add_all(
-                    PremadeTitle(theme=theme, title=t, created_at=SEEDED)
-                    for t in titles
+                    ThemeHint(
+                        theme=theme,
+                        text=t,
+                        premade_title=TITLES[t],
+                        created_at=SEEDED,
+                    )
+                    for t in texts
                 )
             session.commit()
 
@@ -127,14 +133,15 @@ class TodayTests(TodayTestCase):
         self.assertEqual(sam["to_draw"]["theme"], "volcano")
 
         # Sam wrote nothing, so Alex draws a premade volcano prompt of
-        # someone other than Sam.
+        # someone other than Sam: the premade title of Sam's hint, with it.
         alex = self.today()["to_draw"]
         self.assertTrue(alex["premade"])
         self.assertEqual(alex["author_position"], 1)
-        self.assertIn(alex["title"], TITLES["volcano"])
         self.assertEqual(alex["theme"], "volcano")
         self.assertNotEqual(alex["subject_position"], 1)
-        self.assertIsNone(alex["hint"], "nobody got a description for it")
+        self.assertIn(alex["hint"], HINTS["volcano"])
+        self.assertNotEqual(alex["hint"], written["prompt"]["hint"], "Sam's")
+        self.assertEqual(alex["title"], TITLES[alex["hint"]])
 
     def test_a_challenger_earns_a_pull_but_stays_out_of_the_pool(self) -> None:
         self.post("days/next")
@@ -254,8 +261,8 @@ class ThemeTests(TodayTestCase):
         )
         self.assertEqual(tuesday["prompt"]["hint"], "a freezer fan")
 
-        # Friday's jungle has no hints, and nobody wrote a title on Tuesday,
-        # for Thursday's snow, which has no premade titles either.
+        # Friday's jungle has no hints. Nobody wrote a title on Tuesday, and
+        # Sam got none of Thursday's snow, as Alex got its only hint.
         self.post("days/next")
         wednesday = self.today()
         self.assertEqual(wednesday["theme"], "volcano")
@@ -283,7 +290,14 @@ class ThemeTests(TodayTestCase):
 
         # A new hint goes to one player the Monday after.
         with self.session_factory() as session:
-            session.add(ThemeHint(theme="volcano", text="a chili lover", created_at=SEEDED))
+            session.add(
+                ThemeHint(
+                    theme="volcano",
+                    text="a chili lover",
+                    premade_title="The Chili King",
+                    created_at=SEEDED,
+                )
+            )
             session.commit()
         self.assertIsNone(self.today()["prompt"]["hint"], "today's stay")
         for _ in range(7):
@@ -295,7 +309,9 @@ class ThemeTests(TodayTestCase):
         before = self.today()["prompt"]["hint"]
         with self.session_factory() as session:
             # Added now, long after the test session's Monday began.
-            session.add(ThemeHint(theme="volcano", text="a brand new hint"))
+            session.add(
+                ThemeHint(theme="volcano", text="a brand new hint", premade_title="New")
+            )
             session.commit()
         self.assertEqual(self.today()["prompt"]["hint"], before)
         with self.session_factory() as session:

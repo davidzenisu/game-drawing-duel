@@ -10,7 +10,7 @@ import 'package:frontend/mockup/mock_game_session.dart';
 import '../backend/fakes.dart';
 
 void main() {
-  testWidgets('content editors add and retire descriptions per theme', (tester) async {
+  testWidgets('content editors add and retire prompts, each with its premade title', (tester) async {
     tester.view.physicalSize = const Size(1000, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -37,35 +37,48 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(home: ContentScreen(controller: editor)));
     await settle();
-    expect(find.text('No descriptions for Enchanted Forest yet.'), findsOneWidget);
+    expect(find.text('No prompts for Enchanted Forest yet.'), findsOneWidget);
 
-    // Volcano Lair: add two, one per line.
+    // Volcano Lair: a description and its premade title, both needed.
     await tester.tap(find.text('Volcano Lair'));
     await settle();
-    await tester.enterText(find.byType(TextField), 'a sauna regular\n\n a toast burner ');
+    Finder field(String label) => find.widgetWithText(TextField, label);
+    FilledButton add() => tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add'));
+    await tester.enterText(field('Description'), ' a sauna regular ');
     await tester.pump();
-    await tester.tap(find.text('Add 2'));
+    expect(add().onPressed, isNull, reason: 'no premade title yet');
+    await tester.enterText(field('Premade title'), 'Lord of the Top Bench');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await settle();
-    expect(find.textContaining('Added 2.'), findsOneWidget);
-    expect(find.text('2 in use'), findsOneWidget);
-    expect(backend.content['hints']!.map((e) => e['theme']), ['volcano', 'volcano']);
+    expect(find.textContaining('used from tomorrow on'), findsOneWidget);
+    expect(find.text('1 in use'), findsOneWidget);
+    expect(find.text('Lord of the Top Bench'), findsOneWidget);
+    expect(backend.hints.single, containsPair('premade_title', 'Lord of the Top Bench'));
+    expect(backend.hints.single, containsPair('theme', 'volcano'));
+    expect(backend.hints.single, containsPair('text', 'a sauna regular'));
+
+    // The same description again is skipped and stays in the fields.
+    await tester.enterText(field('Description'), 'a sauna regular');
+    await tester.enterText(field('Premade title'), 'Another');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await settle();
+    expect(find.text('Volcano Lair has this description already.'), findsOneWidget);
+    expect(backend.hints, hasLength(1));
+
+    // Premade titles are at most 60 characters.
+    await tester.enterText(field('Premade title'), 'x' * 61);
+    await tester.pump();
+    expect(tester.widget<TextField>(field('Premade title')).controller!.text, hasLength(60));
 
     // Retiring asks first.
-    await tester.tap(find.byTooltip('Retire').first);
+    await tester.tap(find.byTooltip('Retire'));
     await settle();
     expect(find.textContaining('still used for the rest of today'), findsOneWidget);
     await tester.tap(find.text('Retire'));
     await settle();
-    expect(find.text('1 in use'), findsOneWidget);
-    expect(find.text('a sauna regular'), findsNothing);
-
-    // Premade titles are at most 60 characters.
-    await tester.tap(find.text('Premade titles'));
-    await settle();
-    await tester.enterText(find.byType(TextField).last, 'x' * 61);
-    await tester.pump();
-    expect(find.text('At most 60 characters per premade title'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add').last).onPressed, isNull);
+    expect(find.text('No prompts for Volcano Lair yet.'), findsOneWidget);
   });
 
   testWidgets('content editors and the mockup get the button', (tester) async {

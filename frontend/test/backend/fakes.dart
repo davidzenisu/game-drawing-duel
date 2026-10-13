@@ -128,8 +128,8 @@ class FakeBackend {
   /// Tokens with the content permission.
   final Set<String> contentEditors = {};
 
-  /// Descriptions and premade titles by path (`hints`, `premade-titles`).
-  final Map<String, List<Map<String, Object?>>> content = {'hints': [], 'premade-titles': []};
+  /// The prompt hints, each with its premade title.
+  final List<Map<String, Object?>> hints = [];
 
   /// Rejects every request with this status and detail, like the real API
   /// does for a bad token.
@@ -160,7 +160,8 @@ class FakeBackend {
     }
     if (path.first == 'content') {
       if (!canEditContent) return _json(403, {'detail': 'Missing permission edit:content'});
-      final entries = content[path[1]]!;
+      if (path[1] != 'hints') return _json(404, {'detail': 'Not found'});
+      final entries = hints;
       switch ((request.method, path.length)) {
         case ('GET', 2):
           final theme = request.url.queryParameters['theme'];
@@ -171,18 +172,18 @@ class FakeBackend {
         case ('POST', 2):
           final added = <Map<String, Object?>>[];
           final skipped = <String>[];
-          for (final text in (body!['texts'] as List).cast<String>()) {
-            final known = entries.any(
-              (e) => e['retired'] != true && e['theme'] == body['theme'] && e['text'] == text.trim(),
-            );
+          for (final draft in (body!['hints'] as List).cast<Map<String, Object?>>()) {
+            final text = (draft['text'] as String).trim();
+            final known = entries.any((e) => e['retired'] != true && e['theme'] == body['theme'] && e['text'] == text);
             if (known) {
-              skipped.add(text.trim());
+              skipped.add(text);
               continue;
             }
             final entry = {
               'id': 'content-${entries.length + 1}',
               'theme': body['theme'],
-              'text': text.trim(),
+              'text': text,
+              'premade_title': (draft['premade_title'] as String).trim(),
               'created_at': '2026-10-12T10:00:00Z',
             };
             entries.add(entry);

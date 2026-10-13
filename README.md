@@ -129,8 +129,9 @@ day each player:
    the day its heroes are picked, two days later, so each day's theme is the
    one of the challengers fought on it,
 2. draws, within 1:30, the title the previous player wrote the day before,
-   seeing the description it was written for too; if they wrote none, one of
-   the theme's premade titles stands in, for a random person other than them.
+   seeing the description it was written for too; if they wrote none, the
+   premade title of their description stands in (with the description), for
+   a random person other than them.
    The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool, which holds only the setup drawings.
@@ -181,18 +182,17 @@ Enchanted Forest, then Hot Sandy Beaches, Volcano Lair, Frozen Peaks, Misty
 Jungle, Outer Space and the Royal Castle on Sunday. Test sessions count the
 calendar on from their launch date as their days advance. The app shows only
 the fantasy name; everyday situations that fit it come with the **prompt
-hints** (`theme_hint`, the description a player chooses a person and writes a
-title for) and the **premade
-titles** (`premade_title`, used when nobody wrote one). The first ones are in
-`docs/concept/themes.md`.
+hints** (`theme_hint`): each a description a player chooses a person and
+writes a title for, and the premade title that stands in if they write none.
+The first ones are in `docs/concept/themes.md`.
 
-Both are database tables, so new ones can be added any time. Accounts with
-the `edit:content` permission (see below) manage them through the API, e.g.
-in `/docs`; the Supabase table editor or SQL work too:
+It's a database table, so new ones can be added any time. Accounts with the
+`edit:content` permission (see below) manage them in the app or through the
+API, e.g. in `/docs`; the Supabase table editor or SQL work too:
 
 ```sql
-insert into theme_hint (theme, text) values ('volcano', 'a challenger who microwaves fish at work');
-insert into premade_title (theme, title) values ('volcano', 'Lord of the Office Microwave');
+insert into theme_hint (theme, text, premade_title)
+values ('volcano', 'a challenger who microwaves fish at work', 'Lord of the Office Microwave');
 ```
 
 `theme` is one of `forest`, `beach`, `volcano`, `snow`, `jungle`, `space` and
@@ -203,21 +203,21 @@ once only, ever: when a day's hints are first asked for, every player gets a
 different one the server never gave out (`hint_assignment`), in an order of
 the server's own. Once a theme's hints are used up, players get none and the
 app shows "NO PROMPT" (they still choose a person and write a title), so a
-theme needs about as many new hints a week as the server has players. Which
-premade title stands in is random, but derived from the server, day and seat
-like the other daily picks.
+theme needs about as many new hints a week as the server has players. A
+player without a hint who writes no title has the fallback title "The Mystery
+Challenger" drawn.
 
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /content/hints?theme=` | The prompt hints in use, optionally of one theme |
-| `POST /content/hints` | Add hints to a theme (`theme`, `texts`); ones the theme has already (ignoring case) are skipped |
+| `POST /content/hints` | Add hints to a theme: `theme` and `hints`, each a `text` and its `premade_title`; descriptions the theme has already (ignoring case) are skipped |
 | `DELETE /content/hints/{id}` | Retire a hint: it's still used for the rest of the day |
-| `GET` / `POST /content/premade-titles`, `DELETE /content/premade-titles/{id}` | The same for premade titles |
 
 The content endpoints need the `edit:content` permission of the Auth0 API on
 top of the player permission (`read:api`). `GET /me` tells the app with
 `can_edit_content`: content editors get a "Game content" button in the app
-bar to list, add and retire descriptions and premade titles per theme. Give it through a role, like the
+bar to list, add and retire prompts per theme, each a description with its
+premade title. Give it through a role, like the
 `user` role gives `read:api`; the Auth0 setup lives in the infrastructure
 repository.
 

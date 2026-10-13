@@ -23,32 +23,37 @@ class MockGameSession extends GameSession {
   final DateTime? launchDate;
   DateTime _launchedOn = DateTime.now().toUtc();
 
-  /// A few of the prompt hints the API keeps in its database, per theme.
+  /// A few of the prompt hints the API keeps in its database, per theme:
+  /// each a description and the premade title that comes with it.
   static const _hints = {
-    DailyTheme.forest: ['a challenger lost on the way to work', 'a challenger who walks the dog at dawn'],
-    DailyTheme.beach: ['a challenger doing laps at the public pool', 'a challenger planning a holiday in spreadsheets'],
+    DailyTheme.forest: [
+      ('a challenger lost on the way to work', 'Druid of the Delayed 7:42'),
+      ('a challenger who walks the dog at dawn', 'Ranger of the Dog Park'),
+    ],
+    DailyTheme.beach: [
+      ('a challenger doing laps at the public pool', 'Lifeguard of the Kiddie Pool'),
+      ('a challenger planning a holiday in spreadsheets', 'Towel Warlord of Sunbed Row'),
+    ],
     DailyTheme.volcano: [
-      'a challenger who can take the heat in the sauna',
-      'a challenger who burns dinner every night',
+      ('a challenger who can take the heat in the sauna', 'Lord of the Top Sauna Bench'),
+      ('a challenger who burns dinner every night', 'Smoke Alarm Summoner'),
     ],
     DailyTheme.snow: [
-      "a challenger who can't decide on an ice cream flavour",
-      'a challenger scraping ice off the windshield',
+      ("a challenger who can't decide on an ice cream flavour", 'Brain-Freeze Champion'),
+      ('a challenger scraping ice off the windshield', 'Windshield Scraper Knight'),
     ],
-    DailyTheme.jungle: ['a challenger who gets lost in the club', 'a challenger ruling the dance floor'],
-    DailyTheme.space: ['a challenger lost in a furniture store maze', 'a challenger fixing their washing machine'],
-    DailyTheme.castle: ['a challenger who rules from the couch', 'a challenger hosting Sunday brunch'],
-  };
-
-  /// A few premade titles per theme; the simulated players write them.
-  static const _premadeTitles = {
-    DailyTheme.forest: ['The Snooze Button Druid', 'Keeper of the Lost Umbrella'],
-    DailyTheme.beach: ['The Sunscreen Skipper', 'Lord of the Lounger'],
-    DailyTheme.volcano: ['Lord of the Top Bench', 'The Toast Incinerator'],
-    DailyTheme.snow: ['The Windshield Scraper', 'Queen of the Freezer Aisle'],
-    DailyTheme.jungle: ['The Dance Floor Panther', 'Vine Swinger of the Night Bus'],
-    DailyTheme.space: ['Commander of the Flat Pack', 'The Spin Cycle Astronaut'],
-    DailyTheme.castle: ['Monarch of the Couch', 'The Brunch Baron'],
+    DailyTheme.jungle: [
+      ('a challenger who gets lost in the club', 'Explorer of the Sticky Floor'),
+      ('a challenger ruling the dance floor', 'Dancer in the Dry-Ice Mist'),
+    ],
+    DailyTheme.space: [
+      ('a challenger lost in a furniture store maze', 'Navigator of the Showroom Maze'),
+      ('a challenger fixing their washing machine', 'Astronaut of the Endless Spin'),
+    ],
+    DailyTheme.castle: [
+      ('a challenger who rules from the couch', 'The Nap Emperor'),
+      ('a challenger hosting Sunday brunch', 'Baron of the Brunch Table'),
+    ],
   };
 
   static const suggestedNames = ['Alex', 'Sam', 'Robin', 'Kim', 'Charlie', 'Jo', 'Mika', 'Toni', 'Lou', 'Nico'];
@@ -343,25 +348,20 @@ class MockGameSession extends GameSession {
 
   /// Like online, kept for the whole session: used from the day after it was
   /// added on, and retired ones until the end of the day they were retired.
-  final Map<ContentKind, List<_MockContent>> _content = {
-    ContentKind.hints: [
-      for (final MapEntry(:key, :value) in _hints.entries)
-        for (final text in value) _MockContent(theme: key, text: text, addedOn: 0),
-    ],
-    ContentKind.premadeTitles: [
-      for (final MapEntry(:key, :value) in _premadeTitles.entries)
-        for (final text in value) _MockContent(theme: key, text: text, addedOn: 0),
-    ],
-  };
+  final List<_MockContent> _content = [
+    for (final MapEntry(:key, :value) in _hints.entries)
+      for (final (text, premadeTitle) in value)
+        _MockContent(theme: key, text: text, premadeTitle: premadeTitle, addedOn: 0),
+  ];
   int _nextContent = 1;
 
-  /// The hints the server gave out, by theme: every one is used once only.
-  final Set<(DailyTheme, String)> _usedHints = {};
+  /// The ids of the hints the server gave out: every one is used once only.
+  final Set<String> _usedHints = {};
 
-  /// The texts of [kind] for [theme] used on [day].
-  List<String> _contentOn(ContentKind kind, DailyTheme theme, int day) => [
-    for (final c in _content[kind]!)
-      if (c.theme == theme && c.addedOn < day && (c.retiredOn == null || c.retiredOn! >= day)) c.text,
+  /// The hints of [theme] used on [day].
+  List<_MockContent> _hintsOn(DailyTheme theme, int day) => [
+    for (final c in _content)
+      if (c.theme == theme && c.addedOn < day && (c.retiredOn == null || c.retiredOn! >= day)) c,
   ];
 
   /// The mockup has no accounts, so you can try the content screen.
@@ -369,41 +369,48 @@ class MockGameSession extends GameSession {
   bool get canEditContent => true;
 
   @override
-  Future<List<ContentEntry>> contentEntries(ContentKind kind, DailyTheme theme) async => [
-    for (final c in _content[kind]!)
+  Future<List<ContentEntry>> contentEntries(DailyTheme theme) async => [
+    for (final c in _content)
       if (c.theme == theme && c.retiredOn == null) c.entry,
   ];
 
   @override
-  Future<ContentAddResult> addContent(ContentKind kind, DailyTheme theme, List<String> texts) async {
-    final trimmed = [for (final text in texts) text.trim()];
-    if (trimmed.any((t) => t.isEmpty)) throw ArgumentError("A ${kind.noun} can't be empty.");
-    final max = kind.maxLength;
-    if (max != null && trimmed.any((t) => t.length > max)) {
-      throw ArgumentError('A ${kind.noun} has at most $max characters.');
+  Future<ContentAddResult> addContent(DailyTheme theme, List<HintDraft> hints) async {
+    final drafts = [for (final h in hints) (h.text.trim(), h.premadeTitle.trim())];
+    if (drafts.any((d) => d.$1.isEmpty || d.$2.isEmpty)) {
+      throw ArgumentError("A description and its premade title can't be empty.");
+    }
+    if (drafts.any((d) => d.$2.length > CharacterCard.maxTitleLength)) {
+      throw ArgumentError('A premade title has at most ${CharacterCard.maxTitleLength} characters.');
     }
     final known = {
-      for (final c in _content[kind]!)
+      for (final c in _content)
         if (c.theme == theme && c.retiredOn == null) c.text.toLowerCase(),
     };
     final added = <ContentEntry>[];
     final skipped = <String>[];
-    for (final text in trimmed) {
+    for (final (text, premadeTitle) in drafts) {
       if (!known.add(text.toLowerCase())) {
         skipped.add(text);
         continue;
       }
-      final content = _MockContent(theme: theme, text: text, addedOn: _day, id: 'content-${_nextContent++}');
-      _content[kind]!.add(content);
+      final content = _MockContent(
+        theme: theme,
+        text: text,
+        premadeTitle: premadeTitle,
+        addedOn: _day,
+        id: 'content-${_nextContent++}',
+      );
+      _content.add(content);
       added.add(content.entry);
     }
     return ContentAddResult(added: added, skipped: skipped);
   }
 
   @override
-  Future<void> retireContent(ContentKind kind, ContentEntry entry) async {
-    final content = _content[kind]!.where((c) => c.entry.id == entry.id && c.retiredOn == null).firstOrNull;
-    if (content == null) throw StateError('No such ${kind.noun}.');
+  Future<void> retireContent(ContentEntry entry) async {
+    final content = _content.where((c) => c.entry.id == entry.id && c.retiredOn == null).firstOrNull;
+    if (content == null) throw StateError('No such hint.');
     content.retiredOn = _day;
   }
 
@@ -478,34 +485,31 @@ class MockGameSession extends GameSession {
     // Today's prompts are for challengers fought in two days, in that day's theme.
     _promptTheme = _themeOfDay(_day + 2);
     // Like online, every hint is used once at most; you get the first.
-    final hints = _contentOn(
-      ContentKind.hints,
-      _promptTheme,
-      _day,
-    ).where((h) => !_usedHints.contains((_promptTheme, h))).toList()..shuffle(_random);
-    String? nextHint() {
+    final hints = _hintsOn(_promptTheme, _day).where((h) => !_usedHints.contains(h.entry.id)).toList()
+      ..shuffle(_random);
+    _MockContent? nextHint() {
       if (hints.isEmpty) return null;
       final hint = hints.removeAt(0);
-      _usedHints.add((_promptTheme, hint));
+      _usedHints.add(hint.entry.id);
       return hint;
     }
 
-    final titles = _contentOn(ContentKind.premadeTitles, _promptTheme, _day);
-    _promptHint = nextHint();
+    _promptHint = nextHint()?.text;
     _hurrySentTo = null;
     final others = otherPlayers;
 
     // Step 1: everyone chooses a person and writes a title.
     _prompts[_day] = [
-      for (final author in others)
+      // The simulated players write their hint's premade title.
+      for (final (author, hint) in [for (final author in others) (author, nextHint())])
         ChallengerPrompt(
           id: 'prompt$_day-${author.id}',
           author: author,
           subject: _randomSubject(author),
           theme: _promptTheme,
-          title: titles.isEmpty ? _bots.title() : titles[_random.nextInt(titles.length)],
+          title: hint?.premadeTitle ?? _bots.title(),
           day: _day,
-          hint: nextHint(),
+          hint: hint?.text,
         ),
     ];
 
@@ -752,15 +756,21 @@ class MockGameSession extends GameSession {
   }
 }
 
-/// A description or premade title of the mockup, see [MockGameSession.canEditContent].
+/// A prompt hint of the mockup, see [MockGameSession.canEditContent].
 class _MockContent {
-  _MockContent({required DailyTheme theme, required String text, required this.addedOn, String? id})
-    : entry = ContentEntry(
-        id: id ?? 'content-${theme.name}-$text',
-        theme: theme,
-        text: text,
-        createdAt: DateTime.now(),
-      );
+  _MockContent({
+    required DailyTheme theme,
+    required String text,
+    required String premadeTitle,
+    required this.addedOn,
+    String? id,
+  }) : entry = ContentEntry(
+         id: id ?? 'content-${theme.name}-$text',
+         theme: theme,
+         text: text,
+         premadeTitle: premadeTitle,
+         createdAt: DateTime.now(),
+       );
 
   final ContentEntry entry;
 
@@ -773,4 +783,6 @@ class _MockContent {
   DailyTheme get theme => entry.theme;
 
   String get text => entry.text;
+
+  String get premadeTitle => entry.premadeTitle;
 }

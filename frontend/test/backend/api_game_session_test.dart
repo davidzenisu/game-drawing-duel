@@ -605,33 +605,39 @@ void main() {
       backend.contentEditors.add('kim');
       final editor = await signedUp('kim', 'Kim');
       expect(editor.canEditContent, isTrue);
-      final added = await editor.addContent(ContentKind.hints, DailyTheme.volcano, [
-        'a sauna regular',
-        'a toast burner',
+      final added = await editor.addContent(DailyTheme.volcano, const [
+        HintDraft(text: 'a sauna regular', premadeTitle: 'Lord of the Top Bench'),
+        HintDraft(text: 'a toast burner', premadeTitle: 'The Toast Incinerator'),
       ]);
       final post = backend.requests.last;
       expect((post.method, post.url.path), ('POST', '/content/hints'));
       expect(jsonDecode(post.body), {
         'theme': 'volcano',
-        'texts': ['a sauna regular', 'a toast burner'],
+        'hints': [
+          {'text': 'a sauna regular', 'premade_title': 'Lord of the Top Bench'},
+          {'text': 'a toast burner', 'premade_title': 'The Toast Incinerator'},
+        ],
       });
-      expect(added.added.map((e) => e.text), ['a sauna regular', 'a toast burner']);
+      expect(added.added.map((e) => (e.text, e.premadeTitle)), [
+        ('a sauna regular', 'Lord of the Top Bench'),
+        ('a toast burner', 'The Toast Incinerator'),
+      ]);
       expect(added.added.first.theme, DailyTheme.volcano);
-      final again = await editor.addContent(ContentKind.hints, DailyTheme.volcano, ['a toast burner']);
+      final again = await editor.addContent(DailyTheme.volcano, const [
+        HintDraft(text: 'a toast burner', premadeTitle: 'Another'),
+      ]);
       expect(again.added, isEmpty);
       expect(again.skipped, ['a toast burner']);
 
-      final listed = await editor.contentEntries(ContentKind.hints, DailyTheme.volcano);
+      final listed = await editor.contentEntries(DailyTheme.volcano);
       expect(backend.requests.last.url.toString(), 'https://api.example/content/hints?theme=volcano');
       expect(listed, hasLength(2));
-      expect(await editor.contentEntries(ContentKind.premadeTitles, DailyTheme.volcano), isEmpty);
+      expect(await editor.contentEntries(DailyTheme.snow), isEmpty);
 
-      await editor.retireContent(ContentKind.hints, listed.first);
+      await editor.retireContent(listed.first);
       final delete = backend.requests.last;
       expect((delete.method, delete.url.path), ('DELETE', '/content/hints/${listed.first.id}'));
-      expect((await editor.contentEntries(ContentKind.hints, DailyTheme.volcano)).map((e) => e.text), [
-        'a toast burner',
-      ]);
+      expect((await editor.contentEntries(DailyTheme.volcano)).map((e) => e.text), ['a toast burner']);
     });
 
     test('a reload keeps the upgrades and the chosen element', () async {
