@@ -31,3 +31,6 @@ __pycache__/
 # Any .env files or config files
 .env
 config.json
+
+# Written by the backend deployment, see backend/app/main.py.
+backend/app/commit.txt
