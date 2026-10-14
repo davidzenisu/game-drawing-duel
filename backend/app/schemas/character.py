@@ -22,7 +22,7 @@ class StrokeData(BaseModel):
     points: list[Coordinate] = Field(min_length=2)
 
     @model_validator(mode="after")
-    def _check_pairs(self) -> "StrokeData":
+    def _check_pairs(self) -> StrokeData:
         if len(self.points) % 2:
             raise ValueError("points must be pairs of x and y")
         return self
@@ -32,7 +32,7 @@ class SketchData(BaseModel):
     strokes: list[StrokeData] = Field(min_length=1, max_length=MAX_STROKES)
 
     @model_validator(mode="after")
-    def _check_size(self) -> "SketchData":
+    def _check_size(self) -> SketchData:
         if sum(len(s.points) for s in self.strokes) > 2 * MAX_POINTS:
             raise ValueError("The drawing has too many points")
         return self

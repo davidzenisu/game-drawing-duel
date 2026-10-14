@@ -35,7 +35,7 @@ class GachaState:
     beginner_guarantee_met: bool
 
     @classmethod
-    def after(cls, pulled: Sequence[Rarity]) -> "GachaState":
+    def after(cls, pulled: Sequence[Rarity]) -> GachaState:
         since_legend = 0
         for rarity in pulled:
             since_legend = 0 if rarity is Rarity.LEGEND else since_legend + 1

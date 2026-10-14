@@ -46,7 +46,7 @@ class TokenVerifier:
         self._signing_key = signing_key
 
     @classmethod
-    def for_auth0(cls, domain: str, audience: str) -> "TokenVerifier":
+    def for_auth0(cls, domain: str, audience: str) -> TokenVerifier:
         issuer = f"https://{domain}/"
         jwks = jwt.PyJWKClient(f"{issuer}.well-known/jwks.json", cache_keys=True)
         return cls(

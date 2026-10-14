@@ -85,7 +85,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Install dependencies
         run: uv sync --locked
@@ -130,7 +130,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Install dependencies
         run: uv sync --locked

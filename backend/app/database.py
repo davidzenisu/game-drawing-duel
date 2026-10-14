@@ -29,7 +29,7 @@ def _get_session_factory(database_url: str) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session]:
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise HTTPException(
