@@ -2,7 +2,7 @@
 name = "game-drawing-duel-backend"
 version = "0.1.0"
 description = "Backend API for Game Drawing Duel"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.0",
     "azure-functions>=1.18.0",
@@ -24,4 +24,4 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py314"

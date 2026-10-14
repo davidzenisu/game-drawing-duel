@@ -50,7 +50,7 @@ class Server(Base):
     # The seat name of the player who cancelled it.
     cancelled_by: Mapped[str | None] = mapped_column(Text)
 
-    seats: Mapped[list["ServerSeat"]] = relationship(
+    seats: Mapped[list[ServerSeat]] = relationship(
         back_populates="server",
         order_by="ServerSeat.position",
         cascade="all, delete-orphan",

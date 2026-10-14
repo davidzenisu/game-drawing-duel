@@ -41,7 +41,7 @@ class SetupPrompt(StrEnum):
         return _PROMPT_RARITY[self]
 
     @property
-    def based_on(self) -> "SetupPrompt | None":
+    def based_on(self) -> SetupPrompt | None:
         """The prompt this one builds on; it is drawn of the same subject."""
         return SetupPrompt.BASIC if self is SetupPrompt.ALTER else None
 

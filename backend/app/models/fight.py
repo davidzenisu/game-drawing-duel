@@ -47,7 +47,7 @@ class Fight(Base):
     )
 
     challenger: Mapped[Character] = relationship()
-    fighters: Mapped[list["Fighter"]] = relationship(
+    fighters: Mapped[list[Fighter]] = relationship(
         order_by="Fighter.position", cascade="all, delete-orphan"
     )
 

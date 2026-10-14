@@ -35,4 +35,4 @@ class SetupAssignment(Base):
 
     artist: Mapped[ServerSeat] = relationship(foreign_keys=[artist_seat_id])
     subject: Mapped[ServerSeat] = relationship(foreign_keys=[subject_seat_id])
-    based_on: Mapped["SetupAssignment | None"] = relationship(remote_side=[id])
+    based_on: Mapped[SetupAssignment | None] = relationship(remote_side=[id])

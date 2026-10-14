@@ -59,7 +59,7 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
-          python-version: '3.12'
+          python-version: '3.14'
 
       # Migrate before deploying so new code never runs against an old schema.
       # The environment lives outside backend/ so it isn't part of the package.
