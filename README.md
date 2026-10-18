@@ -56,6 +56,11 @@ database answers, and reports the commit that's running as `version` (`dev`
 outside a deployment). The backend deployment writes it into the package and
 fails unless the live API reports it within 10 minutes.
 
+`GET /me` lists the tutorials the player saw (`tutorials_seen`), and
+`PUT /me/tutorials/{key}` marks one as seen, so the app shows each only once,
+on any device. Keys are short lowercase names the app picks (`[a-z0-9-]`, up
+to 40 characters); seeing one again changes nothing.
+
 #### Signing in to the API docs
 
 With `AUTH0_DOCS_CLIENT_ID` set, the interactive docs at `/docs` sign in with
