@@ -433,4 +433,38 @@ void main() {
     expect(game.hurrySentTo, isNull);
     expect(game.day, 2);
   });
+
+  test('on Sundays the finale: vote on pairs, the best joins the pool as a hero', () async {
+    // A Monday: day 7 is the Sunday of the finale.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+    for (var day = 1; day < 7; day++) {
+      expect(game.day, day);
+      expect(game.finale, isNull);
+      expect(game.weeklyHero, isNull);
+      await game.advanceDay();
+    }
+    final ballot = game.finale!;
+    expect(ballot.contenders, greaterThan(2));
+    expect(ballot.pairs, greaterThan(0));
+    expect(game.hasOpenSteps, isTrue);
+
+    final seen = <String>{};
+    for (var pair = game.finale!.pair; pair != null; pair = game.finale!.pair) {
+      final (left, right) = pair;
+      expect([left.artist, right.artist], isNot(contains(game.you.name)), reason: 'not your own challengers');
+      expect(seen.add({left.id, right.id}.toList().join('|')), isTrue, reason: 'every pair once');
+      await game.voteFinale(left, right);
+      expect(game.finale!.votes, seen.length);
+    }
+    expect(game.finale!.votes, ballot.pairs);
+    expect(game.canVoteFinale, isFalse);
+
+    await game.advanceDay();
+    expect(game.finale, isNull);
+    final hero = game.weeklyHero!;
+    expect(hero.day, 7);
+    expect(hero.card.rarity, Rarity.hero);
+    expect(hero.stars, greaterThanOrEqualTo(Stars.challengerBase + hero.votes));
+    expect(game.pool.map((c) => c.id), contains(hero.card.id));
+  });
 }

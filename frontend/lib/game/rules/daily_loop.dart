@@ -11,12 +11,15 @@ import 'upgrades.dart';
 ///   3. pick up to four fighters against a challenger drawn the day before,
 ///   4. boost one of the challengers the others fought the day before.
 /// The day after, the stars decide the fights and everyone involved sees
-/// the outcome.
+/// the outcome. Once a week comes step 5, the [Finale].
 abstract final class LoopStep {
   static const prompt = 1;
   static const draw = 2;
   static const fight = 3;
   static const boost = 4;
+
+  /// On the last day of every week, see [Finale].
+  static const finale = 5;
 
   /// The first day with decided fights.
   static const results = 5;
@@ -258,4 +261,48 @@ abstract final class FightScript {
     }
     return beats;
   }
+}
+
+/// Step 5, on the last day of every week (Sunday, UTC): every challenger
+/// that won a fight decided that week enters, and players vote on pairs of
+/// them. Each vote adds a star; once the week is over, the one with the most
+/// stars joins the gacha pool as a hero.
+abstract final class Finale {
+  /// Fights are decided this many days after their fighters were picked;
+  /// they count for the week they're decided in.
+  static const decidedAfter = 2;
+
+  /// Whether [date] (UTC) is the last day of its week, the finale's.
+  static bool isFinaleDate(DateTime date) => date.weekday == DateTime.sunday;
+}
+
+/// Where you stand in today's [Finale].
+class FinaleBallot {
+  const FinaleBallot({required this.pair, required this.votes, required this.pairs, required this.contenders});
+
+  /// The next two challengers to pick one of, or null once you voted on
+  /// every pair.
+  final (CharacterCard, CharacterCard)? pair;
+
+  /// How many pairs you voted on, of the [pairs] you may: every pair of the
+  /// contenders without a challenger you drew.
+  final int votes;
+  final int pairs;
+
+  /// The week's challengers that won a fight.
+  final int contenders;
+}
+
+/// The winner of the latest [Finale], now in the gacha pool as a hero.
+class WeeklyHero {
+  const WeeklyHero({required this.card, required this.day, required this.stars, required this.votes});
+
+  final CharacterCard card;
+
+  /// The finale day it won on.
+  final int day;
+
+  /// Its stars in the end: its challenger stars with boosts, plus [votes].
+  final int stars;
+  final int votes;
 }
