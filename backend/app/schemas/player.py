@@ -27,3 +27,5 @@ class MeResponse(PlayerResponse):
     # Whether they may manage the prompt hints and premade titles
     # (`auth.CONTENT_PERMISSION`).
     can_edit_content: bool
+    # The tutorials they saw, by key, oldest first; see `PUT /me/tutorials`.
+    tutorials_seen: list[str]

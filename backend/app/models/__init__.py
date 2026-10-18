@@ -4,7 +4,7 @@ from app.models.fight import Boost, Fight, Fighter
 from app.models.finale import FinaleVote, WeeklyHero
 from app.models.gacha import Pull, PullGrant
 from app.models.hurry import Hurry
-from app.models.player import Player
+from app.models.player import Player, TutorialSeen
 from app.models.server import Server, ServerSeat
 from app.models.setup import SetupAssignment
 from app.models.theme import ThemeHint
@@ -27,6 +27,7 @@ __all__ = [
     "ServerSeat",
     "SetupAssignment",
     "ThemeHint",
+    "TutorialSeen",
     "Upgrade",
     "WeeklyHero",
 ]

@@ -14,9 +14,11 @@ class SignupTests(ApiTestCase):
         created = self.sign_up("auth0|alex", "  Alex ")
         self.assertEqual(created["first_name"], "Alex")
         self.assertEqual(
-            set(created), {"id", "first_name", "created_at", "can_edit_content"}
+            set(created),
+            {"id", "first_name", "created_at", "can_edit_content", "tutorials_seen"},
         )
         self.assertFalse(created["can_edit_content"])
+        self.assertEqual(created["tutorials_seen"], [])
 
         with self.session_factory() as session:
             player = session.scalar(select(Player))
@@ -54,3 +56,32 @@ class SignupTests(ApiTestCase):
                 "/me", json={"first_name": name}, headers=bearer(make_token())
             )
             self.assertEqual(response.status_code, 422, repr(name))
+
+
+class TutorialTests(ApiTestCase):
+    def see(self, key: str, subject: str = "auth0|alex"):
+        return self.client.put(
+            f"/me/tutorials/{key}", headers=bearer(make_token(subject))
+        )
+
+    def test_seen_tutorials_are_remembered_per_account(self) -> None:
+        self.sign_up("auth0|alex", "Alex")
+        self.sign_up("auth0|sam", "Sam")
+        response = self.see("draw")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["tutorials_seen"], ["draw"])
+        self.see("boost")
+        # Seeing one again changes nothing.
+        self.assertEqual(self.see("draw").json()["tutorials_seen"], ["draw", "boost"])
+
+        me = self.client.get("/me", headers=bearer(make_token("auth0|alex"))).json()
+        self.assertEqual(me["tutorials_seen"], ["draw", "boost"])
+        sam = self.client.get("/me", headers=bearer(make_token("auth0|sam"))).json()
+        self.assertEqual(sam["tutorials_seen"], [])
+
+    def test_only_signed_up_players_and_short_lowercase_keys(self) -> None:
+        self.assertEqual(self.see("draw").status_code, 404)
+        self.sign_up("auth0|alex", "Alex")
+        for key in ("Draw", "x" * 41, "draw_step", "draw%20it"):
+            self.assertEqual(self.see(key).status_code, 422, key)
+        self.assertEqual(self.see("first-day").status_code, 200)
