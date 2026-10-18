@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import pulls, upgrades
+from app import finale, pulls, upgrades
 from app.auth import CurrentPlayer
 from app.models import Character, Server, ServerSeat
 from app.routers.servers import Code, DbSession, load_server, your_seat
@@ -45,11 +45,13 @@ def _characters(session: DbSession, *conditions) -> list[CharacterResponse]:
 def get_pool(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> list[CharacterResponse]:
-    """The characters the gacha pulls from: everyone's setup drawings.
-    Challengers are listed separately, see `get_challengers`."""
+    """The characters the gacha pulls from: everyone's setup drawings and
+    the weekly heroes. Other challengers are listed separately, see
+    `get_challengers`."""
     server = load_server(session, code)
     your_seat(server, player.id)
     require_launched(server)
+    finale.settle(session, server)
     return _characters(session, Character.server_id == server.id, pulls.in_pool())
 
 
@@ -82,6 +84,8 @@ def pull(
 ) -> PullsResponse:
     """Spends pulls on random characters of the pool, see `app/gacha.py`."""
     seat = _running_seat(session, code, player.id)
+    # A week's hero joins the pool once its finale is over.
+    finale.settle(session, seat.server)
     try:
         outcomes = pulls.pull(session, seat, body.count)
     except pulls.NotEnoughPulls as error:

@@ -98,6 +98,38 @@ class IncomingHurry(BaseModel):
     at_fraction: float
 
 
+class FinalePair(BaseModel):
+    left: CharacterResponse
+    right: CharacterResponse
+
+
+class FinaleStep(BaseModel):
+    """Step 5, on the last day (Sunday, UTC) of a week: vote on pairs of the
+    week's challengers that won a fight. Each vote adds a star to the one
+    picked; once the week is over, the one with the most stars joins the
+    gacha pool as a hero. The stars stay secret until then."""
+
+    # The next pair to vote on, or null once you voted on every pair.
+    pair: FinalePair | None
+    # How many pairs you voted on, out of the pairs you may vote on: every
+    # pair of contenders without a challenger you drew.
+    votes: int
+    pairs: int
+    # The week's challengers that won a fight.
+    contenders: int
+
+
+class WeeklyHeroResponse(BaseModel):
+    """The latest finale's winner, now in the gacha pool."""
+
+    character: CharacterResponse
+    # The finale day it won on.
+    day: int
+    # Its stars in the end: its challenger stars with boosts, plus its votes.
+    stars: int
+    votes: int
+
+
 class TodayResponse(BaseModel):
     day: int
     # An `app.rules.Theme`.
@@ -118,6 +150,9 @@ class TodayResponse(BaseModel):
     incoming_hurries: list[IncomingHurry]
     # Test sessions: the seats that ended the day. Empty on regular servers.
     day_ended: list[int]
+    # Step 5, on the last day of a week.
+    finale: FinaleStep | None
+    weekly_hero: WeeklyHeroResponse | None
 
 
 class ChallengerResponse(BaseModel):
@@ -135,6 +170,12 @@ class FightersSubmit(BaseModel):
 
 class BoostSubmit(BaseModel):
     challenger_id: uuid.UUID
+
+
+class FinaleVoteSubmit(BaseModel):
+    # The challenger you pick, and the other one of the pair.
+    chosen_id: uuid.UUID
+    other_id: uuid.UUID
 
 
 class HurrySubmit(BaseModel):
