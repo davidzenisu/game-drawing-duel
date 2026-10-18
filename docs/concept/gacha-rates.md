@@ -29,6 +29,9 @@ Arknights original ratio was roughly:
 - 3 star: 29
 - 4 star: 10
 
+Arknights current ratio (2026-10-16)
+- 1 star: 
+
 Launch 84 > 30 start here
 0.36 factor, ideal ratio
 
