@@ -20,3 +20,18 @@ Development directories:
 - frontend
 - backend
 - database?
+
+Architecture
+
+```mermaid
+flowchart TD
+  Frontend -->
+  Backend -->
+  Database & Blob
+```
+
+Terraform infrastructure:
+- Static Web App (Frontend, Static Flutter Deployment)
+- Function App (Consumption Flex, Python, ASGI, Authentication)
+- 2x Storage Accounts (One for Function App, one for blob storage)
+- Supabase Account
