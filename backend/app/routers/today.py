@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import days, fights
+from app import days, fights, finale
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import (
@@ -39,12 +39,16 @@ from app.schemas import (
     FightersSubmit,
     FightResponse,
     FightStep,
+    FinalePair,
+    FinaleStep,
+    FinaleVoteSubmit,
     HurrySubmit,
     IncomingHurry,
     OutcomeResponse,
     PromptSubmit,
     PromptToDrawResponse,
     TodayResponse,
+    WeeklyHeroResponse,
     YourPrompt,
 )
 from app.storage import Files
@@ -102,6 +106,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
     # Fights nobody picked fighters for are needed for voting and results.
     fights.complete_fights(session, server, day - 1)
     fights.complete_fights(session, server, day - 2)
+    finale.settle(session, server)
     written = session.scalar(
         select(ChallengerPrompt).where(
             ChallengerPrompt.author_seat_id == seat.id, ChallengerPrompt.day == day
@@ -163,6 +168,39 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         hurry_sent_to=_hurry_sent_to(session, server, seat, day),
         incoming_hurries=_incoming_hurries(session, server, seat, day),
         day_ended=list(ended),
+        finale=_finale_step(session, server, day, seat),
+        weekly_hero=_weekly_hero(session, server),
+    )
+
+
+def _finale_step(
+    session: Session, server: Server, day: int, seat: ServerSeat
+) -> FinaleStep | None:
+    if not finale.is_finale_day(server, day):
+        return None
+    ballot = finale.ballot(session, server, day, seat)
+    return FinaleStep(
+        pair=None
+        if ballot.pair is None
+        else FinalePair(
+            left=character_response(ballot.pair[0]),
+            right=character_response(ballot.pair[1]),
+        ),
+        votes=ballot.votes,
+        pairs=ballot.pairs,
+        contenders=ballot.contenders,
+    )
+
+
+def _weekly_hero(session: Session, server: Server) -> WeeklyHeroResponse | None:
+    hero = finale.latest_hero(session, server)
+    if hero is None:
+        return None
+    return WeeklyHeroResponse(
+        character=character_response(hero.character),
+        day=hero.day,
+        stars=hero.stars,
+        votes=hero.votes,
     )
 
 
@@ -366,6 +404,27 @@ def boost(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You boosted a challenger today already"
         ) from error
+    return _today(session, server, seat)
+
+
+@router.post("/{code}/today/finale", response_model=TodayResponse)
+def vote_finale(
+    code: Code, body: FinaleVoteSubmit, player: CurrentPlayer, session: DbSession
+) -> TodayResponse:
+    """Step 5, on the last day of a week: picks one of a pair of the week's
+    challengers that won a fight, adding a star to it. Once per pair."""
+    server, seat = _running(session, code, player.id)
+    day = days.current_day(server)
+    if not finale.is_finale_day(server, day):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="The finale is on the last day of a week"
+        )
+    # The fights decided today count, including the ones chance picked for.
+    fights.complete_fights(session, server, day - 2)
+    try:
+        finale.vote(session, server, day, seat, body.chosen_id, body.other_id)
+    except finale.InvalidVote as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
     return _today(session, server, seat)
 
 

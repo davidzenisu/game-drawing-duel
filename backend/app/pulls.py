@@ -5,17 +5,23 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.gacha import LAUNCH_BONUS, GachaState, pull_rarity
-from app.models import Character, Pull, PullGrant, ServerSeat
+from app.models import Character, Pull, PullGrant, ServerSeat, WeeklyHero
 from app.rules import Rarity
 
 
 def in_pool():
-    """The gacha pool holds the setup drawings; challengers stay out of it."""
-    return Character.assignment_id.is_not(None)
+    """The gacha pool holds the setup drawings and the weekly heroes, the
+    challengers that won a finale (`app.finale`); other challengers stay out."""
+    return or_(
+        Character.assignment_id.is_not(None),
+        Character.id.in_(
+            select(WeeklyHero.character_id).where(WeeklyHero.character_id.is_not(None))
+        ),
+    )
 
 
 def grant_launch_bonus(session: Session, seats: list[ServerSeat]) -> None:

@@ -136,7 +136,7 @@ day each player:
    a random person other than them.
    The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
-   join the gacha pool, which holds only the setup drawings.
+   join the gacha pool unless it wins a weekly finale (see below).
 3. sends up to four characters of their collection against a random
    challenger drawn the day before (not their own). Every character fights
    once a week: after a fight it rests until Monday (UTC, the week of the
@@ -156,6 +156,16 @@ challenger (`rules.fighters_win`, shared with the mockup). A player who
 picked no fighters gets random ones from their collection (stored the first
 time the next day is opened).
 
+On the last day of every week (Sunday, UTC) comes the finale: every
+challenger that won a fight decided that week enters (a fight picked on a
+Saturday is decided on Monday, so it counts for the next week). Players vote
+on pairs of them, every pair once and none with a challenger they drew; each
+vote adds a star. Once the week is over, the challenger with the most stars
+(its 3, plus its boosts, plus its votes; then the most fights won, then the
+one drawn first) joins the gacha pool as a hero (`app/finale.py`). The stars
+stay secret until then; `GET today` shows the latest winner as
+`weekly_hero`.
+
 The random picks are derived from the server, day and seat, so they stay the
 same without being stored ahead of time.
 
@@ -167,11 +177,12 @@ hits (`GET today` lists them as `incoming_hurries`).
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the challengers to boost (with the fights against them) and your decided fights |
+| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the challengers to boost (with the fights against them), your decided fights, the finale's next pair on Sundays and the latest weekly hero |
 | `POST /servers/{code}/today/prompt` | Choose a person for today's description (`subject_position`, anyone but you) and write their challenger title, once |
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
 | `POST /servers/{code}/today/boosts` | Boost one of yesterday's challengers (`challenger_id`), once a day |
+| `POST /servers/{code}/today/finale` | On the last day of a week: pick one challenger of your next pair (`chosen_id`, `other_id`), once per pair |
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |

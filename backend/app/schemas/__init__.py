@@ -14,11 +14,15 @@ from app.schemas.day import (
     FightersSubmit,
     FightResponse,
     FightStep,
+    FinalePair,
+    FinaleStep,
+    FinaleVoteSubmit,
     HurrySubmit,
     IncomingHurry,
     OutcomeResponse,
     PromptToDrawResponse,
     TodayResponse,
+    WeeklyHeroResponse,
     YourPrompt,
 )
 from app.schemas.gacha import (
@@ -52,6 +56,9 @@ __all__ = [
     "FightStep",
     "FighterResponse",
     "FightersSubmit",
+    "FinalePair",
+    "FinaleStep",
+    "FinaleVoteSubmit",
     "GachaResponse",
     "HurrySubmit",
     "IncomingHurry",
@@ -71,5 +78,6 @@ __all__ = [
     "SketchData",
     "TodayResponse",
     "UpgradeRequest",
+    "WeeklyHeroResponse",
     "YourPrompt",
 ]
