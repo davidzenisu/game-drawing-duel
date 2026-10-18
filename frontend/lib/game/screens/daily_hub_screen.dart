@@ -5,15 +5,18 @@ import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../widgets/cancel_server_button.dart';
+import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
 import '../widgets/sign_out_button.dart';
+import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
 import 'boost_screen.dart';
 import 'challengers_screen.dart';
 import 'collection_screen.dart';
 import 'drawing_screen.dart';
+import 'finale_screen.dart';
 import 'fight_setup_screen.dart';
 import 'gacha_screen.dart';
 import 'prompt_screen.dart';
@@ -243,6 +246,23 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         badge: c.canBoost ? 1 : 0,
         onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c)),
       ),
+      if (c.finale case final finale?)
+        _ActionCard(
+          icon: Icons.how_to_vote_rounded,
+          step: LoopStep.finale,
+          title: 'Finale',
+          subtitle: finale.pairs == 0
+              ? finale.contenders == 0
+                    ? 'No challenger won a fight this week, so there\'s no new hero.'
+                    : 'No pairs for you to vote on this week. The best challenger joins the pool tomorrow.'
+              : finale.pair == null
+              ? 'Voted on all ${finale.pairs} pairs. The winner joins the pool tomorrow.'
+              : 'Vote for the best of the week\'s ${finale.contenders} winning challengers: '
+                    '${finale.votes} of ${finale.pairs} pairs done.',
+          done: finale.pairs > 0 && finale.pair == null,
+          badge: c.canVoteFinale ? 1 : 0,
+          onTap: finale.pairs == 0 ? null : () => _openStep(FinaleScreen(controller: c)),
+        ),
       _ActionCard(
         icon: Icons.sports_martial_arts_rounded,
         title: 'Battle results',
@@ -312,6 +332,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                           if (_controller.canEndDay) _dayEndedCard(),
                           ..._steps(),
                           const SizedBox(height: 12),
+                          if (_controller.weeklyHero case final hero?) _WeeklyHeroCard(hero: hero),
                           _ActionCard(
                             icon: Icons.auto_awesome_rounded,
                             title: 'Summon',
@@ -355,6 +376,31 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// The latest finale's winner, now in the gacha pool.
+class _WeeklyHeroCard extends StatelessWidget {
+  const _WeeklyHeroCard({required this.hero});
+
+  final WeeklyHero hero;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = hero.card;
+    return Card(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: SizedBox(width: 40, child: CardboardCard(child: SketchView(card.sketch))),
+        title: Text('Weekly hero: ${card.subject} · "${card.title}"'),
+        subtitle: Text(
+          'Won the finale with ${hero.stars} ★ (${hero.votes} vote${hero.votes == 1 ? '' : 's'}) '
+          'and joined the pool as a hero. Drawn by ${card.artist}.',
+        ),
+        trailing: const Icon(Icons.emoji_events_rounded, color: AppPalette.rarityHero),
+      ),
     );
   }
 }

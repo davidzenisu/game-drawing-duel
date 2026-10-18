@@ -598,6 +598,43 @@ void main() {
       expect((record.fights, record.wins), (1, result.fightersWin ? 0 : 1));
     });
 
+    test('the finale: vote on a pair, then the weekly hero', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      expect((admin.finale, admin.weeklyHero), (null, null));
+
+      final [left, right, ...] = [for (final d in backend.drawings.values) d.character];
+      backend.finales['123456'] = {
+        'pair': {'left': left, 'right': right},
+        'votes': 0,
+        'pairs': 1,
+        'contenders': 2,
+      };
+      await admin.refreshDay();
+      final ballot = admin.finale!;
+      expect(ballot.pair!.$1.id, left['id']);
+      expect(ballot.pair!.$2.id, right['id']);
+      expect((ballot.votes, ballot.pairs, ballot.contenders), (0, 1, 2));
+      expect(admin.canVoteFinale, isTrue);
+
+      await admin.voteFinale(ballot.pair!.$2, ballot.pair!.$1);
+      final post = backend.requests.lastWhere((r) => r.method == 'POST');
+      expect(post.url.path, '/servers/123456/today/finale');
+      expect(jsonDecode(post.body), {'chosen_id': right['id'], 'other_id': left['id']});
+      expect(admin.finale!.pair, isNull);
+      expect(admin.finale!.votes, 1);
+      expect(admin.canVoteFinale, isFalse);
+
+      backend.finales.remove('123456');
+      backend.weeklyHeroes['123456'] = {'character': right, 'day': 7, 'stars': 5, 'votes': 2};
+      await admin.refreshDay();
+      expect(admin.finale, isNull);
+      final hero = admin.weeklyHero!;
+      expect((hero.card.id, hero.day, hero.stars, hero.votes), (right['id'], 7, 5, 2));
+    });
+
     test('a content entry from an older API names what is missing', () async {
       backend.contentEditors.add('kim');
       final editor = await signedUp('kim', 'Kim');

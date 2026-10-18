@@ -110,6 +110,14 @@ class FakeBackend {
     };
   }
 
+  /// Today's finale and the latest weekly hero by server code, as `GET today`
+  /// returns them; tests set them up.
+  final Map<String, Map<String, Object?>> finales = {};
+  final Map<String, Map<String, Object?>> weeklyHeroes = {};
+
+  /// The finale votes posted, by server code.
+  final Map<String, List<Object?>> finaleVotes = {};
+
   /// Hurries by server code, day and sender seat: the target seat.
   final Map<(String, int, int), int> hurries = {};
 
@@ -516,6 +524,12 @@ class FakeBackend {
           return _json(409, {'detail': 'You boosted a challenger today already'});
         }
         boosts[(code, day, yours)] = body['challenger_id'] as String;
+      case ('POST', ['today', 'finale']):
+        final finale = finales[code];
+        if (finale == null || finale['pair'] == null) return _json(409, {'detail': "You can't vote on that pair"});
+        finaleVotes.putIfAbsent(code, () => []).add(body);
+        // One pair to vote on in the fake.
+        finales[code] = {...finale, 'pair': null, 'votes': (finale['votes'] as int) + 1};
       case ('POST', ['today', 'hurry']):
         if (hurries.containsKey((code, day, yours))) return _json(409, {'detail': "You sent today's hurry already"});
         hurries[(code, day, yours)] = body!['target_position'] as int;
@@ -591,6 +605,8 @@ class FakeBackend {
           if (key.$1 == code && key.$2 == today && value == yours) {'by_position': key.$3, 'at_fraction': 0.4},
       ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
+      'finale': finales[code],
+      'weekly_hero': weeklyHeroes[code],
     });
   }
 

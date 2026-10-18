@@ -192,6 +192,13 @@ abstract class GameSession extends ChangeNotifier {
   /// The player you sent today's free hurry to.
   Player? get hurrySentTo;
 
+  /// Step 5, on the last day of a week (Sunday, UTC): the pairs of the
+  /// week's winning challengers to vote on; null on other days.
+  FinaleBallot? get finale;
+
+  /// The latest finale's winner, now in the gacha [pool].
+  WeeklyHero? get weeklyHero;
+
   /// Whether you may manage the prompt hints, each a description with its
   /// premade title: online, with the content permission.
   bool get canEditContent => false;
@@ -224,6 +231,9 @@ abstract class GameSession extends ChangeNotifier {
   /// Whether you can still boost a challenger today.
   bool get canBoost => boostTargets.isNotEmpty && boostedChallengerId == null;
 
+  /// Whether there's a pair left to vote on in today's finale.
+  bool get canVoteFinale => finale?.pair != null;
+
   /// Whether a step of the daily loop is available today.
   bool stepUnlocked(int step) => day >= step;
 
@@ -238,7 +248,8 @@ abstract class GameSession extends ChangeNotifier {
       yourPrompt == null ||
       (promptToDraw != null && !challengerDrawn) ||
       (fightChallenger != null && yourFight == null && availableFighters.isNotEmpty) ||
-      canBoost;
+      canBoost ||
+      canVoteFinale;
 
   // Actions ------------------------------------------------------------------
 
@@ -295,6 +306,10 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Step 4: boost one of [boostTargets]' challengers, once a day.
   Future<void> boost(CharacterCard challenger);
+
+  /// Step 5: picks [chosen] over [other], today's [FinaleBallot.pair]; each
+  /// vote adds a star to the one picked.
+  Future<void> voteFinale(CharacterCard chosen, CharacterCard other);
 
   /// Sends today's free hurry. Completes with false if it was already used.
   Future<bool> sendHurry(Player target);

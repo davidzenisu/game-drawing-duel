@@ -200,6 +200,9 @@ class MockGameSession extends GameSession {
     _challengers.clear();
     _fights.clear();
     _boosted.clear();
+    _finaleVotes.clear();
+    _yourFinaleVotes.clear();
+    _weeklyHero = null;
     _usedHints.clear();
     _botRosters.clear();
     _promptTheme = DailyTheme.forest;
@@ -443,6 +446,112 @@ class MockGameSession extends GameSession {
     }
   }
 
+  // Step 5: the finale --------------------------------------------------------
+
+  /// The votes of each finale, by its day: the votes each challenger got.
+  final Map<int, Map<String, int>> _finaleVotes = {};
+
+  /// The pairs you voted on in each finale, by its day, see [_pairKey].
+  final Map<int, Set<String>> _yourFinaleVotes = {};
+
+  WeeklyHero? _weeklyHero;
+
+  @override
+  WeeklyHero? get weeklyHero => _weeklyHero;
+
+  bool _isFinaleDay(int day) => Finale.isFinaleDate(_launchedOn.add(Duration(days: day - 1)));
+
+  /// Like online: the challengers that won a fight decided in the week that
+  /// ends on [day], oldest first.
+  List<_Contender> _contenders(int day) {
+    final lastFightDay = day - Finale.decidedAfter;
+    final byChallenger = <String, List<FightSetup>>{};
+    for (var fightDay = lastFightDay - 6; fightDay <= lastFightDay; fightDay++) {
+      for (final fight in _fights[fightDay] ?? const <FightSetup>[]) {
+        byChallenger.putIfAbsent(fight.challenger.id, () => []).add(fight);
+      }
+    }
+    return [
+      for (final fights in byChallenger.values)
+        if (fights.where((f) => !f.fightersWin).length case final wins when wins > 0)
+          _Contender(fights.first.challenger, wins: wins, boosts: fights.first.boosts),
+    ];
+  }
+
+  static String _pairKey(CharacterCard a, CharacterCard b) =>
+      a.id.compareTo(b.id) < 0 ? '${a.id}|${b.id}' : '${b.id}|${a.id}';
+
+  /// The pairs [artist] votes on in the finale on [day]: every pair of the
+  /// contenders without one they drew, in an order and left/right of their own.
+  List<(CharacterCard, CharacterCard)> _finalePairs(int day, String artist) {
+    final theirs = [
+      for (final contender in _contenders(day))
+        if (contender.card.artist != artist) contender.card,
+    ];
+    final random = Random(Object.hash(day, artist));
+    return [
+      for (final (i, a) in theirs.indexed)
+        for (final b in theirs.skip(i + 1)) random.nextBool() ? (a, b) : (b, a),
+    ]..shuffle(random);
+  }
+
+  @override
+  FinaleBallot? get finale {
+    if (!_isFinaleDay(_day)) return null;
+    final pairs = _finalePairs(_day, you.name);
+    final voted = _yourFinaleVotes[_day] ?? const {};
+    return FinaleBallot(
+      pair: pairs.where((p) => !voted.contains(_pairKey(p.$1, p.$2))).firstOrNull,
+      votes: voted.length,
+      pairs: pairs.length,
+      contenders: _contenders(_day).length,
+    );
+  }
+
+  @override
+  Future<void> voteFinale(CharacterCard chosen, CharacterCard other) async {
+    if (!_isFinaleDay(_day)) throw StateError('The finale is on the last day of a week.');
+    final key = _pairKey(chosen, other);
+    if (!_finalePairs(_day, you.name).any((p) => _pairKey(p.$1, p.$2) == key)) {
+      throw ArgumentError("You can't vote on that pair.");
+    }
+    if (!(_yourFinaleVotes[_day] ??= {}).add(key)) throw StateError('You voted on that pair already.');
+    _vote(_day, chosen);
+    notifyListeners();
+  }
+
+  void _vote(int day, CharacterCard chosen) {
+    final votes = _finaleVotes[day] ??= {};
+    votes[chosen.id] = (votes[chosen.id] ?? 0) + 1;
+  }
+
+  /// Once the finale on [day] is over: the simulated players vote at random,
+  /// and the challenger with the most stars (then the most fights won, then
+  /// the one drawn first) joins the pool as a hero.
+  void _decideFinale(int day) {
+    for (final voter in otherPlayers) {
+      for (final (a, b) in _finalePairs(day, voter.name)) {
+        _vote(day, _random.nextBool() ? a : b);
+      }
+    }
+    final votes = _finaleVotes[day] ?? const {};
+    int stars(_Contender c) => Stars.ofChallenger(c.boosts) + (votes[c.card.id] ?? 0);
+    final ranked = _contenders(day).indexed.toList()
+      ..sort((x, y) {
+        final byStars = stars(y.$2).compareTo(stars(x.$2));
+        if (byStars != 0) return byStars;
+        final byWins = y.$2.wins.compareTo(x.$2.wins);
+        return byWins != 0 ? byWins : x.$1.compareTo(y.$1);
+      });
+    if (ranked.isEmpty) {
+      _weeklyHero = null;
+      return;
+    }
+    final winner = ranked.first.$2;
+    if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
+    _weeklyHero = WeeklyHero(card: winner.card, day: day, stars: stars(winner), votes: votes[winner.card.id] ?? 0);
+  }
+
   /// Decided fights you picked the fighters for (two days ago).
   @override
   List<FightSetup> get yourFightResults => [
@@ -480,6 +589,7 @@ class MockGameSession extends GameSession {
   DailyTheme _themeOfDay(int day) => DailyTheme.ofDate(_launchedOn.add(Duration(days: day - 1)));
 
   void _startDay() {
+    if (_day > 0 && _isFinaleDay(_day)) _decideFinale(_day);
     _day++;
     _theme = _themeOfDay(_day);
     // Today's prompts are for challengers fought in two days, in that day's theme.
@@ -754,6 +864,15 @@ class MockGameSession extends GameSession {
     _phase = phase;
     notifyListeners();
   }
+}
+
+/// A challenger in a finale of the mockup, with its record that week.
+class _Contender {
+  const _Contender(this.card, {required this.wins, required this.boosts});
+
+  final CharacterCard card;
+  final int wins;
+  final int boosts;
 }
 
 /// A prompt hint of the mockup, see [MockGameSession.canEditContent].

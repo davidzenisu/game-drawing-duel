@@ -8,6 +8,7 @@ Game Drawing Duel is a daily, sketch-based competitive game where players draw c
 - One quick drawing pass each cycle
 - Party-building battle phase
 - Boosts for the challengers, and the stars decide the fights
+- A weekly finale: vote on pairs of the winning challengers; the best joins the gacha pool as a hero
 
 ## Design docs
 
