@@ -635,6 +635,24 @@ void main() {
       expect((hero.card.id, hero.day, hero.stars, hero.votes), (right['id'], 7, 5, 2));
     });
 
+    test('seen tutorials are stored with the account', () async {
+      expect(admin.tutorialsSeen, isEmpty);
+      await admin.markTutorialSeen('draw');
+      await admin.markTutorialSeen('draw');
+      expect(admin.tutorialsSeen, {'draw'});
+      final puts = backend.requests.where((r) => r.method == 'PUT' && r.url.path.startsWith('/me/tutorials/'));
+      expect(puts.map((r) => r.url.path), ['/me/tutorials/draw'], reason: 'once');
+
+      final again = await signedUpAgain('alex');
+      expect(again.tutorialsSeen, {'draw'}, reason: 'on another device too');
+    });
+
+    test('failing to store a seen tutorial is not an error', () async {
+      backend.rejectAll = (status: 500, detail: 'Down');
+      await admin.markTutorialSeen('boost');
+      expect(admin.tutorialsSeen, {'boost'});
+    });
+
     test('a content entry from an older API names what is missing', () async {
       backend.contentEditors.add('kim');
       final editor = await signedUp('kim', 'Kim');

@@ -133,6 +133,9 @@ class FakeBackend {
   int _nextCharacter = 1;
   final List<http.Request> requests = [];
 
+  /// The tutorials each player saw, by token.
+  final Map<String, Set<String>> tutorialsSeen = {};
+
   /// Tokens with the content permission.
   final Set<String> contentEditors = {};
 
@@ -153,18 +156,23 @@ class FakeBackend {
     final body = request.body.isEmpty ? null : jsonDecode(request.body) as Map<String, Object?>;
 
     final canEditContent = contentEditors.contains(token);
+    Map<String, Object?> meJson() => {
+      ...players[token]!,
+      'created_at': '2026-10-09T10:00:00Z',
+      'can_edit_content': canEditContent,
+      'tutorials_seen': [...?tutorialsSeen[token]],
+    };
     if (request.url.path == '/me') {
       if (request.method == 'PUT') {
         players[token] = {'id': me?['id'] ?? 'player-uuid-${players.length + 1}', 'first_name': body!['first_name']};
-        return _json(200, {
-          ...players[token]!,
-          'created_at': '2026-10-09T10:00:00Z',
-          'can_edit_content': canEditContent,
-        });
+        return _json(200, meJson());
       }
-      return me == null
-          ? _json(404, {'detail': 'Not signed up yet'})
-          : _json(200, {...me, 'can_edit_content': canEditContent});
+      return me == null ? _json(404, {'detail': 'Not signed up yet'}) : _json(200, meJson());
+    }
+    if (request.method == 'PUT' && path.length == 3 && path[0] == 'me' && path[1] == 'tutorials') {
+      if (me == null) return _json(404, {'detail': 'Not signed up yet'});
+      tutorialsSeen.putIfAbsent(token, () => {}).add(path[2]);
+      return _json(200, meJson());
     }
     if (path.first == 'content') {
       if (!canEditContent) return _json(403, {'detail': 'Missing permission edit:content'});

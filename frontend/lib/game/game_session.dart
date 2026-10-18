@@ -199,6 +199,10 @@ abstract class GameSession extends ChangeNotifier {
   /// The latest finale's winner, now in the gacha [pool].
   WeeklyHero? get weeklyHero;
 
+  /// The keys of the intros you saw (see `Tutorial`), so each shows once.
+  /// Online they're kept with your account, on every device.
+  Set<String> get tutorialsSeen;
+
   /// Whether you may manage the prompt hints, each a description with its
   /// premade title: online, with the content permission.
   bool get canEditContent => false;
@@ -310,6 +314,10 @@ abstract class GameSession extends ChangeNotifier {
   /// Step 5: picks [chosen] over [other], today's [FinaleBallot.pair]; each
   /// vote adds a star to the one picked.
   Future<void> voteFinale(CharacterCard chosen, CharacterCard other);
+
+  /// Remembers that you saw the intro with [key]. Never fails: if it can't
+  /// be stored, the intro just shows again another time.
+  Future<void> markTutorialSeen(String key);
 
   /// Sends today's free hurry. Completes with false if it was already used.
   Future<bool> sendHurry(Player target);

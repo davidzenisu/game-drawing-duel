@@ -4,6 +4,7 @@ import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
+import '../tutorials.dart';
 import '../widgets/cancel_server_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
@@ -11,6 +12,7 @@ import '../widgets/content_editor_button.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
+import '../widgets/tutorial_dialog.dart';
 import '../widgets/ticket_chip.dart';
 import 'boost_screen.dart';
 import 'challengers_screen.dart';
@@ -19,6 +21,7 @@ import 'drawing_screen.dart';
 import 'finale_screen.dart';
 import 'fight_setup_screen.dart';
 import 'gacha_screen.dart';
+import 'how_to_play_screen.dart';
 import 'prompt_screen.dart';
 import 'results_screen.dart';
 
@@ -38,9 +41,14 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
   @override
   void initState() {
     super.initState();
-    if (_controller.gachaStatus.totalPulls == 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showLaunchBonus());
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _greet());
+  }
+
+  /// The welcome intro the first time, then the launch bonus.
+  Future<void> _greet() async {
+    if (!mounted) return;
+    await showTutorialOnce(context, _controller, Tutorial.welcome);
+    if (_controller.gachaStatus.totalPulls == 0) _showLaunchBonus();
   }
 
   void _showLaunchBonus() {
@@ -65,9 +73,16 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       ..showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
   }
 
-  void _open(Widget screen) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  /// Opens [screen], after [intro] the first time.
+  Future<void> _open(Widget screen, [Tutorial? intro]) async {
+    if (intro != null) await showTutorialOnce(context, _controller, intro);
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
 
   Future<void> _drawChallenger() async {
+    await showTutorialOnce(context, _controller, Tutorial.draw);
+    if (!mounted) return;
     final prompt = _controller.promptToDraw!;
     final result = await Navigator.of(context).push<DrawingResult>(
       MaterialPageRoute(
@@ -178,7 +193,12 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     );
   }
 
-  Future<void> _openStep(Widget screen) => Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => screen));
+  /// Opens a step's [screen], after [intro] the first time.
+  Future<void> _openStep(Widget screen, Tutorial intro) async {
+    await showTutorialOnce(context, _controller, intro);
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => screen));
+  }
 
   String _unlocksOn(int step) => 'Starts on day $step of the loop.';
 
@@ -200,7 +220,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                 null => 'NO PROMPT',
               },
         done: prompt != null,
-        onTap: prompt == null ? () => _openStep(PromptScreen(controller: c)) : null,
+        onTap: prompt == null ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt) : null,
       ),
       _ActionCard(
         icon: Icons.brush_rounded,
@@ -231,7 +251,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         done: fight != null,
         onTap: c.fightChallenger == null || (fight == null && c.availableFighters.isEmpty)
             ? null
-            : () => _openStep(FightSetupScreen(controller: c)),
+            : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
       ),
       _ActionCard(
         icon: Icons.keyboard_double_arrow_up_rounded,
@@ -244,7 +264,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             : 'Pick one of yesterday\'s ${c.boostTargets.length} challengers to boost: +1 ★, +2 ★, +3 ★ …',
         done: c.boostedChallengerId != null,
         badge: c.canBoost ? 1 : 0,
-        onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c)),
+        onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c), Tutorial.boost),
       ),
       if (c.finale case final finale?)
         _ActionCard(
@@ -261,7 +281,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                     '${finale.votes} of ${finale.pairs} pairs done.',
           done: finale.pairs > 0 && finale.pair == null,
           badge: c.canVoteFinale ? 1 : 0,
-          onTap: finale.pairs == 0 ? null : () => _openStep(FinaleScreen(controller: c)),
+          onTap: finale.pairs == 0 ? null : () => _openStep(FinaleScreen(controller: c), Tutorial.finale),
         ),
       _ActionCard(
         icon: Icons.sports_martial_arts_rounded,
@@ -269,7 +289,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         subtitle: hasResults
             ? 'Watch the fights of your fighters and your challenger.'
             : 'Your first results arrive on day ${LoopStep.results}.',
-        onTap: hasResults ? () => _openStep(ResultsScreen(controller: c)) : null,
+        onTap: hasResults ? () => _openStep(ResultsScreen(controller: c), Tutorial.boost) : null,
       ),
     ];
   }
@@ -297,6 +317,11 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                   tooltip: 'Start the next day for everyone',
                   icon: const Icon(Icons.skip_next_rounded),
                 ),
+              IconButton(
+                onPressed: () => _open(const HowToPlayScreen()),
+                tooltip: 'How to play',
+                icon: const Icon(Icons.help_outline_rounded),
+              ),
               TicketChip(tickets: _controller.tickets),
               CancelServerButton(session: _controller),
               ContentEditorButton(session: _controller),
@@ -338,7 +363,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                             title: 'Summon',
                             subtitle:
                                 '${_controller.tickets} pulls available · ${_controller.pool.length} characters in the pool',
-                            onTap: () => _open(GachaScreen(controller: _controller)),
+                            onTap: () => _open(GachaScreen(controller: _controller), Tutorial.gacha),
                           ),
                           _ActionCard(
                             icon: Icons.collections_rounded,
@@ -347,7 +372,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                                 '${_controller.collection.length} characters'
                                 '${_controller.upgradesAvailable > 0 ? ' · ${_controller.upgradesAvailable} upgrades ready' : ''}',
                             badge: _controller.upgradesAvailable,
-                            onTap: () => _open(CollectionScreen(controller: _controller)),
+                            onTap: () => _open(CollectionScreen(controller: _controller), Tutorial.upgrades),
                           ),
                           _ActionCard(
                             icon: Icons.shield_rounded,

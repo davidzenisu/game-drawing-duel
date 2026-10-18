@@ -87,7 +87,12 @@ void main() {
     });
     await tester.pumpWidget(GameApp(session: session));
     await tester.pumpAndSettle();
-    // The launch dialog.
+    // The welcome intro first, stored with the account, then the launch dialog.
+    expect(find.text('A few minutes a day'), findsOneWidget);
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+    expect(backend.tutorialsSeen['alex'], {'welcome'});
+    expect(backend.requests.where((r) => r.method == 'PUT').last.url.path, '/me/tutorials/welcome');
     await tester.tap(find.text("Let's go"));
     await tester.pumpAndSettle();
 

@@ -65,6 +65,7 @@ class ApiGameSession extends GameSession {
     _freshSignInNeeded = true;
     _account = null;
     _canEditContent = false;
+    _tutorialsSeen = {};
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
@@ -115,6 +116,25 @@ class ApiGameSession extends GameSession {
     }
     _account = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
     _canEditContent = json['can_edit_content'] == true;
+    _tutorialsSeen = {for (final key in json['tutorials_seen'] as List? ?? const []) key as String};
+  }
+
+  Set<String> _tutorialsSeen = {};
+
+  @override
+  Set<String> get tutorialsSeen => _tutorialsSeen;
+
+  @override
+  Future<void> markTutorialSeen(String key) async {
+    if (!_tutorialsSeen.add(key)) return;
+    notifyListeners();
+    try {
+      // The response would only repeat what's known, and could miss a key
+      // marked meanwhile.
+      await _put('/me/tutorials/$key', const {});
+    } on Exception {
+      // Not stored: it shows again next time, which is fine.
+    }
   }
 
   bool _canEditContent = false;
