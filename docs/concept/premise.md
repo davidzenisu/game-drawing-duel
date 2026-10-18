@@ -6,31 +6,12 @@ repo:
 title: premise
 category: concept
 ---
-There is already a huge amount of components set up in this resository and infrastructure code outside of it.
+Main idea is that it's a game based on a minimal list of friends (5-10 people) where all the characters are variations of the playsers themselves.
 
-Implement the code
+There is a full 4 day cycle that happens simultaneously for all players:
 
-- Use libraries with first party or big community support only.
-
-
-For CI/CD:
-- Add pipelines to deploy the frontend and database migrations + backend respectively on open pull request and on main branch pushes (already exists for frontend). For PRs push to a test infrastructure.
-- Add build/test validation pipelines for PRs for frontend, backend, database migrations. For database migrations ensure that no new migrations are required (alembic check)
-
-
-Technical Functionality:
-- On the backend make sure that all routes are protected for authenticated users only except for the open api and health endpoint. Extend the health endpoint to check database access as well.
-- Make sure that most endpoints also inject user data from the database with each request to have context.
-- If a user signs up for the first time, create a database record for that user and link their user id from Auth0.
-- For a new drawing, upload the file to the backend, generate a uuid, save it as database metadata record and as a blob with that name and metadata (labels) with that uuid.
-- For the gacha pulls, store all awarded currency on the server with timestamps, there should be checks to see if players have already received currency for something so it's no redeemed mutpile times. When spending a currency, each of the awarded currency should match that pull record. A player's pull records are the player's pool
-
-Gameplay Loops:
-- Signup/Account Creation: Keep this super simple, sign up, pick a first name (can be prefilled from the social login) to finalize the account.
-- Server creation/join: One player can create a server that generates a 6-digit unique code that can be shared with friends to join there. The admin can prepopulate the server with a full list of players to start the initial drawing setup
-- Initial drawing setup: See [Initial Setup](./initial-setup.md)
-- Daily routine: See [Gameplay Loop](premise.md)
-
-Design:
-- Use smooth transition animations and put emphasis effort for animation on the gacha pulls and the fights
-- Use Material3 where possible with a dedicated centralised color pallette 
+1. Prompt: Each player gets a prompt for a challenger each day that is randomly drawn from the other players (never themselves). The player needs to put in a title among with randomly drawn name; either suffixed or prefixed. There should be a relatively tight character window (e.g. 35 characters). In the future there may be a theme to match (e.g. represented by the background) but for now it's just an open prompt each day. If missed by the player, a prompt will be randomly selected from a list of ~500 pregenerated prompts from the database.
+2. Sketch: Once each day, the player should draw a "challenger" (enemy) based on the prompt (see previous step) that a player party will face (see next step). This is the main way of the game to generate new content so the focus of features, functionality etc. should be om that part. The player is given one of the prompts of stage 1 (but again, never their own name) and needs to draw that prompt in a given time (~60 seconds?). This is a "mandatory" step and the only thing a player should do each day. Without this step no new content can be generated. So this step should be front and center and be somewhat mandatory before doing anything else in the game. It should also be the step that's rewarded the most.
+3. Challenge: Once a day, players can face challengers/enemies from the day before (see previous step) by assembling a party of legends from their roster. The roster of the player will increase over time but the main idea is that each player can select up to 4 legends as "matchups" against challengers. These challengers will apear larger at the upper part of the screen, similar to a boss in a traditional Final Fantasy game, while the legends will slot in as party members on the bottom with both the enemy as well as the party member titles cleary visible.  Each player picks from their pool of heroes. The goal is to reach more stars than the challenger (3 by default). E.g. if you pick 4 one-star characters, you beat the challenger which has three stars. For equal stars, the challenger wins. Duplicate upgrades might tip the scales in the future but shouldn't be considered right now. ~~This can be done for each enemy generated from the day before (see previous step); so each player can play this challegenge (player - 1) times each day (e.g.: 8 players, 7 enemies to face and parties to assemble for) and should be selected randomly. Maybe the general idea is to be able to only use each legend from the roster once each day. If not done by the player, the roster will be filled "randomly" until the player runs out legends.~~
+4. Boost: On day 4, a player can browse through all the challengers and their matchup of heroes of the previous day (except for the one you drew and the one you faced) and decide which challenger to boost. The boost should give an extra star to the challenger. You can do this one time per day. If multiple people choose to boost the same challenger, the number of stars added should increase by one (first vote: +1 star, second vote: +2 stars/+3 stars total, third vote: +3 stars/+6 stars total). Only match-ups where the player drew neither the enemy/challenger nor selected the fighting party members should be shown to them for voting. If players don't vote on the match-ups, the battles should be decided at random where the rates should be calculated based on historical data. If a fight is won by the player, the player receives a pull as a reward. If the challenger wins, it enters the finale draw for stage 5. The balancing should be in a way that ~50% of the fights are won by challengers. A player who won a fight against a challenger will receive a bonus to boost one of their challengers in that week (design not finalised yet)
+5. Voting: Any challenger that won a fight, will enter a pool where all challengers of a week are pit against each other. A player is presented with two of them swiping left or right to vote for one of them. Any vote they received should be tracked internally as a boost of one star. After all votes have been collected on the final day of the week, the challenger with the most stars becomes available to be pulled from the gacha pool.
