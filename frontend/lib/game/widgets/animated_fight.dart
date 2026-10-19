@@ -51,11 +51,28 @@ class AnimatedFight extends StatefulWidget {
 }
 
 class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateMixin {
-  late final _entrance = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+  late final _entrance = AnimationController(vsync: this, duration: _ms(_entranceMs));
   late final _beat = AnimationController(vsync: this, duration: widget.beatDuration);
   late final _ticks = Listenable.merge([_entrance, _beat]);
   Timer? _timer;
   int _shown = 0;
+
+  // The entrance, in milliseconds: the challenger drops in, then each
+  // fighter rises a moment after the one before, then "Fight!".
+  static const _dropMs = 900;
+  static const _riseMs = 600;
+  static const _nextFighterMs = 400;
+  static const _callMs = 650;
+
+  int _riseAtMs(int index) => _dropMs + index * _nextFighterMs;
+  int get _callAtMs => _riseAtMs(widget.fight.fighters.length - 1) + _riseMs;
+  int get _entranceMs => _callAtMs + _callMs;
+
+  static Duration _ms(int ms) => Duration(milliseconds: ms);
+
+  /// The part of the entrance from [startMs] for [lengthMs].
+  Interval _entering(int startMs, int lengthMs, [Curve curve = Curves.linear]) =>
+      Interval(startMs / _entranceMs, min(1, (startMs + lengthMs) / _entranceMs), curve: curve);
   bool _done = false;
 
   FightBeat? get _current => _shown == 0 ? null : widget.beats[_shown - 1];
@@ -195,8 +212,11 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
   /// come up with them.
   Widget _enteringNameplate(int index, Widget plate) {
     final isChallenger = index == FightBeat.challenger;
-    final enterAt = isChallenger ? 0.2 : _enterAt(index);
-    final slide = Interval(enterAt, enterAt + 0.35, curve: Curves.easeOutCubic).transform(_entrance.value);
+    final slide =
+        (isChallenger
+                ? _entering(450, 600, Curves.easeOutCubic)
+                : _entering(_riseAtMs(index), _riseMs, Curves.easeOutCubic))
+            .transform(_entrance.value);
     return Opacity(
       opacity: slide,
       child: Transform.translate(
@@ -206,13 +226,11 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
     );
   }
 
-  static double _enterAt(int index) => index == FightBeat.challenger ? 0 : 0.25 + index * 0.08;
-
   Widget _fightCall() {
     final e = _entrance.value;
-    final opacity = min(const Interval(0.6, 0.68).transform(e), 1 - const Interval(0.9, 1).transform(e));
+    final opacity = min(_entering(_callAtMs, 100).transform(e), 1 - _entering(_entranceMs - 150, 150).transform(e));
     if (opacity <= 0) return const SizedBox.shrink();
-    final pop = const Interval(0.6, 0.78, curve: Curves.easeOutBack).transform(e);
+    final pop = _entering(_callAtMs, 280, Curves.easeOutBack).transform(e);
     return _Call(text: 'Fight!', color: Colors.white, scale: 0.4 + 0.6 * pop, opacity: opacity);
   }
 
@@ -263,10 +281,10 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
 
     // The challenger drops in from above, the fighters rise one by one.
     final e = _entrance.value;
-    final enterAt = _enterAt(index);
-    final enter = Interval(enterAt, enterAt + (isChallenger ? 0.45 : 0.3), curve: Curves.easeOutBack).transform(e);
+    final enterAtMs = isChallenger ? 0 : _riseAtMs(index);
+    final enter = _entering(enterAtMs, isChallenger ? _dropMs : _riseMs, Curves.easeOutBack).transform(e);
     final entering = Offset(0, (1 - enter) * (isChallenger ? -240 : 160));
-    final visible = Interval(enterAt, enterAt + 0.12).transform(e);
+    final visible = _entering(enterAtMs, 180).transform(e);
 
     // Fighters attacking together strike a moment apart.
     final stagger = attacking && beat.attacker == FightBeat.team ? index * 0.03 : 0.0;
@@ -284,6 +302,7 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
           children: [
             IntrinsicWidth(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TweenAnimationBuilder<double>(

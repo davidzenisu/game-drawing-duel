@@ -43,7 +43,10 @@ void main() {
   testWidgets('the fighters enter, knock the challenger out and the stars reveal the winner', (tester) async {
     final fight = _fight();
     await _open(tester, fight);
-    await tester.pump(const Duration(milliseconds: 1200));
+    // The challenger drops in, then the fighters rise one by one.
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Fight!'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1700));
     expect(find.text('Fight!'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'the stage fits a phone');
 

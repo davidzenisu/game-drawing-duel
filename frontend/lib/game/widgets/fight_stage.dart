@@ -54,7 +54,9 @@ class FightStage extends StatelessWidget {
           final height = constraints.maxHeight;
           final topHeight = height * 0.58;
           final bottomHeight = height - topHeight;
-          final challengerWidth = min(width * 0.42, (topHeight - 32) / _standeeHeight);
+          // Room above and below the challenger, for its HP bar and a margin.
+          const challengerRoom = 64.0;
+          final challengerWidth = min(width * 0.42, (topHeight - challengerRoom) / _standeeHeight);
           final slots = showEmptySlots ? FightSetup.maxFighters : fighters.length;
           final slotSpace = (width - 16) / FightSetup.maxFighters;
           const plateHeight = 76.0;
