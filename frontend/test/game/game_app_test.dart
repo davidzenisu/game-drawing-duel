@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/tutorials.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 import 'package:frontend/game/game_app.dart';
 import 'package:frontend/game/game_session.dart';
@@ -250,6 +251,9 @@ void main() {
     await controller.submitPrompt('Sunburnt', controller.promptCandidates.first);
     await controller.advanceDay();
     await controller.submitChallenger(doodle);
+    for (final tutorial in Tutorial.values) {
+      await controller.markTutorialSeen(tutorial.key);
+    }
     await tester.pumpWidget(GameApp(session: controller));
     await tester.pumpAndSettle();
     if (find.text("Let's go").evaluate().isNotEmpty) {

@@ -85,6 +85,17 @@ class MockGameSession extends GameSession {
   @override
   Future<void> signOut() => Future.error(UnsupportedError('The mockup has no account to sign out of.'));
 
+  /// The mockup shows every intro once per session.
+  final Set<String> _tutorialsSeen = {};
+
+  @override
+  Set<String> get tutorialsSeen => _tutorialsSeen;
+
+  @override
+  Future<void> markTutorialSeen(String key) async {
+    if (_tutorialsSeen.add(key)) notifyListeners();
+  }
+
   GamePhase _phase = GamePhase.signup;
   @override
   GamePhase get phase => _phase;
