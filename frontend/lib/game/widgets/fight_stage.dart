@@ -24,6 +24,7 @@ class FightStage extends StatelessWidget {
     this.onSlotTap,
     this.wrapChallenger,
     this.wrapFighter,
+    this.wrapNameplate,
   });
 
   final DailyTheme theme;
@@ -35,6 +36,10 @@ class FightStage extends StatelessWidget {
   final ValueChanged<int>? onSlotTap;
   final StandeeWrapper? wrapChallenger;
   final Widget Function(BuildContext context, int index, Widget standee)? wrapFighter;
+
+  /// Wraps a nameplate, e.g. to animate it: the challenger's at
+  /// [FightBeat.challenger], else the fighter's at that index.
+  final Widget Function(BuildContext context, int index, Widget plate)? wrapNameplate;
 
   /// Height of a standee relative to its width (card plus base).
   static const _standeeHeight = 1 / cardAspectRatio + 0.62 * 0.32;
@@ -72,16 +77,7 @@ class FightStage extends StatelessWidget {
                         padding: const EdgeInsets.only(right: 16),
                         child: Align(
                           alignment: const Alignment(0, -0.35),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: Nameplate(
-                              name: challenger.subject,
-                              title: challenger.title,
-                              rarity: challenger.rarity,
-                              nameFirst: true,
-                              large: width > 360,
-                            ),
-                          ),
+                          child: SizedBox(width: double.infinity, child: _nameplate(context, width)),
                         ),
                       ),
                     ),
@@ -120,10 +116,22 @@ class FightStage extends StatelessWidget {
     );
   }
 
+  Widget _nameplate(BuildContext context, double width) {
+    final plate = Nameplate(
+      name: challenger.subject,
+      title: challenger.title,
+      rarity: challenger.rarity,
+      nameFirst: true,
+      large: width > 360,
+    );
+    return wrapNameplate?.call(context, FightBeat.challenger, plate) ?? plate;
+  }
+
   Widget _fighter(BuildContext context, int index, double width) {
     final fighter = fighters[index];
     final standee = Standee(card: fighter.card, width: width, effects: fighter.effects, element: fighter.element);
     final wrapped = wrapFighter?.call(context, index, standee) ?? standee;
+    final plate = Nameplate(name: fighter.card.subject, title: fighter.card.title, compact: true);
     return GestureDetector(
       onTap: onSlotTap == null ? null : () => onSlotTap!(index),
       child: Column(
@@ -132,7 +140,7 @@ class FightStage extends StatelessWidget {
           const SizedBox(height: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 64, minWidth: double.infinity),
-            child: Nameplate(name: fighter.card.subject, title: fighter.card.title, compact: true),
+            child: wrapNameplate?.call(context, index, plate) ?? plate,
           ),
         ],
       ),
