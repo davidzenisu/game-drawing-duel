@@ -30,24 +30,34 @@ def _rng(*parts: object) -> random.Random:
 def fight_challenger(
     session: Session, server: Server, day: int, seat: ServerSeat
 ) -> Character | None:
-    """The challenger `seat` picks fighters against on `day`: one of the day
-    before's, not their own."""
+    """The challenger `seat` picks fighters against on `day`, one drawn the day
+    before: the one of the player `offset` seats on in the roster, `offset`
+    being picked per server and day. So when everyone drew one, every
+    challenger has exactly one fight and nobody fights their own, and each
+    player may boost all others but the one they drew and the one they
+    fought. If that player drew none, the next one on who did stands in."""
     if day < FIRST_FIGHT_DAY:
         return None
-    candidates = session.scalars(
-        select(Character)
-        .where(
-            Character.server_id == server.id,
-            Character.day == day - 1,
-            Character.artist_seat_id != seat.id,
+    seats = days.active_seats(server)
+    if len(seats) < 2 or seat not in seats:
+        return None
+    drawn = {
+        c.artist_seat_id: c
+        for c in session.scalars(
+            select(Character).where(
+                Character.server_id == server.id,
+                Character.day == day - 1,
+                Character.assignment_id.is_(None),
+            )
         )
-        .order_by(Character.id)
-    ).all()
-    return (
-        _rng(server.id, day, seat.id, "fight").choice(candidates)
-        if candidates
-        else None
-    )
+    }
+    offset = _rng(server.id, day, "fight-offset").randint(1, len(seats) - 1)
+    position = seats.index(seat)
+    for step in range(len(seats)):
+        other = seats[(position + offset + step) % len(seats)]
+        if other.id != seat.id and other.id in drawn:
+            return drawn[other.id]
+    return None
 
 
 def fight_of(session: Session, seat: ServerSeat, day: int) -> Fight | None:
