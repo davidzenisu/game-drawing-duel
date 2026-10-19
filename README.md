@@ -143,8 +143,11 @@ day each player:
    The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool unless it wins a weekly finale (see below).
-3. sends up to four characters of their collection against a random
-   challenger drawn the day before (not their own). Every character fights
+3. sends up to four characters of their collection against a challenger
+   drawn the day before: the one of the player a number of seats on in the
+   roster (picked per day; the next one on who drew stands in for a player
+   who drew none). So when everyone drew, every challenger has exactly one
+   fight, nobody fights their own, and step 4 offers all but two. Every character fights
    once a week: after a fight it rests until Monday (UTC, the week of the
    themes), and `GET today` lists the resting ones as `fight.resting`.
    Basic (1-star) characters can fight every day, and everyone draws one

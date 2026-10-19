@@ -656,21 +656,29 @@ class MockGameSession extends GameSession {
             ),
     ]..sort((a, b) => a.atFraction.compareTo(b.atFraction));
 
-    // Step 3: pick fighters against one of yesterday's challengers.
+    // Step 3: like online, everyone fights the challenger of the player a
+    // number of seats on, so every challenger has one fight when all drew.
     final yesterday = _challengers[_day - 1] ?? const <CharacterCard>[];
-    final notYours = yesterday.where((c) => c.artist != you.name).toList();
-    _fightChallenger = notYours.isEmpty ? null : notYours[_random.nextInt(notYours.length)];
+    final players = server.players;
+    final offset = players.length < 2 ? 0 : 1 + _random.nextInt(players.length - 1);
+    CharacterCard? challengerFor(Player player) {
+      if (offset == 0) return null;
+      final position = players.indexOf(player);
+      for (var step = 0; step < players.length; step++) {
+        final other = players[(position + offset + step) % players.length];
+        if (other.id == player.id) continue;
+        final drawn = yesterday.where((c) => c.artist == other.name).firstOrNull;
+        if (drawn != null) return drawn;
+      }
+      return null;
+    }
+
+    _fightChallenger = challengerFor(you);
     _fights[_day] = [];
-    final yourChallengerYesterday = yesterday.where((c) => c.artist == you.name).firstOrNull;
-    for (final (i, owner) in others.indexed) {
+    for (final owner in others) {
       final roster = _botRosters[owner.id] ?? const <CharacterCard>[];
-      // Your challenger is reserved for the first player so the others spread out.
-      final candidates = yesterday.where((c) => c.artist != owner.name && c != yourChallengerYesterday).toList();
-      if (roster.isEmpty || candidates.isEmpty) continue;
-      // Make sure somebody fights the challenger you drew.
-      final challenger = i == 0 && yourChallengerYesterday != null
-          ? yourChallengerYesterday
-          : candidates[_random.nextInt(candidates.length)];
+      final challenger = challengerFor(owner);
+      if (roster.isEmpty || challenger == null) continue;
       final picks = ([...roster]..shuffle(_random)).take(1 + _random.nextInt(FightSetup.maxFighters));
       _fights[_day]!.add(
         FightSetup(

@@ -354,3 +354,70 @@ class StackedHurryTests(FightTestCase):
         self.assertEqual({h["by_position"] for h in hurries}, {0, 1})
         fractions = [h["at_fraction"] for h in hurries]
         self.assertEqual(fractions, sorted(fractions), "in the order they hit")
+
+
+class FightPairingTests(FightTestCase):
+    """With everyone drawing, every challenger has exactly one fight."""
+
+    def setUp(self) -> None:
+        LaunchTestCase.setUp(self)
+        # A test session with all five players.
+        self.code = self.create(is_test=True).json()["code"]
+        for position, subject in enumerate(FRIEND_SUBJECTS, 1):
+            self.sign_up(subject, FRIENDS[position - 1])
+            self.claim(self.code, position, subject)
+        self.start(self.code)
+        self.players = (ADMIN, *FRIEND_SUBJECTS)
+        for subject in self.players:
+            self.draw_all(self.code, subject)
+            self.finish(self.code, subject)
+        self.next_day()
+
+    def draw_challengers(self) -> None:
+        for subject in self.players:
+            self.client.put(
+                f"/servers/{self.code}/today/challenger",
+                json={"sketch": SKETCH},
+                headers=bearer(make_token(subject)),
+            )
+
+    def test_every_challenger_is_fought_once_and_the_rest_can_be_boosted(self) -> None:
+        for _ in range(4):  # Days 2 to 5, each with other pairs.
+            self.draw_challengers()
+            self.next_day()
+            fought = {
+                subject: self.today(subject)["fight"]["challenger"]
+                for subject in self.players
+            }
+            positions = [c["artist_position"] for c in fought.values()]
+            self.assertEqual(sorted(positions), list(range(5)), "each one once")
+            for i, subject in enumerate(self.players):
+                self.assertNotEqual(fought[subject]["artist_position"], i)
+            # Everyone picks fighters, so tomorrow everyone may boost 5 - 2.
+            for subject in self.players:
+                basic = next(
+                    o["character"]["id"]
+                    for o in self.get(
+                        f"/servers/{self.code}/collection", subject
+                    ).json()
+                    if o["character"]["rarity"] == "basic"
+                )
+                self.pick([basic], subject)
+        self.next_day()
+        for subject in self.players:
+            self.assertEqual(len(self.today(subject)["to_boost"]), 3, subject)
+
+    def test_a_missing_challenger_is_made_up_for_by_the_next_one(self) -> None:
+        # Day 2: everyone but Robin (seat 2) draws a challenger.
+        for subject in self.players:
+            if subject != self.players[2]:
+                self.client.put(
+                    f"/servers/{self.code}/today/challenger",
+                    json={"sketch": SKETCH},
+                    headers=bearer(make_token(subject)),
+                )
+        self.next_day()
+        # Day 3: still a challenger for everyone, never their own or Robin's.
+        for i, subject in enumerate(self.players):
+            challenger = self.today(subject)["fight"]["challenger"]
+            self.assertNotIn(challenger["artist_position"], (i, 2), subject)

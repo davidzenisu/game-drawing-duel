@@ -467,4 +467,23 @@ void main() {
     expect(hero.stars, greaterThanOrEqualTo(Stars.challengerBase + hero.votes));
     expect(game.pool.map((c) => c.id), contains(hero.card.id));
   });
+
+  test('every challenger has one fight, so all but two can be boosted', () async {
+    final game = await launchedGame();
+    final players = game.server.players.length;
+    for (var day = 1; day < 8; day++) {
+      if (day >= LoopStep.boost) {
+        final targets = game.boostTargets;
+        expect(targets, hasLength(players - 2), reason: 'day $day: all but yours and the one you fought');
+        expect(targets.map((t) => t.matchups.length), everyElement(1));
+      }
+      await game.submitPrompt('Title $day', game.promptCandidates.first);
+      if (game.promptToDraw != null) await game.submitChallenger(_doodle);
+      if (game.fightChallenger case final challenger?) {
+        expect(challenger.artist, isNot(game.you.name));
+        await game.submitFighters([game.availableFighters.firstWhere((o) => o.card.rarity == Rarity.basic)]);
+      }
+      await game.advanceDay();
+    }
+  });
 }
