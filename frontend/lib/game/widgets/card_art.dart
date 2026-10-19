@@ -264,3 +264,40 @@ class StarRow extends StatelessWidget {
     );
   }
 }
+
+/// The back of a character card, used before the reveal. A [glow] around it
+/// hints at what's on the other side.
+class CardBack extends StatelessWidget {
+  const CardBack({super.key, required this.width, this.glow});
+
+  final double width;
+  final Color? glow;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: AspectRatio(
+        aspectRatio: cardAspectRatio,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white, width: max(2, width * 0.02)),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppPalette.nameplateTop, AppPalette.nameplateBottom],
+            ),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 6)),
+              if (glow != null) BoxShadow(color: glow!, blurRadius: width * 0.18, spreadRadius: width * 0.03),
+            ],
+          ),
+          child: Center(
+            child: Icon(Icons.brush_rounded, color: Colors.white.withValues(alpha: 0.85), size: width * 0.4),
+          ),
+        ),
+      ),
+    );
+  }
+}
