@@ -43,12 +43,13 @@ def include_name(name: str | None, type_: str, parent_names: object) -> bool:
     return True
 
 
-def use_game_schema(connection: Connection) -> None:
-    """Runs the migrations in the game's schema, so the tables they create
-    without naming one land there too. A fresh database gets the schema."""
+def create_game_schema(connection: Connection) -> None:
+    """Gives a fresh database the game's schema, which the migrations and
+    Alembic's version table live in."""
     if not inspect(connection).has_schema(SCHEMA):
         connection.execute(text(f"CREATE SCHEMA {SCHEMA}"))
-    connection.execute(text(f"SET search_path TO {SCHEMA}"))
+    # Ends the transaction the check began either way: Alembic wouldn't
+    # commit its migrations inside one it didn't begin.
     connection.commit()
 
 
@@ -90,7 +91,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        use_game_schema(connection)
+        create_game_schema(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
