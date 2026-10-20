@@ -135,7 +135,6 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
   late final _charge = AnimationController(vsync: this, duration: _buildUpFor(_rarity));
   late final _flip = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
   late final _burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
-  late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
 
   @override
   void initState() {
@@ -178,7 +177,6 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     _charge.dispose();
     _flip.dispose();
     _burst.dispose();
-    _spin.dispose();
     super.dispose();
   }
 
@@ -189,7 +187,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
       behavior: HitTestBehavior.opaque,
       onTap: _tap,
       child: AnimatedBuilder(
-        animation: Listenable.merge([_charge, _flip, _burst, _spin]),
+        animation: Listenable.merge([_charge, _flip, _burst]),
         builder: (context, _) {
           final charge = _charge.value;
           final burst = _burst.value;
@@ -204,11 +202,9 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
               const Positioned.fill(child: ColoredBox(color: Colors.black)),
               Positioned.fill(
                 child: CustomPaint(
-                  painter: _RaysPainter(
+                  painter: _GlowPainter(
                     color: color,
                     intensity: charge * 0.5 + burst * 0.5,
-                    rotation: _spin.value * 2 * pi,
-                    rayCount: 6 + rarity.stars * 4,
                     burst: Curves.easeOut.transform(const Interval(0, 0.6).transform(burst)),
                     sparkle: rarity.stars >= Rarity.hero.stars,
                   ),
@@ -490,7 +486,8 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     final pulse = 0.85 + 0.15 * sin(_spin.value * 2 * pi * 6);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = min(140.0, min(constraints.maxWidth * 0.34, constraints.maxHeight * 0.5 / 1.45));
+        // The ring is about 3.5 cards wide, so it fits the screen.
+        final width = min(140.0, min(constraints.maxWidth * 0.26, constraints.maxHeight * 0.5 / 1.45));
         final radius = width * 1.6 * spread;
         double angle(int i) => 2 * pi * (i - position) / count;
         // Back cards first, so the front one is drawn on top.
@@ -605,27 +602,19 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   }
 }
 
-class _RaysPainter extends CustomPainter {
-  _RaysPainter({
-    required this.color,
-    required this.intensity,
-    required this.rotation,
-    required this.rayCount,
-    required this.burst,
-    required this.sparkle,
-  });
+/// A soft glow in the rarity's colour behind a reveal, and the ring (and
+/// for rare ones the sparkles) it bursts into.
+class _GlowPainter extends CustomPainter {
+  _GlowPainter({required this.color, required this.intensity, required this.burst, required this.sparkle});
 
   final Color color;
   final double intensity;
-  final double rotation;
-  final int rayCount;
   final double burst;
   final bool sparkle;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final radius = size.longestSide;
     canvas.drawCircle(
       center,
       size.shortestSide * (0.2 + 0.25 * intensity),
@@ -633,17 +622,6 @@ class _RaysPainter extends CustomPainter {
         ..color = color.withValues(alpha: 0.6 * intensity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60),
     );
-    final ray = Paint()..color = color.withValues(alpha: 0.18 * intensity);
-    for (var i = 0; i < rayCount; i++) {
-      final a = rotation + i * 2 * pi / rayCount;
-      final spread = pi / rayCount * 0.45;
-      final path = Path()
-        ..moveTo(center.dx, center.dy)
-        ..lineTo(center.dx + cos(a - spread) * radius, center.dy + sin(a - spread) * radius)
-        ..lineTo(center.dx + cos(a + spread) * radius, center.dy + sin(a + spread) * radius)
-        ..close();
-      canvas.drawPath(path, ray);
-    }
     if (burst > 0 && burst < 1) {
       canvas.drawCircle(
         center,
@@ -666,5 +644,9 @@ class _RaysPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RaysPainter oldDelegate) => true;
+  bool shouldRepaint(_GlowPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.intensity != intensity ||
+      oldDelegate.burst != burst ||
+      oldDelegate.sparkle != sparkle;
 }
