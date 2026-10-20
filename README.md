@@ -165,6 +165,30 @@ challenger (`rules.fighters_win`, shared with the mockup). A player who
 picked no fighters gets random ones from their collection (stored the first
 time the next day is opened).
 
+Once decided, a fight's result is stored on its `fight` row (`boosts`,
+`fighter_stars`, `challenger_stars`, `fighters_win`) the first time the day
+is opened after it, so later rule changes don't rewrite past fights. For
+example, how each player's characters fared against each player's
+challengers, counting every fighter of a team, without teams chance picked:
+
+```sql
+SELECT fighter.name AS fighter, challenger.name AS challenger,
+       count(*) FILTER (WHERE f.fighters_win) AS wins,
+       count(*) FILTER (WHERE NOT f.fighters_win) AS losses
+FROM game.fight f
+JOIN game.fighter fr ON fr.fight_id = f.id
+JOIN game.character fc ON fc.id = fr.character_id
+JOIN game.server_seat fighter ON fighter.id = fc.subject_seat_id
+JOIN game.character cc ON cc.id = f.challenger_id
+JOIN game.server_seat challenger ON challenger.id = cc.subject_seat_id
+WHERE f.fighters_win IS NOT NULL AND NOT f.by_chance
+GROUP BY fighter.name, challenger.name
+ORDER BY fighter.name, challenger.name;
+```
+
+Seat names are per server; to follow a player across servers, group by
+`server_seat.player_id` instead.
+
 On the last day of every week (Sunday, UTC) comes the finale: every
 challenger that won a fight decided that week enters (a fight picked on a
 Saturday is decided on Monday, so it counts for the next week). Players vote

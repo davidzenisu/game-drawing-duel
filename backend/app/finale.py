@@ -21,9 +21,6 @@ from sqlalchemy.orm import Session, selectinload
 from app import days, fights, rules
 from app.models import Character, Fight, FinaleVote, Server, ServerSeat, WeeklyHero
 
-# Fights are decided this many days after their fighters were picked.
-DECIDED_AFTER = 2
-
 
 def finale_day(server: Server, day: int) -> int:
     """The last day of `day`'s week, the day of its finale."""
@@ -52,7 +49,7 @@ class Contender:
 def contenders(session: Session, server: Server, day: int) -> list[Contender]:
     """The challengers in the finale on `day`, the last day of a week: the
     ones that won a fight decided that week, oldest first."""
-    last_fight_day = day - DECIDED_AFTER
+    last_fight_day = day - fights.DECIDED_AFTER
     week_fights = session.scalars(
         select(Fight)
         .join(ServerSeat, ServerSeat.id == Fight.owner_seat_id)

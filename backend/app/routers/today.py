@@ -106,6 +106,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
     # Fights nobody picked fighters for are needed for voting and results.
     fights.complete_fights(session, server, day - 1)
     fights.complete_fights(session, server, day - 2)
+    fights.decide_fights(session, server)
     finale.settle(session, server)
     written = session.scalar(
         select(ChallengerPrompt).where(
