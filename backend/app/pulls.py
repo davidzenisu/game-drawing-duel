@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.gacha import LAUNCH_BONUS, GachaState, pull_rarity
+from app.gacha import LAUNCH_BONUS, GachaState, pick_character, pull_rarity
 from app.models import Character, Pull, PullGrant, ServerSeat, WeeklyHero
 from app.rules import Rarity
 
@@ -22,6 +22,30 @@ def in_pool():
             select(WeeklyHero.character_id).where(WeeklyHero.character_id.is_not(None))
         ),
     )
+
+
+def rate_up(session: Session, server_id: uuid.UUID) -> set[uuid.UUID]:
+    """This week's rate-up characters: the latest weekly hero, and the
+    legends of the pool drawn of the same player. They rotate every Monday
+    with the finale; a week without a hero has none."""
+    hero_id = session.scalar(
+        select(WeeklyHero.character_id)
+        .where(WeeklyHero.server_id == server_id)
+        .order_by(WeeklyHero.day.desc())
+        .limit(1)
+    )
+    if hero_id is None:
+        return set()
+    hero = session.get(Character, hero_id)
+    legends = session.scalars(
+        select(Character.id).where(
+            Character.server_id == server_id,
+            in_pool(),
+            Character.rarity == Rarity.LEGEND.value,
+            Character.subject_seat_id == hero.subject_seat_id,
+        )
+    )
+    return {hero_id, *legends}
 
 
 def grant_launch_bonus(session: Session, seats: list[ServerSeat]) -> None:
@@ -115,12 +139,13 @@ def pull(
         .order_by(Character.id)
     ):
         by_rarity[Rarity(character.rarity)].append(character)
+    featured = rate_up(session, seat.server_id)
     pulled = _pulled(session, seat.id)
     owned = copies(session, seat)
     outcomes = []
     for grant in grants:
         rarity = pull_rarity(GachaState.after(pulled), set(by_rarity), rng)
-        character = rng.choice(by_rarity[rarity])
+        character = pick_character(by_rarity[rarity], lambda c: c.id in featured, rng)
         pulled.append(rarity)
         owned[character.id] += 1
         session.add(

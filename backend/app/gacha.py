@@ -6,7 +6,7 @@ pity state isn't stored: it follows from a player's pulls so far.
 """
 
 import random
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from app.rules import Rarity
@@ -22,6 +22,10 @@ BEGINNER_WINDOW = 10
 
 # Every this many pulls without a legend, the next one is a legend.
 LEGEND_PITY = 50
+
+# A pull landing on a rarity with rate-up characters picks one of them this
+# often (percent), as long as the rarity has others too.
+RATE_UP = 50
 
 _STARS = {rarity: stars for stars, rarity in enumerate(Rarity, start=1)}
 
@@ -94,3 +98,13 @@ def pull_rarity(
         raise ValueError("The pool is empty")
     wanted, guaranteed = roll_rarity(state, rng)
     return closest_available_tier(available, wanted, prefer_higher=guaranteed)
+
+
+def pick_character[T](candidates: Sequence[T], rate_up: Callable[[T], bool], rng: random.Random) -> T:
+    """One of a rarity's characters, all equally likely, except that the
+    rate-up ones share `RATE_UP` percent of the rarity when it has others."""
+    featured = [c for c in candidates if rate_up(c)]
+    others = [c for c in candidates if not rate_up(c)]
+    if featured and others:
+        return rng.choice(featured if rng.randrange(100) < RATE_UP else others)
+    return rng.choice(candidates)

@@ -604,6 +604,7 @@ void main() {
       await drawAll(admin);
       await admin.launch();
       expect((admin.finale, admin.weeklyHero), (null, null));
+      expect(admin.rateUp, isEmpty);
 
       final [left, right, ...] = [for (final d in backend.drawings.values) d.character];
       backend.finales['123456'] = {
@@ -633,6 +634,12 @@ void main() {
       expect(admin.finale, isNull);
       final hero = admin.weeklyHero!;
       expect((hero.card.id, hero.day, hero.stars, hero.votes), (right['id'], 7, 5, 2));
+      // The hero is rate-up now, with the legends of the same player.
+      expect(admin.rateUp, contains(right['id']));
+      for (final id in admin.rateUp.difference({right['id']})) {
+        final legend = admin.pool.firstWhere((c) => c.id == id);
+        expect((legend.rarity, legend.subject), (Rarity.legend, hero.card.subject));
+      }
     });
 
     test('seen tutorials are stored with the account', () async {

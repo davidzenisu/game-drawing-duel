@@ -127,6 +127,11 @@ abstract class GameSession extends ChangeNotifier {
 
   GachaStatus get gachaStatus;
 
+  /// This week's rate-up characters' ids: the latest weekly hero and the
+  /// legends of the pool drawn of the same player. A pull landing on their
+  /// rarity picks one of them [GachaMachine.rateUp] percent of the time.
+  Set<String> get rateUp;
+
   /// Your roster, rarest first.
   List<OwnedCard> get collection;
 

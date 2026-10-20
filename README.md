@@ -252,7 +252,12 @@ one grant (`grant_id` is unique) on a character, numbered per seat; a
 player's pulls are serialised with a row lock, so the same grant can't be
 spent twice. The rarity is rolled on the server (`app/gacha.py`) with the
 rates and pity from `docs/concept/gacha-rates.md`: the pity follows from a
-player's pulls so far instead of being stored. Duplicates are copies of a
+player's pulls so far instead of being stored. Within the rolled rarity,
+every character is equally likely except this week's rate-up: the latest
+weekly hero and the pool's legends of the same player share 50% of their
+rarity (all of it if they're alone in it), and change every Monday with the
+finale (`app.pulls.rate_up`, sent as `rate_up` with `GET /servers/{code}/gacha`).
+Duplicates are copies of a
 character in the collection: each one unlocks the next upgrade of the
 character's rarity path (`upgrade` rows, one per effect). Only the mockup
 unlocks upgrades on credit.

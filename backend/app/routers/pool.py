@@ -62,6 +62,7 @@ def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
         total_pulls=state.total_pulls,
         pulls_until_legend=state.pulls_until_legend,
         beginner_pulls_left=state.beginner_pulls_left,
+        rate_up=sorted(pulls.rate_up(session, seat.server_id)),
     )
 
 
@@ -74,8 +75,11 @@ def _running_seat(session: Session, code: str, player_id: uuid.UUID) -> ServerSe
 
 @router.get("/{code}/gacha", response_model=GachaResponse)
 def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaResponse:
-    """Your pulls left and pity progress."""
-    return _gacha(session, _running_seat(session, code, player.id))
+    """Your pulls left, pity progress and this week's rate-up characters."""
+    seat = _running_seat(session, code, player.id)
+    # A week's hero joins the pool, and the rate-up, once its finale is over.
+    finale.settle(session, seat.server)
+    return _gacha(session, seat)
 
 
 @router.post("/{code}/pulls", response_model=PullsResponse)

@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, Field
 
 from app.rules import Element
@@ -13,6 +15,8 @@ class GachaResponse(BaseModel):
     pulls_until_legend: int
     # Pulls left within the beginner window, or null once it no longer applies.
     beginner_pulls_left: int | None
+    # This week's rate-up characters, see `app.pulls.rate_up`.
+    rate_up: list[uuid.UUID] = []
 
 
 class PullRequest(BaseModel):

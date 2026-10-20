@@ -34,6 +34,10 @@ class GachaMachine {
   /// Every this many pulls without a legend, the next one is a legend.
   static const legendPity = 50;
 
+  /// A pull landing on a rarity with rate-up characters picks one of them
+  /// this often (percent), as long as the rarity has others too.
+  static const rateUp = 50;
+
   final Random _random;
 
   int _totalPulls = 0;
@@ -52,14 +56,14 @@ class GachaMachine {
   GachaStatus get status =>
       GachaStatus(totalPulls: totalPulls, pullsUntilLegend: pullsUntilLegend, beginnerPullsLeft: beginnerPullsLeft);
 
-  /// Pulls a character from [pool], which must not be empty.
-  CharacterCard pull(List<CharacterCard> pool) {
+  /// Pulls a character from [pool], which must not be empty; the ids in
+  /// [rateUp] are this week's rate-up characters.
+  CharacterCard pull(List<CharacterCard> pool, {Set<String> rateUp = const {}}) {
     if (pool.isEmpty) throw StateError('The pool is empty.');
 
     final (rarity, guaranteed) = _rollRarity();
     final tier = closestAvailableTier({for (final card in pool) card.rarity}, rarity, preferHigher: guaranteed);
-    final candidates = pool.where((card) => card.rarity == tier).toList();
-    final card = candidates[_random.nextInt(candidates.length)];
+    final card = pickCharacter(pool.where((card) => card.rarity == tier).toList(), rateUp, _random);
 
     _totalPulls++;
     _pullsSinceLegend = card.rarity == Rarity.legend ? 0 : _pullsSinceLegend + 1;
@@ -80,6 +84,46 @@ class GachaMachine {
       roll -= weight;
     }
     return (Rarity.basic, false);
+  }
+
+  /// One of a rarity's [candidates], all equally likely, except that the
+  /// [rateUp] ones share [GachaMachine.rateUp] percent of the rarity when it
+  /// has others.
+  static CharacterCard pickCharacter(List<CharacterCard> candidates, Set<String> rateUp, Random random) {
+    final featured = [
+      for (final card in candidates)
+        if (rateUp.contains(card.id)) card,
+    ];
+    final others = [
+      for (final card in candidates)
+        if (!rateUp.contains(card.id)) card,
+    ];
+    final from = featured.isNotEmpty && others.isNotEmpty
+        ? (random.nextInt(100) < GachaMachine.rateUp ? featured : others)
+        : candidates;
+    return from[random.nextInt(from.length)];
+  }
+
+  /// Each character's chance in percent, before guarantees, by id: its
+  /// rarity's share of [tierRates], split as [pickCharacter] picks.
+  static Map<String, double> characterChances(List<CharacterCard> pool, Set<String> rateUp) {
+    final chances = <String, double>{};
+    for (final MapEntry(key: rarity, value: rate) in tierRates({for (final card in pool) card.rarity}).entries) {
+      final tier = [
+        for (final card in pool)
+          if (card.rarity == rarity) card,
+      ];
+      final featured = tier.where((card) => rateUp.contains(card.id)).length;
+      final others = tier.length - featured;
+      for (final card in tier) {
+        chances[card.id] = featured == 0 || others == 0
+            ? rate / tier.length
+            : rateUp.contains(card.id)
+            ? rate * GachaMachine.rateUp / 100 / featured
+            : rate * (100 - GachaMachine.rateUp) / 100 / others;
+      }
+    }
+    return chances;
   }
 
   /// Each rarity's chance in percent, before guarantees, for a pool with

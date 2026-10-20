@@ -18,6 +18,7 @@ class GachaRulesTest(unittest.TestCase):
         self.assertEqual({r.value: w for r, w in gacha.RATES.items()}, RULES["rates"])
         self.assertEqual(gacha.BEGINNER_WINDOW, RULES["beginner_window"])
         self.assertEqual(gacha.LEGEND_PITY, RULES["legend_pity"])
+        self.assertEqual(gacha.RATE_UP, RULES["rate_up"])
 
     def test_tier_fallback(self):
         for available, wanted, guaranteed, expected in RULES["tier_fallback"]:
@@ -66,3 +67,30 @@ class GachaStateTest(unittest.TestCase):
         counts = Counter(gacha.roll_rarity(state, rng)[0] for _ in range(20_000))
         for rarity, percent in gacha.RATES.items():
             self.assertAlmostEqual(counts[rarity] / 20_000 * 100, percent, delta=1.5)
+
+
+class RateUpTest(unittest.TestCase):
+    """Rate-up characters share half of their rarity's pulls."""
+
+    def picks(self, candidates: list[str], featured: set[str]) -> Counter:
+        rng = random.Random(7)
+        return Counter(
+            gacha.pick_character(candidates, featured.__contains__, rng)
+            for _ in range(20000)
+        )
+
+    def test_a_featured_character_gets_half_of_its_rarity(self) -> None:
+        picks = self.picks(["hero", "a", "b", "c"], {"hero"})
+        self.assertAlmostEqual(picks["hero"] / 20000, gacha.RATE_UP / 100, delta=0.02)
+        for other in "abc":
+            self.assertAlmostEqual(picks[other] / 20000, 0.5 / 3, delta=0.02)
+
+    def test_alone_in_its_rarity_it_is_every_pull(self) -> None:
+        self.assertEqual(self.picks(["hero"], {"hero"}), Counter({"hero": 20000}))
+
+    def test_without_featured_characters_all_are_equally_likely(self) -> None:
+        picks = self.picks(["a", "b"], set())
+        self.assertAlmostEqual(picks["a"] / 20000, 0.5, delta=0.02)
+        # A rarity of nothing but featured characters, too.
+        picks = self.picks(["a", "b"], {"a", "b"})
+        self.assertAlmostEqual(picks["a"] / 20000, 0.5, delta=0.02)

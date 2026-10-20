@@ -69,6 +69,17 @@ class MockGameSession extends GameSession {
   GachaStatus get gachaStatus => _gacha.status;
 
   @override
+  Set<String> get rateUp {
+    final hero = _weeklyHero?.card;
+    if (hero == null) return const {};
+    return {
+      hero.id,
+      for (final card in _pool)
+        if (card.rarity == Rarity.legend && card.subject == hero.subject) card.id,
+    };
+  }
+
+  @override
   bool get isMockup => true;
 
   @override
@@ -841,7 +852,7 @@ class MockGameSession extends GameSession {
     _tickets -= count;
     final outcomes = <PullOutcome>[];
     for (var i = 0; i < count; i++) {
-      final card = _gacha.pull(_pool);
+      final card = _gacha.pull(_pool, rateUp: rateUp);
       final owned = _owned[card.id];
       if (owned == null) {
         _owned[card.id] = OwnedCard(card);

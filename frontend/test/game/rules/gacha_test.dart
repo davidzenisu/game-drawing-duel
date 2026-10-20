@@ -42,6 +42,49 @@ void main() {
     expect(GachaMachine.tierRates({}), isEmpty);
   });
 
+  group('rate up', () {
+    final heroes = poolOf({Rarity.hero: 4});
+    final hero = heroes.first;
+
+    Map<String, int> picks(List<CharacterCard> candidates, Set<String> rateUp) {
+      final random = Random(7);
+      final counts = <String, int>{};
+      for (var i = 0; i < 20000; i++) {
+        final id = GachaMachine.pickCharacter(candidates, rateUp, random).id;
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+      return counts;
+    }
+
+    test('a featured character gets half of its rarity', () {
+      final counts = picks(heroes, {hero.id});
+      expect(counts[hero.id]! / 20000, closeTo(GachaMachine.rateUp / 100, 0.02));
+      for (final other in heroes.skip(1)) {
+        expect(counts[other.id]! / 20000, closeTo(0.5 / 3, 0.02));
+      }
+    });
+
+    test('alone in its rarity, it is every pull', () {
+      expect(picks([hero], {hero.id}), {hero.id: 20000});
+    });
+
+    test('the chances shown split the same way and add up to 100%', () {
+      final pool = poolOf({Rarity.basic: 5, Rarity.adventurer: 5, Rarity.hero: 4, Rarity.legend: 2});
+      final legend = pool.lastWhere((c) => c.rarity == Rarity.legend);
+      final chances = GachaMachine.characterChances(pool, {hero.id, legend.id});
+      expect(chances.values.reduce((a, b) => a + b), closeTo(100, 1e-9));
+      expect(chances[hero.id], closeTo(8 * 0.5, 1e-9));
+      expect(
+        chances[pool.firstWhere((c) => c.rarity == Rarity.hero && c.id != hero.id).id],
+        closeTo(8 * 0.5 / 3, 1e-9),
+      );
+      expect(chances[legend.id], closeTo(2 * 0.5, 1e-9));
+      expect(chances[pool.first.id], closeTo(40 / 5, 1e-9));
+      // Nothing rate-up: everyone in a rarity alike.
+      expect(GachaMachine.characterChances(pool, {})[hero.id], closeTo(8 / 4, 1e-9));
+    });
+  });
+
   test('pulls follow the tier rates', () {
     // No basics; legends stay in, so their pity resets as usual.
     final noBasics = poolOf({Rarity.adventurer: 10, Rarity.hero: 5, Rarity.legend: 5});

@@ -58,6 +58,10 @@ class GachaScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         const Center(child: _FloatingCardBack(width: 160)),
                         const SizedBox(height: 32),
+                        if (controller.rateUp.isNotEmpty) ...[
+                          _RateUpBanner(controller: controller),
+                          const SizedBox(height: 16),
+                        ],
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
@@ -158,6 +162,66 @@ class _FloatingCardBackState extends State<_FloatingCardBack> with SingleTickerP
         );
       },
       child: CardBack(width: widget.width),
+    );
+  }
+}
+
+/// This week's rate-up characters, with each one's chance per pull.
+class _RateUpBanner extends StatelessWidget {
+  const _RateUpBanner({required this.controller});
+
+  final GameSession controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final rateUp = controller.rateUp;
+    final featured = [
+      for (final card in controller.pool)
+        if (rateUp.contains(card.id)) card,
+    ]..sort((a, b) => b.rarity.stars.compareTo(a.rarity.stars));
+    final owned = {for (final o in controller.collection) o.card.id};
+    final chances = GachaMachine.characterChances(controller.pool, rateUp);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Rate up this week', style: textTheme.titleMedium),
+            Text(
+              'When a pull lands on their rarity, it\'s one of them ${GachaMachine.rateUp}% of the time, or every '
+              'time if they\'re the only one. A new weekly hero takes over every Monday.',
+              style: textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              children: [
+                for (final card in featured)
+                  SizedBox(
+                    width: 96,
+                    child: Column(
+                      children: [
+                        // Everyone saw the weekly hero in the finale; other
+                        // characters stay hidden until summoned.
+                        Standee(
+                          card: card,
+                          width: 84,
+                          hidden: !owned.contains(card.id) && card.id != controller.weeklyHero?.card.id,
+                        ),
+                        StarRow(rarity: card.rarity, size: 14),
+                        Text(card.subject, style: textTheme.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('${percent(chances[card.id]!)} per pull', style: textTheme.labelSmall),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

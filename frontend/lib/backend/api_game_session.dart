@@ -32,6 +32,7 @@ class ApiGameSession extends GameSession {
   List<OwnedCard> _collection = const [];
   int _tickets = 0;
   GachaStatus _gachaStatus = GachaMachine().status;
+  Set<String> _rateUp = const {};
 
   /// Sketches by character id. A character never changes, so refreshing
   /// only downloads new ones.
@@ -575,8 +576,10 @@ class ApiGameSession extends GameSession {
       'total_pulls': int totalPulls,
       'pulls_until_legend': int untilLegend,
       'beginner_pulls_left': int? beginnerLeft,
+      'rate_up': List rateUp,
     }) {
       _tickets = tickets;
+      _rateUp = {for (final id in rateUp) id as String};
       _gachaStatus = GachaStatus(
         totalPulls: totalPulls,
         pullsUntilLegend: untilLegend,
@@ -756,6 +759,9 @@ class ApiGameSession extends GameSession {
 
   @override
   GachaStatus get gachaStatus => _gachaStatus;
+
+  @override
+  Set<String> get rateUp => _rateUp;
 
   @override
   List<OwnedCard> get collection => _collection.toList()

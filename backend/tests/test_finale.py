@@ -143,6 +143,30 @@ class FinaleTests(FightTestCase):
         # The other challengers stay out of the pool.
         self.assertFalse(pool & (set(fought) - {favourite}))
 
+    def test_the_weekly_hero_and_their_legends_are_rate_up_for_a_week(
+        self,
+    ) -> None:
+        self.go_to_day(7)
+        self.assertEqual(self.get(f"/servers/{self.code}/gacha").json()["rate_up"], [])
+
+        self.next_day()
+        hero = self.today()["weekly_hero"]["character"]
+        pool = self.get(f"/servers/{self.code}/pool").json()
+        legends = {
+            c["id"]
+            for c in pool
+            if c["rarity"] == "legend"
+            and c["subject_position"] == hero["subject_position"]
+        }
+        # Everyone drew a legend during the setup, of different players.
+        self.assertEqual(len(legends), 1)
+        rate_up = self.get(f"/servers/{self.code}/gacha").json()["rate_up"]
+        self.assertEqual(set(rate_up), {hero["id"], *legends})
+        # Everyone sees the same rate-up.
+        for subject in PLAYERS:
+            gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
+            self.assertEqual(set(gacha["rate_up"]), set(rate_up))
+
     def test_without_votes_the_fight_stars_decide(self) -> None:
         self.go_to_day(8)
         hero = self.today()["weekly_hero"]
