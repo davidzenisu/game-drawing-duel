@@ -116,6 +116,7 @@ void main() {
       expect({for (final MapEntry(:key, :value) in GachaMachine.rates.entries) key.name: value}, gacha['rates']);
       expect(GachaMachine.beginnerWindow, gacha['beginner_window']);
       expect(GachaMachine.legendPity, gacha['legend_pity']);
+      expect(GachaMachine.rateUp, gacha['rate_up']);
     });
 
     test('tier fallback', () {

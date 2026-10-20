@@ -62,6 +62,7 @@ def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
         total_pulls=state.total_pulls,
         pulls_until_legend=state.pulls_until_legend,
         beginner_pulls_left=state.beginner_pulls_left,
+        rate_up=sorted(pulls.rate_up(session, seat.server_id)),
     )
 
 
@@ -74,24 +75,32 @@ def _running_seat(session: Session, code: str, player_id: uuid.UUID) -> ServerSe
 
 @router.get("/{code}/gacha", response_model=GachaResponse)
 def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaResponse:
-    """Your pulls left and pity progress."""
-    return _gacha(session, _running_seat(session, code, player.id))
+    """Your pulls left, pity progress and this week's rate-up characters."""
+    seat = _running_seat(session, code, player.id)
+    # A week's hero joins the pool, and the rate-up, once its finale is over.
+    finale.settle(session, seat.server)
+    return _gacha(session, seat)
 
 
 @router.post("/{code}/pulls", response_model=PullsResponse)
 def pull(
     code: Code, body: PullRequest, player: CurrentPlayer, session: DbSession
 ) -> PullsResponse:
-    """Spends pulls on random characters of the pool, see `app/gacha.py`."""
+    """Spends pulls on random characters of a banner, see `app/gacha.py`."""
     seat = _running_seat(session, code, player.id)
     # A week's hero joins the pool once its finale is over.
     finale.settle(session, seat.server)
     try:
-        outcomes = pulls.pull(session, seat, body.count)
+        outcomes = pulls.pull(session, seat, body.count, body.banner)
     except pulls.NotEnoughPulls as error:
         session.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Not enough pulls"
+        ) from error
+    except pulls.BannerClosed as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="The weekly banner opens with the first finale"
         ) from error
     session.commit()
     return PullsResponse(

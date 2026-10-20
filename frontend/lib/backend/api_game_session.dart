@@ -32,6 +32,7 @@ class ApiGameSession extends GameSession {
   List<OwnedCard> _collection = const [];
   int _tickets = 0;
   GachaStatus _gachaStatus = GachaMachine().status;
+  Set<String> _rateUp = const {};
 
   /// Sketches by character id. A character never changes, so refreshing
   /// only downloads new ones.
@@ -575,8 +576,10 @@ class ApiGameSession extends GameSession {
       'total_pulls': int totalPulls,
       'pulls_until_legend': int untilLegend,
       'beginner_pulls_left': int? beginnerLeft,
+      'rate_up': List rateUp,
     }) {
       _tickets = tickets;
+      _rateUp = {for (final id in rateUp) id as String};
       _gachaStatus = GachaStatus(
         totalPulls: totalPulls,
         pullsUntilLegend: untilLegend,
@@ -758,6 +761,9 @@ class ApiGameSession extends GameSession {
   GachaStatus get gachaStatus => _gachaStatus;
 
   @override
+  Set<String> get rateUp => _rateUp;
+
+  @override
   List<OwnedCard> get collection => _collection.toList()
     ..sort((a, b) {
       final byRarity = b.card.rarity.stars.compareTo(a.card.rarity.stars);
@@ -877,8 +883,8 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<List<PullOutcome>> pull(int count) async {
-    final json = await _post('/servers/${server.code}/pulls', {'count': count});
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard}) async {
+    final json = await _post('/servers/${server.code}/pulls', {'count': count, 'banner': banner.name});
     if (json case {'outcomes': List outcomes, 'gacha': final gacha}) {
       final byId = {for (final card in _pool) card.id: card};
       final results = [

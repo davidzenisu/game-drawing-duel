@@ -22,10 +22,10 @@ class PullTestCase(LaunchTestCase):
     def gacha(self):
         return self.get(f"/servers/{self.code}/gacha").json()
 
-    def pull(self, count: int):
+    def pull(self, count: int, banner: str | None = None):
         return self.client.post(
             f"/servers/{self.code}/pulls",
-            json={"count": count},
+            json={"count": count} | ({"banner": banner} if banner else {}),
             headers=bearer(make_token(ADMIN)),
         )
 
@@ -39,6 +39,8 @@ class PullTests(PullTestCase):
                 "total_pulls": 0,
                 "pulls_until_legend": 50,
                 "beginner_pulls_left": 10,
+                # No weekly hero yet, so nothing is rate-up.
+                "rate_up": [],
             },
         )
 
@@ -60,12 +62,20 @@ class PullTests(PullTestCase):
         }
         self.assertEqual(collection[outcome["character"]["id"]], 2)
 
-    def test_the_beginner_window_guarantees_a_rare_character(self) -> None:
-        outcomes = self.pull(10).json()["outcomes"]
+    def test_the_standard_banner_guarantees_a_legend_in_the_first_ten(self) -> None:
+        outcomes = self.pull(10, "standard").json()["outcomes"]
         self.assertEqual(len(outcomes), 10)
-        # No heroes exist yet, so the guarantee looks upwards to a legend.
         self.assertIn("legend", [o["character"]["rarity"] for o in outcomes])
         self.assertEqual(self.gacha()["tickets"], 0)
+        with self.session_factory() as session:
+            banners = session.scalars(select(Pull.banner)).all()
+        self.assertEqual(set(banners), {"standard"})
+
+    def test_the_weekly_banner_opens_with_the_first_finale(self) -> None:
+        response = self.pull(1, "weekly")
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertEqual(self.gacha()["tickets"], 10, "nothing spent")
+        self.assertEqual(self.pull(1, "lucky").status_code, 422)
 
     def test_pulls_need_tickets(self) -> None:
         self.pull(8)

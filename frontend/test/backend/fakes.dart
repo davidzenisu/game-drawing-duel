@@ -80,6 +80,9 @@ class FakeBackend {
   final Map<(String, String), List<String>> pulls = {};
   static const launchBonus = 10;
 
+  /// The banner of every pull request, in order.
+  final List<String> bannersPulled = [];
+
   /// The current day by server code, from the launch on.
   final Map<String, int> days = {};
 
@@ -321,7 +324,12 @@ class FakeBackend {
       }
       if (request.method == 'POST' && path.length == 3 && path[2] == 'pulls') {
         final count = body!['count'] as int;
+        final banner = body['banner'] as String? ?? 'standard';
+        bannersPulled.add(banner);
         if (count > _tickets(code, myId)) return _json(409, {'detail': 'Not enough pulls'});
+        if (banner == 'weekly' && _rateUp(code).isEmpty) {
+          return _json(409, {'detail': 'The weekly banner opens with the first finale'});
+        }
         final pool = _pool(code);
         final pulled = pulls.putIfAbsent((code, myId), () => []);
         final outcomes = <Map<String, Object?>>[];
@@ -645,7 +653,20 @@ class FakeBackend {
       'total_pulls': total,
       'pulls_until_legend': 50 - total,
       'beginner_pulls_left': total < 10 ? 10 - total : null,
+      'rate_up': _rateUp(code),
     };
+  }
+
+  /// Like the real API: the latest weekly hero and the pool's legends of
+  /// the same player.
+  List<String> _rateUp(String code) {
+    final hero = weeklyHeroes[code]?['character'] as Map<String, Object?>?;
+    if (hero == null) return [];
+    return [
+      hero['id'] as String,
+      for (final c in _pool(code))
+        if (c['rarity'] == 'legend' && c['subject_position'] == hero['subject_position']) c['id'] as String,
+    ];
   }
 
   /// Planned like the real API does, with ids made up from seat and prompt.

@@ -1,5 +1,8 @@
+import uuid
+
 from pydantic import BaseModel, Field
 
+from app.gacha import Banner
 from app.rules import Element
 from app.schemas.character import CharacterResponse
 
@@ -11,12 +14,18 @@ class GachaResponse(BaseModel):
     total_pulls: int
     # Pulls left until a legend is guaranteed.
     pulls_until_legend: int
-    # Pulls left within the beginner window, or null once it no longer applies.
+    # Standard banner pulls left within the beginner window, or null once it
+    # no longer applies.
     beginner_pulls_left: int | None
+    # This week's rate-up characters on the weekly banner, see
+    # `app.pulls.rate_up`; none until the first finale, and no weekly banner.
+    rate_up: list[uuid.UUID] = []
 
 
 class PullRequest(BaseModel):
     count: int = Field(ge=1, le=10)
+    # The weekly banner opens with the first finale.
+    banner: Banner = Banner.STANDARD
 
 
 class PullOutcomeResponse(BaseModel):

@@ -127,6 +127,11 @@ abstract class GameSession extends ChangeNotifier {
 
   GachaStatus get gachaStatus;
 
+  /// This week's rate-up characters' ids: the latest weekly hero and the
+  /// legends of the pool drawn of the same player. A pull landing on their
+  /// rarity picks one of them [GachaMachine.rateUp] percent of the time.
+  Set<String> get rateUp;
+
   /// Your roster, rarest first.
   List<OwnedCard> get collection;
 
@@ -334,7 +339,9 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> retireContent(ContentEntry entry) =>
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
-  Future<List<PullOutcome>> pull(int count);
+  /// Spends [count] pulls on [banner]; the weekly one opens with the first
+  /// finale, see [rateUp].
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard});
 
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element});
 

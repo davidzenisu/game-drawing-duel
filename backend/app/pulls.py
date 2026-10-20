@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.gacha import LAUNCH_BONUS, GachaState, pull_rarity
+from app.gacha import LAUNCH_BONUS, Banner, GachaState, pick_character, pull_rarity
 from app.models import Character, Pull, PullGrant, ServerSeat, WeeklyHero
 from app.rules import Rarity
 
@@ -22,6 +22,30 @@ def in_pool():
             select(WeeklyHero.character_id).where(WeeklyHero.character_id.is_not(None))
         ),
     )
+
+
+def rate_up(session: Session, server_id: uuid.UUID) -> set[uuid.UUID]:
+    """This week's rate-up characters: the latest weekly hero, and the
+    legends of the pool drawn of the same player. They rotate every Monday
+    with the finale; a week without a hero has none."""
+    hero_id = session.scalar(
+        select(WeeklyHero.character_id)
+        .where(WeeklyHero.server_id == server_id)
+        .order_by(WeeklyHero.day.desc())
+        .limit(1)
+    )
+    if hero_id is None:
+        return set()
+    hero = session.get(Character, hero_id)
+    legends = session.scalars(
+        select(Character.id).where(
+            Character.server_id == server_id,
+            in_pool(),
+            Character.rarity == Rarity.LEGEND.value,
+            Character.subject_seat_id == hero.subject_seat_id,
+        )
+    )
+    return {hero_id, *legends}
 
 
 def grant_launch_bonus(session: Session, seats: list[ServerSeat]) -> None:
@@ -52,12 +76,14 @@ def gacha_state(session: Session, seat_id: uuid.UUID) -> GachaState:
     return GachaState.after(_pulled(session, seat_id))
 
 
-def _pulled(session: Session, seat_id: uuid.UUID) -> list[Rarity]:
-    """The rarities the seat pulled, in order."""
-    rarities = session.scalars(
-        select(Pull.rarity).where(Pull.seat_id == seat_id).order_by(Pull.number)
+def _pulled(session: Session, seat_id: uuid.UUID) -> list[tuple[Banner, Rarity]]:
+    """The banners and rarities the seat pulled, in order."""
+    pulled = session.execute(
+        select(Pull.banner, Pull.rarity)
+        .where(Pull.seat_id == seat_id)
+        .order_by(Pull.number)
     )
-    return [Rarity(r) for r in rarities]
+    return [(Banner(banner), Rarity(rarity)) for banner, rarity in pulled]
 
 
 def copies(session: Session, seat: ServerSeat) -> dict[uuid.UUID, int]:
@@ -81,6 +107,10 @@ class NotEnoughPulls(Exception):
     pass
 
 
+class BannerClosed(Exception):
+    """The weekly banner opens with the first finale."""
+
+
 @dataclass(frozen=True)
 class Outcome:
     character: Character
@@ -92,9 +122,12 @@ def pull(
     session: Session,
     seat: ServerSeat,
     count: int,
+    banner: Banner = Banner.STANDARD,
     rng: random.Random | None = None,
 ) -> list[Outcome]:
-    """Spends `count` of the seat's grants on characters of its server's pool.
+    """Spends `count` of the seat's grants on characters of `banner`: the
+    standard one pulls from the setup drawings, the weekly one from the whole
+    pool with this week's rate-up.
 
     Locks the seat, so the same player pulling twice at once waits instead of
     spending the same grants; the caller commits.
@@ -108,10 +141,18 @@ def pull(
     ).all()
     if len(grants) < count:
         raise NotEnoughPulls
+    featured = rate_up(session, seat.server_id) if banner is Banner.WEEKLY else set()
+    if banner is Banner.WEEKLY and not featured:
+        raise BannerClosed
     by_rarity: dict[Rarity, list[Character]] = defaultdict(list)
     for character in session.scalars(
         select(Character)
-        .where(Character.server_id == seat.server_id, in_pool())
+        .where(
+            Character.server_id == seat.server_id,
+            in_pool()
+            if banner is Banner.WEEKLY
+            else Character.assignment_id.is_not(None),
+        )
         .order_by(Character.id)
     ):
         by_rarity[Rarity(character.rarity)].append(character)
@@ -119,9 +160,9 @@ def pull(
     owned = copies(session, seat)
     outcomes = []
     for grant in grants:
-        rarity = pull_rarity(GachaState.after(pulled), set(by_rarity), rng)
-        character = rng.choice(by_rarity[rarity])
-        pulled.append(rarity)
+        rarity = pull_rarity(GachaState.after(pulled), banner, set(by_rarity), rng)
+        character = pick_character(by_rarity[rarity], lambda c: c.id in featured, rng)
+        pulled.append((banner, rarity))
         owned[character.id] += 1
         session.add(
             Pull(
@@ -130,6 +171,7 @@ def pull(
                 number=len(pulled),
                 character_id=character.id,
                 rarity=rarity.value,
+                banner=banner.value,
             )
         )
         outcomes.append(

@@ -7,25 +7,28 @@ import '../widgets/card_art.dart';
 
 /// Formats a chance in percent: whole numbers as they are, small ones with
 /// enough decimals to tell them apart.
-String _percent(double value) {
+String percent(double value) {
   if (value == value.roundToDouble()) return '${value.round()}%';
   return '${value.toStringAsFixed(value < 1 ? 2 : 1)}%';
 }
 
-/// What a pull can bring: the pool's characters by rarity, each rarity's
-/// chance and each character's. Characters you haven't summoned yet show
-/// only their name, like in the collection.
+/// What a pull on [banner] can bring: its characters by rarity, each
+/// rarity's chance and each character's, with this week's rate-up marked on
+/// the weekly banner.
+/// Characters you haven't summoned yet show only their name, like in the
+/// collection.
 class PoolScreen extends StatelessWidget {
-  const PoolScreen({super.key, required this.controller});
+  const PoolScreen({super.key, required this.controller, this.banner = GachaBanner.standard});
 
   final GameSession controller;
+  final GachaBanner banner;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final pool = controller.pool;
+        final pool = banner.poolOf(controller.pool);
         final owned = {for (final o in controller.collection) o.card.id};
         final byRarity = {
           for (final rarity in Rarity.values)
@@ -35,9 +38,11 @@ class PoolScreen extends StatelessWidget {
             ],
         };
         final rates = GachaMachine.tierRates({for (final card in pool) card.rarity});
+        final rateUp = banner == GachaBanner.weekly ? controller.rateUp : const <String>{};
+        final chances = GachaMachine.characterChances(pool, rateUp);
         final textTheme = Theme.of(context).textTheme;
         return Scaffold(
-          appBar: AppBar(title: const Text('In the pool')),
+          appBar: AppBar(title: Text('${banner.label} banner')),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -49,7 +54,8 @@ class PoolScreen extends StatelessWidget {
                     children: [
                       Text(
                         '${pool.length} characters. Each pull picks a rarity, then one of its characters, '
-                        'all equally likely.',
+                        'all equally likely${rateUp.isEmpty ? '' : ' but this week\'s rate-up, which get '
+                                  '${GachaMachine.rateUp}% of their rarity between them'}.',
                         style: textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 16),
@@ -59,6 +65,8 @@ class PoolScreen extends StatelessWidget {
                             rarity: rarity,
                             cards: byRarity[rarity]!,
                             rate: rates[rarity] ?? 0,
+                            chances: chances,
+                            rateUp: rateUp,
                             owned: owned,
                             weeklyHeroId: controller.weeklyHero?.card.id,
                           )
@@ -73,9 +81,12 @@ class PoolScreen extends StatelessWidget {
                             ),
                           ),
                       Text(
-                        'Chances before guarantees: a ${'★' * Rarity.hero.stars} or better within your first '
-                        '${GachaMachine.beginnerWindow} pulls, and a ${'★' * Rarity.legend.stars} at the latest every '
-                        '${GachaMachine.legendPity}.',
+                        'Chances before guarantees: ${switch (banner) {
+                          GachaBanner.standard => 'a ${'★' * Rarity.legend.stars} within your first '
+                              '${GachaMachine.beginnerWindow} pulls on this banner, and ',
+                          GachaBanner.weekly => '',
+                        }}a ${'★' * Rarity.legend.stars} at the latest every ${GachaMachine.legendPity} pulls, '
+                        'counting both banners.',
                         style: textTheme.bodySmall,
                       ),
                     ],
@@ -95,6 +106,8 @@ class _RaritySection extends StatelessWidget {
     required this.rarity,
     required this.cards,
     required this.rate,
+    required this.chances,
+    required this.rateUp,
     required this.owned,
     required this.weeklyHeroId,
   });
@@ -102,6 +115,8 @@ class _RaritySection extends StatelessWidget {
   final Rarity rarity;
   final List<CharacterCard> cards;
   final int rate;
+  final Map<String, double> chances;
+  final Set<String> rateUp;
   final Set<String> owned;
   final String? weeklyHeroId;
 
@@ -109,6 +124,18 @@ class _RaritySection extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final summoned = cards.where((card) => owned.contains(card.id)).length;
+    final featured = [
+      for (final card in cards)
+        if (rateUp.contains(card.id)) card,
+    ];
+    final others = [
+      for (final card in cards)
+        if (!rateUp.contains(card.id)) card,
+    ];
+    final each = featured.isEmpty || others.isEmpty
+        ? '${percent(chances[cards.first.id]!)} each'
+        : 'rate-up ${percent(chances[featured.first.id]!)}, '
+              'the other${others.length == 1 ? '' : 's'} ${percent(chances[others.first.id]!)} each';
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -126,7 +153,7 @@ class _RaritySection extends StatelessWidget {
               ],
             ),
             Text(
-              '${cards.length} character${cards.length == 1 ? '' : 's'} · ${_percent(rate / cards.length)} each · '
+              '${cards.length} character${cards.length == 1 ? '' : 's'} · $each · '
               '$summoned/${cards.length} summoned',
               style: textTheme.bodySmall,
             ),
@@ -136,7 +163,12 @@ class _RaritySection extends StatelessWidget {
               runSpacing: 12,
               children: [
                 for (final card in cards)
-                  _PoolTile(card: card, summoned: owned.contains(card.id), weeklyHero: card.id == weeklyHeroId),
+                  _PoolTile(
+                    card: card,
+                    summoned: owned.contains(card.id),
+                    weeklyHero: card.id == weeklyHeroId,
+                    rateUp: rateUp.contains(card.id),
+                  ),
               ],
             ),
           ],
@@ -147,11 +179,12 @@ class _RaritySection extends StatelessWidget {
 }
 
 class _PoolTile extends StatelessWidget {
-  const _PoolTile({required this.card, required this.summoned, required this.weeklyHero});
+  const _PoolTile({required this.card, required this.summoned, required this.weeklyHero, required this.rateUp});
 
   final CharacterCard card;
   final bool summoned;
   final bool weeklyHero;
+  final bool rateUp;
 
   @override
   Widget build(BuildContext context) {
@@ -170,11 +203,11 @@ class _PoolTile extends StatelessWidget {
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
           ),
-          if (weeklyHero)
+          for (final label in [if (weeklyHero) 'Weekly hero', if (rateUp) 'Rate up'])
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                'Weekly hero',
+                label,
                 style: textTheme.labelSmall?.copyWith(color: card.rarity.color, fontWeight: FontWeight.bold),
               ),
             ),

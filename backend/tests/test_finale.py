@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -142,6 +143,69 @@ class FinaleTests(FightTestCase):
         self.assertIn(favourite, pool)
         # The other challengers stay out of the pool.
         self.assertFalse(pool & (set(fought) - {favourite}))
+
+    def test_the_weekly_hero_and_their_legends_are_rate_up_for_a_week(
+        self,
+    ) -> None:
+        self.go_to_day(7)
+        self.assertEqual(self.get(f"/servers/{self.code}/gacha").json()["rate_up"], [])
+
+        self.next_day()
+        hero = self.today()["weekly_hero"]["character"]
+        # The setup's legends are of random players: make one of the hero's.
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            legend = session.scalar(
+                select(Character).where(
+                    Character.server_id == server.id,
+                    Character.rarity == "legend",
+                    Character.assignment_id.is_not(None),
+                )
+            )
+            legend.subject_seat_id = session.get(
+                Character, uuid.UUID(hero["id"])
+            ).subject_seat_id
+            session.commit()
+        pool = self.get(f"/servers/{self.code}/pool").json()
+        legends = {
+            c["id"]
+            for c in pool
+            if c["rarity"] == "legend"
+            and c["subject_position"] == hero["subject_position"]
+        }
+        self.assertIn(str(legend.id), legends)
+        rate_up = self.get(f"/servers/{self.code}/gacha").json()["rate_up"]
+        self.assertEqual(set(rate_up), {hero["id"], *legends})
+        # Everyone sees the same rate-up.
+        for subject in PLAYERS:
+            gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
+            self.assertEqual(set(gacha["rate_up"]), set(rate_up))
+
+    def test_the_weekly_banner_pulls_the_hero_the_standard_one_never(self) -> None:
+        self.go_to_day(8)
+        hero = self.today()["weekly_hero"]["character"]["id"]
+        gacha = self.get(f"/servers/{self.code}/gacha").json()
+        weekly = self.post_pulls(min(gacha["tickets"], 10), "weekly")
+        self.assertEqual(weekly.status_code, 200, weekly.text)
+        pool = {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
+        for outcome in weekly.json()["outcomes"]:
+            self.assertIn(outcome["character"]["id"], pool)
+        # The standard banner is the setup drawings only: no heroes.
+        for subject in PLAYERS:
+            if subject == ADMIN:
+                continue
+            tickets = self.get(f"/servers/{self.code}/gacha", subject).json()["tickets"]
+            standard = self.post_pulls(min(tickets, 10), "standard", subject).json()
+            rarities = {o["character"]["rarity"] for o in standard["outcomes"]}
+            self.assertNotIn("hero", rarities)
+            self.assertNotIn(hero, {o["character"]["id"] for o in standard["outcomes"]})
+
+    def post_pulls(self, count: int, banner: str, subject: str = ADMIN):
+        return self.client.post(
+            f"/servers/{self.code}/pulls",
+            json={"count": count, "banner": banner},
+            headers=bearer(make_token(subject)),
+        )
 
     def test_without_votes_the_fight_stars_decide(self) -> None:
         self.go_to_day(8)
