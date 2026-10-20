@@ -25,6 +25,39 @@ void main() {
     expect(GachaMachine.rates.values.reduce((a, b) => a + b), 100);
   });
 
+  test('a rarity without characters passes its rate on to the tier pulled instead', () {
+    expect(GachaMachine.tierRates(Rarity.values.toSet()), GachaMachine.rates);
+    // No basics: their share goes up to the adventurers.
+    expect(GachaMachine.tierRates({Rarity.adventurer, Rarity.hero, Rarity.legend}), {
+      Rarity.adventurer: 90,
+      Rarity.hero: 8,
+      Rarity.legend: 2,
+    });
+    // No legends: theirs goes down to the heroes.
+    expect(GachaMachine.tierRates({Rarity.basic, Rarity.adventurer, Rarity.hero}), {
+      Rarity.basic: 40,
+      Rarity.adventurer: 50,
+      Rarity.hero: 10,
+    });
+    expect(GachaMachine.tierRates({}), isEmpty);
+  });
+
+  test('pulls follow the tier rates', () {
+    // No basics; legends stay in, so their pity resets as usual.
+    final noBasics = poolOf({Rarity.adventurer: 10, Rarity.hero: 5, Rarity.legend: 5});
+    final rates = GachaMachine.tierRates({Rarity.adventurer, Rarity.hero, Rarity.legend});
+    final gacha = GachaMachine(random: Random(1));
+    final counts = <Rarity, int>{};
+    for (var i = 0; i < 20000; i++) {
+      final rarity = gacha.pull(noBasics).rarity;
+      counts[rarity] = (counts[rarity] ?? 0) + 1;
+    }
+    for (final MapEntry(key: rarity, value: rate) in rates.entries) {
+      // Pity adds a little on top of the legends' 2%.
+      expect(counts[rarity]! / 200, closeTo(rate, 1.5), reason: rarity.label);
+    }
+  });
+
   test('the first 10 pulls always contain a 3 or 4 star', () {
     for (var seed = 0; seed < 200; seed++) {
       final gacha = GachaMachine(random: Random(seed));

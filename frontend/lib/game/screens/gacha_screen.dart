@@ -8,6 +8,7 @@ import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
+import 'pool_screen.dart';
 import 'pull_reveal_screen.dart';
 
 class GachaScreen extends StatelessWidget {
@@ -79,6 +80,17 @@ class GachaScreen extends StatelessWidget {
                                 if (gacha.beginnerPullsLeft != null)
                                   Text('★★★ or better guaranteed within the next ${gacha.beginnerPullsLeft} pulls'),
                                 Text('★★★★ guaranteed within ${gacha.pullsUntilLegend} pulls'),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton.icon(
+                                    onPressed: () => Navigator.of(
+                                      context,
+                                    ).push(MaterialPageRoute<void>(builder: (_) => PoolScreen(controller: controller))),
+                                    icon: const Icon(Icons.visibility_outlined),
+                                    label: const Text('See what you can pull'),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
