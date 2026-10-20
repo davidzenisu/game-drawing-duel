@@ -15,8 +15,8 @@ String percent(double value) {
 /// What a pull on [banner] can bring: its characters by rarity, each
 /// rarity's chance and each character's, with this week's rate-up marked on
 /// the weekly banner.
-/// Characters you haven't summoned yet show only their name, like in the
-/// collection.
+/// Characters you haven't summoned yet show their name and title but not
+/// their drawing, like in the collection.
 class PoolScreen extends StatelessWidget {
   const PoolScreen({super.key, required this.controller, this.banner = GachaBanner.standard});
 
@@ -197,7 +197,7 @@ class _PoolTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(card.subject, style: textTheme.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
           Text(
-            summoned ? card.title : '???',
+            card.title,
             style: textTheme.labelSmall,
             maxLines: 2,
             textAlign: TextAlign.center,

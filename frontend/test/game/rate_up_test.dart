@@ -50,6 +50,13 @@ void main() {
     final banner = find.ancestor(of: find.text('Rate up this week'), matching: find.byType(Card));
     expect(banner, findsOneWidget);
     expect(find.descendant(of: banner, matching: find.text(hero.subject)), findsNWidgets(1 + legends.length));
+    for (final card in [hero, ...legends]) {
+      expect(
+        find.descendant(of: banner, matching: find.text(card.title)),
+        findsOneWidget,
+        reason: 'named, summoned or not',
+      );
+    }
     expect(tester.takeException(), isNull, reason: 'fits a phone');
 
     final open = find.text('See what you can pull');

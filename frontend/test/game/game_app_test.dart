@@ -295,13 +295,13 @@ void main() {
     final locked = controller.pool.length - owned;
     expect(locked, greaterThan(0));
     expect(find.text('Collection $owned/${controller.pool.length}'), findsOneWidget);
-    expect(find.text('???'), findsNWidgets(locked));
-    expect(find.byIcon(Icons.question_mark_rounded), findsNWidgets(locked));
+    expect(find.byIcon(Icons.question_mark_rounded), findsNWidgets(locked), reason: 'the drawing stays a secret');
     final hidden = controller.pool.firstWhere((c) => !controller.collection.any((o) => o.card.id == c.id));
-    expect(find.text(hidden.title), findsNothing, reason: 'the title stays a secret');
+    final hiddenTitle = find.textContaining(hidden.title);
+    expect(hiddenTitle, findsWidgets, reason: 'but not the name');
 
     // Tapping a hidden one opens nothing.
-    await tester.tap(find.text('???').first);
+    await tester.tap(hiddenTitle.first);
     await tester.pumpAndSettle();
     expect(find.byType(CharacterDetailScreen), findsNothing);
   });
