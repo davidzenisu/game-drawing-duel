@@ -4,13 +4,18 @@ from datetime import UTC, datetime
 from functools import lru_cache
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine
+from sqlalchemy import MetaData, create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+SCHEMA = "game"
+"""The PostgreSQL schema of the game's tables. Supabase's Data API serves
+`public`, so they're kept out of it, and apart from Supabase's own schemas."""
+
 
 class Base(DeclarativeBase):
-    pass
+    # Index names leave out the schema, like they did before it.
+    metadata = MetaData(schema=SCHEMA, naming_convention={"ix": "ix_%(table_name)s_%(column_0_name)s"})
 
 
 def utc_now() -> datetime:

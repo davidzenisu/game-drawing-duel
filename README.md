@@ -258,6 +258,20 @@ character's rarity path (`upgrade` rows, one per effect). Only the mockup
 unlocks upgrades on credit.
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
+### Database schema
+
+The game's tables, and Alembic's `alembic_version`, live in their own
+PostgreSQL schema, `game` (`SCHEMA` in `app/database.py`), not in `public`:
+Supabase's Data API serves `public` to anyone with the project's anon key,
+and none of the tables has row-level security. The API connects as the role
+in `DATABASE_URL`; Supabase's `postgres` user owns the tables, any other role
+needs `USAGE` on the schema and privileges on its tables. Migrations name
+the schema explicitly, starting from a single baseline (`6df1c84a8f00`) with
+every table as it was when the tables moved there, and the seeded theme
+hints. Alembic's `env.py` creates the schema on a fresh database and only
+compares that one. The SQLite unit tests map it to SQLite's main
+database.
+
 ### Database ids
 
 Every table's primary key is a UUID the API generates (`uuid4`), so ids in the

@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.auth import TokenVerifier, get_token_verifier
-from app.database import Base, get_db
+from app.database import SCHEMA, Base, get_db
 from app.main import app
 from app.storage import MemoryFileStore, get_file_store
 
@@ -57,6 +57,8 @@ class ApiTestCase(unittest.TestCase):
             "sqlite://",
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
+            # SQLite has no schemas: the game's tables go in the main one.
+            execution_options={"schema_translate_map": {SCHEMA: None}},
         )
         Base.metadata.create_all(self.engine)
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
