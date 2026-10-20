@@ -76,7 +76,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
   Widget build(BuildContext context) {
     final spotlight = _single ? widget.outcomes.single : _spotlight;
     return Scaffold(
-      backgroundColor: Colors.black.withValues(alpha: 0.96),
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
@@ -200,7 +200,8 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
               : 0.0;
           return Stack(
             children: [
-              Positioned.fill(child: ColoredBox(color: Colors.black.withValues(alpha: 0.96))),
+              // Opaque, so nothing of a multi-pull underneath shows through.
+              const Positioned.fill(child: ColoredBox(color: Colors.black)),
               Positioned.fill(
                 child: CustomPaint(
                   painter: _RaysPainter(
@@ -363,10 +364,6 @@ class _MultiPull extends StatefulWidget {
 }
 
 class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
-  late final _best = widget.outcomes
-      .map((outcome) => outcome.card.rarity)
-      .reduce((best, rarity) => rarity.index > best.index ? rarity : best);
-
   /// The cards spread out and turn once round while their backs light up.
   late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 3600));
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
@@ -498,21 +495,10 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
         double angle(int i) => 2 * pi * (i - position) / count;
         // Back cards first, so the front one is drawn on top.
         final order = [for (var i = 0; i < count; i++) i]..sort((a, b) => cos(angle(a)).compareTo(cos(angle(b))));
+        // Just the dark background, so the glows stand out.
         return Stack(
           alignment: Alignment.center,
           children: [
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _RaysPainter(
-                  color: _best.color,
-                  intensity: 0.15 + 0.45 * glow,
-                  rotation: _spin.value * 2 * pi,
-                  rayCount: 6 + _best.stars * 4,
-                  burst: 0,
-                  sparkle: false,
-                ),
-              ),
-            ),
             for (final i in order)
               _ringCard(outcomes[i], width: width, angle: angle(i), radius: radius, glow: glow * pulse),
           ],
@@ -529,9 +515,10 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     required double glow,
   }) {
     final facing = cos(angle);
-    return Opacity(
-      // Cards at the back fade into the dark.
-      opacity: 0.3 + 0.7 * (facing + 1) / 2,
+    // Cards at the back fade into the dark, darkened rather than see-through
+    // so the ones behind them don't show through.
+    return ColorFiltered(
+      colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.7 * (1 - facing) / 2), BlendMode.srcATop),
       child: Transform(
         alignment: Alignment.center,
         transform: Matrix4.identity()
