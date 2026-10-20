@@ -265,9 +265,10 @@ PostgreSQL schema, `game` (`SCHEMA` in `app/database.py`), not in `public`:
 Supabase's Data API serves `public` to anyone with the project's anon key,
 and none of the tables has row-level security. The API connects as the role
 in `DATABASE_URL`; Supabase's `postgres` user owns the tables, any other role
-needs `USAGE` on the schema and privileges on its tables. Alembic only
-compares the `game` schema, and the SQLite unit tests map it to SQLite's
-main database.
+needs `USAGE` on the schema and privileges on its tables. Migrations run
+in the `game` schema (Alembic's `env.py` creates it on a fresh database), and
+Alembic only compares that one. The SQLite unit tests map it to SQLite's main
+database.
 
 ### Database ids
 

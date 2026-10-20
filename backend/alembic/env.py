@@ -43,16 +43,12 @@ def include_name(name: str | None, type_: str, parent_names: object) -> bool:
     return True
 
 
-def move_version_table(connection: Connection) -> None:
-    """Alembic keeps its version table in the game's schema too, see
-    `1444e02ae228_game_schema.py`. It has to find it before running any
-    migration, so it moves here, once, from `public` where it used to be."""
-    connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
-    inspector = inspect(connection)
-    if inspector.has_table("alembic_version", schema="public") and not inspector.has_table(
-        "alembic_version", schema=SCHEMA
-    ):
-        connection.execute(text(f"ALTER TABLE public.alembic_version SET SCHEMA {SCHEMA}"))
+def use_game_schema(connection: Connection) -> None:
+    """Runs the migrations in the game's schema, so the tables they create
+    without naming one land there too. A fresh database gets the schema."""
+    if not inspect(connection).has_schema(SCHEMA):
+        connection.execute(text(f"CREATE SCHEMA {SCHEMA}"))
+    connection.execute(text(f"SET search_path TO {SCHEMA}"))
     connection.commit()
 
 
@@ -97,7 +93,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        move_version_table(connection)
+        use_game_schema(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
