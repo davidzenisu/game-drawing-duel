@@ -82,6 +82,19 @@ class GachaMachine {
     return (Rarity.basic, false);
   }
 
+  /// Each rarity's chance in percent, before guarantees, for a pool with
+  /// characters of the [available] rarities: one without characters passes
+  /// its rate on to the tier a pull would take instead.
+  static Map<Rarity, int> tierRates(Set<Rarity> available) {
+    if (available.isEmpty) return const {};
+    final result = <Rarity, int>{};
+    for (final MapEntry(key: rarity, value: rate) in rates.entries) {
+      final tier = closestAvailableTier(available, rarity, preferHigher: false);
+      result[tier] = (result[tier] ?? 0) + rate;
+    }
+    return result;
+  }
+
   /// The tier to pull from when [wanted] has no characters: the nearest
   /// [available] one. Guaranteed pulls look upwards first so pity never hands
   /// out something worse.
