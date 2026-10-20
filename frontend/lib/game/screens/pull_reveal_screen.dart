@@ -26,9 +26,9 @@ Color _climb(double t, Rarity rarity) {
 bool _isRare(PullOutcome outcome) => outcome.card.rarity.stars >= Rarity.hero.stars;
 
 /// Full screen reveal of pulls. A single pull builds up, flips and bursts.
-/// A multi-pull builds up to its best pull, deals the cards out face down
-/// and flips them one after another, then spotlights each 3 and 4 star
-/// character before the results.
+/// A multi-pull builds up to its best pull, then turns its cards past in a
+/// carousel twice: first showing only each one's rarity, then flipping
+/// each one, with a full reveal for every 3 and 4 star character.
 class PullRevealScreen extends StatefulWidget {
   const PullRevealScreen({super.key, required this.outcomes});
 
@@ -39,18 +39,24 @@ class PullRevealScreen extends StatefulWidget {
 }
 
 class _PullRevealScreenState extends State<PullRevealScreen> {
-  final _spotlights = <PullOutcome>[];
   PullOutcome? _spotlight;
+  VoidCallback? _afterSpotlight;
 
   bool get _single => widget.outcomes.length == 1;
 
-  void _revealed({required bool skipped}) {
-    if (skipped) return;
-    _spotlights.addAll(widget.outcomes.where(_isRare));
-    _nextSpotlight();
-  }
+  void _show(PullOutcome outcome, [VoidCallback? then]) => setState(() {
+    _spotlight = outcome;
+    _afterSpotlight = then;
+  });
 
-  void _nextSpotlight() => setState(() => _spotlight = _spotlights.isEmpty ? null : _spotlights.removeAt(0));
+  void _spotlightDone() {
+    final then = _afterSpotlight;
+    setState(() {
+      _spotlight = null;
+      _afterSpotlight = null;
+    });
+    then?.call();
+  }
 
   void _close() => Navigator.of(context).pop();
 
@@ -64,12 +70,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
           children: [
             if (!_single)
               Positioned.fill(
-                child: _MultiPull(
-                  outcomes: widget.outcomes,
-                  onRevealed: _revealed,
-                  onInspect: (outcome) => setState(() => _spotlight = outcome),
-                  onDone: _close,
-                ),
+                child: _MultiPull(outcomes: widget.outcomes, onRare: _show, onInspect: _show, onDone: _close),
               ),
             if (spotlight != null)
               Positioned.fill(
@@ -78,7 +79,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
                   outcome: spotlight,
                   // A multi-pull's cards are already face up.
                   buildUp: _single,
-                  onDone: _single ? _close : _nextSpotlight,
+                  onDone: _single ? _close : _spotlightDone,
                 ),
               ),
           ],
@@ -295,16 +296,20 @@ class _PoppingStars extends StatelessWidget {
   }
 }
 
-/// Several pulls: they build up as a stack to the best one's rarity, are
-/// dealt out face down, glowing in their rarity's colour, and flip one
-/// after another. Tap to hurry each step along.
+enum _Stage { buildUp, preview, reveal, results }
+
+/// Several pulls. They build up as a stack to the best one's rarity, then
+/// spread into a carousel that turns each card to the front twice: the
+/// first time it only shows its rarity, the second time it flips. Tap to
+/// hurry each card along.
 class _MultiPull extends StatefulWidget {
-  const _MultiPull({required this.outcomes, required this.onRevealed, required this.onInspect, required this.onDone});
+  const _MultiPull({required this.outcomes, required this.onRare, required this.onInspect, required this.onDone});
 
   final List<PullOutcome> outcomes;
 
-  /// Every card is face up; [skipped] when the player skipped there.
-  final void Function({required bool skipped}) onRevealed;
+  /// A 3 or 4 star character turned face up; the carousel goes on once
+  /// `resume` is called.
+  final void Function(PullOutcome outcome, VoidCallback resume) onRare;
   final ValueChanged<PullOutcome> onInspect;
   final VoidCallback onDone;
 
@@ -317,25 +322,35 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
       .map((outcome) => outcome.card.rarity)
       .reduce((best, rarity) => rarity.index > best.index ? rarity : best);
   late final _charge = AnimationController(vsync: this, duration: _buildUpFor(_best));
-  late final _deal = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
-  late final _cascade = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: 260 * widget.outcomes.length + 400),
-  );
+
+  /// One card's turn: the carousel brings it to the front, then it shows
+  /// its rarity or flips.
+  late final _step = AnimationController(vsync: this);
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
-  bool _revealed = false;
+  var _stage = _Stage.buildUp;
+
+  /// The card at the front.
+  int _index = 0;
+
+  static const _turnMs = 350;
+
+  /// How long the front card stays after turning; rarer ones show their
+  /// rarity longer.
+  int _holdMs(PullOutcome outcome) => _stage == _Stage.preview ? 200 + 250 * outcome.card.rarity.index : 550;
+
+  PullOutcome get _front => widget.outcomes[_index];
+
+  /// The part of a step spent turning.
+  double get _turnPart => _turnMs / (_turnMs + _holdMs(_front));
 
   @override
   void initState() {
     super.initState();
     _charge.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _deal.isDismissed) _deal.forward();
+      if (status == AnimationStatus.completed && _stage == _Stage.buildUp) _startStage(_Stage.preview);
     });
-    _deal.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _cascade.isDismissed) _cascade.forward();
-    });
-    _cascade.addStatusListener((status) {
-      if (status == AnimationStatus.completed) _finish(skipped: false);
+    _step.addStatusListener((status) {
+      if (status == AnimationStatus.completed) _stepDone();
     });
     _charge.forward();
   }
@@ -345,36 +360,65 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     super.didChangeDependencies();
     if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _finish(skipped: true);
+        if (mounted) _toResults();
       });
     }
   }
 
-  void _finish({required bool skipped}) {
-    if (_revealed) return;
-    setState(() => _revealed = true);
-    _charge.value = 1;
-    _deal.value = 1;
-    _cascade.value = 1;
-    widget.onRevealed(skipped: skipped);
+  void _startStage(_Stage stage) {
+    setState(() {
+      _stage = stage;
+      _index = 0;
+    });
+    _play();
   }
 
-  /// Hurries the current step along.
+  void _play() {
+    _step.duration = Duration(milliseconds: _turnMs + _holdMs(_front));
+    _step.forward(from: 0);
+  }
+
+  void _stepDone() {
+    if (_stage == _Stage.reveal && _isRare(_front)) {
+      widget.onRare(_front, () {
+        if (mounted && _stage == _Stage.reveal) _next();
+      });
+    } else {
+      _next();
+    }
+  }
+
+  void _next() {
+    if (_index < widget.outcomes.length - 1) {
+      setState(() => _index++);
+      _play();
+    } else if (_stage == _Stage.preview) {
+      _startStage(_Stage.reveal);
+    } else {
+      _toResults();
+    }
+  }
+
+  void _toResults() {
+    if (_stage == _Stage.results) return;
+    _charge.stop();
+    _step.stop();
+    setState(() => _stage = _Stage.results);
+  }
+
+  /// Hurries the current card along.
   void _tap() {
-    if (_charge.isAnimating) {
+    if (_stage == _Stage.buildUp) {
       _charge.value = 1;
-    } else if (_deal.isAnimating) {
-      _deal.value = 1;
-    } else if (_cascade.isAnimating) {
-      _finish(skipped: false);
+    } else if (_step.isAnimating) {
+      _step.value = 1;
     }
   }
 
   @override
   void dispose() {
     _charge.dispose();
-    _deal.dispose();
-    _cascade.dispose();
+    _step.dispose();
     _spin.dispose();
     super.dispose();
   }
@@ -382,6 +426,8 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final count = widget.outcomes.length;
+    final results = _stage == _Stage.results;
     return Column(
       children: [
         SizedBox(
@@ -389,14 +435,22 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
           child: Row(
             children: [
               const SizedBox(width: 16),
-              Text(
-                _revealed ? 'Your pulls' : '${widget.outcomes.length} pulls',
-                style: textTheme.titleLarge?.copyWith(color: Colors.white),
+              Expanded(
+                child: Text(
+                  switch (_stage) {
+                    _Stage.buildUp => '$count pulls',
+                    _Stage.preview => 'Rarities · ${_index + 1}/$count',
+                    _Stage.reveal => 'Reveal · ${_index + 1}/$count',
+                    _Stage.results => 'Your pulls',
+                  },
+                  style: textTheme.titleLarge?.copyWith(color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
-              if (!_revealed)
+              if (!results)
                 TextButton(
-                  onPressed: () => _finish(skipped: true),
+                  onPressed: _toResults,
                   child: const Text('Skip', style: TextStyle(color: Colors.white)),
                 ),
               const SizedBox(width: 8),
@@ -404,35 +458,20 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
           ),
         ),
         Expanded(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _tap,
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_charge, _deal, _cascade, _spin]),
-              builder: (context, _) => Stack(
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _RaysPainter(
-                        color: _climb(_charge.value, _best),
-                        // The light fades as the cards are dealt out.
-                        intensity: _charge.value * (1 - 0.7 * _deal.value),
-                        rotation: _spin.value * 2 * pi,
-                        rayCount: 6 + _best.stars * 4,
-                        burst: 0,
-                        sparkle: false,
-                      ),
-                    ),
+          child: results
+              ? _results()
+              : GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _tap,
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_charge, _step, _spin]),
+                    builder: (context, _) => _stage == _Stage.buildUp ? _buildUp() : _carousel(),
                   ),
-                  if (_deal.isDismissed) Center(child: _stack()) else Positioned.fill(child: _grid()),
-                ],
-              ),
-            ),
-          ),
+                ),
         ),
         Padding(
           padding: const EdgeInsets.all(16),
-          child: _revealed
+          child: results
               ? FilledButton(onPressed: widget.onDone, child: const Text('Done'))
               : Text('Tap to hurry', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
         ),
@@ -440,48 +479,220 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     );
   }
 
+  Widget _rays({required Color color, required double intensity, required int rayCount}) => Positioned.fill(
+    child: CustomPaint(
+      painter: _RaysPainter(
+        color: color,
+        intensity: intensity,
+        rotation: _spin.value * 2 * pi,
+        rayCount: rayCount,
+        burst: 0,
+        sparkle: false,
+      ),
+    ),
+  );
+
   /// The face down stack, shaking and glowing as it builds up.
-  Widget _stack() {
+  Widget _buildUp() {
     final charge = _charge.value;
-    final glow = _climb(charge, _best).withValues(alpha: charge);
+    final color = _climb(charge, _best);
     final shake = sin(charge * pi * 18) * charge * (1 + _best.index * 2.5);
-    return Transform.translate(
-      offset: Offset(shake, 0),
-      child: SizedBox(
-        width: 180,
-        height: 210,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            for (var i = 2; i >= 0; i--)
-              Transform.translate(
-                offset: Offset(i * 6.0, i * -6.0),
-                child: CardBack(width: 150, glow: i == 0 ? glow : null),
+    return Stack(
+      children: [
+        _rays(color: color, intensity: charge, rayCount: 6 + _best.stars * 4),
+        Center(
+          child: Transform.translate(
+            offset: Offset(shake, 0),
+            child: SizedBox(
+              width: 180,
+              height: 210,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  for (var i = 2; i >= 0; i--)
+                    Transform.translate(
+                      offset: Offset(i * 6.0, i * -6.0),
+                      child: CardBack(width: 150, glow: i == 0 ? color.withValues(alpha: charge) : null),
+                    ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _carousel() {
+    final outcomes = widget.outcomes;
+    final count = outcomes.length;
+    final step = _step.value;
+    final turned = Curves.easeInOutCubic.transform(Interval(0, _turnPart).transform(step));
+    final held = Interval(_turnPart, 1).transform(step);
+    final preview = _stage == _Stage.preview;
+    // Card `i` is at the front at position `i`; the second turn goes round
+    // once more.
+    final position = (preview ? 0 : count) + _index - (1 - turned);
+    // The first turn spreads the stack out into the carousel.
+    final spread = preview && _index == 0 ? turned : 1.0;
+
+    bool rarityShown(int i) => !preview || i < _index || (i == _index && held > 0);
+    double flipped(int i) => preview || i > _index
+        ? 0
+        : i < _index
+        ? 1
+        : Curves.easeInOut.transform(Interval(_turnPart, _turnPart + (1 - _turnPart) * 0.6).transform(step));
+
+    final front = _front;
+    final frontShown = rarityShown(_index);
+    final frontRarity = front.card.rarity;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const caption = 96.0;
+        final width = min(140.0, min(constraints.maxWidth * 0.34, (constraints.maxHeight - caption) * 0.5 / 1.45));
+        final radius = width * 1.6 * spread;
+        // Back cards first, so the front one is drawn on top.
+        final order = [for (var i = 0; i < count; i++) i]
+          ..sort((a, b) => cos(2 * pi * (a - position) / count).compareTo(cos(2 * pi * (b - position) / count)));
+        return Stack(
+          children: [
+            _rays(
+              color: frontShown ? frontRarity.color : Colors.white,
+              intensity: frontShown ? 0.35 + 0.2 * frontRarity.index : 0.15,
+              rayCount: 6 + (frontShown ? frontRarity.stars : 1) * 4,
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: caption,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  for (final i in order)
+                    _carouselCard(
+                      outcomes[i],
+                      width: width,
+                      angle: 2 * pi * (i - position) / count,
+                      radius: radius,
+                      rarityShown: rarityShown(i),
+                      flipped: flipped(i),
+                      // The front card's rarity pops as it's shown.
+                      pop: i == _index && preview ? held : 1,
+                    ),
+                ],
+              ),
+            ),
+            Positioned(left: 16, right: 16, bottom: 0, height: caption, child: _caption(front, preview, held)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _carouselCard(
+    PullOutcome outcome, {
+    required double width,
+    required double angle,
+    required double radius,
+    required bool rarityShown,
+    required double flipped,
+    required double pop,
+  }) {
+    final rarity = outcome.card.rarity;
+    final facing = cos(angle);
+    final turn = angle + flipped * pi;
+    // Only a flipped card facing the viewer shows its character.
+    final showFront = flipped > 0 && cos(turn) < 0;
+    final glow = rarityShown ? rarity.color.withValues(alpha: 0.9 * pop.clamp(0.0, 1.0)) : null;
+    final Widget face = showFront
+        ? Standee(card: outcome.card, width: width)
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  CardBack(width: width, glow: glow),
+                  if (rarityShown)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: width * 0.08),
+                      child: Transform.scale(
+                        scale: Curves.easeOutBack.transform(pop.clamp(0.0, 1.0)),
+                        child: StarRow(rarity: rarity, size: width * 0.14),
+                      ),
+                    ),
+                ],
+              ),
+              StandeeBase(width: width * 0.62),
+            ],
+          );
+    return Opacity(
+      // Cards at the back fade into the dark.
+      opacity: 0.3 + 0.7 * (facing + 1) / 2,
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.0016)
+          // Seen from a little above, so the ring's far side rises.
+          ..rotateX(0.45)
+          ..translateByDouble(sin(angle) * radius, 0, radius * (1 - facing), 1)
+          ..rotateY(showFront ? turn - pi : turn),
+        child: face,
       ),
     );
   }
 
-  Widget _grid() {
+  /// What the front card shows: its rarity, then its character.
+  Widget _caption(PullOutcome front, bool preview, double held) {
+    final card = front.card;
+    if (preview) {
+      if (held == 0) return const SizedBox.shrink();
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _PoppingStars(rarity: card.rarity, progress: (held * 2).clamp(0.0, 1.0)),
+          Text(
+            card.rarity.label,
+            style: TextStyle(color: card.rarity.color, fontSize: 22, fontWeight: FontWeight.w900),
+          ),
+        ],
+      );
+    }
+    final shown = const Interval(0.4, 0.7).transform(held);
+    if (shown == 0) return const SizedBox.shrink();
+    return Opacity(
+      opacity: shown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            card.subject,
+            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+          ),
+          Text(
+            front.isNew ? 'NEW' : '+1 upgrade',
+            style: TextStyle(color: front.isNew ? card.rarity.color : Colors.white60),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _results() {
     final outcomes = widget.outcomes;
-    final count = outcomes.length;
     return LayoutBuilder(
       builder: (context, constraints) {
         const gap = 12.0;
         const labels = 52.0;
+        final count = outcomes.length;
         final columns = min(count, 5);
         final rows = (count / columns).ceil();
         final width = min(
           min(104.0, (constraints.maxWidth - 32 - (columns - 1) * gap) / columns),
           // Standees are a little taller than wide, plus their labels.
-          ((constraints.maxHeight - 16 - (rows - 1) * gap) / rows - labels) / 1.45,
+          ((constraints.maxHeight - 32 - (rows - 1) * gap) / rows - labels) / 1.45,
         );
-        // Each card is dealt a moment after the one before, then flips the
-        // same way.
-        final dealStep = 0.6 / count;
-        final flipStep = 0.85 / count;
         return Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -491,20 +702,36 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
               runSpacing: gap,
               children: [
                 for (final (i, outcome) in outcomes.indexed)
-                  _tile(
-                    outcome,
-                    width: width,
-                    dealt: Interval(
-                      i * dealStep,
-                      i * dealStep + 0.4,
-                      curve: Curves.easeOutCubic,
-                    ).transform(_deal.value),
-                    flipped: Interval(
-                      i * flipStep,
-                      i * flipStep + 0.15,
-                      curve: Curves.easeInOut,
-                    ).transform(_cascade.value),
-                    side: i.isEven ? 1 : -1,
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: Duration(milliseconds: 300 + i * 60),
+                    curve: Curves.easeOutBack,
+                    builder: (context, value, child) => Transform.scale(scale: value, child: child),
+                    child: GestureDetector(
+                      onTap: () => widget.onInspect(outcome),
+                      child: SizedBox(
+                        width: width,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Standee(card: outcome.card, width: width),
+                            StarRow(rarity: outcome.card.rarity, size: 14),
+                            Text(
+                              outcome.card.subject,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              outcome.isNew ? 'NEW' : '+1 upgrade',
+                              style: TextStyle(
+                                color: outcome.isNew ? outcome.card.rarity.color : Colors.white60,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -513,104 +740,6 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
       },
     );
   }
-
-  Widget _tile(
-    PullOutcome outcome, {
-    required double width,
-    required double dealt,
-    required double flipped,
-    required int side,
-  }) {
-    final card = outcome.card;
-    final rarity = card.rarity;
-    final angle = flipped * pi;
-    final showFront = angle > pi / 2;
-    // Rare cards ring out as they turn face up.
-    final ring = _isRare(outcome) && showFront ? (flipped - 0.5) * 2 : 0.0;
-    return GestureDetector(
-      onTap: _revealed ? () => widget.onInspect(outcome) : null,
-      child: Opacity(
-        opacity: dealt > 0 ? 1 : 0,
-        child: Transform.translate(
-          offset: Offset(0, (1 - dealt) * 320),
-          child: Transform.rotate(
-            angle: (1 - dealt) * 0.6 * side,
-            child: SizedBox(
-              width: width,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CustomPaint(
-                    foregroundPainter: ring > 0 && ring < 1 ? _RingPainter(color: rarity.color, progress: ring) : null,
-                    child: Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()
-                        ..setEntry(3, 2, 0.0015)
-                        ..rotateY(showFront ? angle - pi : angle),
-                      child: showFront
-                          ? Standee(card: card, width: width)
-                          // Face down in a base too, so nothing moves as it
-                          // flips; the back glows in the rarity's colour.
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                CardBack(
-                                  width: width,
-                                  glow: rarity.color.withValues(alpha: 0.8 * dealt),
-                                ),
-                                StandeeBase(width: width * 0.62),
-                              ],
-                            ),
-                    ),
-                  ),
-                  Opacity(
-                    opacity: showFront ? 1 : 0,
-                    child: Column(
-                      children: [
-                        StarRow(rarity: rarity, size: 14),
-                        Text(
-                          card.subject,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          outcome.isNew ? 'NEW' : '+1 upgrade',
-                          style: TextStyle(color: outcome.isNew ? rarity.color : Colors.white60, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A ring spreading out from a card that turns face up.
-class _RingPainter extends CustomPainter {
-  _RingPainter({required this.color, required this.progress});
-
-  final Color color;
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawCircle(
-      size.center(Offset.zero),
-      size.longestSide * (0.4 + 0.5 * progress),
-      Paint()
-        ..color = color.withValues(alpha: 1 - progress)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 6 * (1 - progress),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 class _RaysPainter extends CustomPainter {

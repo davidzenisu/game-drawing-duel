@@ -29,6 +29,14 @@ Future<void> _wait(WidgetTester tester, Duration time) async {
   }
 }
 
+/// Lets frames pass until [finder] finds something.
+Future<void> _until(WidgetTester tester, Finder finder) async {
+  for (var i = 0; i < 400 && finder.evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+  expect(finder, findsWidgets);
+}
+
 /// Opens the reveal from a button, and tells whether it closed again.
 Future<ValueNotifier<bool>> _open(WidgetTester tester, List<PullOutcome> outcomes) async {
   tester.view.physicalSize = const Size(400, 800);
@@ -87,38 +95,53 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a multi-pull deals and flips the cards, then spotlights the rare ones', (tester) async {
+  testWidgets('a multi-pull turns its cards past twice: rarities first, then characters', (tester) async {
     final outcomes = [
-      for (var i = 0; i < 8; i++) _outcome('Basic $i', Rarity.basic),
-      _outcome('Hero', Rarity.hero),
-      _outcome('Legend', Rarity.legend, isNew: false),
+      _outcome('Basic 0', Rarity.basic),
+      _outcome('Robin', Rarity.hero),
+      for (var i = 1; i < 8; i++) _outcome('Basic $i', Rarity.basic),
+      _outcome('Kim', Rarity.legend, isNew: false),
     ];
     final closed = await _open(tester, outcomes);
     expect(find.text('10 pulls'), findsOneWidget);
 
-    // Built up, dealt and flipped one after another.
-    await _wait(tester, const Duration(seconds: 2));
-    expect(find.text('Your pulls'), findsNothing, reason: 'still building up');
-    await _wait(tester, const Duration(seconds: 5));
-    expect(find.text('Your pulls'), findsOneWidget);
-    expect(find.text('Basic 0'), findsOneWidget);
-    expect(tester.takeException(), isNull, reason: 'the cards fit a phone');
+    // Built up to the legend, then each card shows only its rarity.
+    await _wait(tester, const Duration(milliseconds: 2200));
+    expect(find.text('Rarities · 1/10'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'the carousel fits a phone');
+    final rarities = <String>{};
+    while (find.text('Reveal · 1/10').evaluate().isEmpty) {
+      for (final rarity in Rarity.values) {
+        if (find.text(rarity.label).evaluate().isNotEmpty) rarities.add(rarity.label);
+      }
+      for (final outcome in outcomes) {
+        expect(find.text(outcome.card.subject), findsNothing, reason: 'no characters before the reveal');
+      }
+      await _wait(tester, const Duration(milliseconds: 100));
+      expect(rarities.length, lessThan(5), reason: 'the preview ends');
+    }
+    expect(rarities, {Rarity.basic.label, Rarity.hero.label, Rarity.legend.label});
 
-    // The hero, then the legend, get a reveal of their own.
-    await _wait(tester, const Duration(seconds: 2));
+    // Then each one flips; the hero and the legend get a reveal of their own.
+    await _until(tester, find.text('Basic 0'));
+    await _until(tester, find.text('Tap to continue'));
     expect(find.text('New character!'), findsOneWidget);
+    expect(find.text('Robin'), findsWidgets);
     await tester.tap(find.text('Tap to continue'));
     await tester.pump();
-    await _wait(tester, const Duration(seconds: 3));
+    await _until(tester, find.text('Tap to continue'));
     expect(find.text('Duplicate · +1 upgrade point (×2)'), findsOneWidget);
     await tester.tap(find.text('Tap to continue'));
     await tester.pump();
+    await _until(tester, find.text('Your pulls'));
     expect(find.text('Tap to continue'), findsNothing);
+    expect(tester.takeException(), isNull, reason: 'the results fit a phone');
 
-    // Tapping a card shows it again.
+    // Once they've popped in, tapping a card shows it again.
+    await _wait(tester, const Duration(seconds: 1));
     await tester.tap(find.text('Basic 3'));
     await tester.pump();
-    await _wait(tester, const Duration(seconds: 3));
+    await _until(tester, find.text('Tap to continue'));
     await tester.tap(find.text('Tap to continue'));
     await tester.pump();
 
@@ -126,6 +149,20 @@ void main() {
     await tester.pump();
     await _wait(tester, const Duration(milliseconds: 400));
     expect(closed.value, isTrue);
+  });
+
+  testWidgets('a tap hurries the current card along', (tester) async {
+    await _open(tester, [for (var i = 0; i < 10; i++) _outcome('Basic $i', Rarity.basic)]);
+    await tester.tapAt(const Offset(200, 400));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Rarities · 1/10'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tapAt(const Offset(200, 400));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Rarities · 2/10'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('skip goes straight to the results, without spotlights', (tester) async {
