@@ -86,16 +86,21 @@ def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaRes
 def pull(
     code: Code, body: PullRequest, player: CurrentPlayer, session: DbSession
 ) -> PullsResponse:
-    """Spends pulls on random characters of the pool, see `app/gacha.py`."""
+    """Spends pulls on random characters of a banner, see `app/gacha.py`."""
     seat = _running_seat(session, code, player.id)
     # A week's hero joins the pool once its finale is over.
     finale.settle(session, seat.server)
     try:
-        outcomes = pulls.pull(session, seat, body.count)
+        outcomes = pulls.pull(session, seat, body.count, body.banner)
     except pulls.NotEnoughPulls as error:
         session.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Not enough pulls"
+        ) from error
+    except pulls.BannerClosed as error:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="The weekly banner opens with the first finale"
         ) from error
     session.commit()
     return PullsResponse(

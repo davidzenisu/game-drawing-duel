@@ -12,21 +12,23 @@ String percent(double value) {
   return '${value.toStringAsFixed(value < 1 ? 2 : 1)}%';
 }
 
-/// What a pull can bring: the pool's characters by rarity, each rarity's
-/// chance and each character's, with this week's rate-up marked.
+/// What a pull on [banner] can bring: its characters by rarity, each
+/// rarity's chance and each character's, with this week's rate-up marked on
+/// the weekly banner.
 /// Characters you haven't summoned yet show only their name, like in the
 /// collection.
 class PoolScreen extends StatelessWidget {
-  const PoolScreen({super.key, required this.controller});
+  const PoolScreen({super.key, required this.controller, this.banner = GachaBanner.standard});
 
   final GameSession controller;
+  final GachaBanner banner;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final pool = controller.pool;
+        final pool = banner.poolOf(controller.pool);
         final owned = {for (final o in controller.collection) o.card.id};
         final byRarity = {
           for (final rarity in Rarity.values)
@@ -36,11 +38,11 @@ class PoolScreen extends StatelessWidget {
             ],
         };
         final rates = GachaMachine.tierRates({for (final card in pool) card.rarity});
-        final rateUp = controller.rateUp;
+        final rateUp = banner == GachaBanner.weekly ? controller.rateUp : const <String>{};
         final chances = GachaMachine.characterChances(pool, rateUp);
         final textTheme = Theme.of(context).textTheme;
         return Scaffold(
-          appBar: AppBar(title: const Text('In the pool')),
+          appBar: AppBar(title: Text('${banner.label} banner')),
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -79,9 +81,12 @@ class PoolScreen extends StatelessWidget {
                             ),
                           ),
                       Text(
-                        'Chances before guarantees: a ${'★' * Rarity.hero.stars} or better within your first '
-                        '${GachaMachine.beginnerWindow} pulls, and a ${'★' * Rarity.legend.stars} at the latest every '
-                        '${GachaMachine.legendPity}.',
+                        'Chances before guarantees: ${switch (banner) {
+                          GachaBanner.standard => 'a ${'★' * Rarity.legend.stars} within your first '
+                              '${GachaMachine.beginnerWindow} pulls on this banner, and ',
+                          GachaBanner.weekly => '',
+                        }}a ${'★' * Rarity.legend.stars} at the latest every ${GachaMachine.legendPity} pulls, '
+                        'counting both banners.',
                         style: textTheme.bodySmall,
                       ),
                     ],

@@ -5,7 +5,7 @@ import unittest
 from collections import Counter
 
 from app import gacha
-from app.gacha import GachaState
+from app.gacha import Banner, GachaState
 from app.rules import Rarity
 from tests.test_rules import SHARED
 
@@ -33,9 +33,16 @@ class GachaRulesTest(unittest.TestCase):
                 self.assertEqual(tier.value, expected)
 
 
+STANDARD, WEEKLY = Banner.STANDARD, Banner.WEEKLY
+
+
+def on(banner: Banner, *rarities: Rarity) -> list[tuple[Banner, Rarity]]:
+    return [(banner, rarity) for rarity in rarities]
+
+
 class GachaStateTest(unittest.TestCase):
     def test_pity_follows_from_the_pulls(self):
-        state = GachaState.after([Rarity.BASIC, Rarity.LEGEND, Rarity.BASIC])
+        state = GachaState.after(on(STANDARD, Rarity.BASIC, Rarity.LEGEND, Rarity.BASIC))
         self.assertEqual(state.total_pulls, 3)
         self.assertEqual(state.pulls_since_legend, 1)
         self.assertEqual(state.pulls_until_legend, gacha.LEGEND_PITY - 1)
@@ -44,27 +51,48 @@ class GachaStateTest(unittest.TestCase):
         fresh = GachaState.after([])
         self.assertEqual(fresh.beginner_pulls_left, gacha.BEGINNER_WINDOW)
 
-    def test_the_last_beginner_pull_is_a_hero_or_legend(self):
+    def test_the_legend_pity_counts_every_banner(self):
+        state = GachaState.after(
+            on(STANDARD, Rarity.BASIC) + on(WEEKLY, Rarity.LEGEND, Rarity.HERO)
+        )
+        self.assertEqual(state.pulls_since_legend, 1)
+        # A legend on the weekly banner isn't the standard banner's guarantee.
+        self.assertFalse(state.beginner_guarantee_met)
+        self.assertEqual(state.beginner_pulls_left, gacha.BEGINNER_WINDOW - 1)
+
+    def test_the_last_beginner_pull_on_the_standard_banner_is_a_legend(self):
         rng = random.Random(1)
-        state = GachaState.after([Rarity.BASIC] * (gacha.BEGINNER_WINDOW - 1))
+        state = GachaState.after(
+            on(WEEKLY, Rarity.HERO)
+            + on(STANDARD, *[Rarity.BASIC] * (gacha.BEGINNER_WINDOW - 1))
+        )
+        self.assertEqual(state.beginner_pulls_left, 1)
         for _ in range(200):
-            rarity, guaranteed = gacha.roll_rarity(state, rng)
-            self.assertIn(rarity, {Rarity.HERO, Rarity.LEGEND})
-            self.assertTrue(guaranteed)
+            self.assertEqual(
+                gacha.roll_rarity(state, STANDARD, rng), (Rarity.LEGEND, True)
+            )
+        # Not on the weekly banner, and not once the window is over.
+        self.assertFalse(
+            all(gacha.roll_rarity(state, WEEKLY, rng)[1] for _ in range(200))
+        )
+        over = GachaState.after(on(STANDARD, *[Rarity.BASIC] * gacha.BEGINNER_WINDOW))
+        self.assertIsNone(over.beginner_pulls_left)
 
     def test_a_legend_after_the_pity_count(self):
         rng = random.Random(1)
         state = GachaState.after(
-            [Rarity.HERO] + [Rarity.BASIC] * (gacha.LEGEND_PITY - 2)
+            on(WEEKLY, Rarity.HERO, *[Rarity.BASIC] * (gacha.LEGEND_PITY - 2))
         )
-        self.assertEqual(gacha.roll_rarity(state, rng), (Rarity.LEGEND, True))
-        pulled = gacha.pull_rarity(state, {Rarity.BASIC, Rarity.HERO}, rng)
+        self.assertEqual(gacha.roll_rarity(state, WEEKLY, rng), (Rarity.LEGEND, True))
+        pulled = gacha.pull_rarity(state, WEEKLY, {Rarity.BASIC, Rarity.HERO}, rng)
         self.assertEqual(pulled, Rarity.HERO, "pity looks upwards first")
 
     def test_rates(self):
         rng = random.Random(1)
-        state = GachaState.after([Rarity.HERO])
-        counts = Counter(gacha.roll_rarity(state, rng)[0] for _ in range(20_000))
+        state = GachaState.after(on(STANDARD, Rarity.HERO))
+        counts = Counter(
+            gacha.roll_rarity(state, STANDARD, rng)[0] for _ in range(20_000)
+        )
         for rarity, percent in gacha.RATES.items():
             self.assertAlmostEqual(counts[rarity] / 20_000 * 100, percent, delta=1.5)
 

@@ -60,6 +60,11 @@ class Pull(Base):
     number: Mapped[int] = mapped_column(Integer, nullable=False)
     # The rarity pulled, which the pity follows from. An `app.rules.Rarity`.
     rarity: Mapped[str] = mapped_column(String(20), nullable=False)
+    # The banner pulled on, an `app.gacha.Banner`; the beginner guarantee
+    # counts the standard one's pulls.
+    banner: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="standard", server_default="standard"
+    )
     pulled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

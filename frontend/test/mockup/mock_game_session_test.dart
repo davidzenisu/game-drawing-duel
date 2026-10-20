@@ -392,9 +392,10 @@ void main() {
 
   test('pulls turn duplicates into upgrade points', () async {
     final game = await launchedGame();
+    await expectLater(game.pull(1, banner: GachaBanner.weekly), throwsStateError, reason: 'opens with the finale');
     final outcomes = await game.pull(10);
     expect(outcomes, hasLength(10));
-    expect(outcomes.any((o) => o.card.rarity.stars >= 3), isTrue);
+    expect(outcomes.any((o) => o.card.rarity == Rarity.legend), isTrue, reason: 'the beginner guarantee');
     expect(game.tickets, 0);
     await expectLater(game.pull(1), throwsStateError);
 

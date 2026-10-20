@@ -65,6 +65,52 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the standard banner is always there, the weekly one from the first finale on', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 10, 5, 12));
+    await controller.signUp('Pat');
+    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
+    while (!controller.server.everyoneJoined) {
+      await controller.refreshServer();
+    }
+    await controller.startSetup();
+    for (final assignment in controller.assignments) {
+      await controller.submitSetupDrawing(assignment, _doodle, 'Title');
+    }
+    await controller.launch();
+    await tester.pumpWidget(MaterialApp(home: GachaScreen(controller: controller)));
+    await tester.pump();
+    final weekly = find.ancestor(of: find.text('Weekly'), matching: find.byType(InkWell));
+    expect(tester.widget<InkWell>(weekly).onTap, isNull, reason: 'closed before the first finale');
+    expect(find.textContaining('opens with the first finale'), findsOneWidget);
+    expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
+    expect(find.text('Hero'), findsNothing, reason: 'no 3 stars among the setup drawings');
+
+    for (var day = 1; day < 8; day++) {
+      await controller.advanceDay();
+    }
+    await tester.pump();
+    expect(find.text('Rate up this week'), findsOneWidget, reason: 'the weekly banner comes first once open');
+    expect(find.textContaining('standard pulls'), findsNothing);
+    await tester.tap(find.text('Standard'));
+    await tester.pump();
+    expect(find.text('Rate up this week'), findsNothing);
+    expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
+
+    final pull = find.text('Pull ×1');
+    await tester.ensureVisible(pull);
+    await tester.pump();
+    await tester.tap(pull);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(controller.collection.every((o) => o.card.day == 0), isTrue, reason: 'only setup drawings on standard');
+    expect(controller.gachaStatus.totalPulls, 1);
+    expect(controller.gachaStatus.beginnerPullsLeft, anyOf(isNull, 9));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test("pulls from the mockup's pool favour its rate-up", () async {
     final controller = await _afterTheFinale();
     final hero = controller.weeklyHero!.card;
@@ -72,7 +118,7 @@ void main() {
     final gacha = GachaMachine(random: Random(3));
     var landed = 0, picked = 0;
     for (var i = 0; i < 20000; i++) {
-      final card = gacha.pull(controller.pool, rateUp: controller.rateUp);
+      final card = gacha.pull(controller.pool, banner: GachaBanner.weekly, rateUp: controller.rateUp);
       if (card.rarity != Rarity.hero) continue;
       landed++;
       if (card.id == hero.id) picked++;

@@ -847,12 +847,15 @@ class MockGameSession extends GameSession {
   // Gacha -----------------------------------------------------------------------
 
   @override
-  Future<List<PullOutcome>> pull(int count) async {
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard}) async {
     if (count > _tickets) throw StateError('Not enough pulls.');
+    if (banner == GachaBanner.weekly && rateUp.isEmpty) {
+      throw StateError('The weekly banner opens with the first finale.');
+    }
     _tickets -= count;
     final outcomes = <PullOutcome>[];
     for (var i = 0; i < count; i++) {
-      final card = _gacha.pull(_pool, rateUp: rateUp);
+      final card = _gacha.pull(_pool, banner: banner, rateUp: rateUp);
       final owned = _owned[card.id];
       if (owned == null) {
         _owned[card.id] = OwnedCard(card);

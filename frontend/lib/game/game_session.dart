@@ -339,7 +339,9 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> retireContent(ContentEntry entry) =>
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
-  Future<List<PullOutcome>> pull(int count);
+  /// Spends [count] pulls on [banner]; the weekly one opens with the first
+  /// finale, see [rateUp].
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard});
 
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element});
 

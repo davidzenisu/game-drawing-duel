@@ -122,7 +122,7 @@ back to creating or joining a server.
 | `GET /servers/{code}/pool` | The gacha pool of a launched game: everyone's setup drawings |
 | `GET /servers/{code}/collection` | Your characters (your setup drawings and pulls) with how many copies you own |
 | `GET /servers/{code}/gacha` | Your pulls left and pity progress |
-| `POST /servers/{code}/pulls` | Spend 1 to 10 pulls on random characters of the pool |
+| `POST /servers/{code}/pulls` | Spend 1 to 10 pulls on random characters of a banner (`{"banner": "standard"}` by default, or `"weekly"` from the first finale on) |
 | `POST /servers/{code}/collection/{id}/upgrades` | Spend a duplicate on the character's next upgrade (`{"element": …}` for the element upgrade) |
 
 ### Daily loop
@@ -274,10 +274,15 @@ reason it was awarded, e.g. `launch-bonus:3` (everyone gets 10 at the
 launch). A seat can't receive the same reason twice. A `pull` spends exactly
 one grant (`grant_id` is unique) on a character, numbered per seat; a
 player's pulls are serialised with a row lock, so the same grant can't be
-spent twice. The rarity is rolled on the server (`app/gacha.py`) with the
-rates and pity from `docs/concept/gacha-rates.md`: the pity follows from a
-player's pulls so far instead of being stored. Within the rolled rarity,
-every character is equally likely except this week's rate-up: the latest
+spent twice. Each pull is on a banner (`pull.banner`): the standard one is
+always there and has the setup drawings, with a legend guaranteed once within
+a player's first 10 standard pulls; the weekly one opens with the first
+finale and has the whole pool, weekly heroes included. The rarity is rolled
+on the server (`app/gacha.py`) with the rates and pity from
+`docs/concept/gacha-rates.md`: the pity follows from a player's pulls so far
+instead of being stored, and the legend pity counts both banners. Within the
+rolled rarity, every character is equally likely except, on the weekly
+banner, this week's rate-up: the latest
 weekly hero and the pool's legends of the same player share 50% of their
 rarity (all of it if they're alone in it), and change every Monday with the
 finale (`app.pulls.rate_up`, sent as `rate_up` with `GET /servers/{code}/gacha`).

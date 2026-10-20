@@ -163,16 +163,17 @@ enum Tutorial {
         title: 'Pulls',
         text:
             'You start with ${GachaMachine.launchBonus} pulls and earn one for every challenger you draw. '
-            'Each pull adds a character of the pool to your collection.',
+            'Each pull adds a character of the pool to your collection: the standard banner has the '
+            'characters drawn during the setup, the weekly one from the first finale on the whole pool, with '
+            'this week\'s hero rated up.',
       ),
       TutorialPage(
         icon: Icons.percent_rounded,
         title: 'Rates and pity',
         text:
             '${Rarity.values.map((r) => '${_stars(r.stars)} ${GachaMachine.rates[r]}%').join(' · ')}. '
-            'A ${_stars(Rarity.hero.stars)} or ${_stars(Rarity.legend.stars)} is guaranteed within your first '
-            '${GachaMachine.beginnerWindow} pulls, and a ${_stars(Rarity.legend.stars)} at the latest every '
-            '${GachaMachine.legendPity}.',
+            'A ${_stars(Rarity.legend.stars)} is guaranteed within your first ${GachaMachine.beginnerWindow} '
+            'pulls on the standard banner, and at the latest every ${GachaMachine.legendPity} pulls on either.',
       ),
     ],
     upgrades => [

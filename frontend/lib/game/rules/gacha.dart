@@ -11,8 +11,34 @@ class GachaStatus {
   /// Pulls left until a legend is guaranteed.
   final int pullsUntilLegend;
 
-  /// Pulls left within the beginner window, or `null` once it no longer applies.
+  /// Standard banner pulls left within the beginner window, or `null` once
+  /// it no longer applies.
   final int? beginnerPullsLeft;
+}
+
+/// What a pull draws from, like the server's `Banner` (`backend/app/gacha.py`).
+enum GachaBanner {
+  /// Always there: the setup drawings, with a legend guaranteed within the
+  /// first pulls on it.
+  standard('Standard'),
+
+  /// From the first finale on: the whole pool, weekly heroes included, with
+  /// this week's rate-up.
+  weekly('Weekly');
+
+  const GachaBanner(this.label);
+
+  final String label;
+
+  /// The characters of [pool] this banner pulls from.
+  List<CharacterCard> poolOf(List<CharacterCard> pool) => switch (this) {
+    // The setup drawings are the ones in the pool from day 0.
+    standard => [
+      for (final card in pool)
+        if (card.day == 0) card,
+    ],
+    weekly => pool,
+  };
 }
 
 /// Gacha pulls with rates and pity, see `docs/concept/gacha-rates.md`.
@@ -28,7 +54,8 @@ class GachaMachine {
   /// Pull chances in percent.
   static const rates = {Rarity.basic: 40, Rarity.adventurer: 50, Rarity.hero: 8, Rarity.legend: 2};
 
-  /// Within the first pulls a 3 or 4 star character is guaranteed.
+  /// Within the first pulls on the standard banner, a legend is guaranteed
+  /// once.
   static const beginnerWindow = 10;
 
   /// Every this many pulls without a legend, the next one is a legend.
@@ -41,7 +68,12 @@ class GachaMachine {
   final Random _random;
 
   int _totalPulls = 0;
+
+  /// The legend pity counts the pulls on every banner.
   int _pullsSinceLegend = 0;
+
+  /// The beginner guarantee only the ones on the standard banner.
+  int _standardPulls = 0;
   bool _beginnerGuaranteeMet = false;
 
   int get totalPulls => _totalPulls;
@@ -49,35 +81,44 @@ class GachaMachine {
   /// Pulls left until a legend is guaranteed.
   int get pullsUntilLegend => legendPity - _pullsSinceLegend;
 
-  /// Pulls left within the beginner window, or `null` once it no longer applies.
+  /// Standard banner pulls left within the beginner window, or `null` once
+  /// it no longer applies.
   int? get beginnerPullsLeft =>
-      _beginnerGuaranteeMet || _totalPulls >= beginnerWindow ? null : beginnerWindow - _totalPulls;
+      _beginnerGuaranteeMet || _standardPulls >= beginnerWindow ? null : beginnerWindow - _standardPulls;
 
   GachaStatus get status =>
       GachaStatus(totalPulls: totalPulls, pullsUntilLegend: pullsUntilLegend, beginnerPullsLeft: beginnerPullsLeft);
 
-  /// Pulls a character from [pool], which must not be empty; the ids in
-  /// [rateUp] are this week's rate-up characters.
-  CharacterCard pull(List<CharacterCard> pool, {Set<String> rateUp = const {}}) {
-    if (pool.isEmpty) throw StateError('The pool is empty.');
+  /// Pulls a character on [banner] from [pool], the whole pool; the ids in
+  /// [rateUp] are this week's rate-up characters on the weekly banner.
+  CharacterCard pull(
+    List<CharacterCard> pool, {
+    GachaBanner banner = GachaBanner.standard,
+    Set<String> rateUp = const {},
+  }) {
+    final candidates = banner.poolOf(pool);
+    if (candidates.isEmpty) throw StateError('The pool is empty.');
 
-    final (rarity, guaranteed) = _rollRarity();
-    final tier = closestAvailableTier({for (final card in pool) card.rarity}, rarity, preferHigher: guaranteed);
-    final card = pickCharacter(pool.where((card) => card.rarity == tier).toList(), rateUp, _random);
+    final (rarity, guaranteed) = _rollRarity(banner);
+    final tier = closestAvailableTier({for (final card in candidates) card.rarity}, rarity, preferHigher: guaranteed);
+    final card = pickCharacter(
+      candidates.where((card) => card.rarity == tier).toList(),
+      banner == GachaBanner.weekly ? rateUp : const {},
+      _random,
+    );
 
     _totalPulls++;
     _pullsSinceLegend = card.rarity == Rarity.legend ? 0 : _pullsSinceLegend + 1;
-    if (card.rarity.stars >= Rarity.hero.stars) _beginnerGuaranteeMet = true;
+    if (banner == GachaBanner.standard) {
+      _standardPulls++;
+      if (card.rarity == Rarity.legend) _beginnerGuaranteeMet = true;
+    }
     return card;
   }
 
-  (Rarity, bool) _rollRarity() {
+  (Rarity, bool) _rollRarity(GachaBanner banner) {
     if (_pullsSinceLegend + 1 >= legendPity) return (Rarity.legend, true);
-    if (!_beginnerGuaranteeMet && _totalPulls == beginnerWindow - 1) {
-      final heroWeight = rates[Rarity.hero]!;
-      final roll = _random.nextInt(heroWeight + rates[Rarity.legend]!);
-      return (roll < heroWeight ? Rarity.hero : Rarity.legend, true);
-    }
+    if (banner == GachaBanner.standard && beginnerPullsLeft == 1) return (Rarity.legend, true);
     var roll = _random.nextInt(rates.values.reduce((a, b) => a + b));
     for (final MapEntry(key: rarity, value: weight) in rates.entries) {
       if (roll < weight) return (rarity, false);

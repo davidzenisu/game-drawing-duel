@@ -8,6 +8,7 @@ import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/backend/sketch_json.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/content.dart';
+import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/rules/themes.dart';
@@ -417,7 +418,7 @@ void main() {
       final outcomes = await admin.pull(4);
       final pull = backend.requests.last;
       expect(pull.url.path, '/servers/123456/pulls');
-      expect(jsonDecode(pull.body), {'count': 4});
+      expect(jsonDecode(pull.body), {'count': 4, 'banner': 'standard'});
       expect(outcomes.map((o) => o.card.title), ['Basic', 'Knight', 'A legend', 'Basic']);
       expect(outcomes.map((o) => o.copies), [2, 2, 2, 3]);
       expect(outcomes.every((o) => !o.isNew), isTrue, reason: 'you own your setup drawings');
@@ -431,6 +432,13 @@ void main() {
         admin.pull(10),
         throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Not enough pulls')),
       );
+      expect(admin.tickets, 6);
+      await expectLater(
+        admin.pull(1, banner: GachaBanner.weekly),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 409)),
+        reason: 'the weekly banner opens with the first finale',
+      );
+      expect(backend.bannersPulled.last, 'weekly');
       expect(admin.tickets, 6);
 
       // Two duplicates of the basic: two upgrades, then the path ends.

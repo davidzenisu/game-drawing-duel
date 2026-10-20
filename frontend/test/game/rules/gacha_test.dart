@@ -101,12 +101,64 @@ void main() {
     }
   });
 
-  test('the first 10 pulls always contain a 3 or 4 star', () {
+  test('the first 10 standard pulls always contain a legend', () {
     for (var seed = 0; seed < 200; seed++) {
       final gacha = GachaMachine(random: Random(seed));
+      // Weekly pulls in between don't count towards the window.
+      gacha.pull(pool, banner: GachaBanner.weekly);
       final pulls = [for (var i = 0; i < GachaMachine.beginnerWindow; i++) gacha.pull(pool)];
-      expect(pulls.any((c) => c.rarity.stars >= 3), isTrue, reason: 'seed $seed');
+      expect(pulls.any((c) => c.rarity == Rarity.legend), isTrue, reason: 'seed $seed');
+      expect(gacha.beginnerPullsLeft, isNull);
     }
+  });
+
+  test('the beginner guarantee is only on the standard banner', () {
+    var withLegend = 0;
+    for (var seed = 0; seed < 200; seed++) {
+      final gacha = GachaMachine(random: Random(seed));
+      final pulls = [
+        for (var i = 0; i < GachaMachine.beginnerWindow; i++) gacha.pull(pool, banner: GachaBanner.weekly),
+      ];
+      if (pulls.any((c) => c.rarity == Rarity.legend)) withLegend++;
+      expect(gacha.beginnerPullsLeft, GachaMachine.beginnerWindow, reason: 'still waiting for standard pulls');
+    }
+    // About 18% of 10 pulls at 2% each.
+    expect(withLegend, lessThan(80));
+  });
+
+  test('the legend pity counts both banners', () {
+    final gacha = GachaMachine(random: Random(5));
+    final basics = poolOf({Rarity.basic: 3});
+    for (var i = 0; i < 20; i++) {
+      gacha.pull(basics, banner: i.isEven ? GachaBanner.standard : GachaBanner.weekly);
+    }
+    expect(gacha.pullsUntilLegend, GachaMachine.legendPity - 20);
+  });
+
+  test('the standard banner pulls only the setup drawings, without rate-up', () {
+    final setup = poolOf({Rarity.basic: 2, Rarity.legend: 2});
+    final weeklyHero = CharacterCard(
+      id: 'weekly',
+      subject: 'S0',
+      title: 'T',
+      rarity: Rarity.hero,
+      prompt: 'Challenger',
+      artist: 'A',
+      sketch: Sketch.empty,
+      day: 7,
+    );
+    final all = [...setup, weeklyHero];
+    expect(GachaBanner.standard.poolOf(all), setup);
+    expect(GachaBanner.weekly.poolOf(all), all);
+    final gacha = GachaMachine(random: Random(6));
+    final pulled = {
+      for (var i = 0; i < 500; i++) gacha.pull(all, rateUp: {'legend0'}).id,
+    };
+    expect(pulled, isNot(contains('weekly')));
+    final legends = [
+      for (var i = 0; i < 4000; i++) gacha.pull(setup, rateUp: {'legend0'}),
+    ].where((c) => c.rarity == Rarity.legend);
+    expect(legends.where((c) => c.id == 'legend0').length / legends.length, closeTo(0.5, 0.15));
   });
 
   test('a legend is guaranteed at least every 50 pulls', () {
@@ -127,10 +179,10 @@ void main() {
       expect(gacha.pull(basicsOnly).rarity, Rarity.basic);
     }
 
-    final noHeroes = poolOf({Rarity.basic: 3, Rarity.legend: 1});
+    final noLegends = poolOf({Rarity.basic: 3, Rarity.hero: 1});
     final beginner = GachaMachine(random: Random(2));
-    final pulls = [for (var i = 0; i < GachaMachine.beginnerWindow; i++) beginner.pull(noHeroes)];
-    expect(pulls.any((c) => c.rarity == Rarity.legend), isTrue, reason: 'guaranteed pulls look upwards');
+    final pulls = [for (var i = 0; i < GachaMachine.beginnerWindow; i++) beginner.pull(noLegends)];
+    expect(pulls.any((c) => c.rarity == Rarity.hero), isTrue, reason: 'guaranteed pulls take the nearest tier');
   });
 
   test('counters are reported for the UI', () {

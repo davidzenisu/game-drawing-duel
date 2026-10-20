@@ -883,8 +883,8 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<List<PullOutcome>> pull(int count) async {
-    final json = await _post('/servers/${server.code}/pulls', {'count': count});
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard}) async {
+    final json = await _post('/servers/${server.code}/pulls', {'count': count, 'banner': banner.name});
     if (json case {'outcomes': List outcomes, 'gacha': final gacha}) {
       final byId = {for (final card in _pool) card.id: card};
       final results = [
