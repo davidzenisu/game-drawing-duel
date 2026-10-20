@@ -1,9 +1,10 @@
 import uuid
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 from sqlalchemy import select
 
-from app import fights
+from app import fights, rules
 from app.models import Boost, Fight, Fighter, Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
@@ -189,6 +190,55 @@ class FightTests(FightTestCase):
         )
         again = [r for r in self.today()["results"] if r["id"] == alex_fight["id"]]
         self.assertEqual(again, [result], "stays decided")
+
+    def test_a_decided_fight_keeps_its_result_when_the_rules_change(self) -> None:
+        alex_fight = self.pick(self.owned()[:1]).json()["fight"]["yours"]
+        self.next_day()
+        with self.session_factory() as session:
+            stored = session.get(Fight, uuid.UUID(alex_fight["id"]))
+            self.assertIsNone(stored.fighters_win, "not decided before day 5")
+        self.next_day()
+        [result] = [r for r in self.today()["results"] if r["id"] == alex_fight["id"]]
+        with self.session_factory() as session:
+            stored = session.get(Fight, uuid.UUID(alex_fight["id"]))
+            self.assertEqual(
+                {
+                    "fighter_stars": stored.fighter_stars,
+                    "boosts": stored.boosts,
+                    "challenger_stars": stored.challenger_stars,
+                    "fighters_win": stored.fighters_win,
+                },
+                result["outcome"],
+            )
+            # Every fight decided by now is stored, chance's included.
+            undecided = session.scalars(
+                select(Fight).where(Fight.day <= 3, Fight.fighters_win.is_(None))
+            ).all()
+            self.assertEqual(undecided, [])
+
+        # Neither new rules nor a late boost rewrite it.
+        with (
+            patch.object(rules, "team_stars", lambda team: 99),
+            patch.object(rules, "challenger_stars", lambda boosts: 0),
+        ):
+            with self.session_factory() as session:
+                seat = session.scalar(
+                    select(ServerSeat.id)
+                    .join(Server, Server.id == ServerSeat.server_id)
+                    .where(Server.code == self.code, ServerSeat.position == 0)
+                )
+                session.add(
+                    Boost(
+                        booster_seat_id=seat,
+                        challenger_id=uuid.UUID(alex_fight["challenger"]["id"]),
+                        day=4,
+                    )
+                )
+                session.commit()
+            [again] = [
+                r for r in self.today()["results"] if r["id"] == alex_fight["id"]
+            ]
+        self.assertEqual(again["outcome"], result["outcome"])
 
     def test_no_fight_before_day_three(self) -> None:
         code = self.create(is_test=True).json()["code"]
