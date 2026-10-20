@@ -70,9 +70,6 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        version_table_schema=SCHEMA,
-        include_schemas=True,
-        include_name=include_name,
     )
 
     with context.begin_transaction():
