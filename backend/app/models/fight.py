@@ -39,6 +39,12 @@ class Fight(Base):
     by_chance: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # The result, stored once the fight is decided (`app.fights.decide_fights`)
+    # under the rules of that time; null before.
+    boosts: Mapped[int | None] = mapped_column(Integer)
+    fighter_stars: Mapped[int | None] = mapped_column(Integer)
+    challenger_stars: Mapped[int | None] = mapped_column(Integer)
+    fighters_win: Mapped[bool | None] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

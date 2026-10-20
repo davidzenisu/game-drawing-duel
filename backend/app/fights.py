@@ -168,20 +168,56 @@ def boosts(session: Session, challenger_id: uuid.UUID) -> int:
 class Outcome:
     fighter_stars: int
     boosts: int
-
-    @property
-    def challenger_stars(self) -> int:
-        return rules.challenger_stars(self.boosts)
-
-    @property
-    def fighters_win(self) -> bool:
-        return rules.fighters_win(self.fighter_stars, self.boosts)
+    challenger_stars: int
+    fighters_win: bool
 
 
 def outcome(session: Session, fight: Fight) -> Outcome:
-    """The stars of the fighters and of the boosted challenger."""
+    """The stars of the fighters and of the boosted challenger: as stored
+    once the fight was decided, or under the current rules before."""
+    if fight.fighters_win is not None:
+        return Outcome(
+            fight.fighter_stars, fight.boosts, fight.challenger_stars, fight.fighters_win
+        )
     team = [Rarity(f.character.rarity) for f in fight.fighters]
-    return Outcome(rules.team_stars(team), boosts(session, fight.challenger_id))
+    fighter_stars = rules.team_stars(team)
+    boosted = boosts(session, fight.challenger_id)
+    return Outcome(
+        fighter_stars,
+        boosted,
+        rules.challenger_stars(boosted),
+        rules.fighters_win(fighter_stars, boosted),
+    )
+
+
+# Fights are decided this many days after their fighters were picked, once
+# the day after, their boosting day, is over.
+DECIDED_AFTER = 2
+
+
+def decide_fights(session: Session, server: Server) -> None:
+    """Stores the result of every fight that's decided and isn't stored yet,
+    so later rule changes don't rewrite past fights. Commits."""
+    last_fight_day = days.current_day(server) - DECIDED_AFTER
+    undecided = session.scalars(
+        select(Fight)
+        .join(ServerSeat, ServerSeat.id == Fight.owner_seat_id)
+        .where(
+            ServerSeat.server_id == server.id,
+            Fight.day <= last_fight_day,
+            Fight.fighters_win.is_(None),
+        )
+        .options(selectinload(Fight.fighters).selectinload(Fighter.character))
+    ).all()
+    if not undecided:
+        return
+    for fight in undecided:
+        result = outcome(session, fight)
+        fight.boosts = result.boosts
+        fight.fighter_stars = result.fighter_stars
+        fight.challenger_stars = result.challenger_stars
+        fight.fighters_win = result.fighters_win
+    session.commit()
 
 
 def boost_targets(
