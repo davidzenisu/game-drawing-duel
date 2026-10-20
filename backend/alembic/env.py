@@ -1,12 +1,12 @@
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import Connection, engine_from_config, inspect, pool, text
 from sqlalchemy.engine import make_url
 
 import app.models  # noqa: F401  (registers every model on Base.metadata)
 from alembic import context
-from app.database import Base
+from app.database import SCHEMA, Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -36,6 +36,26 @@ target_metadata = Base.metadata
 # ... etc.
 
 
+def include_name(name: str | None, type_: str, parent_names: object) -> bool:
+    """Compares only the game's schema, not Supabase's or `public`."""
+    if type_ == "schema":
+        return name == SCHEMA
+    return True
+
+
+def move_version_table(connection: Connection) -> None:
+    """Alembic keeps its version table in the game's schema too, see
+    `1444e02ae228_game_schema.py`. It has to find it before running any
+    migration, so it moves here, once, from `public` where it used to be."""
+    connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}"))
+    inspector = inspect(connection)
+    if inspector.has_table("alembic_version", schema="public") and not inspector.has_table(
+        "alembic_version", schema=SCHEMA
+    ):
+        connection.execute(text(f"ALTER TABLE public.alembic_version SET SCHEMA {SCHEMA}"))
+    connection.commit()
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -54,6 +74,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table_schema=SCHEMA,
+        include_schemas=True,
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -74,8 +97,13 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        move_version_table(connection)
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table_schema=SCHEMA,
+            include_schemas=True,
+            include_name=include_name,
         )
 
         with context.begin_transaction():
