@@ -1,9 +1,11 @@
-import 'dart:math';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 
 import '../rules/gacha.dart';
 import '../game_session.dart';
+import '../rules/models.dart';
+import '../widgets/banner_art.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/themed_background.dart';
@@ -11,8 +13,8 @@ import '../widgets/ticket_chip.dart';
 import 'pool_screen.dart';
 import 'pull_reveal_screen.dart';
 
-/// Pulls on a banner of your choice: the standard one is always there, the
-/// weekly one opens with the first finale.
+/// Pulls on a banner of your choice, swiped through as big banners: the
+/// standard one is always there, the weekly one opens with the first finale.
 class GachaScreen extends StatefulWidget {
   const GachaScreen({super.key, required this.controller});
 
@@ -25,10 +27,63 @@ class GachaScreen extends StatefulWidget {
 class _GachaScreenState extends State<GachaScreen> {
   GameSession get controller => widget.controller;
 
-  GachaBanner? _chosen;
+  final _pages = PageController(viewportFraction: 0.9);
+  int _page = 0;
 
-  /// The weekly banner once it's open, unless you chose the standard one.
-  GachaBanner get _banner => controller.rateUp.isEmpty ? GachaBanner.standard : _chosen ?? GachaBanner.weekly;
+  /// Three legends of the standard banner, picked at random once.
+  List<String> _standardFeatured = const [];
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  bool get _weeklyOpen => controller.rateUp.isNotEmpty;
+
+  /// The open banners first: the weekly one once it's open, otherwise the
+  /// standard one, followed by the weekly one locked.
+  List<GachaBanner> get _banners =>
+      _weeklyOpen ? const [GachaBanner.weekly, GachaBanner.standard] : const [GachaBanner.standard, GachaBanner.weekly];
+
+  GachaBanner get _banner => _banners[_page];
+
+  bool _locked(GachaBanner banner) => banner == GachaBanner.weekly && !_weeklyOpen;
+
+  /// The characters a banner shows off: this week's rate-up, or three of the
+  /// standard banner's legends.
+  List<CharacterCard> _featured(GachaBanner banner) {
+    final pool = banner.poolOf(controller.pool);
+    switch (banner) {
+      case GachaBanner.weekly:
+        return [
+          for (final card in pool)
+            if (controller.rateUp.contains(card.id)) card,
+        ]..sort((a, b) => b.rarity.stars.compareTo(a.rarity.stars));
+      case GachaBanner.standard:
+        final legends = {
+          for (final card in pool)
+            if (card.rarity == Rarity.legend) card.id: card,
+        };
+        if (_standardFeatured.isEmpty || !_standardFeatured.every(legends.containsKey)) {
+          _standardFeatured = (legends.keys.toList()..shuffle()).take(3).toList();
+        }
+        return [for (final id in _standardFeatured) legends[id]!];
+    }
+  }
+
+  String _caption(GachaBanner banner) {
+    if (_locked(banner)) return 'Opens with the first finale';
+    final beginner = controller.gachaStatus.beginnerPullsLeft;
+    return switch (banner) {
+      GachaBanner.standard when beginner != null => '★★★★ guaranteed in your next $beginner pulls',
+      GachaBanner.standard => 'The legends of the setup, and everyone they drew',
+      GachaBanner.weekly => switch (controller.weeklyHero) {
+        final hero? => 'This week\'s hero: ${hero.card.title}',
+        null => 'This week\'s rate-up',
+      },
+    };
+  }
 
   Future<void> _pull(BuildContext context, int count) async {
     final banner = _banner;
@@ -52,7 +107,8 @@ class _GachaScreenState extends State<GachaScreen> {
         final gacha = controller.gachaStatus;
         final textTheme = Theme.of(context).textTheme;
         final banner = _banner;
-        final weeklyOpen = controller.rateUp.isNotEmpty;
+        final weeklyOpen = _weeklyOpen;
+        final canPull = !_locked(banner);
         final pool = banner.poolOf(controller.pool);
         final rates = pool.isEmpty
             ? GachaMachine.rates
@@ -76,30 +132,86 @@ class _GachaScreenState extends State<GachaScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 16),
-                        const Center(child: _FloatingCardBack(width: 160)),
-                        const SizedBox(height: 32),
-                        SegmentedButton<GachaBanner>(
-                          segments: [
-                            for (final option in GachaBanner.values)
-                              ButtonSegment(
-                                value: option,
-                                label: Text(option.label),
-                                enabled: option == GachaBanner.standard || weeklyOpen,
+                        LayoutBuilder(
+                          builder: (context, constraints) => SizedBox(
+                            height: (constraints.maxWidth * 0.66).clamp(220.0, 320.0),
+                            // Swipe with a mouse too, on the web.
+                            child: ScrollConfiguration(
+                              behavior: ScrollConfiguration.of(
+                                context,
+                              ).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+                              child: PageView(
+                                controller: _pages,
+                                onPageChanged: (page) => setState(() => _page = page),
+                                children: [
+                                  for (final (index, option) in _banners.indexed)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                                      child: AnimatedBuilder(
+                                        animation: _pages,
+                                        builder: (context, _) {
+                                          final page = _pages.hasClients && _pages.position.haveDimensions
+                                              ? _pages.page!
+                                              : _page.toDouble();
+                                          return BannerArt(
+                                            banner: option,
+                                            featured: _locked(option) ? const [] : _featured(option),
+                                            caption: _caption(option),
+                                            locked: _locked(option),
+                                            parallax: page - index,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (final (index, option) in _banners.indexed)
+                              Semantics(
+                                button: true,
+                                label: '${option.label} banner',
+                                child: GestureDetector(
+                                  onTap: () => _pages.animateToPage(
+                                    index,
+                                    duration: const Duration(milliseconds: 350),
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 250),
+                                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                    width: index == _page ? 24 : 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: index == _page
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Theme.of(context).colorScheme.outlineVariant,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
                               ),
                           ],
-                          selected: {banner},
-                          onSelectionChanged: (selected) => setState(() => _chosen = selected.single),
                         ),
-                        const SizedBox(height: 8),
-                        Text(switch (banner) {
-                          GachaBanner.standard =>
-                            'The characters drawn during the setup.'
-                                '${weeklyOpen ? '' : ' The weekly banner opens with the first finale.'}',
-                          GachaBanner.weekly => 'The whole pool, weekly heroes included, with this week\'s rate-up.',
-                        }, style: textTheme.bodySmall),
+                        Text(
+                          switch (banner) {
+                            GachaBanner.standard =>
+                              'The characters drawn during the setup.'
+                                  '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens with the first finale.'}',
+                            GachaBanner.weekly when !weeklyOpen =>
+                              'The whole pool, weekly heroes included. It opens once the first finale crowns a weekly hero.',
+                            GachaBanner.weekly => 'The whole pool, weekly heroes included, with this week\'s rate-up.',
+                          },
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodySmall,
+                        ),
                         const SizedBox(height: 16),
-                        if (banner == GachaBanner.weekly) ...[
+                        if (banner == GachaBanner.weekly && weeklyOpen) ...[
                           _RateUpBanner(controller: controller),
                           const SizedBox(height: 16),
                         ],
@@ -147,7 +259,7 @@ class _GachaScreenState extends State<GachaScreen> {
                           children: [
                             Expanded(
                               child: FilledButton.tonalIcon(
-                                onPressed: controller.tickets >= 1 ? () => _pull(context, 1) : null,
+                                onPressed: canPull && controller.tickets >= 1 ? () => _pull(context, 1) : null,
                                 icon: const Icon(Icons.auto_awesome_outlined),
                                 label: const Text('Pull ×1'),
                               ),
@@ -155,7 +267,7 @@ class _GachaScreenState extends State<GachaScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: FilledButton.icon(
-                                onPressed: controller.tickets >= 10 ? () => _pull(context, 10) : null,
+                                onPressed: canPull && controller.tickets >= 10 ? () => _pull(context, 10) : null,
                                 icon: const Icon(Icons.auto_awesome_rounded),
                                 label: const Text('Pull ×10'),
                               ),
@@ -175,41 +287,8 @@ class _GachaScreenState extends State<GachaScreen> {
   }
 }
 
-class _FloatingCardBack extends StatefulWidget {
-  const _FloatingCardBack({required this.width});
-
-  final double width;
-
-  @override
-  State<_FloatingCardBack> createState() => _FloatingCardBackState();
-}
-
-class _FloatingCardBackState extends State<_FloatingCardBack> with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = _controller.value * 2 * pi;
-        return Transform.translate(
-          offset: Offset(0, sin(t) * 8),
-          child: Transform.rotate(angle: sin(t) * 0.04, child: child),
-        );
-      },
-      child: CardBack(width: widget.width),
-    );
-  }
-}
-
-/// This week's rate-up characters, with each one's chance per pull.
+/// This week's rate-up characters, shown on the weekly banner, with each
+/// one's chance per pull.
 class _RateUpBanner extends StatelessWidget {
   const _RateUpBanner({required this.controller});
 
@@ -223,7 +302,6 @@ class _RateUpBanner extends StatelessWidget {
       for (final card in controller.pool)
         if (rateUp.contains(card.id)) card,
     ]..sort((a, b) => b.rarity.stars.compareTo(a.rarity.stars));
-    final owned = {for (final o in controller.collection) o.card.id};
     final chances = GachaMachine.characterChances(controller.pool, rateUp);
     return Card(
       child: Padding(
@@ -237,38 +315,27 @@ class _RateUpBanner extends StatelessWidget {
               'time if they\'re the only one. A new weekly hero takes over every Monday.',
               style: textTheme.bodySmall,
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              runSpacing: 12,
-              children: [
-                for (final card in featured)
-                  SizedBox(
-                    width: 96,
-                    child: Column(
-                      children: [
-                        // Everyone saw the weekly hero in the finale; other
-                        // characters stay hidden until summoned.
-                        Standee(
-                          card: card,
-                          width: 84,
-                          hidden: !owned.contains(card.id) && card.id != controller.weeklyHero?.card.id,
-                        ),
-                        StarRow(rarity: card.rarity, size: 14),
-                        Text(card.subject, style: textTheme.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(
-                          card.title,
-                          style: textTheme.labelSmall,
-                          maxLines: 2,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text('${percent(chances[card.id]!)} per pull', style: textTheme.labelSmall),
-                      ],
+            const SizedBox(height: 8),
+            for (final card in featured)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    StarRow(rarity: card.rarity, size: 14),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(card.title, style: textTheme.labelLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(card.subject, style: textTheme.labelSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ],
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                    Text('${percent(chances[card.id]!)} per pull', style: textTheme.labelMedium),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

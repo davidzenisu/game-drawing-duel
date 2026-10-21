@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/gacha_screen.dart';
+import 'package:frontend/game/widgets/banner_art.dart';
+import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
 const _doodle = Sketch([
@@ -30,6 +32,8 @@ Future<MockGameSession> _afterTheFinale() async {
   }
   return controller;
 }
+
+Finder _bannerArt(GachaBanner banner) => find.byWidgetPredicate((w) => w is BannerArt && w.banner == banner);
 
 void main() {
   testWidgets('the weekly hero and their legend are rate-up, on summon and in the pool', (tester) async {
@@ -60,6 +64,14 @@ void main() {
       );
     }
     expect(tester.takeException(), isNull, reason: 'fits a phone');
+    // The weekly banner shows them off, drawings and all.
+    final art = tester.widget<BannerArt>(_bannerArt(GachaBanner.weekly));
+    expect({for (final card in art.featured) card.id}, controller.rateUp);
+    final standees = tester.widgetList<Standee>(
+      find.descendant(of: _bannerArt(GachaBanner.weekly), matching: find.byType(Standee)),
+    );
+    expect(standees.map((s) => s.card.id).toSet(), controller.rateUp);
+    expect(standees.every((s) => !s.hidden), isTrue, reason: 'a spoiler of what you can pull');
 
     final open = find.text('See what you can pull');
     await tester.ensureVisible(open);
@@ -91,22 +103,51 @@ void main() {
     await controller.launch();
     await tester.pumpWidget(MaterialApp(home: GachaScreen(controller: controller)));
     await tester.pump();
-    final weekly = find.ancestor(of: find.text('Weekly'), matching: find.byType(InkWell));
-    expect(tester.widget<InkWell>(weekly).onTap, isNull, reason: 'closed before the first finale');
-    expect(find.textContaining('opens with the first finale'), findsOneWidget);
+    // The standard banner comes first, with three of its legends.
+    final standard = tester.widget<BannerArt>(_bannerArt(GachaBanner.standard));
+    final setupLegends = controller.pool.where((c) => c.day == 0 && c.rarity == Rarity.legend);
+    expect(standard.featured, hasLength(min(3, setupLegends.length)));
+    expect(standard.featured.every((c) => c.day == 0 && c.rarity == Rarity.legend), isTrue);
+    expect(standard.featured.map((c) => c.id).toSet(), hasLength(standard.featured.length), reason: 'all different');
     expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
     expect(find.text('Hero'), findsNothing, reason: 'no 3 stars among the setup drawings');
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+
+    // Swiping over shows the weekly banner, closed before the first finale.
+    await tester.drag(find.byType(PageView), const Offset(-300, 0));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.widget<BannerArt>(_bannerArt(GachaBanner.weekly)).locked, isTrue);
+    expect(find.text('Opens with the first finale'), findsOneWidget);
+    for (final label in ['Pull ×1', 'Pull ×10']) {
+      final button = find.ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+      );
+      expect(tester.widget<ButtonStyleButton>(button).onPressed, isNull, reason: label);
+    }
+    await tester.tap(find.bySemanticsLabel('Standard banner'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
 
     for (var day = 1; day < 8; day++) {
       await controller.advanceDay();
     }
     await tester.pump();
     expect(find.text('Rate up this week'), findsOneWidget, reason: 'the weekly banner comes first once open');
+    expect(tester.widget<BannerArt>(_bannerArt(GachaBanner.weekly)).locked, isFalse);
     expect(find.textContaining('standard pulls'), findsNothing);
-    await tester.tap(find.text('Standard'));
+    await tester.tap(find.bySemanticsLabel('Standard banner'));
     await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('Rate up this week'), findsNothing);
     expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
+    expect(
+      tester.widget<BannerArt>(_bannerArt(GachaBanner.standard)).featured.map((c) => c.id),
+      standard.featured.map((c) => c.id),
+      reason: 'the same three legends while you stay',
+    );
 
     final pull = find.text('Pull ×1');
     await tester.ensureVisible(pull);
