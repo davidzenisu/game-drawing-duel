@@ -86,7 +86,7 @@ class FighterEntry {
   const FighterEntry({required this.card, this.effects = const [], this.element});
 
   factory FighterEntry.fromOwned(OwnedCard owned) =>
-      FighterEntry(card: owned.card, effects: List.unmodifiable(owned.unlocked), element: owned.element);
+      FighterEntry(card: owned.card, effects: List.unmodifiable(owned.shown), element: owned.element);
 
   final CharacterCard card;
   final List<UpgradeEffect> effects;

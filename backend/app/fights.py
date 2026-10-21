@@ -77,7 +77,8 @@ def new_fight(
     *,
     by_chance: bool = False,
 ) -> Fight:
-    """A fight with the fighters' upgrades as they are now."""
+    """A fight with the fighters' upgrades as they are now, without the
+    effects their owner switched off."""
     unlocked = upgrades.unlocked(session, seat.id)
     fight = Fight(
         owner_seat_id=seat.id, day=day, challenger_id=challenger.id, by_chance=by_chance
@@ -86,7 +87,7 @@ def new_fight(
         Fighter(
             position=i,
             character_id=c.id,
-            upgrades=",".join(unlocked[c.id].effects),
+            upgrades=",".join(unlocked[c.id].shown),
             element=unlocked[c.id].element,
         )
         for i, c in enumerate(fighters)

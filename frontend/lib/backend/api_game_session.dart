@@ -552,16 +552,21 @@ class ApiGameSession extends GameSession {
     throw const FormatException('Unexpected day response.');
   }
 
-  /// Copies, upgrades and element of [owned] from the API's collection entry.
+  /// Copies, upgrades, element and switched off effects of [owned] from the
+  /// API's collection entry.
   static OwnedCard _setOwned(OwnedCard owned, Object? json) {
     if (json case {'copies': int copies, 'upgrades': List upgrades, 'element': String? element}) {
+      UpgradeEffect effectOf(Object? name) =>
+          UpgradeEffect.values.asNameMap()[name] ?? (throw FormatException('Unknown upgrade $name.'));
       owned
         ..copies = copies
         ..unlocked.clear()
-        ..unlocked.addAll([
-          for (final effect in upgrades)
-            UpgradeEffect.values.asNameMap()[effect] ?? (throw FormatException('Unknown upgrade $effect.')),
-        ])
+        ..unlocked.addAll(upgrades.map(effectOf))
+        ..hidden.clear()
+        ..hidden.addAll(switch (json['hidden']) {
+          final List hidden => hidden.map(effectOf),
+          _ => const <UpgradeEffect>[],
+        })
         ..element = element == null
             ? null
             : ElementKind.values.asNameMap()[element] ?? (throw FormatException('Unknown element $element.'));
@@ -917,6 +922,20 @@ class ApiGameSession extends GameSession {
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element}) async {
     final json = await _post('/servers/${server.code}/collection/${owned.card.id}/upgrades', {
       if (element != null) 'element': element.name,
+    });
+    _setOwned(owned, json);
+    notifyListeners();
+  }
+
+  @override
+  Future<void> setEffectShown(OwnedCard owned, UpgradeEffect effect, {required bool shown}) async {
+    final hidden = {...owned.hidden};
+    shown ? hidden.remove(effect) : hidden.add(effect);
+    final json = await _put('/servers/${server.code}/collection/${owned.card.id}/effects', {
+      'hidden': [
+        for (final e in UpgradeEffect.values)
+          if (hidden.contains(e)) e.name,
+      ],
     });
     _setOwned(owned, json);
     notifyListeners();

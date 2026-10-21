@@ -14,10 +14,17 @@ from app.rules import UPGRADE_COSTS, UPGRADE_PATHS, Element, Rarity, UpgradeEffe
 
 @dataclass
 class Unlocked:
-    """A character's unlocked upgrades, in path order, and its element."""
+    """A character's unlocked upgrades, in path order, its element and the
+    effects the player switched off."""
 
     effects: list[UpgradeEffect] = field(default_factory=list)
     element: Element | None = None
+    hidden: set[UpgradeEffect] = field(default_factory=set)
+
+    @property
+    def shown(self) -> list[UpgradeEffect]:
+        """The effects to show: the unlocked ones not switched off."""
+        return [e for e in self.effects if e not in self.hidden]
 
 
 def unlocked(session: Session, seat_id: uuid.UUID) -> dict[uuid.UUID, Unlocked]:
@@ -25,6 +32,8 @@ def unlocked(session: Session, seat_id: uuid.UUID) -> dict[uuid.UUID, Unlocked]:
     for upgrade in session.scalars(select(Upgrade).where(Upgrade.seat_id == seat_id)):
         entry = by_character[upgrade.character_id]
         entry.effects.append(UpgradeEffect(upgrade.effect))
+        if upgrade.hidden:
+            entry.hidden.add(UpgradeEffect(upgrade.effect))
         if upgrade.element:
             entry.element = Element(upgrade.element)
     # Every path lists the effects in the order they're declared in.
@@ -81,3 +90,22 @@ def unlock_next(
             element=element.value if effect is UpgradeEffect.ELEMENT else None,
         )
     )
+
+
+def hide(
+    session: Session, seat: ServerSeat, character: Character, hidden: set[UpgradeEffect]
+) -> None:
+    """Switches the character's unlocked effects in `hidden` off and the
+    others on; the caller commits."""
+    rows = session.scalars(
+        select(Upgrade).where(
+            Upgrade.seat_id == seat.id, Upgrade.character_id == character.id
+        )
+    ).all()
+    locked = hidden - {UpgradeEffect(row.effect) for row in rows}
+    if locked:
+        raise UpgradeRejected(
+            f"Unlock {', '.join(sorted(e.value for e in locked))} first"
+        )
+    for row in rows:
+        row.hidden = UpgradeEffect(row.effect) in hidden

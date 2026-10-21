@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, Uuid, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    Uuid,
+    false,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, utc_now
@@ -25,6 +34,10 @@ class Upgrade(Base):
     effect: Mapped[str] = mapped_column(String(20), nullable=False)
     # The `app.rules.Element` chosen for the element upgrade.
     element: Mapped[str | None] = mapped_column(String(20))
+    # Switched off by the player: still unlocked, but not shown.
+    hidden: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     unlocked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

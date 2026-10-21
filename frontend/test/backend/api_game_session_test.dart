@@ -8,6 +8,7 @@ import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/backend/sketch_json.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/content.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
@@ -746,6 +747,35 @@ void main() {
       final legend = again.collection.first;
       expect(legend.unlocked, [UpgradeEffect.shadow, UpgradeEffect.light, UpgradeEffect.element]);
       expect(legend.element, ElementKind.ice);
+    });
+
+    test('unlocked effects can be switched off, and stay so after a reload', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      final id = admin.collection.first.card.id;
+      backend.upgrades[('123456', 'player-uuid-1', id)] = (effects: ['shadow', 'outline'], element: null);
+      final again = await signedUpAgain('alex');
+      final owned = again.collection.first;
+      expect(owned.shown, [UpgradeEffect.shadow, UpgradeEffect.outline]);
+
+      await again.setEffectShown(owned, UpgradeEffect.outline, shown: false);
+      final put = backend.requests.last;
+      expect(put.method, 'PUT');
+      expect(put.url.path, '/servers/123456/collection/$id/effects');
+      expect(jsonDecode(put.body), {
+        'hidden': ['outline'],
+      });
+      expect(owned.hidden, {UpgradeEffect.outline});
+      expect(owned.shown, [UpgradeEffect.shadow]);
+      expect(FighterEntry.fromOwned(owned).effects, [UpgradeEffect.shadow], reason: 'fighters leave it out too');
+
+      await expectLater(
+        again.setEffectShown(owned, UpgradeEffect.light, shown: false),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Unlock light first')),
+      );
+      expect((await signedUpAgain('alex')).collection.first.hidden, {UpgradeEffect.outline});
     });
   });
 
