@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import func, select
 
 from app.models import Character, Pull, PullGrant, ServerSeat
+from app.rules import UPGRADE_COSTS, Rarity
 from tests.helpers import bearer, make_token
 from tests.test_pulls import PullTestCase
 from tests.test_setup import ADMIN
@@ -42,20 +43,32 @@ class UpgradeTests(PullTestCase):
             headers=bearer(make_token(ADMIN)),
         )
 
-    def test_an_upgrade_costs_a_duplicate(self) -> None:
+    def test_each_upgrade_costs_more_duplicates(self) -> None:
         basic = self.by_rarity["basic"]
+        first, second = UPGRADE_COSTS[Rarity.BASIC]
         response = self.unlock(basic)
         self.assertEqual(response.status_code, 409)
         self.assertEqual(
-            response.json()["detail"], "You need a duplicate to unlock this"
+            response.json()["detail"],
+            f"You need {first} more duplicates to unlock this",
         )
 
+        self.give_copies(basic, first - 1)
+        self.assertEqual(
+            self.unlock(basic).json()["detail"],
+            "You need 1 more duplicate to unlock this",
+        )
         self.give_copies(basic, 1)
         response = self.unlock(basic)
         self.assertEqual(response.status_code, 200, response.text)
         owned = response.json()
-        self.assertEqual((owned["copies"], owned["upgrades"]), (2, ["shadow"]))
-        self.assertEqual(self.unlock(basic).status_code, 409, "the duplicate is spent")
+        self.assertEqual((owned["copies"], owned["upgrades"]), (1 + first, ["shadow"]))
+        response = self.unlock(basic)
+        self.assertEqual(response.status_code, 409, "the duplicates are spent")
+        self.assertEqual(
+            response.json()["detail"],
+            f"You need {second} more duplicates to unlock this",
+        )
 
         collection = {
             o["character"]["id"]: o
@@ -63,9 +76,13 @@ class UpgradeTests(PullTestCase):
         }
         self.assertEqual(collection[basic]["upgrades"], ["shadow"])
 
+    def test_common_characters_take_about_30_duplicates_to_max_out(self) -> None:
+        for rarity in (Rarity.BASIC, Rarity.ADVENTURER):
+            self.assertEqual(sum(UPGRADE_COSTS[rarity]), 30, rarity)
+
     def test_the_path_ends_with_the_rarity(self) -> None:
         basic = self.by_rarity["basic"]
-        self.give_copies(basic, 5)
+        self.give_copies(basic, sum(UPGRADE_COSTS[Rarity.BASIC]) + 5)
         self.assertEqual(self.unlock(basic).json()["upgrades"], ["shadow"])
         self.assertEqual(self.unlock(basic).json()["upgrades"], ["shadow", "light"])
         response = self.unlock(basic)
@@ -74,7 +91,7 @@ class UpgradeTests(PullTestCase):
 
     def test_the_element_upgrade_needs_a_choice(self) -> None:
         knight = self.by_rarity["adventurer"]
-        self.give_copies(knight, 3)
+        self.give_copies(knight, sum(UPGRADE_COSTS[Rarity.ADVENTURER]))
         self.unlock(knight)
         self.unlock(knight)
         response = self.unlock(knight)

@@ -161,6 +161,15 @@ UPGRADE_PATHS = {
     Rarity.LEGEND: tuple(UpgradeEffect),
 }
 
+# How many duplicates each step of a rarity's upgrade path costs: more with
+# every step, and the common rarities take far more to max out.
+UPGRADE_COSTS = {
+    Rarity.BASIC: (10, 20),
+    Rarity.ADVENTURER: (5, 10, 15),
+    Rarity.HERO: (1, 2, 3, 4),
+    Rarity.LEGEND: (1, 1, 2, 2, 3),
+}
+
 
 class Theme(StrEnum):
     """The daily prompt themes, one per weekday from Monday to Sunday."""

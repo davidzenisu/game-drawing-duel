@@ -300,8 +300,12 @@ class FakeBackend {
         final done = upgrades.putIfAbsent((code, myId, path[3]), () => (effects: <String>[], element: null));
         final rarity = Rarity.values.byName(character['rarity'] as String);
         final path_ = UpgradeTree.pathFor(rarity);
-        if (copies - 1 - done.effects.length < 1) {
-          return _json(409, {'detail': 'You need a duplicate to unlock this'});
+        final costs = UpgradeTree.costsFor(rarity);
+        final spare = copies - 1 - costs.take(done.effects.length).fold(0, (a, b) => a + b);
+        final cost = costs[done.effects.length];
+        if (spare < cost) {
+          final missing = cost - max(spare, 0);
+          return _json(409, {'detail': 'You need $missing more duplicate${missing > 1 ? 's' : ''} to unlock this'});
         }
         final next = path_[done.effects.length];
         if (next == UpgradeEffect.element && body!['element'] == null) {

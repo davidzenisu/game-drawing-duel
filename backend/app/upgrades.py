@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Character, ServerSeat, Upgrade
 from app.pulls import copies
-from app.rules import UPGRADE_PATHS, Element, Rarity, UpgradeEffect
+from app.rules import UPGRADE_COSTS, UPGRADE_PATHS, Element, Rarity, UpgradeEffect
 
 
 @dataclass
@@ -45,7 +45,8 @@ class ElementRequired(UpgradeRejected):
 def unlock_next(
     session: Session, seat: ServerSeat, character: Character, element: Element | None
 ) -> None:
-    """Unlocks the character's next upgrade with one duplicate.
+    """Unlocks the character's next upgrade, spending as many duplicates as
+    it costs (`UPGRADE_COSTS`).
 
     Locks the seat meanwhile, like pulls do; the caller commits.
     """
@@ -59,8 +60,13 @@ def unlock_next(
     path = UPGRADE_PATHS[Rarity(character.rarity)]
     if len(done) >= len(path):
         raise UpgradeRejected("Every upgrade is unlocked already")
-    if owned - 1 - len(done) < 1:
-        raise UpgradeRejected("You need a duplicate to unlock this")
+    costs = UPGRADE_COSTS[Rarity(character.rarity)]
+    spare = owned - 1 - sum(costs[: len(done)])
+    if spare < costs[len(done)]:
+        missing = costs[len(done)] - max(spare, 0)
+        raise UpgradeRejected(
+            f"You need {missing} more duplicate{'s' if missing > 1 else ''} to unlock this"
+        )
     effect = path[len(done)]
     if effect is UpgradeEffect.ELEMENT and element is None:
         raise ElementRequired("Choose an element for this upgrade")

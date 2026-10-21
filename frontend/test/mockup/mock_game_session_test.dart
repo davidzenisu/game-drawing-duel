@@ -418,7 +418,7 @@ void main() {
     await expectLater(game.unlockNextUpgrade(owned), throwsArgumentError, reason: 'the element needs a choice');
     await game.unlockNextUpgrade(owned, element: ElementKind.storm);
     expect(owned.unlocked, owned.path);
-    expect(owned.upgradePoints, -3);
+    expect(owned.upgradePoints, -30, reason: '5 + 10 + 15 duplicates on credit');
     expect(game.canUpgrade(owned), isFalse);
     expect(game.upgradesAvailable, 0);
   });

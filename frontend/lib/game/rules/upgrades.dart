@@ -24,6 +24,15 @@ abstract final class UpgradeTree {
     Rarity.hero => const [UpgradeEffect.shadow, UpgradeEffect.light, UpgradeEffect.element, UpgradeEffect.aura],
     Rarity.legend => UpgradeEffect.values,
   };
+
+  /// How many duplicates each step of a rarity's path costs: more with every
+  /// step, and the common rarities take far more to max out.
+  static List<int> costsFor(Rarity rarity) => switch (rarity) {
+    Rarity.basic => const [10, 20],
+    Rarity.adventurer => const [5, 10, 15],
+    Rarity.hero => const [1, 2, 3, 4],
+    Rarity.legend => const [1, 1, 2, 2, 3],
+  };
 }
 
 /// A character in the player's collection.
@@ -35,20 +44,26 @@ class OwnedCard {
   final List<UpgradeEffect> unlocked = [];
   ElementKind? element;
 
-  /// Every duplicate is worth one upgrade point. The mockup lets players
+  /// The duplicates not spent on upgrades yet. The mockup lets players
   /// unlock upgrades on credit, so this can go negative there.
-  int get upgradePoints => copies - 1 - unlocked.length;
+  int get upgradePoints => copies - 1 - costs.take(unlocked.length).fold(0, (a, b) => a + b);
 
   List<UpgradeEffect> get path => UpgradeTree.pathFor(card.rarity);
 
+  /// What each step of [path] costs, in duplicates.
+  List<int> get costs => UpgradeTree.costsFor(card.rarity);
+
   UpgradeEffect? get nextUpgrade => unlocked.length < path.length ? path[unlocked.length] : null;
 
-  /// Whether the next upgrade can be unlocked, with a point to spend or,
-  /// [onCredit], without.
-  bool canUpgrade({bool onCredit = false}) => nextUpgrade != null && (onCredit || upgradePoints > 0);
+  /// The duplicates the next upgrade costs, or `null` once maxed out.
+  int? get nextUpgradeCost => nextUpgrade == null ? null : costs[unlocked.length];
 
-  /// Whether a duplicate is waiting to be spent.
-  bool get hasUnspentPoints => upgradePoints > 0 && nextUpgrade != null;
+  /// Whether the next upgrade can be unlocked, with enough duplicates or,
+  /// [onCredit], without.
+  bool canUpgrade({bool onCredit = false}) => nextUpgrade != null && (onCredit || upgradePoints >= nextUpgradeCost!);
+
+  /// Whether there are enough duplicates for the next upgrade.
+  bool get hasUnspentPoints => canUpgrade();
 
   bool has(UpgradeEffect effect) => unlocked.contains(effect);
 }
