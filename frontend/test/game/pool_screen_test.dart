@@ -72,6 +72,10 @@ void main() {
     for (final standee in standees) {
       expect(standee.hidden, !owned.contains(standee.card.id), reason: standee.card.subject);
     }
+    // Everyone's name shows, summoned or not.
+    for (final card in pool) {
+      expect(find.text(card.title), findsWidgets, reason: card.subject);
+    }
 
     // A newly pulled character shows its drawing too.
     late CharacterCard pulled;

@@ -256,6 +256,13 @@ class _RateUpBanner extends StatelessWidget {
                         ),
                         StarRow(rarity: card.rarity, size: 14),
                         Text(card.subject, style: textTheme.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(
+                          card.title,
+                          style: textTheme.labelSmall,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         Text('${percent(chances[card.id]!)} per pull', style: textTheme.labelSmall),
                       ],
                     ),

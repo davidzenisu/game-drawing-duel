@@ -50,6 +50,15 @@ void main() {
     final banner = find.ancestor(of: find.text('Rate up this week'), matching: find.byType(Card));
     expect(banner, findsOneWidget);
     expect(find.descendant(of: banner, matching: find.text(hero.subject)), findsNWidgets(1 + legends.length));
+    // Titles can repeat: the premade ones of a description are shared.
+    final titles = [hero, ...legends].map((card) => card.title);
+    for (final title in titles.toSet()) {
+      expect(
+        find.descendant(of: banner, matching: find.text(title)),
+        findsNWidgets(titles.where((t) => t == title).length),
+        reason: 'named, summoned or not',
+      );
+    }
     expect(tester.takeException(), isNull, reason: 'fits a phone');
 
     final open = find.text('See what you can pull');

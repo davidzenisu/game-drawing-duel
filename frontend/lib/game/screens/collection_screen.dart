@@ -127,8 +127,8 @@ class _CollectionTile extends StatelessWidget {
   }
 }
 
-/// A character of the pool you haven't summoned yet: its name and rarity,
-/// but not the drawing.
+/// A character of the pool you haven't summoned yet: its name, title and
+/// rarity, but not the drawing.
 class _LockedTile extends StatelessWidget {
   const _LockedTile({required this.card});
 
@@ -142,7 +142,7 @@ class _LockedTile extends StatelessWidget {
         children: [
           Standee(card: card, width: 120, hidden: true),
           const SizedBox(height: 6),
-          Nameplate(name: card.subject, title: '???', rarity: card.rarity, compact: true),
+          Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
         ],
       ),
     );
