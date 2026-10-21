@@ -130,6 +130,9 @@ class FakeBackend {
   /// Unlocked upgrades by server code, player id and character id.
   final Map<(String, String, String), ({List<String> effects, String? element})> upgrades = {};
 
+  /// Switched off effects by server code, player id and character id.
+  final Map<(String, String, String), List<String>> hidden = {};
+
   /// Setup drawings by server code and assignment id: the character as the
   /// API returns it and the uploaded sketch.
   final Map<(String, String), ({Map<String, Object?> character, Object? sketch})> drawings = {};
@@ -294,6 +297,15 @@ class FakeBackend {
             if (copies[character['id']] case final int n) _owned(code, myId, character, n),
         ]);
       }
+      if (request.method == 'PUT' && path.length == 5 && path[2] == 'collection' && path[4] == 'effects') {
+        final character = _characters(code).firstWhere((c) => c['id'] == path[3]);
+        final done = upgrades[(code, myId, path[3])]?.effects ?? const <String>[];
+        final wanted = (body!['hidden'] as List).cast<String>();
+        final locked = wanted.where((e) => !done.contains(e)).toList();
+        if (locked.isNotEmpty) return _json(409, {'detail': 'Unlock ${locked.join(', ')} first'});
+        hidden[(code, myId, path[3])] = wanted;
+        return _json(200, _owned(code, myId, character, _copies(code, myId)[path[3]] ?? 0));
+      }
       if (request.method == 'POST' && path.length == 5 && path[2] == 'collection' && path[4] == 'upgrades') {
         final character = _characters(code).firstWhere((c) => c['id'] == path[3]);
         final copies = _copies(code, myId)[path[3]] ?? 0;
@@ -441,6 +453,7 @@ class FakeBackend {
       'copies': copies,
       'upgrades': done?.effects ?? const <String>[],
       'element': done?.element,
+      'hidden': hidden[(code, playerId, character['id'] as String)] ?? const <String>[],
     };
   }
 

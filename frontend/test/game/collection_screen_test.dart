@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/collection_screen.dart';
+import 'package:frontend/game/widgets/card_art.dart';
 
 import '../mockup/mock_game_session_test.dart' show launchedGame;
 
@@ -47,6 +48,88 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Unlock (3 duplicates)'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('filters and sorts the collection', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame();
+    final maxed = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
+    maxed
+      ..copies = 40
+      ..unlocked.addAll(maxed.path);
+    final ready = game.collection.firstWhere((o) => o.card.rarity == Rarity.adventurer)..copies = 2;
+
+    await tester.pumpWidget(MaterialApp(home: CollectionScreen(controller: game)));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+
+    Future<void> tap(String text) async {
+      await tester.ensureVisible(find.text(text));
+      await tester.pump();
+      await tester.tap(find.text(text));
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    Iterable<String> shownIds() => tester.widgetList<Standee>(find.byType(Standee)).map((s) => s.card.id);
+    await tap('Maxed out');
+    expect(shownIds(), [maxed.card.id]);
+
+    await tap('Upgrade ready');
+    expect(shownIds(), contains(ready.card.id));
+    expect(shownIds(), isNot(contains(maxed.card.id)));
+
+    await tap('Not summoned');
+    final standees = tester.widgetList<Standee>(find.byType(Standee));
+    expect(standees, isNotEmpty);
+    expect(standees.every((s) => s.hidden), isTrue);
+
+    // Characters not summoned yet have no element.
+    await tap('fire');
+    expect(find.text('No characters match these filters.'), findsOneWidget);
+    await tap('fire');
+    await tap('Not summoned');
+
+    await tester.tap(find.byTooltip('Sort'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.widgetWithText(InkWell, 'Most copies').last);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(shownIds().first, maxed.card.id, reason: '40 copies');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('unlocked effects can be switched off and on', (tester) async {
+    tester.view.physicalSize = const Size(400, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame();
+    final owned = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic)
+      ..copies = 4
+      ..unlocked.addAll([UpgradeEffect.shadow, UpgradeEffect.outline]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CharacterDetailScreen(controller: game, owned: owned),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(Switch), findsNWidgets(2), reason: 'one per unlocked effect');
+    Standee standee() => tester.widget<Standee>(find.byType(Standee));
+    expect(standee().effects, [UpgradeEffect.shadow, UpgradeEffect.outline]);
+
+    await tester.tap(find.byTooltip('Hide Outline'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(owned.hidden, {UpgradeEffect.outline});
+    expect(standee().effects, [UpgradeEffect.shadow]);
+    expect(owned.unlocked, contains(UpgradeEffect.outline), reason: 'still unlocked');
+
+    await tester.tap(find.byTooltip('Show Outline'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(owned.hidden, isEmpty);
+    expect(standee().effects, [UpgradeEffect.shadow, UpgradeEffect.outline]);
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -66,6 +66,15 @@ class OwnedCard {
   final List<UpgradeEffect> unlocked = [];
   ElementKind? element;
 
+  /// Unlocked effects the player switched off.
+  final Set<UpgradeEffect> hidden = {};
+
+  /// The effects to show: the unlocked ones not switched off.
+  List<UpgradeEffect> get shown => [
+    for (final effect in unlocked)
+      if (!hidden.contains(effect)) effect,
+  ];
+
   /// The duplicates not spent on upgrades yet. The mockup lets players
   /// unlock upgrades on credit, so this can go negative there.
   int get upgradePoints =>

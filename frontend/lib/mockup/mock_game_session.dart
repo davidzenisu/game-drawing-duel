@@ -893,6 +893,13 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
+  @override
+  Future<void> setEffectShown(OwnedCard owned, UpgradeEffect effect, {required bool shown}) async {
+    if (!owned.unlocked.contains(effect)) throw ArgumentError('Unlock ${effect.label} first.');
+    shown ? owned.hidden.remove(effect) : owned.hidden.add(effect);
+    notifyListeners();
+  }
+
   void _setPhase(GamePhase phase) {
     _phase = phase;
     notifyListeners();

@@ -3,7 +3,7 @@ import uuid
 from pydantic import BaseModel, Field
 
 from app.gacha import Banner
-from app.rules import Element
+from app.rules import Element, UpgradeEffect
 from app.schemas.character import CharacterResponse
 
 
@@ -48,6 +48,14 @@ class OwnedCharacterResponse(BaseModel):
     upgrades: list[str]
     # The element chosen for the element upgrade, if unlocked.
     element: str | None
+    # Unlocked upgrades switched off, so they aren't shown.
+    hidden: list[str] = []
+
+
+class EffectsRequest(BaseModel):
+    """The unlocked effects to switch off; all others are switched on."""
+
+    hidden: list[UpgradeEffect]
 
 
 class UpgradeRequest(BaseModel):

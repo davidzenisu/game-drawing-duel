@@ -84,7 +84,7 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                             opacity: pickable ? 1 : 0.4,
                             child: Column(
                               children: [
-                                Standee(card: owned.card, width: 90, effects: owned.unlocked, element: owned.element),
+                                Standee(card: owned.card, width: 90, effects: owned.shown, element: owned.element),
                                 const SizedBox(height: 4),
                                 StarRow(rarity: owned.card.rarity, size: 12),
                                 Text(owned.card.subject, overflow: TextOverflow.ellipsis),

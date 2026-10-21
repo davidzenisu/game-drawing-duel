@@ -13,6 +13,7 @@ from app.routers.servers import Code, DbSession, load_server, your_seat
 from app.routers.setup import character_response
 from app.schemas import (
     CharacterResponse,
+    EffectsRequest,
     GachaResponse,
     OwnedCharacterResponse,
     PullOutcomeResponse,
@@ -144,9 +145,35 @@ def _collection(
             copies=owned[c.id],
             upgrades=[e.value for e in done[c.id].effects],
             element=done[c.id].element,
+            hidden=[e.value for e in done[c.id].effects if e in done[c.id].hidden],
         )
         for c in characters
     ]
+
+
+@router.put(
+    "/{code}/collection/{character_id}/effects", response_model=OwnedCharacterResponse
+)
+def set_effects(
+    code: Code,
+    character_id: uuid.UUID,
+    body: EffectsRequest,
+    player: CurrentPlayer,
+    session: DbSession,
+) -> OwnedCharacterResponse:
+    """Switches unlocked effects of a character off, or back on. Fights set
+    up from now on leave the switched off ones out."""
+    seat = _running_seat(session, code, player.id)
+    character = session.get(Character, character_id)
+    if character is None or character.server_id != seat.server_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
+    try:
+        upgrades.hide(session, seat, character, set(body.hidden))
+    except upgrades.UpgradeRejected as error:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+    session.commit()
+    return _collection(session, seat, character.id)[0]
 
 
 @router.post(

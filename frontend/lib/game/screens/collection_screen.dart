@@ -18,8 +18,54 @@ class CollectionScreen extends StatefulWidget {
   State<CollectionScreen> createState() => _CollectionScreenState();
 }
 
+/// What the collection can be narrowed down to, besides the rarity.
+enum _Status {
+  ready('Upgrade ready'),
+  maxed('Maxed out'),
+  missing('Not summoned');
+
+  const _Status(this.label);
+
+  final String label;
+}
+
+/// How the collection is ordered.
+enum _Sort {
+  pool('Pool order'),
+  rarity('Rarity'),
+  copies('Most copies'),
+  name('Name');
+
+  const _Sort(this.label);
+
+  final String label;
+}
+
+typedef _Entry = ({CharacterCard card, OwnedCard? owned});
+
 class _CollectionScreenState extends State<CollectionScreen> {
   Rarity? _filter;
+  _Status? _status;
+  ElementKind? _element;
+  _Sort _sort = _Sort.pool;
+
+  bool _matches(CharacterCard card, OwnedCard? owned) {
+    if (_filter != null && card.rarity != _filter) return false;
+    if (_element != null && owned?.element != _element) return false;
+    return switch (_status) {
+      null => true,
+      _Status.ready => owned != null && owned.hasUnspentPoints,
+      _Status.maxed => owned != null && owned.nextUpgrade == null,
+      _Status.missing => owned == null,
+    };
+  }
+
+  int _compare(_Entry a, _Entry b) => switch (_sort) {
+    _Sort.pool => 0,
+    _Sort.rarity => b.card.rarity.stars.compareTo(a.card.rarity.stars),
+    _Sort.copies => (b.owned?.copies ?? 0).compareTo(a.owned?.copies ?? 0),
+    _Sort.name => a.card.subject.toLowerCase().compareTo(b.card.subject.toLowerCase()),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -30,18 +76,38 @@ class _CollectionScreenState extends State<CollectionScreen> {
         // Every character of the pool, owned or not yet, plus anything you
         // own from outside it (challengers pulled before they left it).
         final owned = {for (final o in controller.collection) o.card.id: o};
-        final entries = [
+        final matching = <_Entry>[
           for (final card in controller.pool)
-            if (_filter == null || card.rarity == _filter) (card: card, owned: owned[card.id]),
+            if (_matches(card, owned[card.id])) (card: card, owned: owned[card.id]),
           for (final o in controller.collection)
-            if (!controller.pool.any((c) => c.id == o.card.id) && (_filter == null || o.card.rarity == _filter))
-              (card: o.card, owned: o),
+            if (!controller.pool.any((c) => c.id == o.card.id) && _matches(o.card, o)) (card: o.card, owned: o),
+        ];
+        // Ties keep the pool's order.
+        final entries = [
+          for (final (_, entry)
+              in [...matching.indexed]..sort((a, b) {
+                final byKey = _compare(a.$2, b.$2);
+                return byKey != 0 ? byKey : a.$1.compareTo(b.$1);
+              }))
+            entry,
         ];
         return Scaffold(
           appBar: AppBar(
             title: Text(
               'Collection ${controller.pool.where((c) => owned.containsKey(c.id)).length}/${controller.pool.length}',
             ),
+            actions: [
+              PopupMenuButton<_Sort>(
+                tooltip: 'Sort',
+                icon: const Icon(Icons.sort_rounded),
+                initialValue: _sort,
+                onSelected: (sort) => setState(() => _sort = sort),
+                itemBuilder: (context) => [
+                  for (final sort in _Sort.values)
+                    CheckedPopupMenuItem(value: sort, checked: sort == _sort, child: Text(sort.label)),
+                ],
+              ),
+            ],
           ),
           body: Column(
             children: [
@@ -65,9 +131,31 @@ class _CollectionScreenState extends State<CollectionScreen> {
                   ],
                 ),
               ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    for (final status in _Status.values)
+                      FilterChip(
+                        label: Text(status.label),
+                        selected: _status == status,
+                        onSelected: (selected) => setState(() => _status = selected ? status : null),
+                      ),
+                    for (final element in ElementKind.values)
+                      FilterChip(
+                        avatar: Icon(Icons.circle, size: 12, color: elementColor(element)),
+                        label: Text(element.name),
+                        selected: _element == element,
+                        onSelected: (selected) => setState(() => _element = selected ? element : null),
+                      ),
+                  ],
+                ),
+              ),
               Expanded(
                 child: entries.isEmpty
-                    ? const Center(child: Text('No characters of this rarity.'))
+                    ? const Center(child: Text('No characters match these filters.'))
                     : GridView.builder(
                         padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -117,7 +205,7 @@ class _CollectionTile extends StatelessWidget {
           children: [
             Hero(
               tag: 'standee-${card.id}',
-              child: Standee(card: card, width: 120, effects: owned.unlocked, element: owned.element),
+              child: Standee(card: card, width: 120, effects: owned.shown, element: owned.element),
             ),
             const SizedBox(height: 6),
             Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
@@ -170,7 +258,7 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
 
   List<UpgradeEffect> get _shownEffects {
     final preview = _preview;
-    return preview == null ? widget.owned.unlocked : widget.owned.path.sublist(0, preview + 1);
+    return preview == null ? widget.owned.shown : widget.owned.path.sublist(0, preview + 1);
   }
 
   ElementKind? get _shownElement => _preview == null ? widget.owned.element : widget.owned.element ?? _element;
@@ -308,6 +396,17 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                       ),
                       if (!unlocked) Text('${owned.costs[index]} ×', style: Theme.of(context).textTheme.labelMedium),
                       if (!unlocked) const Icon(Icons.copy_all_rounded, size: 16),
+                      if (unlocked)
+                        Tooltip(
+                          message: owned.hidden.contains(effect) ? 'Show ${effect.label}' : 'Hide ${effect.label}',
+                          child: Switch(
+                            value: !owned.hidden.contains(effect),
+                            onChanged: (shown) => runGameAction(
+                              context,
+                              () => widget.controller.setEffectShown(owned, effect, shown: shown),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   if (isNext && owned.upgradePoints < owned.costs[index] && owned.upgradePoints >= 0) ...[

@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import func, select
 
+from app import fights
 from app.models import Character, Pull, PullGrant, ServerSeat, Upgrade
 from app.rules import UPGRADE_COSTS, UPGRADE_PATHS, Rarity, UpgradeEffect
 from tests.helpers import bearer, make_token
@@ -136,6 +137,47 @@ class UpgradeTests(PullTestCase):
             owned["upgrades"], [e.value for e in (*before, UpgradeEffect.ELEMENT)]
         )
         self.assertEqual(owned["element"], "storm")
+
+    def set_effects(self, character_id: str, hidden: list[str]):
+        return self.client.put(
+            f"/servers/{self.code}/collection/{character_id}/effects",
+            json={"hidden": hidden},
+            headers=bearer(make_token(ADMIN)),
+        )
+
+    def test_unlocked_effects_can_be_switched_off_and_on(self) -> None:
+        basic = self.by_rarity["basic"]
+        self.give_copies(basic, 3)
+        self.unlock(basic)
+        self.unlock(basic)
+        response = self.set_effects(basic, ["outline"])
+        self.assertEqual(response.status_code, 200, response.text)
+        owned = response.json()
+        self.assertEqual(owned["upgrades"], ["shadow", "outline"], "still unlocked")
+        self.assertEqual(owned["hidden"], ["outline"])
+        collection = {
+            o["character"]["id"]: o
+            for o in self.get(f"/servers/{self.code}/collection").json()
+        }
+        self.assertEqual(collection[basic]["hidden"], ["outline"])
+
+        # Fights set up from now on leave it out.
+        with self.session_factory() as session:
+            seat = session.scalar(select(ServerSeat).where(ServerSeat.position == 0))
+            character = session.get(Character, uuid.UUID(basic))
+            fight = fights.new_fight(session, seat, 1, character, [character])
+            self.assertEqual(fight.fighters[0].upgrades, "shadow")
+            session.rollback()
+
+        response = self.set_effects(basic, ["light"])
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"], "Unlock light first")
+        self.assertEqual(self.set_effects(basic, ["sparkles"]).status_code, 422)
+        self.assertEqual(self.set_effects(basic, []).json()["hidden"], [])
+
+    def test_only_your_own_characters_effects(self) -> None:
+        response = self.set_effects("00000000-0000-0000-0000-000000000000", [])
+        self.assertEqual(response.status_code, 404)
 
     def test_only_characters_of_the_server(self) -> None:
         response = self.unlock("00000000-0000-0000-0000-000000000000")

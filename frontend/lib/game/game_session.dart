@@ -249,6 +249,10 @@ abstract class GameSession extends ChangeNotifier {
   /// Whether [owned]'s next upgrade can be unlocked; the mockup unlocks on credit.
   bool canUpgrade(OwnedCard owned) => owned.canUpgrade(onCredit: isMockup);
 
+  /// Switches an unlocked effect of [owned] off, or back on. Fights set up
+  /// from then on leave the switched off ones out.
+  Future<void> setEffectShown(OwnedCard owned, UpgradeEffect effect, {required bool shown});
+
   /// Characters with duplicates waiting to be spent on upgrades.
   int get upgradesAvailable => collection.where((o) => o.hasUnspentPoints).length;
 
