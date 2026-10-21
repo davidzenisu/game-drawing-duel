@@ -92,16 +92,16 @@
   },
   "upgrades": {
     "paths": {
-      "basic": ["shadow", "light"],
-      "adventurer": ["shadow", "light", "element"],
-      "hero": ["shadow", "light", "element", "aura"],
-      "legend": ["shadow", "light", "element", "aura", "halo"]
+      "basic": ["shadow", "outline", "light", "glitter", "echo", "alive"],
+      "adventurer": ["shadow", "outline", "light", "element", "glitter", "echo", "alive"],
+      "hero": ["shadow", "outline", "light", "element", "aura", "glitter", "echo", "alive"],
+      "legend": ["shadow", "outline", "light", "element", "aura", "glitter", "echo", "alive", "halo"]
     },
     "costs": {
-      "basic": [10, 20],
-      "adventurer": [5, 10, 15],
-      "hero": [1, 2, 3, 4],
-      "legend": [1, 1, 2, 2, 3]
+      "basic": [1, 2, 3, 5, 7, 10],
+      "adventurer": [1, 1, 2, 3, 5, 7, 10],
+      "hero": [1, 1, 1, 1, 2, 2, 3, 3],
+      "legend": [1, 1, 1, 1, 1, 2, 2, 2, 3]
     },
     "elements": ["fire", "ice", "storm"]
   },

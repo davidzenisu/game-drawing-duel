@@ -56,18 +56,21 @@ def unlock_next(
     owned = copies(session, seat).get(character.id, 0)
     if not owned:
         raise UpgradeRejected("You don't own this character")
-    done = unlocked(session, seat.id)[character.id].effects
+    done = set(unlocked(session, seat.id)[character.id].effects)
     path = UPGRADE_PATHS[Rarity(character.rarity)]
-    if len(done) >= len(path):
-        raise UpgradeRejected("Every upgrade is unlocked already")
     costs = UPGRADE_COSTS[Rarity(character.rarity)]
-    spare = owned - 1 - sum(costs[: len(done)])
-    if spare < costs[len(done)]:
-        missing = costs[len(done)] - max(spare, 0)
+    # The first step not unlocked yet: upgrades unlocked before a path grew
+    # keep their place, and cost what their step costs now.
+    step = next((i for i, e in enumerate(path) if e not in done), None)
+    if step is None:
+        raise UpgradeRejected("Every upgrade is unlocked already")
+    spare = owned - 1 - sum(c for e, c in zip(path, costs) if e in done)
+    if spare < costs[step]:
+        missing = costs[step] - max(spare, 0)
         raise UpgradeRejected(
             f"You need {missing} more duplicate{'s' if missing > 1 else ''} to unlock this"
         )
-    effect = path[len(done)]
+    effect = path[step]
     if effect is UpgradeEffect.ELEMENT and element is None:
         raise ElementRequired("Choose an element for this upgrade")
     session.add(

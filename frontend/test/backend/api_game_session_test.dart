@@ -427,8 +427,7 @@ void main() {
       final basic = admin.collection.firstWhere((o) => o.card.title == 'Basic');
       expect(basic.copies, 3);
       expect(basic.upgradePoints, 2);
-      expect(basic.nextUpgradeCost, 10);
-      expect(admin.canUpgrade(basic), isFalse, reason: 'its first upgrade costs 10 duplicates');
+      expect(basic.nextUpgradeCost, 1);
 
       await expectLater(
         admin.pull(10),
@@ -443,21 +442,21 @@ void main() {
       expect(backend.bannersPulled.last, 'weekly');
       expect(admin.tickets, 6);
 
-      // A legend's first upgrade costs a single duplicate.
-      final legend = admin.collection.firstWhere((o) => o.card.title == 'A legend');
-      expect(admin.upgradesAvailable, 1, reason: 'only the legend has enough duplicates');
-      expect(admin.canUpgrade(legend), isTrue);
-      await admin.unlockNextUpgrade(legend);
-      expect(backend.requests.last.url.path, '/servers/123456/collection/${legend.card.id}/upgrades');
-      expect(legend.unlocked, [UpgradeEffect.shadow]);
-      expect(legend.upgradePoints, 0);
-      expect(admin.canUpgrade(legend), isFalse, reason: 'no unlocking on credit outside the mockup');
-      expect(admin.upgradesAvailable, 0);
+      // Every first upgrade costs a single duplicate, the next ones more.
+      expect(admin.upgradesAvailable, 3, reason: 'the basic, the knight and the legend');
+      await admin.unlockNextUpgrade(basic);
+      expect(backend.requests.last.url.path, '/servers/123456/collection/${basic.card.id}/upgrades');
+      expect(basic.unlocked, [UpgradeEffect.shadow]);
+      expect(basic.upgradePoints, 1);
+      expect(basic.nextUpgradeCost, 2);
+      expect(admin.canUpgrade(basic), isFalse, reason: 'no unlocking on credit outside the mockup');
+      expect(admin.upgradesAvailable, 2);
 
       final knight = admin.collection.firstWhere((o) => o.card.title == 'Knight');
+      await admin.unlockNextUpgrade(knight);
       await expectLater(
         admin.unlockNextUpgrade(knight),
-        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'You need 4 more duplicates to unlock this')),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'You need 1 more duplicate to unlock this')),
       );
     });
 

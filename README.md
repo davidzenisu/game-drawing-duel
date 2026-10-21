@@ -289,8 +289,8 @@ finale (`app.pulls.rate_up`, sent as `rate_up` with `GET /servers/{code}/gacha`)
 Duplicates are copies of a
 character in the collection: they unlock the upgrades of the character's
 rarity path in order (`upgrade` rows, one per effect), each step costing
-more duplicates than the one before (`UPGRADE_COSTS`, 30 in total for 1
-and 2 stars). Only the mockup unlocks upgrades on credit.
+at least as many duplicates as the one before (`UPGRADE_COSTS`: 1, 2, 3, 5,
+7 and 10 for the six steps of a 1 star, about 30 to max out a 1 or 2 star). Only the mockup unlocks upgrades on credit.
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
 ### Database schema

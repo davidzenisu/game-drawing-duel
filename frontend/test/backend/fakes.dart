@@ -301,13 +301,20 @@ class FakeBackend {
         final rarity = Rarity.values.byName(character['rarity'] as String);
         final path_ = UpgradeTree.pathFor(rarity);
         final costs = UpgradeTree.costsFor(rarity);
-        final spare = copies - 1 - costs.take(done.effects.length).fold(0, (a, b) => a + b);
-        final cost = costs[done.effects.length];
+        final step = path_.indexWhere((e) => !done.effects.contains(e.name));
+        final spare =
+            copies -
+            1 -
+            [
+              for (final (i, e) in path_.indexed)
+                if (done.effects.contains(e.name)) costs[i],
+            ].fold(0, (a, b) => a + b);
+        final cost = costs[step];
         if (spare < cost) {
           final missing = cost - max(spare, 0);
           return _json(409, {'detail': 'You need $missing more duplicate${missing > 1 ? 's' : ''} to unlock this'});
         }
-        final next = path_[done.effects.length];
+        final next = path_[step];
         if (next == UpgradeEffect.element && body!['element'] == null) {
           return _json(422, {'detail': 'Choose an element for this upgrade'});
         }

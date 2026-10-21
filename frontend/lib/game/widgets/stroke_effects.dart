@@ -14,8 +14,9 @@ Color elementColor(ElementKind element) => switch (element) {
 };
 
 /// Renders a sketch with the upgrade effects applied to its brush strokes:
-/// ink shadows, glowing lines, elemental particles rising off the strokes,
-/// energy flowing along them and a golden shimmer.
+/// ink shadows, a sticker outline, glowing lines, elemental particles rising
+/// off the strokes, energy flowing along them, glitter, afterimages, a
+/// breathing sway and a golden shimmer.
 class EffectSketchView extends StatefulWidget {
   const EffectSketchView({
     super.key,
@@ -40,7 +41,7 @@ class _EffectSketchViewState extends State<EffectSketchView> with SingleTickerPr
   late final _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
   late _StrokeSamples _samples = _StrokeSamples(widget.sketch);
 
-  bool get _animated => widget.effects.any((e) => e != UpgradeEffect.shadow);
+  bool get _animated => widget.effects.any((e) => e != UpgradeEffect.shadow && e != UpgradeEffect.outline);
 
   @override
   void initState() {
@@ -121,6 +122,13 @@ class _EffectPainter extends CustomPainter {
 
   Color get _glow => element != null ? elementColor(element!) : accent;
 
+  static const _glitter = [
+    AppPalette.brushPink,
+    AppPalette.rarityLegend,
+    AppPalette.elementIce,
+    AppPalette.brushPurple,
+  ];
+
   /// Stable pseudo random value in [0, 1) per index.
   double _hash(int i) {
     final v = sin(i * 12.9898) * 43758.5453;
@@ -155,6 +163,17 @@ class _EffectPainter extends CustomPainter {
     final paths = [for (final s in sketch.strokes) _path(s, size)];
     final pulse = 0.65 + 0.35 * sin(t * 2 * pi);
 
+    // Alive: the whole drawing breathes and sways on its card.
+    canvas.save();
+    if (effects.contains(UpgradeEffect.alive)) {
+      final center = size.center(Offset.zero);
+      canvas
+        ..translate(center.dx, center.dy + size.height * 0.4)
+        ..rotate(sin(t * 2 * pi) * 0.035)
+        ..scale(1 + 0.02 * sin(t * 4 * pi), 1 - 0.015 * sin(t * 4 * pi))
+        ..translate(-center.dx, -center.dy - size.height * 0.4);
+    }
+
     // Shadow: the ink casts a soft shadow onto the cardboard.
     if (effects.contains(UpgradeEffect.shadow)) {
       canvas.save();
@@ -168,6 +187,22 @@ class _EffectPainter extends CustomPainter {
       canvas.restore();
     }
 
+    // Echo: two glowing afterimages circle the drawing.
+    if (effects.contains(UpgradeEffect.echo)) {
+      for (var k = 0; k < 2; k++) {
+        final angle = (t + k / 2) * 2 * pi;
+        canvas.save();
+        canvas.translate(cos(angle) * size.width * 0.045, sin(angle) * size.width * 0.03);
+        for (final (i, stroke) in sketch.strokes.indexed) {
+          canvas.drawPath(
+            paths[i],
+            _strokePaint(stroke, size, color: _glow.withValues(alpha: 0.45), widthFactor: 1.6, blur: 1.5),
+          );
+        }
+        canvas.restore();
+      }
+    }
+
     // Light: the strokes glow from behind.
     if (effects.contains(UpgradeEffect.light)) {
       for (final (i, stroke) in sketch.strokes.indexed) {
@@ -175,6 +210,16 @@ class _EffectPainter extends CustomPainter {
           paths[i],
           _strokePaint(stroke, size, color: _glow.withValues(alpha: 0.55 * pulse), widthFactor: 5, blur: 6),
         );
+      }
+    }
+
+    // Outline: a sticker edge, white inside a rim of the accent colour.
+    if (effects.contains(UpgradeEffect.outline)) {
+      for (final (i, stroke) in sketch.strokes.indexed) {
+        canvas.drawPath(paths[i], _strokePaint(stroke, size, color: _glow, widthFactor: 4));
+      }
+      for (final (i, stroke) in sketch.strokes.indexed) {
+        canvas.drawPath(paths[i], _strokePaint(stroke, size, color: Colors.white, widthFactor: 2.8));
       }
     }
 
@@ -257,6 +302,21 @@ class _EffectPainter extends CustomPainter {
       }
     }
 
+    // Glitter: sparkles twinkle up and down the lines.
+    if (effects.contains(UpgradeEffect.glitter)) {
+      final points = samples.points;
+      for (var i = 0; i < points.length; i += 2) {
+        final phase = (t * 1.6 + _hash(i + 31)) % 1.0;
+        final twinkle = max(0.0, sin(phase * 2 * pi));
+        _sparkle(
+          canvas,
+          Offset(points[i].dx * size.width, points[i].dy * size.height),
+          size.width * 0.045 * twinkle,
+          _glitter[(i ~/ 2) % _glitter.length].withValues(alpha: twinkle),
+        );
+      }
+    }
+
     // Halo: a golden shimmer sweeps across the ink, sparkles at stroke ends.
     if (effects.contains(UpgradeEffect.halo)) {
       final band = t * 2.4 - 0.7;
@@ -286,6 +346,7 @@ class _EffectPainter extends CustomPainter {
         );
       }
     }
+    canvas.restore();
   }
 
   void _paintFire(Canvas canvas, Size size, double t, {required bool strong}) {

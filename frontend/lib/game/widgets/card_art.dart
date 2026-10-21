@@ -90,7 +90,8 @@ class Standee extends StatelessWidget {
                             sketch: card.sketch,
                             effects: effects,
                             element: element,
-                            accent: card.rarity.color,
+                            // The basics' grey would hardly glow.
+                            accent: card.rarity == Rarity.basic ? AppPalette.brushBlue : card.rarity.color,
                           ),
                   ),
                 ),
