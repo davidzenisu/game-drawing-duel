@@ -8,6 +8,7 @@ import '../rules/models.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import 'progress_screen.dart';
 
 class CollectionScreen extends StatefulWidget {
   const CollectionScreen({super.key, required this.controller});
@@ -97,6 +98,13 @@ class _CollectionScreenState extends State<CollectionScreen> {
               'Collection ${controller.pool.where((c) => owned.containsKey(c.id)).length}/${controller.pool.length}',
             ),
             actions: [
+              IconButton(
+                tooltip: 'Progress',
+                icon: const Icon(Icons.insights_rounded),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute<void>(builder: (_) => ProgressScreen(controller: controller))),
+              ),
               PopupMenuButton<_Sort>(
                 tooltip: 'Sort',
                 icon: const Icon(Icons.sort_rounded),
