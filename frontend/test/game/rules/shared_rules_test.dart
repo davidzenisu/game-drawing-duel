@@ -79,6 +79,12 @@ void main() {
       for (final r in Rarity.values) r.name: [for (final e in UpgradeTree.pathFor(r)) e.name],
     }, upgrades['paths']);
     expect([for (final e in ElementKind.values) e.name], upgrades['elements']);
+    expect({for (final r in Rarity.values) r.name: UpgradeTree.costsFor(r)}, upgrades['costs']);
+    for (final rarity in Rarity.values) {
+      final costs = UpgradeTree.costsFor(rarity);
+      expect(costs, hasLength(UpgradeTree.pathFor(rarity).length), reason: rarity.name);
+      expect(costs, [...costs]..sort(), reason: 'never cheaper later');
+    }
   });
 
   test('fights', () {

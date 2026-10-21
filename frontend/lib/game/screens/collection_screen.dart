@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -222,12 +224,11 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        Text('Upgrades', style: textTheme.titleMedium),
-                        const Spacer(),
+                        Expanded(child: Text('Upgrades', style: textTheme.titleMedium)),
                         Chip(
                           avatar: const Icon(Icons.upgrade_rounded),
                           label: Text(
-                            '${owned.upgradePoints} points',
+                            '${owned.upgradePoints} duplicate${owned.upgradePoints == 1 ? '' : 's'}',
                             style: owned.upgradePoints < 0
                                 ? TextStyle(color: Theme.of(context).colorScheme.error)
                                 : null,
@@ -236,9 +237,9 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                       ],
                     ),
                     Text(
-                      widget.controller.isMockup
-                          ? 'Every duplicate pull grants one upgrade point. In the mockup you can unlock everything on credit.'
-                          : 'Every duplicate pull grants one upgrade point.',
+                      'Every upgrade costs more duplicates than the one before, '
+                      '${owned.costs.fold(0, (a, b) => a + b)} to unlock them all.'
+                      '${widget.controller.isMockup ? ' In the mockup you can unlock everything on credit.' : ''}',
                       style: textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
@@ -300,7 +301,27 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${effect.label}$elementLabel', style: Theme.of(context).textTheme.titleSmall),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('${effect.label}$elementLabel', style: Theme.of(context).textTheme.titleSmall),
+                      ),
+                      if (!unlocked) Text('${owned.costs[index]} ×', style: Theme.of(context).textTheme.labelMedium),
+                      if (!unlocked) const Icon(Icons.copy_all_rounded, size: 16),
+                    ],
+                  ),
+                  if (isNext && owned.upgradePoints < owned.costs[index] && owned.upgradePoints >= 0) ...[
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: owned.upgradePoints / owned.costs[index],
+                      color: owned.card.rarity.color,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    Text(
+                      '${owned.upgradePoints}/${owned.costs[index]} duplicates',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
                   Text(effect.description, style: Theme.of(context).textTheme.bodySmall),
                   if (!unlocked)
                     Align(
@@ -341,10 +362,11 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                             },
                       style: FilledButton.styleFrom(backgroundColor: AppPalette.victory),
                       icon: const Icon(Icons.lock_open_rounded),
-                      label: Text(switch (owned.upgradePoints) {
-                        > 0 => 'Unlock (1 point)',
-                        _ when widget.controller.isMockup => 'Unlock on credit (1 point)',
-                        _ => 'Needs a duplicate',
+                      label: Text(switch (owned.costs[index]) {
+                        final cost when owned.upgradePoints >= cost =>
+                          'Unlock ($cost ${cost == 1 ? 'duplicate' : 'duplicates'})',
+                        final cost when widget.controller.isMockup => 'Unlock on credit ($cost)',
+                        final cost => 'Needs ${cost - max(owned.upgradePoints, 0)} more',
                       }),
                     ),
                   ],

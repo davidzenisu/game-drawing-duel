@@ -3,9 +3,13 @@ import 'models.dart';
 /// Special effects unlocked by spending duplicates, see `docs/concept/features.md`.
 enum UpgradeEffect {
   shadow('Shadow', 'The ink casts a shadow onto the card.'),
+  outline('Outline', 'A bright sticker outline makes the drawing pop.'),
   light('Light', 'The brush strokes start to glow.'),
-  element('Element', 'The strokes burn, freeze or crackle with lightning.'),
-  aura('Aura', 'Energy surges along every stroke, the element grows wilder.'),
+  element('Element', 'The strokes burn, freeze or crackle with lightning. From 2 stars.'),
+  aura('Aura', 'Energy surges along every stroke, the element grows wilder. From 3 stars.'),
+  glitter('Glitter', 'Sparkles twinkle along the lines.'),
+  echo('Echo', 'Glowing afterimages trail the drawing.'),
+  alive('Alive', 'The drawing breathes and sways on its card.'),
   halo('Halo', 'A golden shimmer, sparkles and a halo. Legends only.');
 
   const UpgradeEffect(this.label, this.description);
@@ -16,13 +20,40 @@ enum UpgradeEffect {
 
 enum ElementKind { fire, ice, storm }
 
-/// Each rarity has its own (deeper) upgrade path.
+/// Each rarity has its own (deeper) upgrade path: the effects every rarity
+/// gets, plus the element from 2 stars, the aura from 3 and the halo for
+/// legends, in the order they're declared in.
 abstract final class UpgradeTree {
-  static List<UpgradeEffect> pathFor(Rarity rarity) => switch (rarity) {
-    Rarity.basic => const [UpgradeEffect.shadow, UpgradeEffect.light],
-    Rarity.adventurer => const [UpgradeEffect.shadow, UpgradeEffect.light, UpgradeEffect.element],
-    Rarity.hero => const [UpgradeEffect.shadow, UpgradeEffect.light, UpgradeEffect.element, UpgradeEffect.aura],
-    Rarity.legend => UpgradeEffect.values,
+  static const _everyone = {
+    UpgradeEffect.shadow,
+    UpgradeEffect.outline,
+    UpgradeEffect.light,
+    UpgradeEffect.glitter,
+    UpgradeEffect.echo,
+    UpgradeEffect.alive,
+  };
+
+  static List<UpgradeEffect> pathFor(Rarity rarity) {
+    final extra = switch (rarity) {
+      Rarity.basic => const <UpgradeEffect>{},
+      Rarity.adventurer => const {UpgradeEffect.element},
+      Rarity.hero => const {UpgradeEffect.element, UpgradeEffect.aura},
+      Rarity.legend => const {UpgradeEffect.element, UpgradeEffect.aura, UpgradeEffect.halo},
+    };
+    return [
+      for (final effect in UpgradeEffect.values)
+        if (_everyone.contains(effect) || extra.contains(effect)) effect,
+    ];
+  }
+
+  /// How many duplicates each step of a rarity's path costs: never less than
+  /// the step before, and the common rarities, pulled most, take about 30 to
+  /// max out.
+  static List<int> costsFor(Rarity rarity) => switch (rarity) {
+    Rarity.basic => const [1, 2, 3, 5, 7, 10],
+    Rarity.adventurer => const [1, 1, 2, 3, 5, 7, 10],
+    Rarity.hero => const [1, 1, 1, 1, 2, 2, 3, 3],
+    Rarity.legend => const [1, 1, 1, 1, 1, 2, 2, 2, 3],
   };
 }
 
@@ -35,20 +66,37 @@ class OwnedCard {
   final List<UpgradeEffect> unlocked = [];
   ElementKind? element;
 
-  /// Every duplicate is worth one upgrade point. The mockup lets players
+  /// The duplicates not spent on upgrades yet. The mockup lets players
   /// unlock upgrades on credit, so this can go negative there.
-  int get upgradePoints => copies - 1 - unlocked.length;
+  int get upgradePoints =>
+      copies -
+      1 -
+      [
+        for (final (i, effect) in path.indexed)
+          if (unlocked.contains(effect)) costs[i],
+      ].fold(0, (a, b) => a + b);
 
   List<UpgradeEffect> get path => UpgradeTree.pathFor(card.rarity);
 
-  UpgradeEffect? get nextUpgrade => unlocked.length < path.length ? path[unlocked.length] : null;
+  /// What each step of [path] costs, in duplicates.
+  List<int> get costs => UpgradeTree.costsFor(card.rarity);
 
-  /// Whether the next upgrade can be unlocked, with a point to spend or,
+  /// The first step of [path] not unlocked yet: upgrades unlocked before a
+  /// path grew keep their place.
+  UpgradeEffect? get nextUpgrade => path.where((e) => !unlocked.contains(e)).firstOrNull;
+
+  /// The duplicates the next upgrade costs, or `null` once maxed out.
+  int? get nextUpgradeCost => switch (nextUpgrade) {
+    final next? => costs[path.indexOf(next)],
+    null => null,
+  };
+
+  /// Whether the next upgrade can be unlocked, with enough duplicates or,
   /// [onCredit], without.
-  bool canUpgrade({bool onCredit = false}) => nextUpgrade != null && (onCredit || upgradePoints > 0);
+  bool canUpgrade({bool onCredit = false}) => nextUpgrade != null && (onCredit || upgradePoints >= nextUpgradeCost!);
 
-  /// Whether a duplicate is waiting to be spent.
-  bool get hasUnspentPoints => upgradePoints > 0 && nextUpgrade != null;
+  /// Whether there are enough duplicates for the next upgrade.
+  bool get hasUnspentPoints => canUpgrade();
 
   bool has(UpgradeEffect effect) => unlocked.contains(effect);
 }

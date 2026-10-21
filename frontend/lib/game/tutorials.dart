@@ -177,12 +177,14 @@ enum Tutorial {
       ),
     ],
     upgrades => [
-      const TutorialPage(
+      TutorialPage(
         icon: Icons.copy_all_rounded,
         title: 'Duplicates',
         text:
-            'Pulling a character you own already gives you a duplicate. Spend each one on the next upgrade '
-            'of that character in your collection.',
+            'Pulling a character you own already gives you a duplicate. Spend them on the next upgrade of '
+            'that character in your collection: each one costs more than the last, and the common characters '
+            'take the most, up to ${UpgradeTree.costsFor(Rarity.basic).fold(0, (a, b) => a + b)} duplicates to '
+            'max out.',
       ),
       TutorialPage(
         icon: Icons.auto_fix_high_rounded,

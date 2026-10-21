@@ -130,9 +130,13 @@ class UpgradeEffect(StrEnum):
     """Special effects unlocked by spending duplicates."""
 
     SHADOW = "shadow"
+    OUTLINE = "outline"
     LIGHT = "light"
     ELEMENT = "element"
     AURA = "aura"
+    GLITTER = "glitter"
+    ECHO = "echo"
+    ALIVE = "alive"
     HALO = "halo"
 
 
@@ -144,21 +148,37 @@ class Element(StrEnum):
     STORM = "storm"
 
 
-# Each rarity has its own (deeper) upgrade path, unlocked in order.
+# Each rarity has its own (deeper) upgrade path, unlocked in order: the
+# effects every rarity gets, plus the element from 2 stars, the aura from 3
+# and the halo for legends. Every path keeps the order the effects are
+# declared in.
+_EVERYONE = (
+    UpgradeEffect.SHADOW,
+    UpgradeEffect.OUTLINE,
+    UpgradeEffect.LIGHT,
+    UpgradeEffect.GLITTER,
+    UpgradeEffect.ECHO,
+    UpgradeEffect.ALIVE,
+)
+_FROM = {
+    Rarity.BASIC: set(),
+    Rarity.ADVENTURER: {UpgradeEffect.ELEMENT},
+    Rarity.HERO: {UpgradeEffect.ELEMENT, UpgradeEffect.AURA},
+    Rarity.LEGEND: {UpgradeEffect.ELEMENT, UpgradeEffect.AURA, UpgradeEffect.HALO},
+}
 UPGRADE_PATHS = {
-    Rarity.BASIC: (UpgradeEffect.SHADOW, UpgradeEffect.LIGHT),
-    Rarity.ADVENTURER: (
-        UpgradeEffect.SHADOW,
-        UpgradeEffect.LIGHT,
-        UpgradeEffect.ELEMENT,
-    ),
-    Rarity.HERO: (
-        UpgradeEffect.SHADOW,
-        UpgradeEffect.LIGHT,
-        UpgradeEffect.ELEMENT,
-        UpgradeEffect.AURA,
-    ),
-    Rarity.LEGEND: tuple(UpgradeEffect),
+    rarity: tuple(e for e in UpgradeEffect if e in _EVERYONE or e in extra)
+    for rarity, extra in _FROM.items()
+}
+
+# How many duplicates each step of a rarity's upgrade path costs: never
+# less than the step before, and the common rarities, pulled most, take
+# about 30 to max out.
+UPGRADE_COSTS = {
+    Rarity.BASIC: (1, 2, 3, 5, 7, 10),
+    Rarity.ADVENTURER: (1, 1, 2, 3, 5, 7, 10),
+    Rarity.HERO: (1, 1, 1, 1, 2, 2, 3, 3),
+    Rarity.LEGEND: (1, 1, 1, 1, 1, 2, 2, 2, 3),
 }
 
 

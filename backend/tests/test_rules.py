@@ -90,6 +90,14 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(
             [e.value for e in rules.Element], SHARED["upgrades"]["elements"]
         )
+        self.assertEqual(
+            {r.value: list(c) for r, c in rules.UPGRADE_COSTS.items()},
+            SHARED["upgrades"]["costs"],
+        )
+        for rarity, path in rules.UPGRADE_PATHS.items():
+            costs = rules.UPGRADE_COSTS[rarity]
+            self.assertEqual(len(costs), len(path), rarity)
+            self.assertEqual(list(costs), sorted(costs), "never cheaper later")
 
     def test_themes(self):
         self.assertEqual([t.value for t in rules.Theme], SHARED["themes"])

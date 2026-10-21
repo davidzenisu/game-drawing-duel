@@ -427,6 +427,7 @@ void main() {
       final basic = admin.collection.firstWhere((o) => o.card.title == 'Basic');
       expect(basic.copies, 3);
       expect(basic.upgradePoints, 2);
+      expect(basic.nextUpgradeCost, 1);
 
       await expectLater(
         admin.pull(10),
@@ -441,21 +442,21 @@ void main() {
       expect(backend.bannersPulled.last, 'weekly');
       expect(admin.tickets, 6);
 
-      // Two duplicates of the basic: two upgrades, then the path ends.
-      expect(admin.canUpgrade(basic), isTrue);
-      await admin.unlockNextUpgrade(basic);
+      // Every first upgrade costs a single duplicate, the next ones more.
+      expect(admin.upgradesAvailable, 3, reason: 'the basic, the knight and the legend');
       await admin.unlockNextUpgrade(basic);
       expect(backend.requests.last.url.path, '/servers/123456/collection/${basic.card.id}/upgrades');
-      expect(basic.unlocked, [UpgradeEffect.shadow, UpgradeEffect.light]);
-      expect(basic.upgradePoints, 0);
+      expect(basic.unlocked, [UpgradeEffect.shadow]);
+      expect(basic.upgradePoints, 1);
+      expect(basic.nextUpgradeCost, 2);
       expect(admin.canUpgrade(basic), isFalse, reason: 'no unlocking on credit outside the mockup');
-      expect(admin.upgradesAvailable, 2, reason: 'the knight and the legend have a duplicate each');
+      expect(admin.upgradesAvailable, 2);
 
       final knight = admin.collection.firstWhere((o) => o.card.title == 'Knight');
       await admin.unlockNextUpgrade(knight);
       await expectLater(
         admin.unlockNextUpgrade(knight),
-        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'You need a duplicate to unlock this')),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'You need 1 more duplicate to unlock this')),
       );
     });
 

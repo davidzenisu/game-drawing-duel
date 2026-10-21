@@ -287,9 +287,10 @@ weekly hero and the pool's legends of the same player share 50% of their
 rarity (all of it if they're alone in it), and change every Monday with the
 finale (`app.pulls.rate_up`, sent as `rate_up` with `GET /servers/{code}/gacha`).
 Duplicates are copies of a
-character in the collection: each one unlocks the next upgrade of the
-character's rarity path (`upgrade` rows, one per effect). Only the mockup
-unlocks upgrades on credit.
+character in the collection: they unlock the upgrades of the character's
+rarity path in order (`upgrade` rows, one per effect), each step costing
+at least as many duplicates as the one before (`UPGRADE_COSTS`: 1, 2, 3, 5,
+7 and 10 for the six steps of a 1 star, about 30 to max out a 1 or 2 star). Only the mockup unlocks upgrades on credit.
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
 
 ### Database schema

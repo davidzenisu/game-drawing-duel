@@ -413,12 +413,16 @@ void main() {
     final game = await launchedGame();
     final owned = game.collection.firstWhere((o) => o.card.rarity == Rarity.adventurer);
     expect(owned.upgradePoints, 0);
-    await game.unlockNextUpgrade(owned);
-    await game.unlockNextUpgrade(owned);
+    while (owned.nextUpgrade != UpgradeEffect.element) {
+      await game.unlockNextUpgrade(owned);
+    }
     await expectLater(game.unlockNextUpgrade(owned), throwsArgumentError, reason: 'the element needs a choice');
     await game.unlockNextUpgrade(owned, element: ElementKind.storm);
+    while (owned.nextUpgrade != null) {
+      await game.unlockNextUpgrade(owned);
+    }
     expect(owned.unlocked, owned.path);
-    expect(owned.upgradePoints, -3);
+    expect(owned.upgradePoints, -29, reason: '1 + 1 + 2 + 3 + 5 + 7 + 10 duplicates on credit');
     expect(game.canUpgrade(owned), isFalse);
     expect(game.upgradesAvailable, 0);
   });

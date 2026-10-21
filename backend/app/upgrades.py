@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Character, ServerSeat, Upgrade
 from app.pulls import copies
-from app.rules import UPGRADE_PATHS, Element, Rarity, UpgradeEffect
+from app.rules import UPGRADE_COSTS, UPGRADE_PATHS, Element, Rarity, UpgradeEffect
 
 
 @dataclass
@@ -45,7 +45,8 @@ class ElementRequired(UpgradeRejected):
 def unlock_next(
     session: Session, seat: ServerSeat, character: Character, element: Element | None
 ) -> None:
-    """Unlocks the character's next upgrade with one duplicate.
+    """Unlocks the character's next upgrade, spending as many duplicates as
+    it costs (`UPGRADE_COSTS`).
 
     Locks the seat meanwhile, like pulls do; the caller commits.
     """
@@ -55,13 +56,21 @@ def unlock_next(
     owned = copies(session, seat).get(character.id, 0)
     if not owned:
         raise UpgradeRejected("You don't own this character")
-    done = unlocked(session, seat.id)[character.id].effects
+    done = set(unlocked(session, seat.id)[character.id].effects)
     path = UPGRADE_PATHS[Rarity(character.rarity)]
-    if len(done) >= len(path):
+    costs = UPGRADE_COSTS[Rarity(character.rarity)]
+    # The first step not unlocked yet: upgrades unlocked before a path grew
+    # keep their place, and cost what their step costs now.
+    step = next((i for i, e in enumerate(path) if e not in done), None)
+    if step is None:
         raise UpgradeRejected("Every upgrade is unlocked already")
-    if owned - 1 - len(done) < 1:
-        raise UpgradeRejected("You need a duplicate to unlock this")
-    effect = path[len(done)]
+    spare = owned - 1 - sum(c for e, c in zip(path, costs) if e in done)
+    if spare < costs[step]:
+        missing = costs[step] - max(spare, 0)
+        raise UpgradeRejected(
+            f"You need {missing} more duplicate{'s' if missing > 1 else ''} to unlock this"
+        )
+    effect = path[step]
     if effect is UpgradeEffect.ELEMENT and element is None:
         raise ElementRequired("Choose an element for this upgrade")
     session.add(
