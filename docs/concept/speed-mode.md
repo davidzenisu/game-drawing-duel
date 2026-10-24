@@ -20,3 +20,8 @@ There should be the option to start a "one-off" server session which follows the
 - Day 5: Fighters + Boost (2 min)
 - Day 6: Boost (1 min)
 - Day 7: Finale (3 min)
+
+### Overview
+- Drawing: Only two drawings (normal + legend)
+- For each win: 
+- In the finale: After voting, everybody who did not draw the challenger, can choose their fighters > ???
