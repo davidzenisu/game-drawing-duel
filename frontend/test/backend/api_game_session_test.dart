@@ -749,6 +749,36 @@ void main() {
       expect(legend.element, ElementKind.ice);
     });
 
+    test('the element can be changed for free once unlocked', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      final id = admin.collection.first.card.id;
+      backend.upgrades[('123456', 'player-uuid-1', id)] = (
+        effects: ['shadow', 'outline', 'light', 'element'],
+        element: 'fire',
+      );
+      final again = await signedUpAgain('alex');
+      final owned = again.collection.first;
+      expect(owned.element, ElementKind.fire);
+
+      await again.changeElement(owned, ElementKind.storm);
+      final put = backend.requests.last;
+      expect(put.method, 'PUT');
+      expect(put.url.path, '/servers/123456/collection/$id/element');
+      expect(jsonDecode(put.body), {'element': 'storm'});
+      expect(owned.element, ElementKind.storm);
+      expect(owned.copies, 1, reason: 'nothing spent');
+      expect((await signedUpAgain('alex')).collection.first.element, ElementKind.storm);
+
+      final other = again.collection[1];
+      await expectLater(
+        again.changeElement(other, ElementKind.ice),
+        throwsA(isA<ApiException>().having((e) => e.message, 'message', 'Unlock element first')),
+      );
+    });
+
     test('unlocked effects can be switched off, and stay so after a reload', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();

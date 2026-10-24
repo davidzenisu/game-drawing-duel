@@ -297,6 +297,15 @@ class FakeBackend {
             if (copies[character['id']] case final int n) _owned(code, myId, character, n),
         ]);
       }
+      if (request.method == 'PUT' && path.length == 5 && path[2] == 'collection' && path[4] == 'element') {
+        final character = _characters(code).firstWhere((c) => c['id'] == path[3]);
+        final done = upgrades[(code, myId, path[3])];
+        if (done == null || !done.effects.contains('element')) {
+          return _json(409, {'detail': 'Unlock element first'});
+        }
+        upgrades[(code, myId, path[3])] = (effects: done.effects, element: body!['element'] as String);
+        return _json(200, _owned(code, myId, character, _copies(code, myId)[path[3]] ?? 0));
+      }
       if (request.method == 'PUT' && path.length == 5 && path[2] == 'collection' && path[4] == 'effects') {
         final character = _characters(code).firstWhere((c) => c['id'] == path[3]);
         final done = upgrades[(code, myId, path[3])]?.effects ?? const <String>[];

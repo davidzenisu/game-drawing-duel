@@ -58,6 +58,12 @@ class EffectsRequest(BaseModel):
     hidden: list[UpgradeEffect]
 
 
+class ElementRequest(BaseModel):
+    """The element to change the element upgrade to."""
+
+    element: Element
+
+
 class UpgradeRequest(BaseModel):
     """Only needed when the next upgrade is the element."""
 

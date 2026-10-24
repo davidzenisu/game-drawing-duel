@@ -179,6 +179,37 @@ class UpgradeTests(PullTestCase):
         response = self.set_effects("00000000-0000-0000-0000-000000000000", [])
         self.assertEqual(response.status_code, 404)
 
+    def set_element(self, character_id: str, element: str):
+        return self.client.put(
+            f"/servers/{self.code}/collection/{character_id}/element",
+            json={"element": element},
+            headers=bearer(make_token(ADMIN)),
+        )
+
+    def test_the_element_can_be_changed_for_free(self) -> None:
+        knight = self.by_rarity["adventurer"]
+        response = self.set_element(knight, "ice")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"], "Unlock element first")
+
+        path = UPGRADE_PATHS[Rarity.ADVENTURER]
+        steps = path.index(UpgradeEffect.ELEMENT) + 1
+        self.give_copies(knight, sum(UPGRADE_COSTS[Rarity.ADVENTURER][:steps]))
+        for _ in range(steps - 1):
+            self.unlock(knight)
+        self.assertEqual(self.unlock(knight, "fire").json()["element"], "fire")
+
+        owned = self.set_element(knight, "ice").json()
+        self.assertEqual(owned["element"], "ice")
+        self.assertEqual(owned["upgrades"], [e.value for e in path[:steps]])
+        self.assertEqual(self.unlock(knight).status_code, 409, "no duplicates spent")
+        collection = {
+            o["character"]["id"]: o
+            for o in self.get(f"/servers/{self.code}/collection").json()
+        }
+        self.assertEqual(collection[knight]["element"], "ice")
+        self.assertEqual(self.set_element(knight, "lava").status_code, 422)
+
     def test_only_characters_of_the_server(self) -> None:
         response = self.unlock("00000000-0000-0000-0000-000000000000")
         self.assertEqual(response.status_code, 404)
