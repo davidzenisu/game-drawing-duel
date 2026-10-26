@@ -928,6 +928,13 @@ class ApiGameSession extends GameSession {
   }
 
   @override
+  Future<void> changeElement(OwnedCard owned, ElementKind element) async {
+    final json = await _put('/servers/${server.code}/collection/${owned.card.id}/element', {'element': element.name});
+    _setOwned(owned, json);
+    notifyListeners();
+  }
+
+  @override
   Future<void> setEffectShown(OwnedCard owned, UpgradeEffect effect, {required bool shown}) async {
     final hidden = {...owned.hidden};
     shown ? hidden.remove(effect) : hidden.add(effect);

@@ -27,6 +27,7 @@ from app.schemas.day import (
 )
 from app.schemas.gacha import (
     EffectsRequest,
+    ElementRequest,
     GachaResponse,
     OwnedCharacterResponse,
     PullOutcomeResponse,
@@ -54,6 +55,7 @@ __all__ = [
     "ContentItem",
     "DrawingSubmit",
     "EffectsRequest",
+    "ElementRequest",
     "FightResponse",
     "FightStep",
     "FighterResponse",

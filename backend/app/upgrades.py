@@ -109,3 +109,20 @@ def hide(
         )
     for row in rows:
         row.hidden = UpgradeEffect(row.effect) in hidden
+
+
+def change_element(
+    session: Session, seat: ServerSeat, character: Character, element: Element
+) -> None:
+    """Changes the element chosen for the character's element upgrade, for
+    free; the caller commits."""
+    row = session.scalar(
+        select(Upgrade).where(
+            Upgrade.seat_id == seat.id,
+            Upgrade.character_id == character.id,
+            Upgrade.effect == UpgradeEffect.ELEMENT.value,
+        )
+    )
+    if row is None:
+        raise UpgradeRejected("Unlock element first")
+    row.element = element.value
