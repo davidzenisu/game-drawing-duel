@@ -14,6 +14,7 @@ from app.routers.setup import character_response
 from app.schemas import (
     CharacterResponse,
     EffectsRequest,
+    ElementRequest,
     GachaResponse,
     OwnedCharacterResponse,
     PullOutcomeResponse,
@@ -169,6 +170,31 @@ def set_effects(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
     try:
         upgrades.hide(session, seat, character, set(body.hidden))
+    except upgrades.UpgradeRejected as error:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+    session.commit()
+    return _collection(session, seat, character.id)[0]
+
+
+@router.put(
+    "/{code}/collection/{character_id}/element", response_model=OwnedCharacterResponse
+)
+def set_element(
+    code: Code,
+    character_id: uuid.UUID,
+    body: ElementRequest,
+    player: CurrentPlayer,
+    session: DbSession,
+) -> OwnedCharacterResponse:
+    """Changes the element of an unlocked element upgrade, for free. Fights
+    set up from now on use the new one."""
+    seat = _running_seat(session, code, player.id)
+    character = session.get(Character, character_id)
+    if character is None or character.server_id != seat.server_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
+    try:
+        upgrades.change_element(session, seat, character, body.element)
     except upgrades.UpgradeRejected as error:
         session.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error

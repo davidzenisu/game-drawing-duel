@@ -13,6 +13,12 @@ Color elementColor(ElementKind element) => switch (element) {
   ElementKind.storm => AppPalette.elementStorm,
 };
 
+/// The colour the light, outline and echo glow in: the element's while the
+/// element effect is shown, otherwise [accent], so switching the element off
+/// takes its colour away too.
+Color glowColor(Iterable<UpgradeEffect> effects, ElementKind? element, Color accent) =>
+    element != null && effects.contains(UpgradeEffect.element) ? elementColor(element) : accent;
+
 /// Renders a sketch with the upgrade effects applied to its brush strokes:
 /// ink shadows, a sticker outline, glowing lines, elemental particles rising
 /// off the strokes, energy flowing along them, glitter, afterimages, a
@@ -120,7 +126,7 @@ class _EffectPainter extends CustomPainter {
   final ElementKind? element;
   final Color accent;
 
-  Color get _glow => element != null ? elementColor(element!) : accent;
+  Color get _glow => glowColor(effects, element, accent);
 
   static const _glitter = [
     AppPalette.brushPink,

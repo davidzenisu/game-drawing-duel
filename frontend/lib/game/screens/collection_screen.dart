@@ -431,22 +431,33 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                         label: Text(_preview == index ? 'Stop preview' : 'Preview'),
                       ),
                     ),
-                  if (effect == UpgradeEffect.element && owned.element == null)
-                    SegmentedButton<ElementKind>(
-                      segments: [
-                        for (final element in ElementKind.values)
-                          ButtonSegment(
-                            value: element,
-                            label: Text(element.name),
-                            icon: Icon(Icons.circle, size: 12, color: elementColor(element)),
-                          ),
-                      ],
-                      selected: {_element},
-                      onSelectionChanged: (selection) => setState(() {
-                        _element = selection.first;
-                        _preview ??= index;
-                      }),
+                  if (effect == UpgradeEffect.element)
+                    // The row measures its height intrinsically, which leaves
+                    // out the selector's tap target padding.
+                    SizedBox(
+                      height: 48,
+                      child: SegmentedButton<ElementKind>(
+                        segments: [
+                          for (final element in ElementKind.values)
+                            ButtonSegment(
+                              value: element,
+                              label: Text(element.name),
+                              icon: Icon(Icons.circle, size: 12, color: elementColor(element)),
+                            ),
+                        ],
+                        // Before unlocking, the choice previews the element;
+                        // afterwards, it changes it for free.
+                        selected: {owned.element ?? _element},
+                        onSelectionChanged: (selection) => owned.element == null
+                            ? setState(() {
+                                _element = selection.first;
+                                _preview ??= index;
+                              })
+                            : runGameAction(context, () => widget.controller.changeElement(owned, selection.first)),
+                      ),
                     ),
+                  if (effect == UpgradeEffect.element && owned.element != null)
+                    Text('Change it any time, for free.', style: Theme.of(context).textTheme.bodySmall),
                   if (isNext) ...[
                     const SizedBox(height: 8),
                     FilledButton.icon(

@@ -894,6 +894,13 @@ class MockGameSession extends GameSession {
   }
 
   @override
+  Future<void> changeElement(OwnedCard owned, ElementKind element) async {
+    if (!owned.unlocked.contains(UpgradeEffect.element)) throw ArgumentError('Unlock element first.');
+    owned.element = element;
+    notifyListeners();
+  }
+
+  @override
   Future<void> setEffectShown(OwnedCard owned, UpgradeEffect effect, {required bool shown}) async {
     if (!owned.unlocked.contains(effect)) throw ArgumentError('Unlock ${effect.label} first.');
     shown ? owned.hidden.remove(effect) : owned.hidden.add(effect);
