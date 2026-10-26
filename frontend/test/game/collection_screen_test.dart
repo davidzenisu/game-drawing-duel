@@ -163,6 +163,35 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the element can be changed for free once unlocked', (tester) async {
+    tester.view.physicalSize = const Size(400, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame();
+    final owned = game.collection.firstWhere((o) => o.card.rarity == Rarity.adventurer);
+    owned
+      ..copies = 1 + 7 + 1
+      ..unlocked.addAll(owned.path.take(owned.path.indexOf(UpgradeEffect.element) + 1))
+      ..element = ElementKind.fire;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CharacterDetailScreen(controller: game, owned: owned),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Change it any time, for free.'), findsOneWidget);
+    final ice = find.text('ice');
+    await tester.ensureVisible(ice);
+    await tester.pump();
+    await tester.tap(ice);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(owned.element, ElementKind.ice);
+    expect(tester.widget<Standee>(find.byType(Standee)).element, ElementKind.ice);
+    expect(owned.upgradePoints, 1, reason: 'no duplicates spent');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('upgrades unlocked before a path grew keep their place', () {
     final card = CharacterCard(
       id: 'c',

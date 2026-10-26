@@ -253,6 +253,9 @@ abstract class GameSession extends ChangeNotifier {
   /// from then on leave the switched off ones out.
   Future<void> setEffectShown(OwnedCard owned, UpgradeEffect effect, {required bool shown});
 
+  /// Changes the element of [owned]'s unlocked element upgrade, for free.
+  Future<void> changeElement(OwnedCard owned, ElementKind element);
+
   /// Characters with duplicates waiting to be spent on upgrades.
   int get upgradesAvailable => collection.where((o) => o.hasUnspentPoints).length;
 
