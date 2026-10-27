@@ -8,6 +8,7 @@ import '../rules/models.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/unlock_celebration.dart';
 import 'progress_screen.dart';
 
 class CollectionScreen extends StatefulWidget {
@@ -264,6 +265,37 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
   /// Index into the upgrade path being previewed, or null for the real state.
   int? _preview;
 
+  /// Upgrades unlocked on this screen, and the latest, to celebrate it.
+  int _unlocks = 0;
+  UpgradeEffect? _lastUnlocked;
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _unlock(BuildContext context) async {
+    final effect = widget.owned.nextUpgrade;
+    final unlocked = await runGameAction(
+      context,
+      () => widget.controller.unlockNextUpgrade(widget.owned, element: _element),
+    );
+    if (!unlocked || !mounted) return;
+    setState(() => _preview = null);
+    // Back up to the character, then celebrate.
+    if (_scroll.hasClients && _scroll.offset > 0) {
+      await _scroll.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
+    }
+    if (mounted) {
+      setState(() {
+        _unlocks++;
+        _lastUnlocked = effect;
+      });
+    }
+  }
+
   List<UpgradeEffect> get _shownEffects {
     final preview = _preview;
     return preview == null ? widget.owned.shown : widget.owned.path.sublist(0, preview + 1);
@@ -281,12 +313,18 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
       builder: (context, _) => Scaffold(
         appBar: AppBar(title: Text(card.subject)),
         body: ListView(
+          controller: _scroll,
           padding: const EdgeInsets.all(24),
           children: [
             Center(
-              child: Hero(
-                tag: 'standee-${card.id}',
-                child: Standee(card: card, width: 220, effects: _shownEffects, element: _shownElement),
+              child: UnlockCelebration(
+                count: _unlocks,
+                color: card.rarity.color,
+                label: '${_lastUnlocked?.label ?? 'Upgrade'} unlocked!',
+                child: Hero(
+                  tag: 'standee-${card.id}',
+                  child: Standee(card: card, width: 220, effects: _shownEffects, element: _shownElement),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -469,15 +507,7 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                   if (isNext) ...[
                     const SizedBox(height: 8),
                     FilledButton.icon(
-                      onPressed: !widget.controller.canUpgrade(owned)
-                          ? null
-                          : () async {
-                              final unlocked = await runGameAction(
-                                context,
-                                () => widget.controller.unlockNextUpgrade(owned, element: _element),
-                              );
-                              if (unlocked && mounted) setState(() => _preview = null);
-                            },
+                      onPressed: !widget.controller.canUpgrade(owned) ? null : () => _unlock(context),
                       style: FilledButton.styleFrom(backgroundColor: AppPalette.victory),
                       icon: const Icon(Icons.lock_open_rounded),
                       label: Text(switch (owned.costs[index]) {

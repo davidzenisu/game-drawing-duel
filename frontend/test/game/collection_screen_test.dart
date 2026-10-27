@@ -134,6 +134,36 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('unlocking an upgrade is celebrated', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame();
+    final owned = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic)..copies = 2;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CharacterDetailScreen(controller: game, owned: owned),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    final unlock = find.text('Unlock (1 duplicate)');
+    await tester.ensureVisible(unlock);
+    await tester.pump();
+    await tester.tap(unlock);
+    await tester.pump();
+    // It scrolls back up to the character first.
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(owned.unlocked, [UpgradeEffect.shadow]);
+    expect(find.text('Shadow unlocked!'), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(Standee)).dy, greaterThan(0), reason: 'in view');
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Shadow unlocked!'), findsNothing, reason: 'it fades away');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the progress view sums up the collection', (tester) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
