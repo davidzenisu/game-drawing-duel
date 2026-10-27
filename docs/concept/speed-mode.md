@@ -39,6 +39,8 @@ Average player battlers in speed mode:
 - 2-3x ☆☆
 - 3-4x ☆☆☆
 Average stars in a fight: ~8☆ per fight (average of ☆☆ per fighter)
+Min stars per fight: 4☆
+Max stars per fight: 14☆ (but very unlikely, more around 12 on average)
 
 
 Premises:
