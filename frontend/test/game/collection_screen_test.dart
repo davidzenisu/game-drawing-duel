@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/collection_screen.dart';
+import 'package:frontend/game/screens/progress_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 
 import '../mockup/mock_game_session_test.dart' show launchedGame;
@@ -160,6 +161,31 @@ void main() {
     expect(tester.getTopLeft(find.byType(Standee)).dy, greaterThan(0), reason: 'in view');
     await tester.pump(const Duration(seconds: 2));
     expect(find.text('Shadow unlocked!'), findsNothing, reason: 'it fades away');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the progress view sums up the collection', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame();
+    final maxed = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
+    maxed
+      ..copies = 1 + 28 + 2
+      ..unlocked.addAll(maxed.path);
+
+    await tester.pumpWidget(MaterialApp(home: CollectionScreen(controller: game)));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.byTooltip('Progress'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ProgressScreen), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    final owned = game.collection.length;
+    expect(find.text('1/$owned'), findsOneWidget, reason: 'one maxed out');
+    expect(find.text('$owned/${game.pool.length}'), findsOneWidget, reason: 'collected');
+    final spare = find.ancestor(of: find.text('Spare duplicates'), matching: find.byType(Row));
+    expect(find.descendant(of: spare, matching: find.text('2')), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
