@@ -23,19 +23,23 @@ There should be the option to start a "one-off" server session which follows the
 
 ### Overview
 - Drawing: Only two drawings spread out across the different rarities:
-	- 1 star: always one for each player
-	- 2 stars: 1 (5), 2 (6), 3 (8), 4 (10)
-	- 3 stars: 2 (5-7), 3 (8-10)
-	- 4 stars: 2 (5-8), 3 (9-10)
 	- For 5 players: 5☆, 1☆☆,  2☆☆☆, 2☆☆☆☆
 	- For 6 players: 6☆, 2☆☆, 2☆☆☆, 2☆☆☆☆
 	- For 7 players: 7☆, 2☆☆, 3☆☆☆, 2☆☆☆☆
 	- For 8 players: 8☆, 3☆☆, 3☆☆☆, 2☆☆☆☆
 	- For 9 players: 9☆, 3☆☆, 3☆☆☆, 3☆☆☆☆
 	- For 10 players: 10☆, 4☆☆, 3☆☆☆, 3☆☆☆☆
-- For each win: ???
+- For each win: Get a 10 pull (?)
 
 Total drawings: 5 per player (25-50 drawings)
+
+Average player battlers in speed mode:
+- enough 1 ☆
+- Realistically no more than 1-2x 4 ☆☆☆☆
+- 2-3x ☆☆
+- 3-4x ☆☆☆
+Average stars in a fight: ~8☆ per fight (average of ☆☆ per fighter)
+
 
 Premises:
 - The stronger your opponents are, the stronger the challenger becomes? > Yes, reward better drawings!
