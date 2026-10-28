@@ -1,4 +1,8 @@
+from collections import Counter
+from datetime import UTC, datetime
+
 from app import rules
+from app.models import SetupHint
 from tests.helpers import bearer, make_token
 from tests.test_servers import ADMIN, FRIENDS, ServerTestCase
 
@@ -66,6 +70,45 @@ class SetupTests(SetupTestCase):
         by_prompt = {a["prompt"]: a for a in self.assignments(code).json()}
         self.assertEqual(by_prompt["alter"]["based_on"], by_prompt["basic"]["id"])
         self.assertIsNone(by_prompt["basic"]["based_on"])
+
+    def test_every_drawing_gets_a_starter_prompt_of_its_type(self) -> None:
+        with self.session_factory() as session:
+            session.add_all(
+                [SetupHint(prompt="basic", text=f"basic {n}") for n in range(3)]
+                + [SetupHint(prompt="knight", text=f"knight {n}") for n in range(9)]
+                + [
+                    SetupHint(
+                        prompt="knight",
+                        text="retired",
+                        retired_at=datetime(2026, 1, 1, tzinfo=UTC),
+                    )
+                ]
+            )
+            session.commit()
+        code = self.create().json()["code"]
+        self.join_everyone(code)
+        self.start(code)
+        drawn = [
+            a
+            for subject in [ADMIN, *FRIEND_SUBJECTS]
+            for a in self.assignments(code, subject).json()
+        ]
+        by_prompt: dict[str, Counter] = {}
+        for a in drawn:
+            by_prompt.setdefault(a["prompt"], Counter())[a["hint"]] += 1
+        players = len(FRIENDS) + 1
+        # Three basic prompts for every player's basic: each used, none twice
+        # before all of them were.
+        self.assertEqual(set(by_prompt["basic"]), {"basic 0", "basic 1", "basic 2"})
+        self.assertLessEqual(
+            max(by_prompt["basic"].values()) - min(by_prompt["basic"].values()), 1
+        )
+        # Enough knight prompts for everyone: all different, none retired.
+        self.assertEqual(sum(by_prompt["knight"].values()), players)
+        self.assertEqual(set(by_prompt["knight"].values()), {1})
+        self.assertNotIn("retired", by_prompt["knight"])
+        # Types without starter prompts get none.
+        self.assertEqual(set(by_prompt["legend"]), {None})
 
     def test_assignments_need_a_seat_and_a_started_setup(self) -> None:
         code = self.create().json()["code"]

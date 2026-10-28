@@ -301,6 +301,10 @@ class ApiGameSession extends GameSession {
           prompt: SetupPrompt.values.asNameMap()[prompt] ?? (throw FormatException('Unknown prompt $prompt.')),
           subject: _seat(server, subject),
           basedOn: basedOn == null ? null : _assignmentId(basedOn),
+          hint: switch (item['hint']) {
+            final String hint => hint,
+            _ => null,
+          },
         );
         assignments.add(assignment);
         if (item['character'] != null) characters[assignment.id] = item['character'];

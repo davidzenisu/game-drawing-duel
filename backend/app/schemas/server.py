@@ -62,5 +62,8 @@ class AssignmentResponse(BaseModel):
     subject_position: int
     # The assignment this one builds on (the alter is based on the basic).
     based_on: uuid.UUID | None
+    # The starter prompt: what to show of the person drawn, e.g. "them by
+    # night"; null if there was none for the prompt type.
+    hint: str | None = None
     # Your drawing for it, once submitted.
     character: CharacterResponse | None

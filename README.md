@@ -116,7 +116,7 @@ back to creating or joining a server.
 | `DELETE /servers/{code}` | Cancel the server for everyone and delete all its game data; any player who joined |
 | `POST /servers/{code}/dismiss` | You saw that the server was cancelled; it leaves `GET /servers/mine` |
 | `POST /servers/{code}/setup` | Start the initial drawing setup; admin only |
-| `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, the drawing it builds on and what you drew so far |
+| `GET /servers/{code}/assignments` | Your drawings for the setup: prompt, subject seat, starter prompt (`hint`), the drawing it builds on and what you drew so far |
 | `PUT /servers/{code}/assignments/{id}/drawing` | Draw or redraw an assignment: a title and the sketch's strokes |
 | `POST /servers/{code}/setup/done` | Finish your setup drawings; the last player to finish launches the game |
 | `GET /servers/{code}/pool` | The gacha pool of a launched game: everyone's setup drawings |
@@ -252,6 +252,18 @@ app shows "NO PROMPT" (they still choose a person and write a title), so a
 theme needs about as many new hints a week as the server has players. A
 player without a hint who writes no title has the fallback title "The Mystery
 Challenger" drawn.
+
+The setup drawings come with **starter prompts** (`setup_hint`) too: what a
+drawing should show of the person drawn, e.g. "Them by night" for the alter.
+Each setup prompt type (`basic`, `alter`, `knight`, `mage`, `rogue`, `hero`,
+`legend`) starts with six. When the setup starts, every drawing gets a random
+one of its type that isn't retired (`setup_assignment.hint_id`), without
+repeats within the server until the type's run out. New rows are picked from
+the next setup on:
+
+```sql
+insert into setup_hint (prompt, text) values ('rogue', 'The last thing they lied about');
+```
 
 | Endpoint | Purpose |
 | --- | --- |

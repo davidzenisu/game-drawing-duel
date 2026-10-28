@@ -56,6 +56,18 @@ class MockGameSession extends GameSession {
     ],
   };
 
+  /// A few of the starter prompts the API keeps in its database, per setup
+  /// prompt type.
+  static const _setupHints = {
+    SetupPrompt.basic: ['Them by day', 'Them on their way to work', 'Them at their favourite spot'],
+    SetupPrompt.alter: ['Them by night', 'Them on holiday', 'Them as a kid'],
+    SetupPrompt.knight: ["What they'd defend at all costs", 'Their loyal companion', 'Their sworn rival'],
+    SetupPrompt.mage: ['Their hidden talent', 'The spell they wish they could cast', 'Their lucky charm'],
+    SetupPrompt.rogue: ['Their guilty pleasure', "What they'd steal if no one was looking", 'Their worst habit'],
+    SetupPrompt.hero: ['Their proudest moment', 'Their biggest win', 'The time they were brave'],
+    SetupPrompt.legend: ["How they'll be remembered", 'Their statue in the town square', 'Them as the final boss'],
+  };
+
   static const suggestedNames = ['Alex', 'Sam', 'Robin', 'Kim', 'Charlie', 'Jo', 'Mika', 'Toni', 'Lou', 'Nico'];
 
   final Random _random;
@@ -250,9 +262,16 @@ class MockGameSession extends GameSession {
   List<DrawingAssignment> _assignmentsOf(Player artist) {
     final players = server.players;
     final index = players.indexWhere((p) => p.id == artist.id);
-    return server.isTest
+    final planned = server.isTest
         ? SetupPlan.testAssignmentsFor(players, index, _random)
         : SetupPlan.assignmentsFor(players, index);
+    return [
+      for (final a in planned)
+        switch (_setupHints[a.prompt]) {
+          final hints? => a.withHint(hints[_random.nextInt(hints.length)]),
+          null => a,
+        },
+    ];
   }
 
   @override
