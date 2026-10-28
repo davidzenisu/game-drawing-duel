@@ -346,6 +346,18 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> retireContent(ContentEntry entry) =>
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
+  /// The starter prompts of [prompt] in use, see [canEditContent].
+  Future<List<SetupHintEntry>> setupHints(SetupPrompt prompt) =>
+      Future.error(UnsupportedError('Only content editors can manage the content.'));
+
+  /// Adds starter prompts to [prompt], given out from the next setup on.
+  Future<SetupHintAddResult> addSetupHints(SetupPrompt prompt, List<String> texts) =>
+      Future.error(UnsupportedError('Only content editors can manage the content.'));
+
+  /// Retires a starter prompt: setups started from now on don't get it.
+  Future<void> retireSetupHint(SetupHintEntry entry) =>
+      Future.error(UnsupportedError('Only content editors can manage the content.'));
+
   /// Spends [count] pulls on [banner]; the weekly one opens with the first
   /// finale, see [rateUp].
   Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard});

@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
 
 from app import days
-from app.models import Server, ThemeHint
+from app.models import Server, SetupAssignment, ThemeHint
 from app.rules import Theme
+from app.setup import give_hints
 from tests.helpers import ApiTestCase, bearer, make_token
 
 EDITOR = ["read:api", "edit:content"]
@@ -41,6 +42,9 @@ class ContentPermissionTests(ContentTestCase):
         for method, path in (
             ("POST", "hints"),
             ("DELETE", "hints/00000000-0000-0000-0000-000000000000"),
+            ("GET", "setup-hints"),
+            ("POST", "setup-hints"),
+            ("DELETE", "setup-hints/00000000-0000-0000-0000-000000000000"),
         ):
             response = self.request(method, path, permissions=["read:api"])
             self.assertEqual(response.status_code, 403, path)
@@ -83,7 +87,9 @@ class ContentTests(ContentTestCase):
     def test_rejects_unknown_themes_and_empty_or_long_titles(self) -> None:
         self.assertEqual(self.add("moon", [("a", "b")]).status_code, 422)
         self.assertEqual(self.add("volcano", []).status_code, 422)
-        self.assertEqual(self.add("volcano", [("ok", "ok"), ("  ", "t")]).status_code, 422)
+        self.assertEqual(
+            self.add("volcano", [("ok", "ok"), ("  ", "t")]).status_code, 422
+        )
         self.assertEqual(self.add("volcano", [("ok", "  ")]).status_code, 422)
         self.assertEqual(self.add("volcano", [("ok", "x" * 61)]).status_code, 422)
         self.assertEqual(self.add("volcano", [("x" * 61, "ok")]).status_code, 201)
@@ -91,7 +97,9 @@ class ContentTests(ContentTestCase):
         self.assertEqual(self.request("GET", "premade-titles").status_code, 404)
 
     def test_retired_hints_are_not_listed_and_can_be_added_again(self) -> None:
-        [hint] = self.add("castle", [("a couch king", "The Couch King")]).json()["added"]
+        [hint] = self.add("castle", [("a couch king", "The Couch King")]).json()[
+            "added"
+        ]
         path = f"hints/{hint['id']}"
         self.assertEqual(self.request("DELETE", path).status_code, 204)
         self.assertEqual(self.request("GET", "hints").json(), [])
@@ -125,3 +133,54 @@ class ContentTests(ContentTestCase):
             )
         self.assertEqual(today, ["a sauna regular"])
         self.assertEqual(tomorrow, [])
+
+
+class SetupHintContentTests(ContentTestCase):
+    def add_setup(self, prompt: str, texts: list[str]):
+        return self.request(
+            "POST", "setup-hints", json={"prompt": prompt, "texts": texts}
+        )
+
+    def test_starter_prompts_are_added_once_per_prompt_type(self) -> None:
+        response = self.add_setup(
+            "alter", ["Them by night", " them BY night ", "Them on holiday"]
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        body = response.json()
+        self.assertEqual(
+            [(h["prompt"], h["text"]) for h in body["added"]],
+            [("alter", "Them by night"), ("alter", "Them on holiday")],
+        )
+        self.assertEqual(body["skipped"], ["them BY night"])
+        # Another type may have the same text.
+        self.assertEqual(
+            len(self.add_setup("basic", ["Them by night"]).json()["added"]), 1
+        )
+        listed = self.request("GET", "setup-hints?prompt=alter").json()
+        self.assertEqual(
+            [h["text"] for h in listed], ["Them by night", "Them on holiday"]
+        )
+        self.assertEqual(len(self.request("GET", "setup-hints").json()), 3)
+
+    def test_rejects_unknown_prompt_types_and_empty_texts(self) -> None:
+        self.assertEqual(self.add_setup("wizard", ["Them"]).status_code, 422)
+        self.assertEqual(self.add_setup("hero", ["  "]).status_code, 422)
+        self.assertEqual(self.add_setup("hero", []).status_code, 422)
+
+    def test_retired_starter_prompts_are_no_longer_given_out(self) -> None:
+        [kept, retired] = self.add_setup(
+            "knight", ["Their loyal companion", "Their sworn rival"]
+        ).json()["added"]
+        path = f"setup-hints/{retired['id']}"
+        self.assertEqual(self.request("DELETE", path).status_code, 204)
+        self.assertEqual(
+            [h["text"] for h in self.request("GET", "setup-hints").json()],
+            ["Their loyal companion"],
+        )
+        again = self.request("DELETE", path)
+        self.assertEqual(again.status_code, 404)
+        self.assertEqual(again.json()["detail"], "No such starter prompt")
+        with self.session_factory() as session:
+            assignments = [SetupAssignment(prompt="knight") for _ in range(4)]
+            give_hints(session, assignments)
+            self.assertEqual({a.hint.text for a in assignments}, {kept["text"]})

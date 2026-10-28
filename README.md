@@ -270,12 +270,15 @@ insert into setup_hint (prompt, text) values ('rogue', 'The last thing they lied
 | `GET /content/hints?theme=` | The prompt hints in use, optionally of one theme |
 | `POST /content/hints` | Add hints to a theme: `theme` and `hints`, each a `text` and its `premade_title`; descriptions the theme has already (ignoring case) are skipped |
 | `DELETE /content/hints/{id}` | Retire a hint: it's still used for the rest of the day |
+| `GET /content/setup-hints?prompt=` | The starter prompts in use, optionally of one setup prompt type |
+| `POST /content/setup-hints` | Add starter prompts to a type: `prompt` and `texts`; texts the type has already (ignoring case) are skipped |
+| `DELETE /content/setup-hints/{id}` | Retire a starter prompt: setups started from then on don't get it |
 
 The content endpoints need the `edit:content` permission of the Auth0 API on
 top of the player permission (`read:api`). `GET /me` tells the app with
 `can_edit_content`: content editors get a "Game content" button in the app
 bar to list, add and retire prompts per theme, each a description with its
-premade title. Give it through a role, like the
+premade title, and the starter prompts per setup prompt type. Give it through a role, like the
 `user` role gives `read:api`; the Auth0 setup lives in the infrastructure
 repository.
 

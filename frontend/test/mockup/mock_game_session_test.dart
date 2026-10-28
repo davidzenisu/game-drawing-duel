@@ -90,6 +90,26 @@ void main() {
     expect(game.pool, hasLength(2 * SetupPlan.testPrompts.length), reason: 'only Pat and Alex drew');
   });
 
+  test('the mockup gives out the starter prompts as edited', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    final basics = await game.setupHints(SetupPrompt.basic);
+    expect(basics, isNotEmpty);
+    for (final entry in basics) {
+      await game.retireSetupHint(entry);
+    }
+    final added = await game.addSetupHints(SetupPrompt.basic, const [' them on a Sunday ', 'Them on a Sunday']);
+    expect(added.added.single.text, 'them on a Sunday');
+    expect(added.skipped, ['Them on a Sunday']);
+    expect((await game.setupHints(SetupPrompt.basic)).map((e) => e.text), ['them on a Sunday']);
+
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
+    await game.startSetup();
+    final basic = game.assignments.where((a) => a.prompt == SetupPrompt.basic);
+    expect(basic, isNotEmpty);
+    expect(basic.map((a) => a.hint), everyElement('them on a Sunday'));
+  });
+
   test('cancelling the server returns to creating one', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

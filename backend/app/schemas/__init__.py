@@ -5,7 +5,14 @@ from app.schemas.character import (
     PromptSubmit,
     SketchData,
 )
-from app.schemas.content import ContentAdd, ContentAdded, ContentItem
+from app.schemas.content import (
+    ContentAdd,
+    ContentAdded,
+    ContentItem,
+    SetupHintAdd,
+    SetupHintAdded,
+    SetupHintItem,
+)
 from app.schemas.day import (
     BoostSubmit,
     BoostTarget,
@@ -79,6 +86,9 @@ __all__ = [
     "SeatResponse",
     "ServerCreate",
     "ServerResponse",
+    "SetupHintAdd",
+    "SetupHintAdded",
+    "SetupHintItem",
     "SketchData",
     "TodayResponse",
     "UpgradeRequest",

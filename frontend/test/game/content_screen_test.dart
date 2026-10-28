@@ -81,6 +81,74 @@ void main() {
     expect(find.text('No prompts for Volcano Lair yet.'), findsOneWidget);
   });
 
+  testWidgets('content editors add and retire starter prompts per type', (tester) async {
+    tester.view.physicalSize = const Size(1000, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final backend = FakeBackend()..contentEditors.add('kim');
+    final editor = ApiGameSession(
+      api: ApiClient(
+        baseUrl: 'https://api.example',
+        auth: FakeAuthClient(token: 'kim', profile: const AuthProfile()),
+        httpClient: backend.client,
+      ),
+    );
+    await tester.runAsync(() async {
+      await editor.start();
+      await editor.signUp('Kim');
+    });
+
+    Future<void> settle() async {
+      for (var i = 0; i < 5; i++) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+    }
+
+    await tester.pumpWidget(MaterialApp(home: ContentScreen(controller: editor)));
+    await settle();
+    await tester.tap(find.text('Setup'));
+    await settle();
+    expect(find.textContaining('No starter prompts for this type yet'), findsOneWidget);
+    expect(backend.requests.last.url.toString(), 'https://api.example/content/setup-hints?prompt=basic');
+
+    await tester.tap(find.text('Mage ★★'));
+    await settle();
+    final field = find.widgetWithText(TextField, 'Starter prompt');
+    await tester.enterText(field, ' their hidden talent ');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await settle();
+    expect(find.text('Added. It is given out from the next setup on.'), findsOneWidget);
+    expect(find.text('1 in use'), findsOneWidget);
+    expect(backend.setupHints.single, containsPair('prompt', 'mage'));
+    expect(backend.setupHints.single, containsPair('text', 'their hidden talent'));
+
+    // The same text again is skipped.
+    await tester.enterText(field, 'their hidden talent');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await settle();
+    expect(find.text('This type has this starter prompt already.'), findsOneWidget);
+    expect(backend.setupHints, hasLength(1));
+
+    // Other types have their own.
+    await tester.tap(find.text('Rogue ★★'));
+    await settle();
+    expect(find.widgetWithText(ListTile, 'their hidden talent'), findsNothing);
+    expect(find.textContaining('No starter prompts for this type yet'), findsOneWidget);
+    await tester.tap(find.text('Mage ★★'));
+    await settle();
+
+    await tester.tap(find.byTooltip('Retire'));
+    await settle();
+    expect(find.text('Retire this starter prompt?'), findsOneWidget);
+    await tester.tap(find.text('Retire'));
+    await settle();
+    expect(find.textContaining('No starter prompts for this type yet'), findsOneWidget);
+    expect(backend.setupHints.single, containsPair('retired', true));
+  });
+
   testWidgets('content editors and the mockup get the button', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
