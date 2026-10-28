@@ -1,9 +1,12 @@
-"""The prompt hints, each a description with its premade title, for the
-accounts with the content permission (`auth.CONTENT_PERMISSION`).
+"""The prompt hints, each a description with its premade title, and the
+starter prompts of the setup drawings, for the accounts with the content
+permission (`auth.CONTENT_PERMISSION`).
 
 New hints are used from the day after they were added. Retiring a hint keeps
 it for the rest of the day, so the picks of a day never change (see
 `days.hints_on`); a retired hint stays in the database but isn't listed.
+Starter prompts are given out from the next setup on, and retired ones not
+anymore (see `setup.give_hints`).
 """
 
 import uuid
@@ -14,10 +17,17 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_content_editor
 from app.database import utc_now
-from app.models import ThemeHint
+from app.models import SetupHint, ThemeHint
 from app.routers.servers import DbSession
-from app.rules import Theme
-from app.schemas import ContentAdd, ContentAdded, ContentItem
+from app.rules import SetupPrompt, Theme
+from app.schemas import (
+    ContentAdd,
+    ContentAdded,
+    ContentItem,
+    SetupHintAdd,
+    SetupHintAdded,
+    SetupHintItem,
+)
 
 router = APIRouter(
     prefix="/content",
@@ -75,5 +85,61 @@ def retire_hint(hint_id: uuid.UUID, session: DbSession) -> None:
     hint = session.get(ThemeHint, hint_id)
     if hint is None or hint.retired_at is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such hint")
+    hint.retired_at = utc_now()
+    session.commit()
+
+
+def _setup_item(hint: SetupHint) -> SetupHintItem:
+    return SetupHintItem(
+        id=hint.id,
+        prompt=SetupPrompt(hint.prompt),
+        text=hint.text,
+        created_at=hint.created_at,
+    )
+
+
+def _setup_in_use(session: Session, prompt: SetupPrompt | None) -> list[SetupHint]:
+    query = select(SetupHint).where(SetupHint.retired_at.is_(None))
+    if prompt is not None:
+        query = query.where(SetupHint.prompt == prompt.value)
+    return list(session.scalars(query.order_by(SetupHint.prompt, SetupHint.created_at)))
+
+
+@router.get("/setup-hints", response_model=list[SetupHintItem])
+def list_setup_hints(
+    session: DbSession, prompt: SetupPrompt | None = None
+) -> list[SetupHintItem]:
+    """The starter prompts in use, optionally of one setup prompt type."""
+    return [_setup_item(hint) for hint in _setup_in_use(session, prompt)]
+
+
+@router.post(
+    "/setup-hints",
+    response_model=SetupHintAdded,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_setup_hints(body: SetupHintAdd, session: DbSession) -> SetupHintAdded:
+    """Adds starter prompts to a setup prompt type, given out from the next
+    setup on. Texts the type has already are skipped."""
+    known = {hint.text.casefold() for hint in _setup_in_use(session, body.prompt)}
+    added, skipped = [], []
+    for text in body.texts:
+        if text.casefold() in known:
+            skipped.append(text)
+            continue
+        known.add(text.casefold())
+        hint = SetupHint(prompt=body.prompt.value, text=text)
+        session.add(hint)
+        added.append(hint)
+    session.commit()
+    return SetupHintAdded(added=[_setup_item(h) for h in added], skipped=skipped)
+
+
+@router.delete("/setup-hints/{hint_id}", status_code=status.HTTP_204_NO_CONTENT)
+def retire_setup_hint(hint_id: uuid.UUID, session: DbSession) -> None:
+    """Retires a starter prompt: setups started from now on don't get it."""
+    hint = session.get(SetupHint, hint_id)
+    if hint is None or hint.retired_at is not None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such starter prompt")
     hint.retired_at = utc_now()
     session.commit()

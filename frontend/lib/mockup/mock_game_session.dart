@@ -267,9 +267,12 @@ class MockGameSession extends GameSession {
         : SetupPlan.assignmentsFor(players, index);
     return [
       for (final a in planned)
-        switch (_setupHints[a.prompt]) {
-          final hints? => a.withHint(hints[_random.nextInt(hints.length)]),
-          null => a,
+        switch ([
+          for (final h in _setupContent)
+            if (h.prompt == a.prompt) h,
+        ]) {
+          final hints when hints.isNotEmpty => a.withHint(hints[_random.nextInt(hints.length)].text),
+          _ => a,
         },
     ];
   }
@@ -399,6 +402,14 @@ class MockGameSession extends GameSession {
   ];
   int _nextContent = 1;
 
+  /// The starter prompts in use, like online kept for the whole session:
+  /// given out from the next setup on.
+  final List<SetupHintEntry> _setupContent = [
+    for (final MapEntry(:key, :value) in _setupHints.entries)
+      for (final text in value)
+        SetupHintEntry(id: 'setup-${key.name}-$text', prompt: key, text: text, createdAt: DateTime.now()),
+  ];
+
   /// The ids of the hints the server gave out: every one is used once only.
   final Set<String> _usedHints = {};
 
@@ -456,6 +467,45 @@ class MockGameSession extends GameSession {
     final content = _content.where((c) => c.entry.id == entry.id && c.retiredOn == null).firstOrNull;
     if (content == null) throw StateError('No such hint.');
     content.retiredOn = _day;
+  }
+
+  @override
+  Future<List<SetupHintEntry>> setupHints(SetupPrompt prompt) async => [
+    for (final h in _setupContent)
+      if (h.prompt == prompt) h,
+  ];
+
+  @override
+  Future<SetupHintAddResult> addSetupHints(SetupPrompt prompt, List<String> texts) async {
+    final trimmed = [for (final t in texts) t.trim()];
+    if (trimmed.any((t) => t.isEmpty)) throw ArgumentError("A starter prompt can't be empty.");
+    final known = {
+      for (final h in _setupContent)
+        if (h.prompt == prompt) h.text.toLowerCase(),
+    };
+    final added = <SetupHintEntry>[];
+    final skipped = <String>[];
+    for (final text in trimmed) {
+      if (!known.add(text.toLowerCase())) {
+        skipped.add(text);
+        continue;
+      }
+      final entry = SetupHintEntry(
+        id: 'setup-${_nextContent++}',
+        prompt: prompt,
+        text: text,
+        createdAt: DateTime.now(),
+      );
+      _setupContent.add(entry);
+      added.add(entry);
+    }
+    return SetupHintAddResult(added: added, skipped: skipped);
+  }
+
+  @override
+  Future<void> retireSetupHint(SetupHintEntry entry) async {
+    if (!_setupContent.any((h) => h.id == entry.id)) throw StateError('No such starter prompt.');
+    _setupContent.removeWhere((h) => h.id == entry.id);
   }
 
   @override

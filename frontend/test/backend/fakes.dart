@@ -148,6 +148,9 @@ class FakeBackend {
   /// The prompt hints, each with its premade title.
   final List<Map<String, Object?>> hints = [];
 
+  /// The starter prompts of the setup drawings.
+  final List<Map<String, Object?>> setupHints = [];
+
   /// Rejects every request with this status and detail, like the real API
   /// does for a bad token.
   ({int status, String detail})? rejectAll;
@@ -182,6 +185,7 @@ class FakeBackend {
     }
     if (path.first == 'content') {
       if (!canEditContent) return _json(403, {'detail': 'Missing permission edit:content'});
+      if (path[1] == 'setup-hints') return _setupHints(request, path, body);
       if (path[1] != 'hints') return _json(404, {'detail': 'Not found'});
       final entries = hints;
       switch ((request.method, path.length)) {
@@ -722,6 +726,44 @@ class FakeBackend {
           'hint': 'Starter prompt of the ${a.prompt.name}',
         },
     ];
+  }
+
+  http.Response _setupHints(http.Request request, List<String> path, Map<String, Object?>? body) {
+    switch ((request.method, path.length)) {
+      case ('GET', 2):
+        final prompt = request.url.queryParameters['prompt'];
+        return _json(200, [
+          for (final e in setupHints)
+            if (e['retired'] != true && (prompt == null || e['prompt'] == prompt)) e,
+        ]);
+      case ('POST', 2):
+        final added = <Map<String, Object?>>[];
+        final skipped = <String>[];
+        for (final text in (body!['texts'] as List).cast<String>().map((t) => t.trim())) {
+          final known = setupHints.any(
+            (e) => e['retired'] != true && e['prompt'] == body['prompt'] && e['text'] == text,
+          );
+          if (known) {
+            skipped.add(text);
+            continue;
+          }
+          final entry = {
+            'id': 'setup-hint-${setupHints.length + 1}',
+            'prompt': body['prompt'],
+            'text': text,
+            'created_at': '2026-10-12T10:00:00Z',
+          };
+          setupHints.add(entry);
+          added.add(entry);
+        }
+        return _json(201, {'added': added, 'skipped': skipped});
+      case ('DELETE', 3):
+        final entry = setupHints.where((e) => e['id'] == path[2] && e['retired'] != true).firstOrNull;
+        if (entry == null) return _json(404, {'detail': 'No such starter prompt'});
+        entry['retired'] = true;
+        return http.Response('', 204);
+    }
+    return _json(404, {'detail': 'Not found'});
   }
 
   static http.Response _json(int status, Object? body) =>

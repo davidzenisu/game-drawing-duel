@@ -202,6 +202,42 @@ class ApiGameSession extends GameSession {
     await _delete('/content/hints/${entry.id}');
   }
 
+  SetupHintEntry _setupHintEntry(Object? json) {
+    if (json case {'id': String id, 'prompt': String prompt, 'text': String text, 'created_at': String createdAt}) {
+      return SetupHintEntry(
+        id: id,
+        prompt: SetupPrompt.values.asNameMap()[prompt] ?? (throw FormatException('Unknown prompt $prompt.')),
+        text: text,
+        createdAt: DateTime.parse(createdAt),
+      );
+    }
+    throw _unexpected('starter prompt', json, const ['id', 'prompt', 'text', 'created_at']);
+  }
+
+  @override
+  Future<List<SetupHintEntry>> setupHints(SetupPrompt prompt) async {
+    final json = await _get('/content/setup-hints?prompt=${prompt.name}');
+    if (json is! List) throw const FormatException('Unexpected starter prompts response.');
+    return [for (final entry in json) _setupHintEntry(entry)];
+  }
+
+  @override
+  Future<SetupHintAddResult> addSetupHints(SetupPrompt prompt, List<String> texts) async {
+    final json = await _post('/content/setup-hints', {'prompt': prompt.name, 'texts': texts});
+    if (json case {'added': List added, 'skipped': List skipped}) {
+      return SetupHintAddResult(
+        added: [for (final entry in added) _setupHintEntry(entry)],
+        skipped: [for (final text in skipped) text as String],
+      );
+    }
+    throw const FormatException('Unexpected starter prompts response.');
+  }
+
+  @override
+  Future<void> retireSetupHint(SetupHintEntry entry) async {
+    await _delete('/content/setup-hints/${entry.id}');
+  }
+
   /// Back to your newest server, or to creating or joining one.
   Future<void> _loadServer() async {
     final servers = await _get('/servers/mine');

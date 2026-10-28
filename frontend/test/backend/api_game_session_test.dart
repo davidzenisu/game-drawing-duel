@@ -735,6 +735,35 @@ void main() {
       expect((await editor.contentEntries(DailyTheme.volcano)).map((e) => e.text), ['a toast burner']);
     });
 
+    test('content editors manage the starter prompts', () async {
+      backend.contentEditors.add('kim');
+      final editor = await signedUp('kim', 'Kim');
+      final added = await editor.addSetupHints(SetupPrompt.mage, const ['their hidden talent', 'their sidekick']);
+      final post = backend.requests.last;
+      expect((post.method, post.url.path), ('POST', '/content/setup-hints'));
+      expect(jsonDecode(post.body), {
+        'prompt': 'mage',
+        'texts': ['their hidden talent', 'their sidekick'],
+      });
+      expect(added.added.map((e) => (e.prompt, e.text)), [
+        (SetupPrompt.mage, 'their hidden talent'),
+        (SetupPrompt.mage, 'their sidekick'),
+      ]);
+      final again = await editor.addSetupHints(SetupPrompt.mage, const ['their sidekick']);
+      expect(again.added, isEmpty);
+      expect(again.skipped, ['their sidekick']);
+
+      final listed = await editor.setupHints(SetupPrompt.mage);
+      expect(backend.requests.last.url.toString(), 'https://api.example/content/setup-hints?prompt=mage');
+      expect(listed, hasLength(2));
+      expect(await editor.setupHints(SetupPrompt.rogue), isEmpty);
+
+      await editor.retireSetupHint(listed.first);
+      final delete = backend.requests.last;
+      expect((delete.method, delete.url.path), ('DELETE', '/content/setup-hints/${listed.first.id}'));
+      expect((await editor.setupHints(SetupPrompt.mage)).map((e) => e.text), ['their sidekick']);
+    });
+
     test('a reload keeps the upgrades and the chosen element', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
