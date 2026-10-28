@@ -69,6 +69,7 @@ void main() {
     expect(game.server.everyoneJoined, isTrue);
     expect(game.phase, GamePhase.setup);
     expect(game.assignments, hasLength(SetupPlan.drawingsPerPlayer(game.server.players.length)));
+    expect(game.assignments.map((a) => a.hint), everyElement(isNotNull), reason: 'a starter prompt each');
   });
 
   test('a test session sets up the players who joined with the short prompts', () async {

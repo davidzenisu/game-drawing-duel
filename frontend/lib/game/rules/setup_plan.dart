@@ -2,7 +2,8 @@ import 'dart:math';
 
 import 'models.dart';
 
-/// The default prompts of the initial drawing setup.
+/// The default prompts of the initial drawing setup. [hint] stands in
+/// when an assignment has no starter prompt of its own.
 enum SetupPrompt {
   basic(rarity: Rarity.basic, label: 'Basic', hint: 'Just them, as you know them.'),
   alter(
@@ -14,6 +15,9 @@ enum SetupPrompt {
   knight(rarity: Rarity.adventurer, label: 'Knight', hint: 'Draw them as a knight.'),
   mage(rarity: Rarity.adventurer, label: 'Mage', hint: 'Draw them as a mage.'),
   rogue(rarity: Rarity.adventurer, label: 'Rogue', hint: 'Draw them as a rogue.'),
+
+  /// Not in any setup plan yet: kept for the speed mode.
+  hero(rarity: Rarity.hero, label: 'Hero', hint: 'Draw them as a hero.'),
   legend(rarity: Rarity.legend, label: 'A legend', hint: 'Draw them as a true legend. Take your time.');
 
   const SetupPrompt({required this.rarity, required this.label, required this.hint, this.basedOn});
@@ -28,7 +32,7 @@ enum SetupPrompt {
 
 /// A drawing a player has to make during the initial setup.
 class DrawingAssignment {
-  const DrawingAssignment({required this.id, required this.prompt, required this.subject, this.basedOn});
+  const DrawingAssignment({required this.id, required this.prompt, required this.subject, this.basedOn, this.hint});
 
   final String id;
   final SetupPrompt prompt;
@@ -36,6 +40,12 @@ class DrawingAssignment {
 
   /// The assignment this one builds on (the alter is based on the basic).
   final String? basedOn;
+
+  /// The starter prompt: what to show of [subject], e.g. "Them by night".
+  final String? hint;
+
+  DrawingAssignment withHint(String? hint) =>
+      DrawingAssignment(id: id, prompt: prompt, subject: subject, basedOn: basedOn, hint: hint);
 }
 
 /// Works out who draws what so that the pool always holds roughly 30
@@ -59,7 +69,14 @@ abstract final class SetupPlan {
       throw ArgumentError.value(playerCount, 'playerCount', 'must be between $minPlayers and $maxPlayers');
     }
     return switch (playerCount) {
-      5 => SetupPrompt.values,
+      5 => const [
+        SetupPrompt.basic,
+        SetupPrompt.alter,
+        SetupPrompt.knight,
+        SetupPrompt.mage,
+        SetupPrompt.rogue,
+        SetupPrompt.legend,
+      ],
       6 => const [SetupPrompt.basic, SetupPrompt.alter, SetupPrompt.knight, SetupPrompt.mage, SetupPrompt.legend],
       7 || 8 => const [SetupPrompt.basic, SetupPrompt.knight, SetupPrompt.mage, SetupPrompt.legend],
       _ => const [SetupPrompt.basic, SetupPrompt.knight, SetupPrompt.legend],

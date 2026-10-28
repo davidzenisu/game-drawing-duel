@@ -34,6 +34,8 @@ class SetupPrompt(StrEnum):
     KNIGHT = "knight"
     MAGE = "mage"
     ROGUE = "rogue"
+    # Not in any setup plan yet: kept for the speed mode.
+    HERO = "hero"
     LEGEND = "legend"
 
     @property
@@ -52,6 +54,7 @@ _PROMPT_RARITY = {
     SetupPrompt.KNIGHT: Rarity.ADVENTURER,
     SetupPrompt.MAGE: Rarity.ADVENTURER,
     SetupPrompt.ROGUE: Rarity.ADVENTURER,
+    SetupPrompt.HERO: Rarity.HERO,
     SetupPrompt.LEGEND: Rarity.LEGEND,
 }
 
@@ -64,7 +67,14 @@ def prompts_for(player_count: int) -> tuple[SetupPrompt, ...]:
     if not MIN_PLAYERS <= player_count <= MAX_PLAYERS:
         raise ValueError(f"A server has {MIN_PLAYERS} to {MAX_PLAYERS} players")
     if player_count == 5:
-        return tuple(SetupPrompt)
+        return (
+            SetupPrompt.BASIC,
+            SetupPrompt.ALTER,
+            SetupPrompt.KNIGHT,
+            SetupPrompt.MAGE,
+            SetupPrompt.ROGUE,
+            SetupPrompt.LEGEND,
+        )
     if player_count == 6:
         return (
             SetupPrompt.BASIC,

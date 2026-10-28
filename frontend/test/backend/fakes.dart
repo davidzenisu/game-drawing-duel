@@ -719,6 +719,7 @@ class FakeBackend {
           'prompt': a.prompt.name,
           'subject_position': int.parse(a.subject.id),
           'based_on': a.basedOn == null ? null : id(planned.firstWhere((b) => b.id == a.basedOn)),
+          'hint': 'Starter prompt of the ${a.prompt.name}',
         },
     ];
   }

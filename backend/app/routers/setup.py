@@ -26,7 +26,7 @@ from app.schemas import (
     DrawingSubmit,
     ServerResponse,
 )
-from app.setup import assign_setup
+from app.setup import assign_setup, give_hints
 from app.storage import Files, delete_quietly
 
 logger = logging.getLogger(__name__)
@@ -83,7 +83,9 @@ def start_setup(
         )
     session.refresh(server)
     artists = [s for s in server.seats if s.player_id is not None]
-    session.add_all(assign_setup(server, artists))
+    assignments = assign_setup(server, artists)
+    give_hints(session, assignments)
+    session.add_all(assignments)
     session.commit()
     session.expire_all()
     return server_response(load_server(session, code), player)
@@ -100,7 +102,9 @@ def my_assignments(
     assignments = session.scalars(
         select(SetupAssignment)
         .where(SetupAssignment.artist_seat_id == seat.id)
-        .options(selectinload(SetupAssignment.subject))
+        .options(
+            selectinload(SetupAssignment.subject), selectinload(SetupAssignment.hint)
+        )
     ).all()
     characters = {
         c.assignment_id: c
@@ -119,6 +123,7 @@ def my_assignments(
             prompt=a.prompt,
             subject_position=a.subject.position,
             based_on=a.based_on_id,
+            hint=a.hint.text if a.hint else None,
             character=character_response(characters[a.id])
             if a.id in characters
             else None,

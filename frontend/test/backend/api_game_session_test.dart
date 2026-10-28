@@ -244,6 +244,7 @@ void main() {
       expect(sam.assignments.map((a) => a.subject.name), ['Robin', 'Robin', 'Kim', 'Jo', 'Alex', 'Robin']);
       final alter = sam.assignments[1];
       expect(alter.basedOn, sam.assignments[0].id);
+      expect(alter.hint, 'Starter prompt of the alter', reason: "each assignment's own starter prompt");
       expect(sam.isUnlocked(alter), isFalse, reason: 'the basic is not drawn yet');
     });
 

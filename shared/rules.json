@@ -15,6 +15,7 @@
     {"name": "knight", "rarity": "adventurer", "based_on": null},
     {"name": "mage", "rarity": "adventurer", "based_on": null},
     {"name": "rogue", "rarity": "adventurer", "based_on": null},
+    {"name": "hero", "rarity": "hero", "based_on": null},
     {"name": "legend", "rarity": "legend", "based_on": null}
   ],
   "setup_plans": {

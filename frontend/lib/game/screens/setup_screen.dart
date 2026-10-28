@@ -61,7 +61,7 @@ class _SetupScreenState extends State<SetupScreen> {
         builder: (_) => DrawingScreen(
           subject: assignment.subject.name,
           prompt: assignment.prompt.label,
-          hint: assignment.prompt.hint,
+          hint: assignment.hint ?? assignment.prompt.hint,
           rarity: assignment.prompt.rarity,
           initialTitle: previous?.title ?? '',
           reference: reference?.sketch,
@@ -194,7 +194,8 @@ class _SetupScreenState extends State<SetupScreen> {
               : drawing != null
               ? '"${drawing.title}"'
               : unlocked
-              ? '${'★' * assignment.prompt.rarity.stars} · $limitLabel'
+              ? '${assignment.hint == null ? '' : '${assignment.hint}\n'}'
+                    '${'★' * assignment.prompt.rarity.stars} · $limitLabel'
               : 'Draw the basic version first',
         ),
         trailing: uploading

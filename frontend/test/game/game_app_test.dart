@@ -48,6 +48,10 @@ void main() {
     await tester.tap(find.text('Start drawing'));
     await tester.pumpAndSettle();
     expect(find.text('Draw your friends'), findsOneWidget);
+    // Every drawing comes with its starter prompt.
+    final basic = controller.assignments.first;
+    expect(basic.hint, isNotNull);
+    expect(find.textContaining(basic.hint!), findsOneWidget);
 
     // Stop the background timers before the test ends.
     await tester.pumpWidget(const SizedBox());
