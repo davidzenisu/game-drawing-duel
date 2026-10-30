@@ -84,9 +84,12 @@ class _Section extends StatelessWidget {
 
 /// Plays out a fight that ends with the outcome the stars decided.
 class FightReplayScreen extends StatefulWidget {
-  const FightReplayScreen({super.key, required this.fight});
+  const FightReplayScreen({super.key, required this.fight, this.showReward = false});
 
   final FightSetup fight;
+
+  /// Shows what a win earned you, right after you locked in your fighters.
+  final bool showReward;
 
   @override
   State<FightReplayScreen> createState() => _FightReplayScreenState();
@@ -118,7 +121,10 @@ class _FightReplayScreenState extends State<FightReplayScreen> {
               onFinished: () => setState(() => _finished = true),
             ),
           ),
-          if (_finished) Positioned.fill(child: FightOutcome(fight: widget.fight)),
+          if (_finished)
+            Positioned.fill(
+              child: FightOutcome(fight: widget.fight, showReward: widget.showReward),
+            ),
         ],
       ),
     );
@@ -128,9 +134,12 @@ class _FightReplayScreenState extends State<FightReplayScreen> {
 /// Reveals how a fight ended: each side's stars count up, the side with
 /// more stands out and the winner drops in. Tap to see it all at once.
 class FightOutcome extends StatefulWidget {
-  const FightOutcome({super.key, required this.fight});
+  const FightOutcome({super.key, required this.fight, this.showReward = false});
 
   final FightSetup fight;
+
+  /// Shows what a win earned you: a pull and the challenger's stars.
+  final bool showReward;
 
   @override
   State<FightOutcome> createState() => _FightOutcomeState();
@@ -236,6 +245,13 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
                                     ),
                                     if (fight.fighterStars == fight.challengerStars)
                                       const Text('Ties go to the challenger.'),
+                                    if (widget.showReward && fightersWin) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '+1 pull · +${fight.challengerStars} victory ★',
+                                        style: text.titleMedium?.copyWith(color: AppPalette.ticket),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

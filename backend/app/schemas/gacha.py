@@ -20,6 +20,8 @@ class GachaResponse(BaseModel):
     # This week's rate-up characters on the weekly banner, see
     # `app.pulls.rate_up`; none until the first finale, and no weekly banner.
     rate_up: list[uuid.UUID] = []
+    # The stars of the challengers you beat, see `app.fights.victory_stars`.
+    victory_stars: int = 0
 
 
 class PullRequest(BaseModel):

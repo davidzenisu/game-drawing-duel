@@ -41,6 +41,7 @@ class PullTests(PullTestCase):
                 "beginner_pulls_left": 10,
                 # No weekly hero yet, so nothing is rate-up.
                 "rate_up": [],
+                "victory_stars": 0,
             },
         )
 

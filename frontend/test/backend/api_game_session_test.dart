@@ -596,6 +596,9 @@ void main() {
       expect(fight.fighters, hasLength(2));
       expect((fight.boostStars, fight.challengerStars), (2, 5));
       expect(fight.fightersWin, fight.fighterStars > 5);
+      // A win earns a pull and the challenger's stars, reloaded right away.
+      expect(backend.requests.last.url.path, '/servers/123456/gacha');
+      expect(admin.victoryStars, fight.fightersWin ? 5 : 0);
       expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
       expect(admin.restingCharacterIds, isEmpty);
 

@@ -125,6 +125,11 @@ abstract class GameSession extends ChangeNotifier {
   /// Available gacha pulls.
   int get tickets;
 
+  /// The stars of the challengers you beat: a fight you picked the fighters
+  /// for and won earns a pull and the challenger's stars. A currency to
+  /// spend later.
+  int get victoryStars;
+
   GachaStatus get gachaStatus;
 
   /// This week's rate-up characters' ids: the latest weekly hero and the

@@ -478,8 +478,14 @@ class FakeBackend {
     final challengers = _characters(
       code,
     ).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
-    return launchBonus + challengers - (pulls[(code, playerId)]?.length ?? 0);
+    return launchBonus + challengers + _wins(code, yours).length - (pulls[(code, playerId)]?.length ?? 0);
   }
+
+  /// The fights [seat] won: each earns a pull and the challenger's stars.
+  Iterable<FakeFight> _wins(String code, int seat) => [
+    for (final f in fights[code] ?? const <FakeFight>[])
+      if (f.owner == seat && _outcome(f)['fighters_win'] == true) f,
+  ];
 
   static const themes = ['forest', 'beach', 'volcano', 'snow', 'jungle', 'space', 'castle'];
 
@@ -696,6 +702,10 @@ class FakeBackend {
       'pulls_until_legend': 50 - total,
       'beginner_pulls_left': total < 10 ? 10 - total : null,
       'rate_up': _rateUp(code),
+      'victory_stars': _wins(
+        code,
+        servers[code]!.seats.indexWhere((s) => s['player'] == playerId),
+      ).fold<int>(0, (sum, f) => sum + (_outcome(f)['challenger_stars'] as int)),
     };
   }
 

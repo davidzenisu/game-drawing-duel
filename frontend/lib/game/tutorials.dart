@@ -128,7 +128,8 @@ enum Tutorial {
         title: 'Beat its stars',
         text:
             'You need more stars than the challenger\'s ${_stars(Stars.challengerBase)} plus its boosts, '
-            'which stay secret until you lock in; ties go to the challenger. The fight plays out right away.',
+            'which stay secret until you lock in; ties go to the challenger. The fight plays out right away, '
+            'and a win earns a pull and the challenger\'s stars as victory stars.',
       ),
       const TutorialPage(
         icon: Icons.bedtime_rounded,
@@ -169,7 +170,8 @@ enum Tutorial {
         icon: Icons.confirmation_number_rounded,
         title: 'Pulls',
         text:
-            'You start with ${GachaMachine.launchBonus} pulls and earn one for every challenger you draw. '
+            'You start with ${GachaMachine.launchBonus} pulls and earn one for every challenger you draw and '
+            'every fight you win. '
             'Each pull adds a character of the pool to your collection: the standard banner has the '
             'characters drawn during the setup, the weekly one from the first finale on the whole pool, with '
             'this week\'s hero rated up.',

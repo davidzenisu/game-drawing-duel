@@ -260,8 +260,12 @@ void main() {
     expect(challenger.artist, isNot(you.name));
     expect(targets.map((t) => t.challenger.id), isNot(contains(challenger.id)));
     await expectLater(game.submitFighters(game.collection.take(5).toList()), throwsArgumentError);
+    final ticketsBefore = game.tickets;
     await game.submitFighters(game.collection.take(4).toList());
     final fight = game.yourFight!;
+    // A win earns a pull and the challenger's stars.
+    expect(game.tickets, ticketsBefore + (fight.fightersWin ? 1 : 0));
+    expect(game.victoryStars, fight.fightersWin ? fight.challengerStars : 0);
     expect(fight.fighters, hasLength(4));
     expect(fight.fighterStars, Stars.ofTeam(fight.fighters.map((f) => f.card.rarity)));
     expect(fight.boostStars, greaterThan(0), reason: 'everyone spreads their stars');

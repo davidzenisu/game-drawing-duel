@@ -333,7 +333,7 @@ def draw_challenger(
     )
 
     def reward() -> None:
-        # The only pull to earn each day.
+        # Besides a won fight, the only pull to earn each day.
         session.add(PullGrant(seat_id=seat.id, reason=f"challenger:day-{day}"))
 
     save_character(
@@ -354,8 +354,9 @@ def pick_fighters(
     code: Code, body: FightersSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
     """Step 4: sends up to four of your characters against today's
-    challenger, boosted yesterday. The stars decide right away. Once a day,
-    and every character but the basic ones once a week."""
+    challenger, boosted yesterday. The stars decide right away: a win earns
+    a pull (`fight:day-N`) and the challenger's stars as victory stars. Once
+    a day, and every character but the basic ones once a week."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
     fights.complete_boosts(session, server, day - 1)
@@ -378,7 +379,9 @@ def pick_fighters(
             status.HTTP_409_CONFLICT,
             detail="Every character fights once a week; they're back on Monday",
         )
-    fights.new_fight(session, seat, day, challenger, fighters)
+    fight = fights.new_fight(session, seat, day, challenger, fighters)
+    if fight.fighters_win:
+        session.add(PullGrant(seat_id=seat.id, reason=f"fight:day-{day}"))
     try:
         session.commit()
     except IntegrityError as error:

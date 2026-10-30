@@ -259,10 +259,12 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? _unlocksOn(LoopStep.fight)
             : fight != null
             ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
-                  '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★.'
+                  '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★'
+                  '${fight.fightersWin ? '. +1 pull, +${fight.challengerStars} victory ★' : '.'}'
             : c.availableFighters.isEmpty
             ? 'All your characters fought this week. They\'re back on Monday.'
-            : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters.',
+            : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '
+                  'A win earns a pull and its stars.',
         done: fight != null,
         onTap: c.fightChallenger == null || (fight == null && c.availableFighters.isEmpty)
             ? null
@@ -288,9 +290,12 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       _ActionCard(
         icon: Icons.sports_martial_arts_rounded,
         title: 'Battle results',
-        subtitle: hasResults
-            ? 'Watch yesterday\'s fights of your fighters and your challenger.'
-            : 'Your first results arrive on day ${LoopStep.results}.',
+        subtitle: [
+          hasResults
+              ? 'Watch yesterday\'s fights of your fighters and your challenger.'
+              : 'Your first results arrive on day ${LoopStep.results}.',
+          if (c.victoryStars > 0) 'Victory stars won: ${c.victoryStars} ★',
+        ].join(' '),
         onTap: hasResults ? () => _openStep(ResultsScreen(controller: c), Tutorial.fight) : null,
       ),
     ];
