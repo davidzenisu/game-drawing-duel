@@ -161,25 +161,38 @@ class _ChallengerCard extends StatelessWidget {
                       Text(challenger.title, style: textTheme.titleMedium, textAlign: TextAlign.center),
                       Text('Drawn by ${challenger.artist}', style: textTheme.bodySmall),
                       const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          for (var slot = 0; slot < Boost.maxPerChallenger; slot++)
-                            slot < target.stars
-                                ? _GivenStar(
-                                    key: ValueKey('${challenger.id}-$slot'),
-                                    from: challenger.id,
-                                    enabled: canTake && inView,
-                                    onTap: onTakeBack,
-                                  )
-                                : const _EmptySlot(),
-                        ],
+                      // The challenger's own stars, always there.
+                      Semantics(
+                        label: '${Stars.challengerBase} stars of its own',
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var i = 0; i < Stars.challengerBase; i++) _star(color: AppPalette.rarityLegend),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${Stars.challengerBase} ★ + ${target.stars} from you, and the boosts of others',
-                        style: textTheme.bodySmall,
-                        textAlign: TextAlign.center,
+                      // The boost stars you gave it, below.
+                      SizedBox(
+                        height: _starSize,
+                        child: target.stars == 0
+                            ? Center(
+                                child: Text(
+                                  'Drop a boost star here',
+                                  style: textTheme.bodySmall?.copyWith(color: colors.outline),
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  for (var slot = 0; slot < target.stars; slot++)
+                                    _GivenStar(
+                                      key: ValueKey('${challenger.id}-$slot'),
+                                      from: challenger.id,
+                                      enabled: canTake && inView,
+                                      onTap: onTakeBack,
+                                    ),
+                                ],
+                              ),
                       ),
                     ],
                   ),
@@ -225,20 +238,12 @@ class _GivenStar extends StatelessWidget {
           affinity: Axis.vertical,
           maxSimultaneousDrags: enabled ? 1 : 0,
           feedback: _star(size: _starSize * 1.3),
-          childWhenDragging: const _EmptySlot(),
+          childWhenDragging: Opacity(opacity: 0.3, child: _star()),
           child: star,
         ),
       ),
     );
   }
-}
-
-class _EmptySlot extends StatelessWidget {
-  const _EmptySlot();
-
-  @override
-  Widget build(BuildContext context) =>
-      Icon(Icons.star_outline_rounded, size: _starSize, color: Theme.of(context).colorScheme.outline);
 }
 
 /// The stars left to give, at the bottom: drag one onto the challenger in

@@ -51,6 +51,13 @@ void main() {
     expect(find.text(targets.first.challenger.title), findsOneWidget);
     expect(find.textContaining('3 of 3 left'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
+    // Every challenger shows its own stars; boost stars go below them.
+    final ownStars = find.descendant(
+      of: find.bySemanticsLabel('3 stars of its own'),
+      matching: find.byIcon(Icons.star_rounded),
+    );
+    expect(ownStars.hitTestable(), findsNWidgets(3));
+    expect(find.text('Drop a boost star here').hitTestable(), findsOneWidget);
 
     Future<void> drag(Finder from, Finder to) async {
       final gesture = await tester.startGesture(tester.getCenter(from));
@@ -73,6 +80,9 @@ void main() {
     await drag(trayStar(), first);
     expect(controller.boostTargets.first.stars, 2);
     expect(find.textContaining('1 of 3 left'), findsOneWidget);
+    expect(given(0, 1), findsOneWidget);
+    expect(given(0, 2), findsNothing, reason: 'no empty slots');
+    expect(find.text('Drop a boost star here').hitTestable(), findsNothing);
 
     // Drag one back down to the tray, and tap to give it again.
     await drag(given(0, 1), find.textContaining('1 of 3 left'));
