@@ -15,11 +15,13 @@ There should be the option to start a "one-off" server session which follows the
 - Setup: 5 min
 - Day 1: Title (1 min)
 - Day 2: Title + Drawing (2 min)
-- Day 3: Title + Drawing + Fighters (3 min)
-- Day 4: Drawing + Fighters + Boost (3 min)
-- Day 5: Fighters + Boost (2 min)
-- Day 6: Boost (1 min)
-- Day 7: Finale (3 min)
+- Day 3: Title + Drawing + Boost (3 min)
+- Day 4: Drawing + Boost + Fighters (3 min)
+- Day 5: Boost + Fighters + Voting (2 min)
+- Day 6: Fighters + Voting (1 min)
+- Day 7: Voting (1 min)
+
+- Later: Day 7: Finale (3 min) ?
 
 ### Overview
 - Drawing: Only two drawings spread out across the different rarities:
@@ -29,7 +31,8 @@ There should be the option to start a "one-off" server session which follows the
 	- For 8 players: 8☆, 3☆☆, 3☆☆☆, 2☆☆☆☆
 	- For 9 players: 9☆, 3☆☆, 3☆☆☆, 3☆☆☆☆
 	- For 10 players: 10☆, 4☆☆, 3☆☆☆, 3☆☆☆☆
-- For each win: Get a 10 pull (?)
+- Only the 1☆ setup drawings is gained by the player who drew not the higher ☆ one
+- For each win: Get pulls for each star that the challenger has (speed mode only)
 
 Total drawings: 5 per player (25-50 drawings)
 
@@ -41,7 +44,6 @@ Average player battlers in speed mode:
 Average stars in a fight: ~8☆ per fight (average of ☆☆ per fighter)
 Min stars per fight: 4☆
 Max stars per fight: 14☆ (but very unlikely, more around 12 on average)
-
 
 Premises:
 - The stronger your opponents are, the stronger the challenger becomes? > Yes, reward better drawings!
