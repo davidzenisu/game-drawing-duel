@@ -110,18 +110,20 @@ class SharedRulesTest(unittest.TestCase):
         fights = SHARED["fights"]
         self.assertEqual(rules.MAX_FIGHTERS, fights["max_fighters"])
         self.assertEqual(rules.CHALLENGER_STARS, fights["challenger_stars"])
-        self.assertEqual(
-            [rules.boost_stars(n) for n in range(len(fights["boost_stars"]))],
-            fights["boost_stars"],
-        )
-        for team, boosts, fighters_win in fights["cases"]:
+        for team, boost_stars, fighters_win in fights["cases"]:
             self.assertEqual(
                 rules.fighters_win(
-                    rules.team_stars([rules.Rarity(r) for r in team]), boosts
+                    rules.team_stars([rules.Rarity(r) for r in team]), boost_stars
                 ),
                 fighters_win,
-                (team, boosts),
+                (team, boost_stars),
             )
+
+    def test_boost(self):
+        boost = SHARED["boost"]
+        self.assertEqual(rules.BOOST_CHALLENGERS, boost["challengers"])
+        self.assertEqual(rules.BOOST_STARS, boost["stars"])
+        self.assertEqual(rules.BOOST_MAX_PER_CHALLENGER, boost["max_per_challenger"])
 
     def test_hurry(self):
         hurry = SHARED["hurry"]

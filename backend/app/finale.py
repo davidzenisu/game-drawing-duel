@@ -5,8 +5,8 @@ finale. On the week's last day (Sunday, UTC) players vote on pairs of them,
 each vote adding a star. Once the week is over, the one with the most stars
 joins the server's gacha pool as a hero.
 
-A fight picked on day F is decided on day F + 2 (`app.fights`), so it counts
-for the week that day falls in: Saturday's fights count for the next week.
+A fight is decided the day it's picked (`app.fights`); the finale counts the
+fights up to the day before, so Sunday's fights count for the next week.
 """
 
 import itertools
@@ -37,19 +37,19 @@ class Contender:
     # Fights decided against it, and how many of them it won.
     fights: int
     wins: int
-    # The players who boosted it the day after its fights.
+    # The boost stars it got the day before its fights.
     boosts: int
 
     @property
     def fight_stars(self) -> int:
-        """Its stars before the finale: the challenger's with its boosts."""
+        """Its stars before the finale: the challenger's with its boost stars."""
         return rules.challenger_stars(self.boosts)
 
 
 def contenders(session: Session, server: Server, day: int) -> list[Contender]:
     """The challengers in the finale on `day`, the last day of a week: the
-    ones that won a fight decided that week, oldest first."""
-    last_fight_day = day - fights.DECIDED_AFTER
+    ones that won a fight that week before the finale day, oldest first."""
+    last_fight_day = day - 1
     week_fights = session.scalars(
         select(Fight)
         .join(ServerSeat, ServerSeat.id == Fight.owner_seat_id)

@@ -12,11 +12,12 @@ from tests.test_setup import ADMIN, FRIEND_SUBJECTS
 SAM = FRIEND_SUBJECTS[0]
 
 # A Monday, so the test session's day 1 is a forest day and day 2 a beach
-# day. Prompts are written for the theme of the day their heroes are picked,
-# two days later: on Monday for Wednesday's volcano, on Tuesday for Thursday.
+# day. Prompts are written for the theme of the day their challenger is
+# fought, three days later: on Monday for Thursday's snow, on Tuesday for
+# Friday's jungle.
 MONDAY = datetime(2026, 10, 5, 9, tzinfo=UTC)
 SEEDED = datetime(2026, 1, 1, tzinfo=UTC)
-HINTS = {"volcano": ["a sauna regular", "a toast burner"], "snow": ["a freezer fan"]}
+HINTS = {"snow": ["a sauna regular", "a toast burner"], "jungle": ["a freezer fan"]}
 # The premade title that comes with each hint.
 TITLES = {
     "a sauna regular": "Lord of the Top Bench",
@@ -128,18 +129,18 @@ class TodayTests(TodayTestCase):
             sam["to_draw"]["subject_position"], written["prompt"]["subject_position"]
         )
         self.assertEqual(sam["to_draw"]["hint"], written["prompt"]["hint"])
-        self.assertIn(sam["to_draw"]["hint"], HINTS["volcano"])
+        self.assertIn(sam["to_draw"]["hint"], HINTS["snow"])
         self.assertFalse(sam["to_draw"]["premade"])
-        self.assertEqual(sam["to_draw"]["theme"], "volcano")
+        self.assertEqual(sam["to_draw"]["theme"], "snow")
 
-        # Sam wrote nothing, so Alex draws a premade volcano prompt of
+        # Sam wrote nothing, so Alex draws a premade snow prompt of
         # someone other than Sam: the premade title of Sam's hint, with it.
         alex = self.today()["to_draw"]
         self.assertTrue(alex["premade"])
         self.assertEqual(alex["author_position"], 1)
-        self.assertEqual(alex["theme"], "volcano")
+        self.assertEqual(alex["theme"], "snow")
         self.assertNotEqual(alex["subject_position"], 1)
-        self.assertIn(alex["hint"], HINTS["volcano"])
+        self.assertIn(alex["hint"], HINTS["snow"])
         self.assertNotEqual(alex["hint"], written["prompt"]["hint"], "Sam's")
         self.assertEqual(alex["title"], TITLES[alex["hint"]])
 
@@ -152,7 +153,7 @@ class TodayTests(TodayTestCase):
             (challenger["rarity"], challenger["prompt"], challenger["day"]),
             ("hero", "challenger", 2),
         )
-        self.assertEqual(challenger["theme"], "volcano")
+        self.assertEqual(challenger["theme"], "snow")
         pool = [c["id"] for c in self.get(f"/servers/{self.code}/pool").json()]
         self.assertNotIn(challenger["id"], pool)
         [listed] = self.get(f"/servers/{self.code}/challengers", SAM).json()
@@ -249,38 +250,38 @@ class ThemeTests(TodayTestCase):
     def test_each_player_gets_a_hint_of_the_challengers_theme(self) -> None:
         monday = self.today()
         alex, sam = monday["prompt"], self.today(SAM)["prompt"]
-        self.assertEqual((monday["theme"], alex["theme"]), ("forest", "volcano"))
-        self.assertIn(alex["hint"], HINTS["volcano"])
-        self.assertIn(sam["hint"], HINTS["volcano"])
+        self.assertEqual((monday["theme"], alex["theme"]), ("forest", "snow"))
+        self.assertIn(alex["hint"], HINTS["snow"])
+        self.assertIn(sam["hint"], HINTS["snow"])
         self.assertEqual(self.today()["prompt"], alex, "the hint stays the same")
 
         self.post("days/next")
         tuesday = self.today()
         self.assertEqual(
-            (tuesday["theme"], tuesday["prompt"]["theme"]), ("beach", "snow")
+            (tuesday["theme"], tuesday["prompt"]["theme"]), ("beach", "jungle")
         )
         self.assertEqual(tuesday["prompt"]["hint"], "a freezer fan")
 
-        # Friday's jungle has no hints. Nobody wrote a title on Tuesday, and
-        # Sam got none of Thursday's snow, as Alex got its only hint.
+        # Saturday's space has no hints. Nobody wrote a title on Tuesday, and
+        # Sam got none of Friday's jungle, as Alex got its only hint.
         self.post("days/next")
         wednesday = self.today()
         self.assertEqual(wednesday["theme"], "volcano")
-        self.assertEqual(wednesday["prompt"]["theme"], "jungle")
+        self.assertEqual(wednesday["prompt"]["theme"], "space")
         self.assertIsNone(wednesday["prompt"]["hint"])
         self.assertEqual(wednesday["to_draw"]["title"], days.FALLBACK_TITLE)
-        self.assertEqual(wednesday["to_draw"]["theme"], "snow")
+        self.assertEqual(wednesday["to_draw"]["theme"], "jungle")
 
     def test_a_server_uses_every_hint_once(self) -> None:
         monday = {s: self.today(s)["prompt"]["hint"] for s in (ADMIN, SAM)}
-        self.assertEqual(set(monday.values()), set(HINTS["volcano"]))
+        self.assertEqual(set(monday.values()), set(HINTS["snow"]))
         self.assertEqual(self.today()["prompt"]["hint"], monday[ADMIN], "it stays")
         for _ in range(7):
             self.post("days/next")
 
-        # Next Monday, the two volcano hints are used up.
+        # Next Monday, the two snow hints are used up.
         prompt = self.today()["prompt"]
-        self.assertEqual(prompt["theme"], "volcano")
+        self.assertEqual(prompt["theme"], "snow")
         self.assertIsNone(prompt["hint"])
         self.assertIsNone(self.today(SAM)["prompt"]["hint"])
         written = self.post(
@@ -292,7 +293,7 @@ class ThemeTests(TodayTestCase):
         with self.session_factory() as session:
             session.add(
                 ThemeHint(
-                    theme="volcano",
+                    theme="snow",
                     text="a chili lover",
                     premade_title="The Chili King",
                     created_at=SEEDED,
@@ -310,7 +311,7 @@ class ThemeTests(TodayTestCase):
         with self.session_factory() as session:
             # Added now, long after the test session's Monday began.
             session.add(
-                ThemeHint(theme="volcano", text="a brand new hint", premade_title="New")
+                ThemeHint(theme="snow", text="a brand new hint", premade_title="New")
             )
             session.commit()
         self.assertEqual(self.today()["prompt"]["hint"], before)

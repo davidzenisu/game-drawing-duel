@@ -1,5 +1,5 @@
 {
-  "_about": "The game rules both the frontend (frontend/lib/game/rules) and the backend (backend/app/rules.py) implement. Each side's tests check its implementation against this file. 'assignments' lists, per player count, every artist's subjects (as roster indexes) in the order of the setup prompts. In a test session, every player who joined draws the 'test_setup' prompts of different, randomly picked other players of the whole roster. 'gacha' holds the pull rates in percent and the pity rules: 'beginner_window' is how many standard banner pulls guarantee a legend once, 'legend_pity' how many pulls on either banner guarantee one; 'rate_up' is the percent of a rarity's pulls that land on its rate-up characters (this week's hero and the legends of the same player) on the weekly banner when it has others too; 'tier_fallback' lists [available rarities, rolled rarity, guaranteed pull, rarity pulled from] for pools without the rolled rarity. 'upgrades' lists each rarity's upgrade path, unlocked in order, how many duplicates each step costs, and the elements to choose from for the element upgrade. 'themes' are the daily themes, one per weekday from Monday to Sunday. 'fights' holds how many fighters a player sends, a challenger's stars before boosts and the stars that many boosts add (by index), and cases of [team rarities, boosts, fighters win]: the fighters win with more stars than the boosted challenger, ties go to the challenger. 'challenger_draw_seconds' is the time limit for drawing a challenger. 'hurry' is the share of the drawing time left that a free daily hurry takes away when it hits, and between which fractions of the time limit it hits; every hurry a player receives counts.",
+  "_about": "The game rules both the frontend (frontend/lib/game/rules) and the backend (backend/app/rules.py) implement. Each side's tests check its implementation against this file. 'assignments' lists, per player count, every artist's subjects (as roster indexes) in the order of the setup prompts. In a test session, every player who joined draws the 'test_setup' prompts of different, randomly picked other players of the whole roster. 'gacha' holds the pull rates in percent and the pity rules: 'beginner_window' is how many standard banner pulls guarantee a legend once, 'legend_pity' how many pulls on either banner guarantee one; 'rate_up' is the percent of a rarity's pulls that land on its rate-up characters (this week's hero and the legends of the same player) on the weekly banner when it has others too; 'tier_fallback' lists [available rarities, rolled rarity, guaranteed pull, rarity pulled from] for pools without the rolled rarity. 'upgrades' lists each rarity's upgrade path, unlocked in order, how many duplicates each step costs, and the elements to choose from for the element upgrade. 'themes' are the daily themes, one per weekday from Monday to Sunday. 'fights' holds how many fighters a player sends, a challenger's stars before boosts, and cases of [team rarities, boost stars, fighters win]: the fighters win with more stars than the challenger with its boost stars, ties go to the challenger. 'boost' holds how many challengers a player gets to boost each day, the stars they spread across them, and how many of those one challenger takes at most. 'challenger_draw_seconds' is the time limit for drawing a challenger. 'hurry' is the share of the drawing time left that a free daily hurry takes away when it hits, and between which fractions of the time limit it hits; every hurry a player receives counts.",
   "players": {"min": 5, "max": 10},
   "server_code_length": 6,
   "max_title_length": 60,
@@ -109,17 +109,18 @@
   "fights": {
     "max_fighters": 4,
     "challenger_stars": 3,
-    "boost_stars": [0, 1, 3, 6, 10],
     "cases": [
       [["basic", "basic", "basic", "basic"], 0, true],
       [["hero"], 0, false],
       [["legend"], 0, true],
       [["legend", "basic"], 1, true],
       [["legend", "basic"], 2, false],
-      [["legend", "legend"], 3, false],
-      [["legend", "legend", "basic", "basic"], 3, true]
+      [["legend", "legend"], 5, false],
+      [["legend", "legend", "basic"], 5, true],
+      [["legend", "legend", "legend", "legend"], 9, true]
     ]
   },
+  "boost": {"challengers": 3, "stars": 3, "max_per_challenger": 3},
   "challenger_draw_seconds": 90,
   "hurry": {"cut_fraction": 0.1, "earliest": 0.25, "latest": 0.6},
   "themes": ["forest", "beach", "volcano", "snow", "jungle", "space", "castle"],

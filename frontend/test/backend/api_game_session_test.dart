@@ -397,7 +397,7 @@ void main() {
       expect(sam.collection, hasLength(3));
       expect((sam.day, sam.theme), (1, DailyTheme.forest));
       expect(sam.promptCandidates.map((p) => p.name), ['Alex', 'Robin', 'Kim', 'Jo'], reason: 'anyone but Sam');
-      expect(sam.promptTheme, DailyTheme.volcano, reason: "the theme of day 3, the challenger's heroes day");
+      expect(sam.promptTheme, DailyTheme.snow, reason: "the theme of day 4, the challenger's fight day");
       expect(sam.promptToDraw, isNull, reason: 'nothing was written yet');
 
       await admin.refreshServer();
@@ -479,12 +479,12 @@ void main() {
       expect((admin.canEndDay, admin.canAdvanceDay), (true, true));
       expect((sam.canEndDay, sam.canAdvanceDay), (true, false), reason: 'only the admin skips ahead');
 
-      expect(admin.promptHint, 'a challenger on a volcano day');
+      expect(admin.promptHint, 'a challenger on a snow day');
       await admin.submitPrompt('  The Owl King ', admin.server.players[2]);
       expect((jsonDecode(backend.requests.last.body) as Map)['subject_position'], 2);
       expect(admin.yourPrompt!.subject.name, 'Robin');
       expect(admin.yourPrompt!.title, 'The Owl King');
-      expect(admin.yourPrompt!.theme, DailyTheme.volcano);
+      expect(admin.yourPrompt!.theme, DailyTheme.snow);
 
       await admin.endDay();
       expect(admin.dayEnded, {admin.you.id});
@@ -497,7 +497,7 @@ void main() {
 
       final toDraw = sam.promptToDraw!;
       expect((toDraw.title, toDraw.author.name, toDraw.premade), ('The Owl King', 'Alex', false));
-      expect(toDraw.question, 'Who is a challenger on a volcano day?', reason: "the description Alex got");
+      expect(toDraw.question, 'Who is a challenger on a snow day?', reason: "the description Alex got");
       await admin.refreshDay();
       expect(admin.promptToDraw!.premade, isTrue, reason: 'Sam wrote nothing');
       expect(admin.promptToDraw!.hint, isNull);
@@ -529,7 +529,7 @@ void main() {
       expect(admin.incomingHurries, isEmpty);
     });
 
-    test('fighters on day 3, boosts on day 4 and the outcome on day 5', () async {
+    test('boosts on day 3, fights decided on day 4 and the results on day 5', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       final sam = await signedUp('sam', 'Sam');
       final robin = await signedUp('robin', 'Robin');
@@ -558,22 +558,49 @@ void main() {
       }
       await nextDay();
 
-      // Day 3: Alex sends two fighters against Sam's challenger.
-      expect(admin.fightChallenger!.artist, 'Sam');
-      await admin.submitFighters(admin.collection.take(2).toList());
+      // Day 3: Robin boosts Sam's challenger, which Alex fights tomorrow;
+      // Alex and Sam may boost Robin's.
+      expect(admin.fightChallenger, isNull);
+      expect(admin.boostTargets.single.challenger.artist, 'Robin');
+      expect(sam.boostTargets.single.challenger.artist, 'Robin');
+      final target = robin.boostTargets.single;
+      final samsChallenger = target.challenger.id;
+      expect((target.challenger.artist, target.stars), ('Sam', 0));
+      expect((robin.canBoost, robin.boostStarsLeft), (true, 3));
+      expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
+      await robin.setBoosts({samsChallenger: 2});
       final put = backend.requests.lastWhere((r) => r.method == 'PUT');
-      expect(put.url.path, '/servers/123456/today/fighters');
-      expect((jsonDecode(put.body) as Map)['character_ids'], hasLength(2));
-      expect(admin.yourFight!.fighters, hasLength(2));
-      expect(admin.yourFight!.challenger.artist, 'Sam');
-      final samsChallenger = admin.yourFight!.challenger.id;
-      expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
-      expect(admin.restingCharacterIds, isEmpty);
+      expect(put.url.path, '/servers/123456/today/boosts');
+      expect(jsonDecode(put.body), {
+        'boosts': [
+          {'challenger_id': samsChallenger, 'stars': 2},
+        ],
+      });
+      expect(robin.boostTargets.single.stars, 2);
+      expect((robin.canBoost, robin.boostStarsLeft), (true, 1));
+      expect(robin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'boosted');
+      // Challengers drawn today are fought on day 5.
       for (final player in players) {
         await player.submitChallenger(doodle);
       }
 
-      // Day 4: Alex's two fighters rest until Monday.
+      // Day 4: Alex sends two fighters against Sam's challenger, decided
+      // right away against its 3 + 2 stars.
+      await nextDay();
+      expect(admin.fightChallenger!.id, samsChallenger);
+      await admin.submitFighters(admin.collection.take(2).toList());
+      final fighters = backend.requests.lastWhere((r) => r.method == 'PUT');
+      expect(fighters.url.path, '/servers/123456/today/fighters');
+      expect((jsonDecode(fighters.body) as Map)['character_ids'], hasLength(2));
+      final fight = admin.yourFight!;
+      expect(fight.fighters, hasLength(2));
+      expect((fight.boostStars, fight.challengerStars), (2, 5));
+      expect(fight.fightersWin, fight.fighterStars > 5);
+      expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
+      expect(admin.restingCharacterIds, isEmpty);
+
+      // Day 5: Alex's two fighters rest until Monday, and everyone sees
+      // yesterday's results.
       await nextDay();
       final rested = {
         for (final o in admin.collection.take(2))
@@ -581,28 +608,8 @@ void main() {
       };
       expect(admin.restingCharacterIds, rested, reason: 'basic ones fight every day');
       expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
-
-      // Robin boosts Sam's challenger; Sam drew it and can't.
-      expect(sam.boostTargets, isEmpty);
-      expect(admin.boostTargets, isEmpty, reason: 'Alex fought it');
-      final target = robin.boostTargets.single;
-      expect(target.challenger.id, samsChallenger);
-      expect(target.matchups.single.owner.name, 'Alex');
-      expect(robin.canBoost, isTrue);
-      expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
-      await robin.boost(target.challenger);
-      final post = backend.requests.lastWhere((r) => r.method == 'POST');
-      expect(post.url.path, '/servers/123456/today/boosts');
-      expect(jsonDecode(post.body), {'challenger_id': samsChallenger});
-      expect(robin.boostedChallengerId, samsChallenger);
-      expect(robin.canBoost, isFalse);
-      expect(robin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'boosted');
-
-      // Day 5: decided by the stars, 4 against the boosted challenger's 3 + 1.
-      await nextDay();
       final result = admin.yourFightResults.single;
-      expect((result.boosts, result.challengerStars), (1, 4));
-      expect(result.fightersWin, result.fighterStars > 4);
+      expect(result.id, fight.id);
       expect(sam.yourChallengerResults.single.id, result.id);
       expect(robin.yourFightResults, isEmpty);
       final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);

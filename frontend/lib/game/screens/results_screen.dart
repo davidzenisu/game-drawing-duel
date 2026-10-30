@@ -9,8 +9,8 @@ import '../widgets/card_art.dart';
 import '../widgets/sketch_canvas.dart';
 import '../widgets/animated_fight.dart';
 
-/// Decided fights you were part of: the fighters you picked two days ago
-/// and the challenger you drew three days ago.
+/// Yesterday's fights you were part of: the fighters you picked (or chance
+/// did) and the challenger you drew three days ago.
 class ResultsScreen extends StatelessWidget {
   const ResultsScreen({super.key, required this.controller});
 
@@ -31,15 +31,11 @@ class ResultsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _Section(
-                    title: 'Your fighters',
-                    empty: 'You did not pick fighters two days ago.',
-                    fights: yourFights,
-                  ),
+                  _Section(title: 'Your fighters', empty: 'Nobody fought for you yesterday.', fights: yourFights),
                   const SizedBox(height: 16),
                   _Section(
                     title: 'Your challenger',
-                    empty: 'Nobody fought a challenger of yours today.',
+                    empty: 'Nobody fought a challenger of yours yesterday.',
                     fights: yourChallenger,
                   ),
                 ],
@@ -166,7 +162,6 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
     final fight = widget.fight;
     final fightersWin = fight.fightersWin;
     final text = Theme.of(context).textTheme;
-    final boostStars = Stars.ofBoosts(fight.boosts);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _reveal.value = 1,
@@ -217,10 +212,9 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
                                   child: _StarTally(
                                     label: fight.challenger.subject,
                                     stars: (fight.challengerStars * challengerCount).round(),
-                                    detail: fight.boosts == 0
+                                    detail: fight.boostStars == 0
                                         ? 'No boosts'
-                                        : '${Stars.challengerBase} + $boostStars from '
-                                              '${fight.boosts} boost${fight.boosts == 1 ? '' : 's'}',
+                                        : '${Stars.challengerBase} + ${fight.boostStars} from boosts',
                                     wins: !fightersWin,
                                     standOut: standOut,
                                   ),

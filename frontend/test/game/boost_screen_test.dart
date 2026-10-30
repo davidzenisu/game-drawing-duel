@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/boost_screen.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
 void main() {
-  testWidgets("boosts one of yesterday's challengers, once a day", (tester) async {
+  testWidgets("spreads the boost stars across yesterday's challengers", (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -23,19 +24,20 @@ void main() {
       await controller.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await controller.launch();
-    for (var day = 1; day < 4; day++) {
-      await controller.advanceDay();
-    }
+    // Everyone writes and draws, so there are three challengers to boost.
+    await controller.submitPrompt('Sunburnt', controller.promptCandidates.first);
+    await controller.advanceDay();
+    await controller.submitChallenger(doodle);
+    await controller.advanceDay();
     final targets = controller.boostTargets;
-    expect(targets, isNotEmpty);
-    final first = targets.first;
+    expect(targets, hasLength(Boost.challengers));
 
-    bool? boosted;
+    bool? done;
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (context) => TextButton(
-            onPressed: () async => boosted = await Navigator.of(
+            onPressed: () async => done = await Navigator.of(
               context,
             ).push<bool>(MaterialPageRoute(builder: (_) => BoostScreen(controller: controller))),
             child: const Text('Open'),
@@ -44,19 +46,37 @@ void main() {
       ),
     );
     await tester.tap(find.text('Open'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Boost a challenger 1/${targets.length}'), findsOneWidget);
-    expect(find.textContaining('${first.challenger.subject} · ${first.challenger.title}'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Boost challengers 1/${targets.length}'), findsOneWidget);
+    expect(find.text(targets.first.challenger.title), findsOneWidget);
+    expect(find.textContaining('3 of 3 stars left'), findsOneWidget);
 
-    await tester.tap(find.text('Boost ${first.challenger.subject}'));
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('You boosted ${first.challenger.subject} today'), findsOneWidget);
-    expect(controller.boostedChallengerId, first.challenger.id);
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(boosted, isTrue);
+    Future<void> tap(String tooltip) async {
+      await tester.tap(find.byTooltip(tooltip).hitTestable());
+      await tester.pumpAndSettle();
+    }
+
+    await tap('Give a star');
+    await tap('Give a star');
+    expect(controller.boostTargets.first.stars, 2);
+    expect(find.textContaining('1 of 3 stars left'), findsOneWidget);
+
+    // On to the next one, and back: the stars stay where they are.
+    await tap('Next challenger');
+    expect(find.text('Boost challengers 2/${targets.length}'), findsOneWidget);
+    await tap('Give a star');
+    expect(controller.boostTargets[1].stars, 1);
+    expect(controller.canBoost, isFalse);
+    final give = tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.add_rounded).hitTestable());
+    expect(give.onPressed, isNull, reason: 'no stars left');
+    await tap('Take a star back');
+    expect(controller.boostStarsLeft, 1);
+    await tap('Previous challenger');
+    expect(controller.boostTargets.first.stars, 2);
+
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(done, isTrue);
     await tester.pumpWidget(const SizedBox());
   });
 }

@@ -139,8 +139,8 @@ abstract class GameSession extends ChangeNotifier {
 
   DailyTheme get theme;
 
-  /// The theme of the challenger you choose today: the theme of the day its
-  /// heroes are picked, two days from now. Today's [theme] is the one of the
+  /// The theme of the challenger you choose today: the theme of the day it's
+  /// fought, three days from now. Today's [theme] is the one of the
   /// challengers fought today.
   DailyTheme get promptTheme;
 
@@ -162,7 +162,8 @@ abstract class GameSession extends ChangeNotifier {
 
   CharacterCard? get yourChallenger;
 
-  /// One randomly selected challenger from yesterday to pick fighters against.
+  /// The challenger to pick fighters against today, drawn two days ago and
+  /// boosted yesterday. Its stars stay secret until you picked them.
   CharacterCard? get fightChallenger;
 
   FightSetup? get yourFight;
@@ -172,18 +173,15 @@ abstract class GameSession extends ChangeNotifier {
   /// every day, so nobody runs out.
   Set<String> get restingCharacterIds;
 
-  /// Yesterday's challengers you may boost, with the fights against them:
-  /// all but the one you drew and the one you fought.
+  /// Yesterday's challengers you may boost today, with the boost stars you
+  /// gave them: up to [Boost.challengers], never the one you drew or the one
+  /// you fight tomorrow.
   List<BoostTarget> get boostTargets;
 
-  /// The id of the challenger you boosted today.
-  String? get boostedChallengerId;
-
-  /// Decided fights you picked the fighters for: the ones whose boosting day
-  /// is over.
+  /// Yesterday's fights you picked the fighters for, or chance did.
   List<FightSetup> get yourFightResults;
 
-  /// Decided fights against a challenger you drew.
+  /// Yesterday's fights against a challenger you drew.
   List<FightSetup> get yourChallengerResults;
 
   /// The challengers you encountered, newest first: the ones you drew,
@@ -237,8 +235,11 @@ abstract class GameSession extends ChangeNotifier {
   /// Your characters that can fight today.
   List<OwnedCard> get availableFighters => collection.where((o) => !isResting(o)).toList();
 
-  /// Whether you can still boost a challenger today.
-  bool get canBoost => boostTargets.isNotEmpty && boostedChallengerId == null;
+  /// The boost stars you have left to give today.
+  int get boostStarsLeft => Boost.stars - boostTargets.fold(0, (sum, t) => sum + t.stars);
+
+  /// Whether you have boost stars left to give today.
+  bool get canBoost => boostTargets.isNotEmpty && boostStarsLeft > 0;
 
   /// Whether there's a pair left to vote on in today's finale.
   bool get canVoteFinale => finale?.pair != null;
@@ -317,11 +318,14 @@ abstract class GameSession extends ChangeNotifier {
   /// Step 2: draw the challenger for the prompt you were given.
   Future<void> submitChallenger(Sketch sketch);
 
-  /// Step 3: lock in up to four fighters against today's challenger.
-  Future<void> submitFighters(List<OwnedCard> fighters);
+  /// Step 3: gives [boostTargets]' challengers these boost stars, by
+  /// challenger id, replacing the ones you gave today. Up to [Boost.stars]
+  /// in all, [Boost.maxPerChallenger] on one.
+  Future<void> setBoosts(Map<String, int> stars);
 
-  /// Step 4: boost one of [boostTargets]' challengers, once a day.
-  Future<void> boost(CharacterCard challenger);
+  /// Step 4: lock in up to four fighters against today's challenger. The
+  /// stars decide right away: see [yourFight].
+  Future<void> submitFighters(List<OwnedCard> fighters);
 
   /// Step 5: picks [chosen] over [other], today's [FinaleBallot.pair]; each
   /// vote adds a star to the one picked.

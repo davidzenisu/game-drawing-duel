@@ -61,16 +61,17 @@ def week_start(server: Server, day: int) -> int:
     return day - date_of_day(server, day).weekday()
 
 
-# Heroes are picked against a challenger two days after its prompt was
-# written, the day whose theme the challenger takes.
-HEROES_DAY_OFFSET = 2
+# A challenger is fought three days after its prompt was written: it's drawn
+# the day after, boosted the day after that, and fought the next day. It
+# takes the theme of the day it's fought.
+FIGHT_DAY_OFFSET = 3
 
 
 def challenger_theme(server: Server, prompt_day: int) -> Theme:
     """The theme of a challenger whose prompt is written on `prompt_day`: the
-    theme of the day its heroes are picked, so a day shows the theme of the
+    theme of the day it's fought, so a day shows the theme of the
     challengers fought on it."""
-    return theme_of(server, prompt_day + HEROES_DAY_OFFSET)
+    return theme_of(server, prompt_day + FIGHT_DAY_OFFSET)
 
 
 def _in_use(server: Server, day: int, theme: Theme, model) -> tuple:

@@ -19,9 +19,9 @@ from app.models.character import Character
 
 
 class Fight(Base):
-    """Step 3 of the daily loop: up to four fighters a seat sent against a
-    challenger drawn the day before. The others may boost the challenger the
-    next day; the day after, the stars decide."""
+    """Step 4 of the daily loop: up to four fighters a seat sent against a
+    challenger drawn two days before, which the others boosted the day
+    before. Decided right away: the stars decide."""
 
     __tablename__ = "fight"
     __table_args__ = (UniqueConstraint("owner_seat_id", "day"),)
@@ -39,8 +39,9 @@ class Fight(Base):
     by_chance: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
-    # The result, stored once the fight is decided (`app.fights.decide_fights`)
-    # under the rules of that time; null before.
+    # The result, stored when the fight is decided under the rules of that
+    # time: `boosts` holds the challenger's boost stars. Null for fights
+    # picked before results were stored, until `app.fights.decide_fights`.
     boosts: Mapped[int | None] = mapped_column(Integer)
     fighter_stars: Mapped[int | None] = mapped_column(Integer)
     challenger_stars: Mapped[int | None] = mapped_column(Integer)
@@ -84,11 +85,15 @@ class Fighter(Base):
 
 
 class Boost(Base):
-    """Step 4: a seat's daily boost for one of the day before's challengers.
-    Each boost adds more stars than the one before, see `rules.boost_stars`."""
+    """Step 3: boost stars a seat gave one of the day before's challengers.
+    Every day, a seat spreads `rules.BOOST_STARS` across the challengers
+    `app.fights.boost_targets` gives them; once the day is over, chance
+    spreads the ones they left (`by_chance`)."""
 
     __tablename__ = "boost"
-    __table_args__ = (UniqueConstraint("booster_seat_id", "day"),)
+    __table_args__ = (
+        UniqueConstraint("booster_seat_id", "day", "challenger_id", "by_chance"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     booster_seat_id: Mapped[uuid.UUID] = mapped_column(
@@ -97,8 +102,14 @@ class Boost(Base):
     challenger_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("character.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # The day of the boost, the day after the challenger's fights.
+    # The day of the boost, the day before the challenger's fights.
     day: Mapped[int] = mapped_column(Integer, nullable=False)
+    stars: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    by_chance: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     boosted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

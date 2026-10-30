@@ -403,7 +403,6 @@ class ApiGameSession extends GameSession {
   FightSetup? _yourFight;
   Set<String> _resting = const {};
   List<BoostTarget> _boostTargets = const [];
-  String? _boostedChallengerId;
   List<FightSetup> _results = const [];
   FinaleBallot? _finale;
   WeeklyHero? _weeklyHero;
@@ -441,7 +440,7 @@ class ApiGameSession extends GameSession {
     throw const FormatException('Unexpected character.');
   }
 
-  /// A fight from the API, with the challenger's boosts once it's decided.
+  /// A fight from the API, decided with the challenger's boost stars.
   Future<FightSetup> _parseFight(ServerSession server, Object? json) async {
     if (json case {
       'id': String id,
@@ -449,9 +448,9 @@ class ApiGameSession extends GameSession {
       'owner_position': int owner,
       'challenger': final challenger,
       'fighters': List fighters,
-      'outcome': final outcome,
+      'outcome': {'boost_stars': int boostStars},
     }) {
-      final fight = FightSetup(
+      return FightSetup(
         id: id,
         owner: _seat(server, owner),
         challenger: await _card(server, challenger),
@@ -470,9 +469,8 @@ class ApiGameSession extends GameSession {
               throw const FormatException('Unexpected fighter.'),
         ],
         day: day,
+        boostStars: boostStars,
       );
-      if (outcome case {'boosts': int boosts}) fight.boosts = boosts;
-      return fight;
     }
     throw const FormatException('Unexpected fight.');
   }
@@ -540,17 +538,17 @@ class ApiGameSession extends GameSession {
         _yourFight = yours == null ? null : await _parseFight(server, yours);
         _resting = {for (final id in resting) id as String};
       }
-      _boostTargets = [
-        for (final target in json['to_boost'] as List? ?? const [])
-          if (target case {'challenger': final challenger, 'matchups': List matchups})
-            BoostTarget(
-              challenger: await _card(server, challenger),
-              matchups: [for (final fight in matchups) await _parseFight(server, fight)],
-            )
-          else
-            throw const FormatException('Unexpected challenger to boost.'),
-      ];
-      _boostedChallengerId = json['boosted'] as String?;
+      _boostTargets = switch (json['boost']) {
+        null => const [],
+        {'targets': List targets} => [
+          for (final target in targets)
+            if (target case {'challenger': final challenger, 'stars': int stars})
+              BoostTarget(challenger: await _card(server, challenger), stars: stars)
+            else
+              throw const FormatException('Unexpected challenger to boost.'),
+        ],
+        _ => throw const FormatException('Unexpected boost step.'),
+      };
       _results = [for (final fight in json['results'] as List? ?? const []) await _parseFight(server, fight)];
       _hurrySentTo = switch (json['hurry_sent_to']) {
         final int position => _seat(server, position),
@@ -843,9 +841,6 @@ class ApiGameSession extends GameSession {
   List<BoostTarget> get boostTargets => _boostTargets;
 
   @override
-  String? get boostedChallengerId => _boostedChallengerId;
-
-  @override
   List<FightSetup> get yourFightResults => [
     for (final fight in _results)
       if (fight.owner.isYou) fight,
@@ -899,8 +894,12 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> boost(CharacterCard challenger) async {
-    final json = await _post('/servers/${server.code}/today/boosts', {'challenger_id': challenger.id});
+  Future<void> setBoosts(Map<String, int> stars) async {
+    final json = await _put('/servers/${server.code}/today/boosts', {
+      'boosts': [
+        for (final MapEntry(key: id, value: n) in stars.entries) {'challenger_id': id, 'stars': n},
+      ],
+    });
     await _setToday(server, json);
     await _reloadChallengers(server);
     notifyListeners();
