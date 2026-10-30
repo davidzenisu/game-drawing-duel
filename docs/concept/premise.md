@@ -17,6 +17,8 @@ There is a full 4 day cycle that happens simultaneously for all players:
 # At the very end of the week:
 The challenger with the most stars at the end of the week should be the winning challenger that becomes a new 3☆ hero available to be pulled from the gacha pool.
 
+The full rank list of challengers in order (including the amount of stars) should also be visible to the players after the week.
+
 *The section below is still in its concept phase, ignore for now!!*
 
 In the final battle at the end of each week, the idea is to crown the best challenger while also allowing each player to show their best fighter setup. The main idea is to give players opportunities to boost challengers to slightly change the ranking while player by player they switch from a "challenger" role to a "heroes" role to fight an increasing number of challengers.
