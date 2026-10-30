@@ -7,7 +7,7 @@ import 'package:frontend/mockup/mock_game_session.dart';
 
 void main() {
   testWidgets("spreads the boost stars across yesterday's challengers", (tester) async {
-    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     const doodle = Sketch([
@@ -49,30 +49,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Boost challengers 1/${targets.length}'), findsOneWidget);
     expect(find.text(targets.first.challenger.title), findsOneWidget);
-    expect(find.textContaining('3 of 3 stars left'), findsOneWidget);
+    expect(find.textContaining('3 of 3 left'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
 
-    Future<void> tap(String tooltip) async {
-      await tester.tap(find.byTooltip(tooltip).hitTestable());
+    Future<void> drag(Finder from, Finder to) async {
+      final gesture = await tester.startGesture(tester.getCenter(from));
+      await tester.pump(const Duration(milliseconds: 50));
+      final end = tester.getCenter(to);
+      await gesture.moveTo(Offset.lerp(tester.getCenter(from), end, 0.5)!);
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.moveTo(end);
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.up();
       await tester.pumpAndSettle();
     }
 
-    await tap('Give a star');
-    await tap('Give a star');
-    expect(controller.boostTargets.first.stars, 2);
-    expect(find.textContaining('1 of 3 stars left'), findsOneWidget);
+    Finder trayStar() => find.byTooltip('Give a star').hitTestable().first;
+    Finder given(int target, int slot) => find.byKey(ValueKey('${targets[target].challenger.id}-$slot'));
 
-    // On to the next one, and back: the stars stay where they are.
-    await tap('Next challenger');
+    // Drag two stars from the tray onto the first challenger.
+    final first = find.text(targets.first.challenger.title);
+    await drag(trayStar(), first);
+    await drag(trayStar(), first);
+    expect(controller.boostTargets.first.stars, 2);
+    expect(find.textContaining('1 of 3 left'), findsOneWidget);
+
+    // Drag one back down to the tray, and tap to give it again.
+    await drag(given(0, 1), find.textContaining('1 of 3 left'));
+    expect(controller.boostTargets.first.stars, 1);
+    await tester.tap(trayStar());
+    await tester.pumpAndSettle();
+    expect(controller.boostTargets.first.stars, 2);
+
+    // On to the next one: the last star goes there, and none are left.
+    await tester.tap(find.byTooltip('Next challenger'));
+    await tester.pumpAndSettle();
     expect(find.text('Boost challengers 2/${targets.length}'), findsOneWidget);
-    await tap('Give a star');
+    await drag(trayStar(), find.text(targets[1].challenger.title));
     expect(controller.boostTargets[1].stars, 1);
     expect(controller.canBoost, isFalse);
-    final give = tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.add_rounded).hitTestable());
-    expect(give.onPressed, isNull, reason: 'no stars left');
-    await tap('Take a star back');
+    expect(find.textContaining('All 3 stars given'), findsOneWidget);
+    expect(find.byTooltip('Give a star'), findsNothing);
+
+    // A tap takes one back; going back, the first one's stay.
+    await tester.tap(given(1, 0));
+    await tester.pumpAndSettle();
     expect(controller.boostStarsLeft, 1);
-    await tap('Previous challenger');
+    await tester.tap(find.byTooltip('Previous challenger'));
+    await tester.pumpAndSettle();
     expect(controller.boostTargets.first.stars, 2);
+    expect(given(0, 1), findsOneWidget);
 
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
