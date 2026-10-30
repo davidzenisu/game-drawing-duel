@@ -91,12 +91,17 @@ void main() {
     final fights = rules['fights'] as Map<String, dynamic>;
     expect(FightSetup.maxFighters, fights['max_fighters']);
     expect(Stars.challengerBase, fights['challenger_stars']);
-    final boostStars = fights['boost_stars'] as List;
-    expect([for (var n = 0; n < boostStars.length; n++) Stars.ofBoosts(n)], boostStars);
-    for (final [List team, int boosts, bool fightersWin] in (fights['cases'] as List).cast<List>()) {
+    for (final [List team, int boostStars, bool fightersWin] in (fights['cases'] as List).cast<List>()) {
       final stars = Stars.ofTeam([for (final name in team) Rarity.values.byName(name as String)]);
-      expect(Stars.fightersWin(stars, boosts), fightersWin, reason: '$team with $boosts boosts');
+      expect(Stars.fightersWin(stars, boostStars), fightersWin, reason: '$team with $boostStars boost stars');
     }
+  });
+
+  test('boost', () {
+    final boost = rules['boost'] as Map<String, dynamic>;
+    expect(Boost.challengers, boost['challengers']);
+    expect(Boost.stars, boost['stars']);
+    expect(Boost.maxPerChallenger, boost['max_per_challenger']);
   });
 
   test('hurry', () {

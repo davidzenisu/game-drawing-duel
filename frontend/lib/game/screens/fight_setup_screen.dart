@@ -6,10 +6,11 @@ import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/fight_stage.dart';
 import '../widgets/game_action.dart';
+import 'results_screen.dart';
 
-/// Step 3: pick up to four fighters against a new challenger. The other
-/// players may boost it tomorrow, and the day after, the stars decide. Every
-/// character fights once a week.
+/// Step 4: pick up to four fighters against a challenger the others boosted
+/// yesterday. Its boosts stay secret until you lock in, then the stars
+/// decide and the fight plays out. Every character fights once a week.
 class FightSetupScreen extends StatefulWidget {
   const FightSetupScreen({super.key, required this.controller});
 
@@ -137,17 +138,30 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: locked != null
-                  ? Text(
-                      '${locked.fighterStars} ★ against ${Stars.challengerBase} ★. The others may boost the challenger tomorrow; '
-                      'the day after, the stars decide.',
-                      textAlign: TextAlign.center,
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${locked.fightersWin ? 'You won' : 'You lost'}: ${locked.fighterStars} ★ against '
+                          '${locked.challengerStars} ★.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          onPressed: () => Navigator.of(
+                            context,
+                          ).push(MaterialPageRoute<void>(builder: (_) => FightReplayScreen(fight: locked))),
+                          icon: const Icon(Icons.play_circle_fill_rounded),
+                          label: const Text('Watch the fight'),
+                        ),
+                      ],
                     )
                   : Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Bring more than ${Stars.challengerBase} ★: ties go to the challenger, and the others may '
-                          'boost it tomorrow.',
+                          'The challenger has ${Stars.challengerBase} ★ plus the boosts it got yesterday, secret '
+                          'until you lock in. Bring more: ties go to the challenger.',
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
@@ -170,7 +184,12 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                                           context,
                                           () => controller.submitFighters(_picked),
                                         );
-                                        if (locked && context.mounted) Navigator.of(context).pop(true);
+                                        final fight = controller.yourFight;
+                                        if (!locked || fight == null || !context.mounted) return;
+                                        // The stars decide right away: watch the fight.
+                                        await Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute<bool>(builder: (_) => FightReplayScreen(fight: fight)),
+                                        );
                                       },
                                 icon: const Icon(Icons.lock_rounded),
                                 label: Text(

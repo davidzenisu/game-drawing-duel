@@ -20,16 +20,16 @@ CharacterCard _card(String id, Rarity rarity) => CharacterCard(
 );
 
 /// Two adventurers (4 ★) against a challenger: they win without boosts.
-FightSetup _fight({int boosts = 0}) => FightSetup(
-  id: 'fight-$boosts',
+FightSetup _fight({int boostStars = 0}) => FightSetup(
+  id: 'fight-$boostStars',
   owner: const Player(id: 'p', name: 'Pat', isYou: true),
   challenger: _card('c', Rarity.basic),
   fighters: [
     FighterEntry(card: _card('a', Rarity.adventurer), element: ElementKind.fire),
     FighterEntry(card: _card('b', Rarity.adventurer)),
   ],
-  day: 2,
-  boosts: boosts,
+  day: 4,
+  boostStars: boostStars,
 );
 
 Future<void> _open(WidgetTester tester, FightSetup fight) async {
@@ -75,8 +75,8 @@ void main() {
   });
 
   testWidgets('skip goes straight to the reveal, and a tap shows it all', (tester) async {
-    // Two boosts: 3 + 3 stars beat the fighters' 4.
-    final fight = _fight(boosts: 2);
+    // Three boost stars: 3 + 3 stars beat the fighters' 4.
+    final fight = _fight(boostStars: 3);
     await _open(tester, fight);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Skip'));
@@ -87,7 +87,7 @@ void main() {
     await tester.tap(find.byType(FightOutcome));
     await tester.pump();
     expect(find.text('${fight.challenger.subject} wins!'), findsOneWidget);
-    expect(find.text('3 + 3 from 2 boosts'), findsOneWidget);
+    expect(find.text('3 + 3 from boosts'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpWidget(const SizedBox());
   });

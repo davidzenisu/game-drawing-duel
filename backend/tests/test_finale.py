@@ -19,10 +19,8 @@ class FinaleTests(FightTestCase):
             server = session.scalar(select(Server).where(Server.code == self.code))
             server.launched_at = datetime(2026, 10, 5, 9, tzinfo=UTC)
             session.commit()
-        # Day 3: everyone sends a basic against a challenger of day 2, and
-        # draws another for day 4. One basic star never beats a challenger's
-        # three, so every challenger fought wins.
-        self.fight_with_a_basic()
+        # Day 3: everyone draws another challenger, and boosts nothing, so
+        # chance spreads every boost star: 3 on each challenger.
         for subject in PLAYERS:
             self.client.put(
                 f"/servers/{self.code}/today/challenger",
@@ -30,7 +28,13 @@ class FinaleTests(FightTestCase):
                 headers=bearer(make_token(subject)),
             )
         self.next_day()
-        # Day 4: the same against day 3's. Nobody draws, so no fights later.
+        # Day 4: everyone sends a basic against a challenger of day 2. One
+        # basic star never beats a challenger's six, so every challenger
+        # fought wins.
+        self.fight_with_a_basic()
+        self.next_day()
+        # Day 5: the same against day 3's. Nobody drew on day 4, so no fights
+        # later.
         self.fight_with_a_basic()
         self.next_day()
 
@@ -138,7 +142,7 @@ class FinaleTests(FightTestCase):
         self.assertEqual(hero["character"]["rarity"], "hero")
         self.assertEqual(hero["day"], 7)
         self.assertEqual(hero["votes"], votes)
-        self.assertEqual(hero["stars"], 3 + votes)
+        self.assertEqual(hero["stars"], 6 + votes)
         pool = {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
         self.assertIn(favourite, pool)
         # The other challengers stay out of the pool.
@@ -211,7 +215,7 @@ class FinaleTests(FightTestCase):
         self.go_to_day(8)
         hero = self.today()["weekly_hero"]
         self.assertIn(hero["character"]["id"], self.fought())
-        self.assertEqual((hero["stars"], hero["votes"]), (3, 0))
+        self.assertEqual((hero["stars"], hero["votes"]), (6, 0))
 
     def test_a_week_without_winning_challengers_has_no_hero(self) -> None:
         self.go_to_day(15)

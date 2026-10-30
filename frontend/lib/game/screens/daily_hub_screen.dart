@@ -238,33 +238,35 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         onTap: toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
       ),
       _ActionCard(
+        icon: Icons.keyboard_double_arrow_up_rounded,
+        step: LoopStep.boost,
+        title: 'Boost challengers',
+        subtitle: !c.stepUnlocked(LoopStep.boost) || c.boostTargets.isEmpty
+            ? _unlocksOn(LoopStep.boost)
+            : c.canBoost
+            ? 'Spread ${c.boostStarsLeft} of your ${Boost.stars} ★ across ${c.boostTargets.length} of '
+                  'yesterday\'s challengers. They\'re fought tomorrow.'
+            : 'All ${Boost.stars} ★ given. You can move them until the day is over.',
+        done: c.boostTargets.isNotEmpty && !c.canBoost,
+        badge: c.canBoost ? 1 : 0,
+        onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c), Tutorial.boost),
+      ),
+      _ActionCard(
         icon: Icons.groups_rounded,
         step: LoopStep.fight,
         title: 'Pick your fighters',
         subtitle: c.fightChallenger == null
             ? _unlocksOn(LoopStep.fight)
             : fight != null
-            ? 'Locked in ${fight.fighters.length} fighters against ${fight.challenger.subject}.'
+            ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
+                  '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★.'
             : c.availableFighters.isEmpty
             ? 'All your characters fought this week. They\'re back on Monday.'
-            : 'Beat a new challenger\'s ${Stars.challengerBase} ★ with up to 4 fighters. The others may boost it tomorrow.',
+            : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters.',
         done: fight != null,
         onTap: c.fightChallenger == null || (fight == null && c.availableFighters.isEmpty)
             ? null
             : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
-      ),
-      _ActionCard(
-        icon: Icons.keyboard_double_arrow_up_rounded,
-        step: LoopStep.boost,
-        title: 'Boost a challenger',
-        subtitle: !c.stepUnlocked(LoopStep.boost) || c.boostTargets.isEmpty
-            ? _unlocksOn(LoopStep.boost)
-            : c.boostedChallengerId != null
-            ? 'Boosted for today.'
-            : 'Pick one of yesterday\'s ${c.boostTargets.length} challengers to boost: +1 ★, +2 ★, +3 ★ …',
-        done: c.boostedChallengerId != null,
-        badge: c.canBoost ? 1 : 0,
-        onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c), Tutorial.boost),
       ),
       if (c.finale case final finale?)
         _ActionCard(
@@ -287,9 +289,9 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: Icons.sports_martial_arts_rounded,
         title: 'Battle results',
         subtitle: hasResults
-            ? 'Watch the fights of your fighters and your challenger.'
+            ? 'Watch yesterday\'s fights of your fighters and your challenger.'
             : 'Your first results arrive on day ${LoopStep.results}.',
-        onTap: hasResults ? () => _openStep(ResultsScreen(controller: c), Tutorial.boost) : null,
+        onTap: hasResults ? () => _openStep(ResultsScreen(controller: c), Tutorial.fight) : null,
       ),
     ];
   }

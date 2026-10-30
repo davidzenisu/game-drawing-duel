@@ -134,8 +134,8 @@ day each player:
 1. gets a description (one of the prompt hints), chooses the person who fits
    it best (anyone but themselves; several players may choose the same one)
    and writes a challenger title for them. The challenger takes the theme of
-   the day its heroes are picked, two days later, so each day's theme is the
-   one of the challengers fought on it,
+   the day it's fought, three days later, so each day's theme is the one of
+   the challengers fought on it,
 2. draws, within 1:30, the title the previous player wrote the day before,
    seeing the description it was written for too; if they wrote none, the
    premade title of their description stands in (with the description), for
@@ -143,33 +143,41 @@ day each player:
    The challenger
    is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
    join the gacha pool unless it wins a weekly finale (see below).
-3. sends up to four characters of their collection against a challenger
-   drawn the day before: the one of the player a number of seats on in the
+3. spreads 3 boost stars across up to three of the challengers drawn the day
+   before, at most 3 on one, never the one they drew or the one they fight
+   tomorrow. Everyone boosts the challengers of the players the same
+   offsets on in the roster (picked per day), so when everyone drew, every
+   challenger is boosted by three players and comes first for one of them;
+   later offsets stand in for players who drew none. The stars can change
+   all day; once it's over, chance spreads the ones a player left
+   (`boost.by_chance`).
+4. sends up to four characters of their collection against a challenger
+   drawn two days before: the one of the player a number of seats on in the
    roster (picked per day; the next one on who drew stands in for a player
    who drew none). So when everyone drew, every challenger has exactly one
-   fight, nobody fights their own, and step 4 offers all but two. Every character fights
+   fight and nobody fights their own. Every character fights
    once a week: after a fight it rests until Monday (UTC, the week of the
    themes), and `GET today` lists the resting ones as `fight.resting`.
    Basic (1-star) characters can fight every day, and everyone draws one
    during the setup, so nobody runs out. Fighters picked by chance come from
-   the characters that can fight that day,
-4. browses the day before's challengers and the teams sent against them,
-   all but the one they drew and the one they fought, and boosts one of them.
+   the characters that can fight that day.
 
-A fight is decided once its boosting day is over, i.e. two days after the
-fighters were picked, by stars: the fighters' rarities (1 for a basic up to
-4 for a legend; upgrades don't count yet) against the challenger's 3 plus
-its boosts. Every boost adds a star more than the one before (+1, +2, +3, …,
-so 1, 3, 6 in total). The fighters need more stars to win; ties go to the
-challenger (`rules.fighters_win`, shared with the mockup). A player who
-picked no fighters gets random ones from their collection (stored the first
-time the next day is opened).
+A fight is decided as soon as the fighters are picked, by stars: the
+fighters' rarities (1 for a basic up to 4 for a legend; upgrades don't count
+yet) against the challenger's 3 plus its boost stars, which stay secret
+until then. The fighters need more stars to win; ties go to the challenger
+(`rules.fighters_win`, shared with the mockup). With teams of four rolled at
+the gacha rates and boosts spread at random, the fighters win a bit over
+half the fights (`tests/test_balance.py`). A player who picked no fighters
+gets random ones from their collection once the day is over (stored the
+first time the next day is opened). The next day, everyone sees the
+results of their fight and of the fight against their challenger.
 
-Once decided, a fight's result is stored on its `fight` row (`boosts`,
-`fighter_stars`, `challenger_stars`, `fighters_win`) the first time the day
-is opened after it, so later rule changes don't rewrite past fights. For
-example, how each player's characters fared against each player's
-challengers, counting every fighter of a team, without teams chance picked:
+A fight's result is stored on its `fight` row (`boosts`, the challenger's
+boost stars, `fighter_stars`, `challenger_stars`, `fighters_win`), so later
+rule changes don't rewrite past fights. For example, how each player's
+characters fared against each player's challengers, counting every fighter
+of a team, without teams chance picked:
 
 ```sql
 SELECT fighter.name AS fighter, challenger.name AS challenger,
@@ -190,11 +198,11 @@ Seat names are per server; to follow a player across servers, group by
 `server_seat.player_id` instead.
 
 On the last day of every week (Sunday, UTC) comes the finale: every
-challenger that won a fight decided that week enters (a fight picked on a
-Saturday is decided on Monday, so it counts for the next week). Players vote
+challenger that won a fight that week before Sunday enters (Sunday's
+fights count for the next week). Players vote
 on pairs of them, every pair once and none with a challenger they drew; each
 vote adds a star. Once the week is over, the challenger with the most stars
-(its 3, plus its boosts, plus its votes; then the most fights won, then the
+(its 3, plus its boost stars, plus its votes; then the most fights won, then the
 one drawn first) joins the gacha pool as a hero (`app/finale.py`). The stars
 stay secret until then; `GET today` shows the latest winner as
 `weekly_hero`.
@@ -210,11 +218,11 @@ hits (`GET today` lists them as `incoming_hurries`).
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, your fight, the challengers to boost (with the fights against them), your decided fights, the finale's next pair on Sundays and the latest weekly hero |
+| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, the challengers to boost with the stars you gave them, your fight, yesterday's results, the finale's next pair on Sundays and the latest weekly hero |
 | `POST /servers/{code}/today/prompt` | Choose a person for today's description (`subject_position`, anyone but you) and write their challenger title, once |
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
-| `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once |
-| `POST /servers/{code}/today/boosts` | Boost one of yesterday's challengers (`challenger_id`), once a day |
+| `PUT /servers/{code}/today/boosts` | Spread your boost stars across today's challengers to boost (`boosts`, each a `challenger_id` and its `stars`), replacing the ones you gave today |
+| `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once; the stars decide right away |
 | `POST /servers/{code}/today/finale` | On the last day of a week: pick one challenger of your next pair (`chosen_id`, `other_id`), once per pair |
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |

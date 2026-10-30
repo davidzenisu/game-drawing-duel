@@ -8,13 +8,15 @@ import 'package:frontend/game/rules/upgrades.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-/// A fight in the fake backend: owner seat, day, challenger and fighters.
+/// A fight in the fake backend: owner seat, day, challenger, fighters and
+/// the challenger's boost stars when it was decided.
 typedef FakeFight = ({
   String id,
   int owner,
   int day,
   Map<String, Object?> challenger,
   List<Map<String, Object?>> fighters,
+  int boostStars,
 });
 
 class FakeAuthClient implements AuthClient {
@@ -92,22 +94,23 @@ class FakeBackend {
   /// Fights by server code: owner seat, day, challenger and fighters.
   final Map<String, List<FakeFight>> fights = {};
 
-  /// Boosts by server code, day and booster seat: the boosted challenger's id.
-  final Map<(String, int, int), String> boosts = {};
+  /// Boost stars by server code, day and booster seat, by challenger id.
+  final Map<(String, int, int), Map<String, int>> boosts = {};
 
-  int _boosts(String code, Object? challengerId) =>
-      boosts.entries.where((e) => e.key.$1 == code && e.value == challengerId).length;
+  int _boostStars(String code, Object? challengerId) => [
+    for (final MapEntry(:key, :value) in boosts.entries)
+      if (key.$1 == code) value[challengerId] ?? 0,
+  ].fold(0, (a, b) => a + b);
 
   /// Whether the fighters beat the boosted challenger: more stars win, ties go
   /// to the challenger.
-  Map<String, Object?> _outcome(String code, Map<String, Object?> challenger, List<Map<String, Object?>> fighters) {
+  Map<String, Object?> _outcome(FakeFight fight) {
     const stars = {'basic': 1, 'adventurer': 2, 'hero': 3, 'legend': 4};
-    final fighterStars = fighters.fold(0, (sum, c) => sum + stars[c['rarity']]!);
-    final boosted = _boosts(code, challenger['id']);
-    final challengerStars = 3 + boosted * (boosted + 1) ~/ 2;
+    final fighterStars = fight.fighters.fold(0, (sum, c) => sum + stars[c['rarity']]!);
+    final challengerStars = 3 + fight.boostStars;
     return {
       'fighter_stars': fighterStars,
-      'boosts': boosted,
+      'boost_stars': fight.boostStars,
       'challenger_stars': challengerStars,
       'fighters_win': fighterStars > challengerStars,
     };
@@ -495,11 +498,12 @@ class FakeBackend {
     int subjectOf(int seat) => (seat + 2) % server.seats.length;
     Map<String, Object?>? challenger() =>
         _characters(code).where((c) => c['artist_position'] == yours && c['day'] == day).firstOrNull;
-    // The first of yesterday's challengers that isn't yours.
-    Map<String, Object?>? fightChallenger() => days[code]! < 3
+    // The first challenger drawn two days before [day] that isn't yours.
+    Map<String, Object?>? fightChallengerOn(int day) => day < 4
         ? null
-        : _characters(code).where((c) => c['day'] == days[code]! - 1 && c['artist_position'] != yours).firstOrNull;
-    Map<String, Object?> fightJson(FakeFight f, {required bool decided}) {
+        : _characters(code).where((c) => c['day'] == day - 2 && c['artist_position'] != yours).firstOrNull;
+    Map<String, Object?>? fightChallenger() => fightChallengerOn(days[code]!);
+    Map<String, Object?> fightJson(FakeFight f) {
       return {
         'id': f.id,
         'day': f.day,
@@ -509,24 +513,18 @@ class FakeBackend {
           for (final c in f.fighters) {'character': c, 'upgrades': const <String>[], 'element': null},
         ],
         'by_chance': false,
-        'outcome': decided ? _outcome(code, f.challenger, f.fighters) : null,
+        'outcome': _outcome(f),
       };
     }
 
-    /// Yesterday's challengers on [day] you may boost, with the fights
-    /// against them: not the one you drew or the one you fought.
-    Map<Object?, List<FakeFight>> boostTargets(int day) {
-      final yesterday = [
-        for (final f in fights[code] ?? const [])
-          if (f.day == day - 1) f,
-      ];
-      final fought = yesterday.where((f) => f.owner == yours).firstOrNull?.challenger['id'];
-      final targets = <Object?, List<FakeFight>>{};
-      for (final f in yesterday) {
-        if (f.challenger['artist_position'] == yours || f.challenger['id'] == fought) continue;
-        targets.putIfAbsent(f.challenger['id'], () => []).add(f);
-      }
-      return targets;
+    /// Up to three of the challengers drawn the day before [day] you may
+    /// boost: not the one you drew or the one you fight the day after.
+    List<Map<String, Object?>> boostTargets(int day) {
+      if (day < 3) return const [];
+      final fought = fightChallengerOn(day + 1)?['id'];
+      return _characters(
+        code,
+      ).where((c) => c['day'] == day - 1 && c['artist_position'] != yours && c['id'] != fought).take(3).toList();
     }
 
     switch ((method, path)) {
@@ -549,8 +547,8 @@ class FakeBackend {
             'artist_position': yours,
             'subject_position': written?.subject ?? subjectOf(author),
             'day': day,
-            // A challenger takes the theme of the day its heroes are picked.
-            'theme': theme(day + 1),
+            // A challenger takes the theme of the day it's fought.
+            'theme': theme(day + 2),
           },
           sketch: body!['sketch'],
         );
@@ -568,15 +566,21 @@ class FakeBackend {
           day: day,
           challenger: challenger,
           fighters: [for (final id in body!['character_ids'] as List) pool.firstWhere((c) => c['id'] == id)],
+          boostStars: _boostStars(code, challenger['id']),
         ));
-      case ('POST', ['today', 'boosts']):
-        if (!boostTargets(day).containsKey(body!['challenger_id'])) {
-          return _json(404, {'detail': 'No challenger to boost today'});
+      case ('PUT', ['today', 'boosts']):
+        final targets = {for (final c in boostTargets(day)) c['id']};
+        final given = {
+          for (final b in (body!['boosts'] as List).cast<Map<String, Object?>>())
+            b['challenger_id'] as String: b['stars'] as int,
+        };
+        if (targets.isEmpty || !targets.containsAll(given.keys)) {
+          return _json(409, {'detail': "You can't boost that challenger today"});
         }
-        if (boosts.containsKey((code, day, yours))) {
-          return _json(409, {'detail': 'You boosted a challenger today already'});
+        if (given.values.any((n) => n < 0 || n > 3) || given.values.fold(0, (a, b) => a + b) > 3) {
+          return _json(409, {'detail': 'You have 3 stars to give'});
         }
-        boosts[(code, day, yours)] = body['challenger_id'] as String;
+        boosts[(code, day, yours)] = given;
       case ('POST', ['today', 'finale']):
         final finale = finales[code];
         if (finale == null || finale['pair'] == null) return _json(409, {'detail': "You can't vote on that pair"});
@@ -603,8 +607,8 @@ class FakeBackend {
       'day': today,
       'theme': theme(today),
       'prompt': {
-        'hint': 'a challenger on a ${theme(today + 2)} day',
-        'theme': theme(today + 2),
+        'hint': 'a challenger on a ${theme(today + 3)} day',
+        'theme': theme(today + 3),
         'subject_position': prompts[(code, yours, today)]?.subject,
         'title': prompts[(code, yours, today)]?.title,
       },
@@ -614,9 +618,9 @@ class FakeBackend {
               'author_position': author,
               'subject_position': written?.subject ?? subjectOf(author),
               'title': written?.title ?? 'Premade prompt',
-              'theme': theme(today + 1),
+              'theme': theme(today + 2),
               // The hint the author got yesterday.
-              'hint': written == null ? null : 'a challenger on a ${theme(today + 1)} day',
+              'hint': written == null ? null : 'a challenger on a ${theme(today + 2)} day',
               'premade': written == null,
               'challenger': _characters(
                 code,
@@ -628,7 +632,7 @@ class FakeBackend {
           'challenger': challenger,
           'yours': [
             for (final f in fights[code] ?? const [])
-              if (f.owner == yours && f.day == today) fightJson(f, decided: false),
+              if (f.owner == yours && f.day == today) fightJson(f),
           ].firstOrNull,
           // Day 1 is a Monday in the fake, so weeks start on days 1, 8, ...
           'resting': {
@@ -639,18 +643,19 @@ class FakeBackend {
           }.toList(),
         },
       },
-      'to_boost': [
-        for (final matchups in boostTargets(today).values)
-          {
-            'challenger': matchups.first.challenger,
-            'matchups': [for (final f in matchups) fightJson(f, decided: false)],
-          },
-      ],
-      'boosted': boosts[(code, today, yours)],
+      'boost': switch (boostTargets(today)) {
+        [] => null,
+        final targets => {
+          'targets': [
+            for (final c in targets) {'challenger': c, 'stars': boosts[(code, today, yours)]?[c['id']] ?? 0},
+          ],
+          'stars': 3,
+          'max_per_challenger': 3,
+        },
+      },
       'results': [
         for (final f in fights[code] ?? const [])
-          if (f.day == today - 2 && (f.owner == yours || f.challenger['artist_position'] == yours))
-            fightJson(f, decided: true),
+          if (f.day == today - 1 && (f.owner == yours || f.challenger['artist_position'] == yours)) fightJson(f),
       ],
       'hurry_sent_to': hurries[(code, today, yours)],
       'incoming_hurries': [
@@ -663,21 +668,21 @@ class FakeBackend {
     });
   }
 
-  /// The challengers you drew, fought or boosted; fights from two days ago
-  /// on are decided.
+  /// The challengers you drew, fought or boosted; fights count once their
+  /// day is over.
   List<Map<String, Object?>> _challengers(String code, String playerId) {
     final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
     final all = fights[code] ?? const [];
     bool encountered(Map<String, Object?> c) =>
         c['artist_position'] == yours ||
-        boosts.entries.any((e) => e.key.$1 == code && e.key.$3 == yours && e.value == c['id']) ||
+        boosts.entries.any((e) => e.key.$1 == code && e.key.$3 == yours && e.value.containsKey(c['id'])) ||
         all.any((f) => f.challenger['id'] == c['id'] && f.owner == yours);
     return [
       for (final c in _characters(code).reversed)
         if (c['prompt'] == 'challenger' && encountered(c))
           () {
-            final decided = all.where((f) => f.challenger['id'] == c['id'] && f.day <= days[code]! - 2);
-            final wins = decided.where((f) => _outcome(code, f.challenger, f.fighters)['fighters_win'] == false);
+            final decided = all.where((f) => f.challenger['id'] == c['id'] && f.day < days[code]!);
+            final wins = decided.where((f) => _outcome(f)['fighters_win'] == false);
             return {'character': c, 'fights': decided.length, 'wins': wins.length};
           }(),
     ];

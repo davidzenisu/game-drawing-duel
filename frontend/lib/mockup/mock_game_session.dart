@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../game/game_session.dart';
 import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
@@ -233,7 +235,10 @@ class MockGameSession extends GameSession {
     _prompts.clear();
     _challengers.clear();
     _fights.clear();
-    _boosted.clear();
+    _boostStars.clear();
+    _yourBoosts.clear();
+    _fightOffsets.clear();
+    _boostOffsets.clear();
     _finaleVotes.clear();
     _yourFinaleVotes.clear();
     _weeklyHero = null;
@@ -344,6 +349,22 @@ class MockGameSession extends GameSession {
 
   /// Fights set up per day.
   final Map<int, List<FightSetup>> _fights = {};
+
+  /// Everyone's fights on [day].
+  @visibleForTesting
+  List<FightSetup> fightsOn(int day) => List.unmodifiable(_fights[day] ?? const <FightSetup>[]);
+
+  /// The boost stars every challenger got, by its id.
+  final Map<String, int> _boostStars = {};
+
+  /// The boost stars you gave each day, by challenger id.
+  final Map<int, Map<String, int>> _yourBoosts = {};
+
+  /// Like online, everyone fights the challenger of the player a number of
+  /// seats on, picked per day, so every challenger has one fight when all
+  /// drew; and boosts the challengers of the players other offsets on.
+  final Map<int, int> _fightOffsets = {};
+  final Map<int, List<int>> _boostOffsets = {};
 
   /// Characters in the simulated players' rosters.
   final Map<String, List<CharacterCard>> _botRosters = {};
@@ -508,32 +529,92 @@ class MockGameSession extends GameSession {
     _setupContent.removeWhere((h) => h.id == entry.id);
   }
 
-  @override
-  List<BoostTarget> get boostTargets => _boostTargets(you);
+  int _fightOffset(int day) => _fightOffsets.putIfAbsent(day, () => 1 + _random.nextInt(server.players.length - 1));
 
-  /// Yesterday's challengers [player] may boost: all but the one they drew
-  /// and the one they fought.
-  List<BoostTarget> _boostTargets(Player player) {
-    final yesterday = _fights[_day - 1] ?? const <FightSetup>[];
-    final fought = yesterday.where((f) => f.owner.id == player.id).firstOrNull?.challenger;
-    final matchups = <String, List<FightSetup>>{};
-    for (final fight in yesterday) {
-      final challenger = fight.challenger;
-      if (challenger.artist == player.name || challenger.id == fought?.id) continue;
-      matchups.putIfAbsent(challenger.id, () => []).add(fight);
+  /// The challenger [player] fights on [day]: the one drawn two days before
+  /// by the player [_fightOffset] seats on, or the next one on who drew.
+  CharacterCard? _fightChallengerOf(Player player, int day) {
+    final players = server.players;
+    final drawn = _challengers[day - 2] ?? const <CharacterCard>[];
+    if (players.length < 2 || drawn.isEmpty) return null;
+    final position = players.indexOf(player);
+    for (var step = 0; step < players.length; step++) {
+      final other = players[(position + _fightOffset(day) + step) % players.length];
+      if (other.id == player.id) continue;
+      final challenger = drawn.where((c) => c.artist == other.name).firstOrNull;
+      if (challenger != null) return challenger;
     }
-    return [for (final fights in matchups.values) BoostTarget(challenger: fights.first.challenger, matchups: fights)];
+    return null;
+  }
+
+  /// The challengers [player] may boost on [day], like online: up to
+  /// [Boost.challengers] of the day before's, of the players the same
+  /// offsets on for everyone, never their own or the one they fight
+  /// tomorrow.
+  List<CharacterCard> _boostTargetsOf(Player player, int day) {
+    final players = server.players;
+    final drawn = _challengers[day - 1] ?? const <CharacterCard>[];
+    if (players.length < 2 || drawn.isEmpty) return const [];
+    final offsets = _boostOffsets.putIfAbsent(day, () {
+      final fightOffset = _fightOffset(day + 1);
+      return [
+        for (var offset = 1; offset < players.length; offset++)
+          if (offset != fightOffset) offset,
+      ]..shuffle(_random);
+    });
+    final fought = _fightChallengerOf(player, day + 1);
+    final position = players.indexOf(player);
+    final targets = <CharacterCard>[];
+    for (final offset in offsets) {
+      final artist = players[(position + offset) % players.length];
+      final challenger = drawn.where((c) => c.artist == artist.name).firstOrNull;
+      if (challenger == null || challenger.artist == player.name || challenger.id == fought?.id) continue;
+      targets.add(challenger);
+      if (targets.length == Boost.challengers) break;
+    }
+    return targets;
   }
 
   @override
-  String? get boostedChallengerId => _boosted[_day];
+  List<BoostTarget> get boostTargets => [
+    for (final challenger in _boostTargetsOf(you, _day))
+      BoostTarget(challenger: challenger, stars: _yourBoosts[_day]?[challenger.id] ?? 0),
+  ];
 
-  /// The challengers you boosted, by day.
-  final Map<int, String> _boosted = {};
+  /// Step 3: gives today's challengers to boost these stars, replacing the
+  /// ones you gave today.
+  @override
+  Future<void> setBoosts(Map<String, int> stars) async {
+    final targets = {for (final challenger in _boostTargetsOf(you, _day)) challenger.id};
+    if (targets.isEmpty) throw StateError('No challengers to boost today.');
+    if (!targets.containsAll(stars.keys)) throw ArgumentError("You can't boost that challenger today.");
+    if (stars.values.any((n) => n < 0 || n > Boost.maxPerChallenger)) {
+      throw ArgumentError('A challenger takes up to ${Boost.maxPerChallenger} of your stars.');
+    }
+    if (stars.values.fold(0, (a, b) => a + b) > Boost.stars) {
+      throw ArgumentError('You have ${Boost.stars} stars to give.');
+    }
+    _yourBoosts[_day] = {
+      for (final MapEntry(key: id, value: n) in stars.entries)
+        if (n > 0) id: n,
+    };
+    notifyListeners();
+  }
 
-  void _boost(BoostTarget target) {
-    for (final fight in target.matchups) {
-      fight.boosts++;
+  /// Adds [given] and [left] more stars spread at random to [targets]'
+  /// boost stars, at most [Boost.maxPerChallenger] on one in all.
+  void _spreadBoosts(List<CharacterCard> targets, Map<String, int> given) {
+    final spread = {...given};
+    var left = Boost.stars - given.values.fold(0, (a, b) => a + b);
+    while (left > 0) {
+      final open = targets.where((c) => (spread[c.id] ?? 0) < Boost.maxPerChallenger).toList();
+      if (open.isEmpty) break;
+      final pick = open[_random.nextInt(open.length)];
+      spread[pick.id] = (spread[pick.id] ?? 0) + 1;
+      left--;
+    }
+    for (final MapEntry(key: id, value: n) in spread.entries) {
+      _boostStars[id] = (_boostStars[id] ?? 0) + n;
     }
   }
 
@@ -552,10 +633,10 @@ class MockGameSession extends GameSession {
 
   bool _isFinaleDay(int day) => Finale.isFinaleDate(_launchedOn.add(Duration(days: day - 1)));
 
-  /// Like online: the challengers that won a fight decided in the week that
-  /// ends on [day], oldest first.
+  /// Like online: the challengers that won a fight in the week that ends on
+  /// [day], before that day, oldest first.
   List<_Contender> _contenders(int day) {
-    final lastFightDay = day - Finale.decidedAfter;
+    final lastFightDay = day - Finale.fightsUntil;
     final byChallenger = <String, List<FightSetup>>{};
     for (var fightDay = lastFightDay - 6; fightDay <= lastFightDay; fightDay++) {
       for (final fight in _fights[fightDay] ?? const <FightSetup>[]) {
@@ -565,7 +646,7 @@ class MockGameSession extends GameSession {
     return [
       for (final fights in byChallenger.values)
         if (fights.where((f) => !f.fightersWin).length case final wins when wins > 0)
-          _Contender(fights.first.challenger, wins: wins, boosts: fights.first.boosts),
+          _Contender(fights.first.challenger, wins: wins, boostStars: fights.first.boostStars),
     ];
   }
 
@@ -626,7 +707,7 @@ class MockGameSession extends GameSession {
       }
     }
     final votes = _finaleVotes[day] ?? const {};
-    int stars(_Contender c) => Stars.ofChallenger(c.boosts) + (votes[c.card.id] ?? 0);
+    int stars(_Contender c) => Stars.ofChallenger(c.boostStars) + (votes[c.card.id] ?? 0);
     final ranked = _contenders(day).indexed.toList()
       ..sort((x, y) {
         final byStars = stars(y.$2).compareTo(stars(x.$2));
@@ -643,17 +724,17 @@ class MockGameSession extends GameSession {
     _weeklyHero = WeeklyHero(card: winner.card, day: day, stars: stars(winner), votes: votes[winner.card.id] ?? 0);
   }
 
-  /// Decided fights you picked the fighters for (two days ago).
+  /// Yesterday's fights you picked the fighters for.
   @override
   List<FightSetup> get yourFightResults => [
-    for (final fight in _fights[_day - 2] ?? const <FightSetup>[])
+    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
       if (fight.owner.isYou) fight,
   ];
 
-  /// Decided fights against the challenger you drew (three days ago).
+  /// Yesterday's fights against the challenger you drew (three days ago).
   @override
   List<FightSetup> get yourChallengerResults => [
-    for (final fight in _fights[_day - 2] ?? const <FightSetup>[])
+    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
       if (fight.challenger.artist == you.name) fight,
   ];
 
@@ -681,10 +762,12 @@ class MockGameSession extends GameSession {
 
   void _startDay() {
     if (_day > 0 && _isFinaleDay(_day)) _decideFinale(_day);
+    // Once the day is over, chance spreads the boost stars you left.
+    if (_day > 0) _spreadBoosts(_boostTargetsOf(you, _day), _yourBoosts[_day] ?? const {});
     _day++;
     _theme = _themeOfDay(_day);
-    // Today's prompts are for challengers fought in two days, in that day's theme.
-    _promptTheme = _themeOfDay(_day + 2);
+    // Today's prompts are for challengers fought in three days, in that day's theme.
+    _promptTheme = _themeOfDay(_day + 3);
     // Like online, every hint is used once at most; you get the first.
     final hints = _hintsOn(_promptTheme, _day).where((h) => !_usedHints.contains(h.entry.id)).toList()
       ..shuffle(_random);
@@ -736,28 +819,18 @@ class MockGameSession extends GameSession {
             ),
     ]..sort((a, b) => a.atFraction.compareTo(b.atFraction));
 
-    // Step 3: like online, everyone fights the challenger of the player a
-    // number of seats on, so every challenger has one fight when all drew.
-    final yesterday = _challengers[_day - 1] ?? const <CharacterCard>[];
-    final players = server.players;
-    final offset = players.length < 2 ? 0 : 1 + _random.nextInt(players.length - 1);
-    CharacterCard? challengerFor(Player player) {
-      if (offset == 0) return null;
-      final position = players.indexOf(player);
-      for (var step = 0; step < players.length; step++) {
-        final other = players[(position + offset + step) % players.length];
-        if (other.id == player.id) continue;
-        final drawn = yesterday.where((c) => c.artist == other.name).firstOrNull;
-        if (drawn != null) return drawn;
-      }
-      return null;
+    // Step 3: the simulated players spread their boost stars at random.
+    for (final booster in others) {
+      _spreadBoosts(_boostTargetsOf(booster, _day), const {});
     }
 
-    _fightChallenger = challengerFor(you);
+    // Step 4: they fight the challengers boosted yesterday, decided right
+    // away.
+    _fightChallenger = _fightChallengerOf(you, _day);
     _fights[_day] = [];
     for (final owner in others) {
       final roster = _botRosters[owner.id] ?? const <CharacterCard>[];
-      final challenger = challengerFor(owner);
+      final challenger = _fightChallengerOf(owner, _day);
       if (roster.isEmpty || challenger == null) continue;
       final picks = ([...roster]..shuffle(_random)).take(1 + _random.nextInt(FightSetup.maxFighters));
       _fights[_day]!.add(
@@ -767,15 +840,9 @@ class MockGameSession extends GameSession {
           challenger: challenger,
           fighters: [for (final card in picks) FighterEntry(card: card)],
           day: _day,
+          boostStars: _boostStars[challenger.id] ?? 0,
         ),
       );
-    }
-
-    // Step 4: most simulated players boost one of yesterday's challengers.
-    for (final booster in others) {
-      final targets = _boostTargets(booster);
-      if (targets.isEmpty || _random.nextDouble() < 0.3) continue;
-      _boost(targets[_random.nextInt(targets.length)]);
     }
 
     // The simulated players pull a character every day.
@@ -799,17 +866,17 @@ class MockGameSession extends GameSession {
     _challengers[_day]!.add(card);
   }
 
-  /// The challengers you drew, fought against or boosted. A fight is
-  /// decided once the day after it, its boosting day, is over.
+  /// The challengers you drew, fought against or boosted. Like the results,
+  /// a challenger's fights count once their day is over.
   @override
   List<ChallengerRecord> get challengers {
     final allFights = [for (final day in _fights.values) ...day];
     bool encountered(CharacterCard card) =>
         card.artist == you.name ||
-        _boosted.containsValue(card.id) ||
+        _yourBoosts.values.any((given) => given.containsKey(card.id)) ||
         allFights.any((f) => f.challenger.id == card.id && f.owner.isYou);
     ChallengerRecord record(CharacterCard card) {
-      final decided = allFights.where((f) => f.challenger.id == card.id && f.day < _day - 1).toList();
+      final decided = allFights.where((f) => f.challenger.id == card.id && f.day < _day).toList();
       return ChallengerRecord(card: card, fights: decided.length, wins: decided.where((f) => !f.fightersWin).length);
     }
 
@@ -873,7 +940,8 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Step 3: lock in up to four fighters against today's challenger.
+  /// Step 4: lock in up to four fighters against today's challenger, decided
+  /// right away.
   @override
   Future<void> submitFighters(List<OwnedCard> fighters) async {
     final challenger = _fightChallenger;
@@ -889,18 +957,9 @@ class MockGameSession extends GameSession {
         challenger: challenger,
         fighters: [for (final owned in fighters) FighterEntry.fromOwned(owned)],
         day: _day,
+        boostStars: _boostStars[challenger.id] ?? 0,
       ),
     );
-    notifyListeners();
-  }
-
-  /// Step 4: boost one of yesterday's challengers, once a day.
-  @override
-  Future<void> boost(CharacterCard challenger) async {
-    final target = boostTargets.where((t) => t.challenger.id == challenger.id).firstOrNull;
-    if (target == null || boostedChallengerId != null) return;
-    _boosted[_day] = challenger.id;
-    _boost(target);
     notifyListeners();
   }
 
@@ -984,11 +1043,11 @@ class MockGameSession extends GameSession {
 
 /// A challenger in a finale of the mockup, with its record that week.
 class _Contender {
-  const _Contender(this.card, {required this.wins, required this.boosts});
+  const _Contender(this.card, {required this.wins, required this.boostStars});
 
   final CharacterCard card;
   final int wins;
-  final int boosts;
+  final int boostStars;
 }
 
 /// A prompt hint of the mockup, see [MockGameSession.canEditContent].

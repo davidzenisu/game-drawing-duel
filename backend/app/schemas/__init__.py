@@ -14,6 +14,8 @@ from app.schemas.content import (
     SetupHintItem,
 )
 from app.schemas.day import (
+    BoostGiven,
+    BoostStep,
     BoostSubmit,
     BoostTarget,
     ChallengerResponse,
@@ -52,6 +54,8 @@ from app.schemas.server import (
 
 __all__ = [
     "AssignmentResponse",
+    "BoostGiven",
+    "BoostStep",
     "BoostSubmit",
     "BoostTarget",
     "ChallengerResponse",

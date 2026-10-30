@@ -215,11 +215,11 @@ MAX_FIGHTERS = 4
 # The stars of a challenger before boosts.
 CHALLENGER_STARS = 3
 
-
-def boost_stars(boosts: int) -> int:
-    """The stars `boosts` add to a challenger: the first adds 1, the second 2,
-    the third 3, and so on (1, 3, 6, … in total)."""
-    return boosts * (boosts + 1) // 2
+# Every day, a player spreads this many boost stars across this many of the
+# day before's challengers, at most this many on one.
+BOOST_CHALLENGERS = 3
+BOOST_STARS = 3
+BOOST_MAX_PER_CHALLENGER = 3
 
 
 def team_stars(team: list[Rarity]) -> int:
@@ -227,14 +227,15 @@ def team_stars(team: list[Rarity]) -> int:
     return sum(r.stars for r in team)
 
 
-def challenger_stars(boosts: int) -> int:
-    return CHALLENGER_STARS + boost_stars(boosts)
+def challenger_stars(boost_stars: int) -> int:
+    """A challenger's stars with the boost stars it got."""
+    return CHALLENGER_STARS + boost_stars
 
 
-def fighters_win(fighter_stars: int, boosts: int) -> bool:
+def fighters_win(fighter_stars: int, boost_stars: int) -> bool:
     """The fighters win with more stars than the boosted challenger; ties go
     to the challenger."""
-    return fighter_stars > challenger_stars(boosts)
+    return fighter_stars > challenger_stars(boost_stars)
 
 
 # The time limit for drawing a challenger.

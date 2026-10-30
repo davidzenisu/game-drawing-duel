@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, Field
 
-from app.rules import MAX_FIGHTERS
+from app.rules import BOOST_CHALLENGERS, BOOST_MAX_PER_CHALLENGER, MAX_FIGHTERS
 from app.schemas.character import CharacterResponse
 
 
@@ -13,8 +13,8 @@ class YourPrompt(BaseModel):
     # The description to choose a person and write a title for, or null if
     # there's none.
     hint: str | None
-    # The challenger's `app.rules.Theme`: the theme of the day its heroes are
-    # picked, two days from now.
+    # The challenger's `app.rules.Theme`: the theme of the day it's fought,
+    # three days from now.
     theme: str
     # Who you chose and what you wrote, or null.
     subject_position: int | None
@@ -50,8 +50,8 @@ class OutcomeResponse(BaseModel):
 
     # The fighters' stars: their rarities' (upgrades don't count yet).
     fighter_stars: int
-    # How many players boosted the challenger, and its stars with the boosts.
-    boosts: int
+    # The challenger's boost stars, and its stars with them.
+    boost_stars: int
     challenger_stars: int
     # Ties go to the challenger.
     fighters_win: bool
@@ -66,23 +66,35 @@ class FightResponse(BaseModel):
     fighters: list[FighterResponse]
     # The owner picked nobody, so chance did.
     by_chance: bool
-    # Once the boosting day is over: the stars of both sides.
-    outcome: OutcomeResponse | None
+    # The stars of both sides: decided as soon as the fighters are picked.
+    outcome: OutcomeResponse
 
 
 class BoostTarget(BaseModel):
-    """Step 4: one of yesterday's challengers you may boost, with the teams
-    that were sent against it."""
+    """One of yesterday's challengers you may boost, and the stars you gave
+    it."""
 
     challenger: CharacterResponse
-    matchups: list[FightResponse]
+    stars: int
+
+
+class BoostStep(BaseModel):
+    """Step 3: spread your boost stars across a few of yesterday's
+    challengers, never the one you drew or the one you fight tomorrow. Change
+    them all day; once it's over, chance spreads the stars you left."""
+
+    targets: list[BoostTarget]
+    # The stars you spread, and how many one challenger takes at most.
+    stars: int
+    max_per_challenger: int
 
 
 class FightStep(BaseModel):
-    """Step 3: the challenger you pick fighters against today."""
+    """Step 4: the challenger you pick fighters against today. Its stars stay
+    secret until you picked them."""
 
     challenger: CharacterResponse
-    # Your fighters, once picked.
+    # Your fighters and how they fared, once picked.
     yours: FightResponse | None
     # Your characters that fought earlier this week: every character but the
     # basic ones fights once a week, they're back on Monday (UTC).
@@ -137,11 +149,9 @@ class TodayResponse(BaseModel):
     prompt: YourPrompt
     to_draw: PromptToDrawResponse | None
     fight: FightStep | None
-    # Step 4: yesterday's challengers you may boost, all but the one you drew
-    # and the one you fought, and the one you boosted today if you did.
-    to_boost: list[BoostTarget]
-    boosted: uuid.UUID | None
-    # Decided fights you picked the fighters for, or drew the challenger of.
+    boost: BoostStep | None
+    # Yesterday's fights you picked the fighters for (or chance did), or
+    # drew the challenger of.
     results: list[FightResponse]
     # The seat you sent today's free hurry to.
     hurry_sent_to: int | None
@@ -168,8 +178,14 @@ class FightersSubmit(BaseModel):
     character_ids: list[uuid.UUID] = Field(min_length=1, max_length=MAX_FIGHTERS)
 
 
-class BoostSubmit(BaseModel):
+class BoostGiven(BaseModel):
     challenger_id: uuid.UUID
+    stars: int = Field(ge=0, le=BOOST_MAX_PER_CHALLENGER)
+
+
+class BoostSubmit(BaseModel):
+    # Replaces the stars you gave today.
+    boosts: list[BoostGiven] = Field(max_length=BOOST_CHALLENGERS)
 
 
 class FinaleVoteSubmit(BaseModel):

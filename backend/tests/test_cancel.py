@@ -126,13 +126,14 @@ class CancelTests(CancelTestMixin, SetupTestCase):
 
 class CancelRunningGameTests(CancelTestMixin, FightTestCase):
     def test_a_running_game_is_cancelled_with_all_its_data(self) -> None:
-        # Day 3: fights, a hurry and an ended day on top of the setup,
-        # challengers and pulls.
+        # Day 4: boosts, fights, a hurry and an ended day on top of the
+        # setup, challengers and pulls.
+        self.next_day()
         self.pick(self.owned()[:2])
         self.post("today/hurry", json={"target_position": 1})
         self.post("today/end", SAM)
         self.next_day()
-        for model in (Fight, Fighter, Hurry, DayEnd, PullGrant, Character):
+        for model in (Boost, Fight, Fighter, Hurry, DayEnd, PullGrant, Character):
             self.assertGreater(self.count(model), 0, model.__name__)
 
         response = self.cancel(self.code, ROBIN)

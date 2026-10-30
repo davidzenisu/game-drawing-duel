@@ -25,8 +25,8 @@ enum Tutorial {
   welcome('welcome', 'Welcome', Icons.waving_hand_rounded),
   prompt('prompt', 'Choosing a challenger', Icons.edit_note_rounded),
   draw('draw', 'Drawing a challenger', Icons.brush_rounded),
-  fight('fight', 'Picking fighters', Icons.groups_rounded),
-  boost('boost', 'Boosts and results', Icons.keyboard_double_arrow_up_rounded),
+  boost('boost', 'Boosting challengers', Icons.keyboard_double_arrow_up_rounded),
+  fight('fight', 'Fights and results', Icons.groups_rounded),
   finale('finale', 'The weekly finale', Icons.how_to_vote_rounded),
   gacha('gacha', 'Summoning', Icons.auto_awesome_rounded),
   upgrades('upgrades', 'Duplicates and upgrades', Icons.collections_rounded);
@@ -45,14 +45,15 @@ enum Tutorial {
         title: 'A few minutes a day',
         text:
             'Every day you write a challenger title for a friend, draw the one someone wrote for you, '
-            'send fighters against a challenger and boost another. New steps unlock over the first days.',
+            'boost a few of yesterday\'s challengers and send fighters against another. New steps unlock '
+            'over the first days.',
       ),
       TutorialPage(
         icon: Icons.star_rounded,
         title: 'Stars decide the fights',
         text:
-            'Your fighters\' stars against the challenger\'s. The results arrive two days after you pick '
-            'your fighters, once everyone could boost the challenger.',
+            'Your fighters\' stars against the challenger\'s and the boosts it got the day before. You see '
+            'the result as soon as you lock in your fighters.',
       ),
       TutorialPage(
         icon: Icons.auto_awesome_rounded,
@@ -96,21 +97,38 @@ enum Tutorial {
             'Send yours from the hub.',
       ),
     ],
+    boost => [
+      TutorialPage(
+        icon: Icons.keyboard_double_arrow_up_rounded,
+        title: 'Boost the challengers',
+        text:
+            'From day ${LoopStep.boost}, spread ${_stars(Boost.stars)} across up to ${Boost.challengers} of '
+            'yesterday\'s challengers, never your own or the one you fight tomorrow. One takes up to '
+            '${Boost.maxPerChallenger}.',
+      ),
+      TutorialPage(
+        icon: Icons.shield_rounded,
+        title: 'Make them tough',
+        text:
+            'Boost stars add to a challenger\'s ${_stars(Stars.challengerBase)}, and tomorrow someone fights '
+            'it. Move your stars until the day is over; the ones you leave are spread by chance.',
+      ),
+    ],
     fight => [
       TutorialPage(
         icon: Icons.groups_rounded,
         title: 'Up to ${FightSetup.maxFighters} fighters',
         text:
-            'From day ${LoopStep.fight}, send fighters from your collection against a challenger drawn '
-            'yesterday. Each brings its rarity\'s stars: '
+            'From day ${LoopStep.fight}, send fighters from your collection against a challenger drawn two '
+            'days ago. Each brings its rarity\'s stars: '
             '${Rarity.values.map((r) => '${r.label} ${_stars(r.stars)}').join(', ')}.',
       ),
       TutorialPage(
         icon: Icons.balance_rounded,
         title: 'Beat its stars',
         text:
-            'You need more stars than the challenger\'s ${_stars(Stars.challengerBase)} plus its boosts; '
-            'ties go to the challenger. Pick nobody and random fighters go for you.',
+            'You need more stars than the challenger\'s ${_stars(Stars.challengerBase)} plus its boosts, '
+            'which stay secret until you lock in; ties go to the challenger. The fight plays out right away.',
       ),
       const TutorialPage(
         icon: Icons.bedtime_rounded,
@@ -119,23 +137,12 @@ enum Tutorial {
             'After a fight a character rests until Monday. Basic characters can fight every day, so you '
             'never run out.',
       ),
-    ],
-    boost => [
-      TutorialPage(
-        icon: Icons.keyboard_double_arrow_up_rounded,
-        title: 'Boost a challenger',
-        text:
-            'From day ${LoopStep.boost}, look through yesterday\'s challengers and the teams sent against '
-            'them, except your own, and boost one a day. Every boost adds a star more than the one before: '
-            '+${Stars.ofBoosts(1)}, +${Stars.ofBoosts(2) - Stars.ofBoosts(1)}, '
-            '+${Stars.ofBoosts(3) - Stars.ofBoosts(2)} …',
-      ),
       const TutorialPage(
         icon: Icons.sports_martial_arts_rounded,
-        title: 'Then the stars decide',
+        title: 'Battle results',
         text:
-            'Once the boosting day is over, the fights are decided. Watch them in "Battle results": your '
-            'fighters\' fights and the ones against the challenger you drew.',
+            'Pick nobody and random fighters go for you once the day is over. The next day, watch the fights '
+            'in "Battle results": your fighters\' and the ones against the challenger you drew.',
       ),
     ],
     finale => const [

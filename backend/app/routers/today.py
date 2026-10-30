@@ -12,7 +12,6 @@ from app import days, fights, finale
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import (
-    Boost,
     ChallengerPrompt,
     Character,
     DayEnd,
@@ -26,11 +25,14 @@ from app.routers.pool import require_launched
 from app.routers.servers import Code, DbSession, load_server, your_seat
 from app.routers.setup import character_response
 from app.rules import (
+    BOOST_MAX_PER_CHALLENGER,
+    BOOST_STARS,
     HURRY_EARLIEST,
     HURRY_LATEST,
     Rarity,
 )
 from app.schemas import (
+    BoostStep,
     BoostSubmit,
     BoostTarget,
     ChallengerResponse,
@@ -71,11 +73,9 @@ def _challenger(session: Session, seat: ServerSeat, day: int) -> Character | Non
     )
 
 
-def _fight_response(
-    session: Session, server: Server, fight: Fight, seat: ServerSeat, *, decided: bool
-) -> FightResponse:
+def _fight_response(session: Session, server: Server, fight: Fight) -> FightResponse:
     positions = {s.id: s.position for s in server.seats}
-    result = fights.outcome(session, fight) if decided else None
+    result = fights.outcome(session, fight)
     return FightResponse(
         id=fight.id,
         day=fight.day,
@@ -90,11 +90,9 @@ def _fight_response(
             for f in fight.fighters
         ],
         by_chance=fight.by_chance,
-        outcome=None
-        if result is None
-        else OutcomeResponse(
+        outcome=OutcomeResponse(
             fighter_stars=result.fighter_stars,
-            boosts=result.boosts,
+            boost_stars=result.boosts,
             challenger_stars=result.challenger_stars,
             fighters_win=result.fighters_win,
         ),
@@ -103,9 +101,10 @@ def _fight_response(
 
 def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
     day = days.current_day(server)
-    # Fights nobody picked fighters for are needed for voting and results.
+    # Yesterday's boosts and fights nobody finished are needed for today's
+    # fights, the results and the finale.
+    fights.complete_boosts(session, server, day - 1)
     fights.complete_fights(session, server, day - 1)
-    fights.complete_fights(session, server, day - 2)
     fights.decide_fights(session, server)
     finale.settle(session, server)
     written = session.scalar(
@@ -150,20 +149,10 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             challenger=character_response(drawn) if drawn else None,
         ),
         fight=_fight_step(session, server, day, seat),
-        to_boost=[
-            BoostTarget(
-                challenger=character_response(matchups[0].challenger),
-                matchups=[
-                    _fight_response(session, server, f, seat, decided=False)
-                    for f in matchups
-                ],
-            )
-            for matchups in fights.boost_targets(session, server, day, seat).values()
-        ],
-        boosted=fights.boosted(session, seat, day),
+        boost=_boost_step(session, server, day, seat),
         results=[
-            _fight_response(session, server, f, seat, decided=True)
-            for f in fights.fights_on(session, server, day - 2)
+            _fight_response(session, server, f)
+            for f in fights.fights_on(session, server, day - 1)
             if seat.id in {f.owner_seat_id, f.challenger.artist_seat_id}
         ],
         hurry_sent_to=_hurry_sent_to(session, server, seat, day),
@@ -171,6 +160,23 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         day_ended=list(ended),
         finale=_finale_step(session, server, day, seat),
         weekly_hero=_weekly_hero(session, server),
+    )
+
+
+def _boost_step(
+    session: Session, server: Server, day: int, seat: ServerSeat
+) -> BoostStep | None:
+    targets = fights.boost_targets(session, server, day, seat)
+    if not targets:
+        return None
+    given = fights.given_boosts(session, seat, day)
+    return BoostStep(
+        targets=[
+            BoostTarget(challenger=character_response(c), stars=given.get(c.id, 0))
+            for c in targets
+        ],
+        stars=BOOST_STARS,
+        max_per_challenger=BOOST_MAX_PER_CHALLENGER,
     )
 
 
@@ -244,7 +250,7 @@ def _fight_step(
         challenger=character_response(challenger),
         yours=None
         if yours is None
-        else _fight_response(session, server, yours, seat, decided=False),
+        else _fight_response(session, server, yours),
         resting=sorted(fights.resting(session, server, seat, day), key=str),
     )
 
@@ -347,11 +353,12 @@ def draw_challenger(
 def pick_fighters(
     code: Code, body: FightersSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
-    """Step 3: sends up to four of your characters against today's
-    challenger. Once a day, and every character but the basic ones once a
-    week."""
+    """Step 4: sends up to four of your characters against today's
+    challenger, boosted yesterday. The stars decide right away. Once a day,
+    and every character but the basic ones once a week."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
+    fights.complete_boosts(session, server, day - 1)
     challenger = fights.fight_challenger(session, server, day, seat)
     if challenger is None:
         raise HTTPException(
@@ -382,28 +389,28 @@ def pick_fighters(
     return _today(session, server, seat)
 
 
-@router.post("/{code}/today/boosts", response_model=TodayResponse)
+@router.put("/{code}/today/boosts", response_model=TodayResponse)
 def boost(
     code: Code, body: BoostSubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
-    """Step 4: boosts one of yesterday's challengers, but not the one you drew
-    or the one you fought. Once a day; every boost adds more stars than the
-    one before (`rules.boost_stars`)."""
+    """Step 3: spreads your boost stars across today's challengers to boost,
+    replacing the ones you gave today. Once the day is over, chance spreads
+    the stars you left."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
-    if body.challenger_id not in fights.boost_targets(session, server, day, seat):
+    stars = {b.challenger_id: b.stars for b in body.boosts}
+    if len(stars) != len(body.boosts):
         raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail="No challenger to boost today"
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Boost every challenger once"
         )
-    session.add(
-        Boost(booster_seat_id=seat.id, challenger_id=body.challenger_id, day=day)
-    )
     try:
-        session.commit()
+        fights.set_boosts(session, server, day, seat, stars)
+    except fights.InvalidBoost as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
     except IntegrityError as error:
         session.rollback()
         raise HTTPException(
-            status.HTTP_409_CONFLICT, detail="You boosted a challenger today already"
+            status.HTTP_409_CONFLICT, detail="Your boosts changed at the same time"
         ) from error
     return _today(session, server, seat)
 
@@ -420,8 +427,8 @@ def vote_finale(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="The finale is on the last day of a week"
         )
-    # The fights decided today count, including the ones chance picked for.
-    fights.complete_fights(session, server, day - 2)
+    # Yesterday's fights count, including the ones chance picked for.
+    fights.complete_fights(session, server, day - 1)
     try:
         finale.vote(session, server, day, seat, body.chosen_id, body.other_id)
     except finale.InvalidVote as error:
