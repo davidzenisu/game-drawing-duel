@@ -6,7 +6,7 @@ import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/fight_stage.dart';
 import '../widgets/game_action.dart';
-import 'results_screen.dart';
+import 'fight_replay_screen.dart';
 
 /// Step 4: pick up to four fighters against a challenger the others boosted
 /// yesterday. Its boosts stay secret until you lock in, then the stars

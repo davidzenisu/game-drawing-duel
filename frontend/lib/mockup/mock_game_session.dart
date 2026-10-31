@@ -679,20 +679,6 @@ class MockGameSession extends GameSession {
     _weeklyHero = WeeklyHero(card: winner.card, day: day, stars: winner.stars);
   }
 
-  /// Yesterday's fights you picked the fighters for.
-  @override
-  List<FightSetup> get yourFightResults => [
-    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
-      if (fight.owner.isYou) fight,
-  ];
-
-  /// Yesterday's fights against the challenger you drew (three days ago).
-  @override
-  List<FightSetup> get yourChallengerResults => [
-    for (final fight in _fights[_day - 1] ?? const <FightSetup>[])
-      if (fight.challenger.artist == you.name) fight,
-  ];
-
   List<HurryPlan> _incomingHurries = const [];
   @override
   List<HurryPlan> get incomingHurries => _incomingHurries;

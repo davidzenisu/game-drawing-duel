@@ -173,8 +173,9 @@ half the fights (`tests/test_balance.py`). A win earns a pull
 to spend later (`victory_stars` in `GET gacha`, summed from the won fights).
 A player who picked no fighters gets random ones from their collection once
 the day is over (stored the first time the next day is opened); their wins
-earn nothing. The next day, everyone sees the
-results of their fight and of the fight against their challenger.
+earn nothing. The next day, `GET today` lists those fights and the ones
+against the player's challenger as `results`; the app doesn't show them for
+now.
 
 A fight's result is stored on its `fight` row (`boosts`, the challenger's
 boost stars, `fighter_stars`, `challenger_stars`, `fighters_win`), so later
