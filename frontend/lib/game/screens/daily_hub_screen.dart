@@ -18,11 +18,11 @@ import 'boost_screen.dart';
 import 'challengers_screen.dart';
 import 'collection_screen.dart';
 import 'drawing_screen.dart';
-import 'finale_screen.dart';
 import 'fight_setup_screen.dart';
 import 'gacha_screen.dart';
 import 'how_to_play_screen.dart';
 import 'prompt_screen.dart';
+import 'ranking_screen.dart';
 import 'results_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
@@ -270,23 +270,6 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
             ? null
             : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
       ),
-      if (c.finale case final finale?)
-        _ActionCard(
-          icon: Icons.how_to_vote_rounded,
-          step: LoopStep.finale,
-          title: 'Finale',
-          subtitle: finale.pairs == 0
-              ? finale.contenders == 0
-                    ? 'No challenger won a fight this week, so there\'s no new hero.'
-                    : 'No pairs for you to vote on this week. The best challenger joins the pool tomorrow.'
-              : finale.pair == null
-              ? 'Voted on all ${finale.pairs} pairs. The winner joins the pool tomorrow.'
-              : 'Vote for the best of the week\'s ${finale.contenders} winning challengers: '
-                    '${finale.votes} of ${finale.pairs} pairs done.',
-          done: finale.pairs > 0 && finale.pair == null,
-          badge: c.canVoteFinale ? 1 : 0,
-          onTap: finale.pairs == 0 ? null : () => _openStep(FinaleScreen(controller: c), Tutorial.finale),
-        ),
       _ActionCard(
         icon: Icons.sports_martial_arts_rounded,
         title: 'Battle results',
@@ -297,6 +280,15 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           if (c.victoryStars > 0) 'Victory stars won: ${c.victoryStars} ★',
         ].join(' '),
         onTap: hasResults ? () => _openStep(ResultsScreen(controller: c), Tutorial.fight) : null,
+      ),
+      _ActionCard(
+        icon: Icons.emoji_events_rounded,
+        title: 'Week ranking',
+        subtitle: switch (c.weeklyHero) {
+          null => 'Once a week is over, its challengers are ranked by their stars. The first becomes a hero.',
+          final hero => 'See how last week\'s challengers ranked. ${hero.card.subject} won with ${hero.stars} ★.',
+        },
+        onTap: c.weeklyHero == null ? null : () => _openStep(RankingScreen(controller: c), Tutorial.finale),
       ),
     ];
   }
@@ -428,8 +420,8 @@ class _WeeklyHeroCard extends StatelessWidget {
         leading: SizedBox(width: 40, child: CardboardCard(child: SketchView(card.sketch))),
         title: Text('Weekly hero: ${card.subject} · "${card.title}"'),
         subtitle: Text(
-          'Won the finale with ${hero.stars} ★ (${hero.votes} vote${hero.votes == 1 ? '' : 's'}) '
-          'and joined the pool as a hero. Drawn by ${card.artist}.',
+          'Topped last week\'s ranking with ${hero.stars} ★ and joined the pool as a hero. '
+          'Drawn by ${card.artist}.',
         ),
         trailing: const Icon(Icons.emoji_events_rounded, color: AppPalette.rarityHero),
       ),

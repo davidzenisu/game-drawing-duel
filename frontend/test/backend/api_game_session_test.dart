@@ -619,42 +619,34 @@ void main() {
       expect((record.fights, record.wins), (1, result.fightersWin ? 0 : 1));
     });
 
-    test('the finale: vote on a pair, then the weekly hero', () async {
+    test('the finale: the weekly hero and the week ranking', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
       await drawAll(admin);
       await admin.launch();
-      expect((admin.finale, admin.weeklyHero), (null, null));
+      expect(admin.weeklyHero, isNull);
+      expect(await admin.weekRanking(), isNull, reason: 'not before the first week is over');
       expect(admin.rateUp, isEmpty);
 
       final [left, right, ...] = [for (final d in backend.drawings.values) d.character];
-      backend.finales['123456'] = {
-        'pair': {'left': left, 'right': right},
-        'votes': 0,
-        'pairs': 1,
-        'contenders': 2,
+      backend.weeklyHeroes['123456'] = {'character': right, 'day': 7, 'stars': 9};
+      backend.rankings['123456'] = {
+        'day': 7,
+        'challengers': [
+          {'character': right, 'stars': 9, 'fights': 1, 'wins': 1},
+          {'character': left, 'stars': 6, 'fights': 0, 'wins': 0},
+        ],
       };
       await admin.refreshDay();
-      final ballot = admin.finale!;
-      expect(ballot.pair!.$1.id, left['id']);
-      expect(ballot.pair!.$2.id, right['id']);
-      expect((ballot.votes, ballot.pairs, ballot.contenders), (0, 1, 2));
-      expect(admin.canVoteFinale, isTrue);
-
-      await admin.voteFinale(ballot.pair!.$2, ballot.pair!.$1);
-      final post = backend.requests.lastWhere((r) => r.method == 'POST');
-      expect(post.url.path, '/servers/123456/today/finale');
-      expect(jsonDecode(post.body), {'chosen_id': right['id'], 'other_id': left['id']});
-      expect(admin.finale!.pair, isNull);
-      expect(admin.finale!.votes, 1);
-      expect(admin.canVoteFinale, isFalse);
-
-      backend.finales.remove('123456');
-      backend.weeklyHeroes['123456'] = {'character': right, 'day': 7, 'stars': 5, 'votes': 2};
-      await admin.refreshDay();
-      expect(admin.finale, isNull);
       final hero = admin.weeklyHero!;
-      expect((hero.card.id, hero.day, hero.stars, hero.votes), (right['id'], 7, 5, 2));
+      expect((hero.card.id, hero.day, hero.stars), (right['id'], 7, 9));
+      final ranking = (await admin.weekRanking())!;
+      expect(backend.requests.last.url.path, '/servers/123456/ranking');
+      expect(ranking.day, 7);
+      expect(
+        [for (final r in ranking.challengers) (r.card.id, r.stars, r.fights, r.wins)],
+        [(right['id'], 9, 1, 1), (left['id'], 6, 0, 0)],
+      );
       // The hero is rate-up now, with the legends of the same player.
       expect(admin.rateUp, contains(right['id']));
       for (final id in admin.rateUp.difference({right['id']})) {

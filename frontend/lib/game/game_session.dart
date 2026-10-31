@@ -200,12 +200,12 @@ abstract class GameSession extends ChangeNotifier {
   /// The player you sent today's free hurry to.
   Player? get hurrySentTo;
 
-  /// Step 5, on the last day of a week (Sunday, UTC): the pairs of the
-  /// week's winning challengers to vote on; null on other days.
-  FinaleBallot? get finale;
-
   /// The latest finale's winner, now in the gacha [pool].
   WeeklyHero? get weeklyHero;
+
+  /// Loads the latest finished week's ranking, see [Finale]; null before the
+  /// first week is over.
+  Future<WeekRanking?> weekRanking();
 
   /// The keys of the intros you saw (see `Tutorial`), so each shows once.
   /// Online they're kept with your account, on every device.
@@ -246,9 +246,6 @@ abstract class GameSession extends ChangeNotifier {
   /// Whether you have boost stars left to give today.
   bool get canBoost => boostTargets.isNotEmpty && boostStarsLeft > 0;
 
-  /// Whether there's a pair left to vote on in today's finale.
-  bool get canVoteFinale => finale?.pair != null;
-
   /// Whether a step of the daily loop is available today.
   bool stepUnlocked(int step) => day >= step;
 
@@ -270,8 +267,7 @@ abstract class GameSession extends ChangeNotifier {
       yourPrompt == null ||
       (promptToDraw != null && !challengerDrawn) ||
       (fightChallenger != null && yourFight == null && availableFighters.isNotEmpty) ||
-      canBoost ||
-      canVoteFinale;
+      canBoost;
 
   // Actions ------------------------------------------------------------------
 
@@ -331,10 +327,6 @@ abstract class GameSession extends ChangeNotifier {
   /// Step 4: lock in up to four fighters against today's challenger. The
   /// stars decide right away: see [yourFight].
   Future<void> submitFighters(List<OwnedCard> fighters);
-
-  /// Step 5: picks [chosen] over [other], today's [FinaleBallot.pair]; each
-  /// vote adds a star to the one picked.
-  Future<void> voteFinale(CharacterCard chosen, CharacterCard other);
 
   /// Remembers that you saw the intro with [key]. Never fails: if it can't
   /// be stored, the intro just shows again another time.

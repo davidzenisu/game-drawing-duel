@@ -8,7 +8,7 @@ Game Drawing Duel is a daily, sketch-based competitive game where players draw c
 - One quick drawing pass each cycle
 - Party-building battle phase
 - Boosts for the challengers, and the stars decide the fights
-- A weekly finale: vote on pairs of the winning challengers; the best joins the gacha pool as a hero
+- A weekly finale: the week's challengers are ranked by their stars; the best joins the gacha pool as a hero
 
 ## Design docs
 
@@ -200,15 +200,15 @@ ORDER BY fighter.name, challenger.name;
 Seat names are per server; to follow a player across servers, group by
 `server_seat.player_id` instead.
 
-On the last day of every week (Sunday, UTC) comes the finale: every
-challenger that won a fight that week before Sunday enters (Sunday's
-fights count for the next week). Players vote
-on pairs of them, every pair once and none with a challenger they drew; each
-vote adds a star. Once the week is over, the challenger with the most stars
-(its 3, plus its boost stars, plus its votes; then the most fights won, then the
-one drawn first) joins the gacha pool as a hero (`app/finale.py`). The stars
-stay secret until then; `GET today` shows the latest winner as
-`weekly_hero`.
+Once a week is over (after Sunday, UTC) comes the finale: the week's
+challengers are ranked by their stars, their own 3 plus their boost stars.
+A challenger counts for the week of its boosting day, the day after it was
+drawn, so its stars are final when the week ends (a challenger drawn on a
+Sunday counts for the next week). Every challenger is ranked; the one with
+the most stars (then the most fights won by the end of the week, then the
+one drawn first) joins the gacha pool as a hero (`app/finale.py`). `GET
+today` shows the latest winner as `weekly_hero`, and `GET ranking` the whole
+ranking of the latest finished week.
 
 The random picks are derived from the server, day and seat, so they stay the
 same without being stored ahead of time.
@@ -221,13 +221,13 @@ hits (`GET today` lists them as `incoming_hurries`).
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, the challengers to boost with the stars you gave them, your fight, yesterday's results, the finale's next pair on Sundays and the latest weekly hero |
+| `GET /servers/{code}/today` | Day, theme, your prompt to write and to draw, the challengers to boost with the stars you gave them, your fight, yesterday's results and the latest weekly hero |
 | `POST /servers/{code}/today/prompt` | Choose a person for today's description (`subject_position`, anyone but you) and write their challenger title, once |
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
 | `PUT /servers/{code}/today/boosts` | Spread your boost stars across today's challengers to boost (`boosts`, each a `challenger_id` and its `stars`), replacing the ones you gave today |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once; the stars decide right away |
-| `POST /servers/{code}/today/finale` | On the last day of a week: pick one challenger of your next pair (`chosen_id`, `other_id`), once per pair |
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
+| `GET /servers/{code}/ranking` | The latest finished week's challengers, most stars first, with their stars, fights and wins; `null` before the first week is over |
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
