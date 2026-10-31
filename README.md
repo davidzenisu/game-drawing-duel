@@ -359,7 +359,7 @@ retired are closed for their players like a cancelled server (migration
 `b17ad0eded77`). The API still accepts `"is_test"` until speed mode takes
 over, for the tests.
 
-`POST /admin/servers/cleanup` deletes every test session created more than a
+`POST /manage/servers/cleanup` deletes every test session created more than a
 day ago, with its seats, game data and drawings, and returns the deleted
 codes. It needs the `manage:servers` permission of the Auth0 API on top of
 the player permission; like `edit:content`, give it through a role in the

@@ -1,7 +1,7 @@
 """retire test sessions
 
 Speed mode replaces the test sessions: the ones still running are closed
-for their players, as if cancelled, until `POST /admin/servers/cleanup`
+for their players, as if cancelled, until `POST /manage/servers/cleanup`
 deletes them. Their game data stays until then.
 
 Revision ID: b17ad0eded77
