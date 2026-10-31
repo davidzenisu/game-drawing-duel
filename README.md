@@ -351,24 +351,19 @@ character and deletes the old file. The API reaches the container through
 `app/storage.py`'s `FileStore` interface; in Azure that is the blob container
 accessed with the Function App's managed identity, in tests an in-memory store.
 
-#### Test sessions
+#### Test sessions (retired)
 
-Ticking **Test session** when creating a server (`"is_test": true`) makes a
-server for trying the game with the real database and storage, at speed:
+Test sessions (`"is_test": true`) are being replaced by speed mode. The app
+no longer offers them, and the ones that were still running when they were
+retired are closed for their players like a cancelled server (migration
+`b17ad0eded77`). The API still accepts `"is_test"` until speed mode takes
+over, for the tests.
 
-- It can start without everyone: only the players who joined take part.
-- The initial setup is short: every active player draws three characters,
-  *Basic*, *Knight* and *Legend*, of three different, randomly picked other
-  players of the whole roster, whether they joined or not.
-- Days don't wait for real time. The admin can advance to the next day, and
-  the day advances automatically once every active player has ended theirs.
-  Players see who has ended their day when they refresh, not by polling.
-- The lobby and the game show a TEST SESSION badge.
-
-Players who join a test session after its setup started draw along, and the
-launch waits for them too; once it launched, nobody can join anymore. The day
-controls are in the daily hub: everyone can end their day, the admin can start
-the next one, and a refresh shows who ended theirs.
+`POST /admin/servers/cleanup` deletes every test session created more than a
+day ago, with its seats, game data and drawings, and returns the deleted
+codes. It needs the `manage:servers` permission of the Auth0 API on top of
+the player permission; like `edit:content`, give it through a role in the
+infrastructure repository.
 
 ### Game rules
 
