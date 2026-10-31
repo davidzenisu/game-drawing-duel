@@ -405,12 +405,8 @@ class ApiGameSession extends GameSession {
   Set<String> _resting = const {};
   List<BoostTarget> _boostTargets = const [];
   List<FightSetup> _results = const [];
-  FinaleBallot? _finale;
   WeeklyHero? _weeklyHero;
   List<ChallengerRecord> _challengers = const [];
-
-  @override
-  FinaleBallot? get finale => _finale;
 
   @override
   WeeklyHero? get weeklyHero => _weeklyHero;
@@ -562,27 +558,12 @@ class ApiGameSession extends GameSession {
           else
             throw const FormatException('Unexpected hurry.'),
       ];
-      _finale = switch (json['finale']) {
-        null => null,
-        {'pair': final pair, 'votes': int votes, 'pairs': int pairs, 'contenders': int contenders} => FinaleBallot(
-          pair: switch (pair) {
-            null => null,
-            {'left': final left, 'right': final right} => (await _card(server, left), await _card(server, right)),
-            _ => throw const FormatException('Unexpected finale pair.'),
-          },
-          votes: votes,
-          pairs: pairs,
-          contenders: contenders,
-        ),
-        _ => throw const FormatException('Unexpected finale.'),
-      };
       _weeklyHero = switch (json['weekly_hero']) {
         null => null,
-        {'character': final character, 'day': int heroDay, 'stars': int stars, 'votes': int votes} => WeeklyHero(
+        {'character': final character, 'day': int heroDay, 'stars': int stars} => WeeklyHero(
           card: await _card(server, character),
           day: heroDay,
           stars: stars,
-          votes: votes,
         ),
         _ => throw const FormatException('Unexpected weekly hero.'),
       };
@@ -914,10 +895,22 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> voteFinale(CharacterCard chosen, CharacterCard other) async {
-    final json = await _post('/servers/${server.code}/today/finale', {'chosen_id': chosen.id, 'other_id': other.id});
-    await _setToday(server, json);
-    notifyListeners();
+  Future<WeekRanking?> weekRanking() async {
+    final server = this.server;
+    return switch (await _get('/servers/${server.code}/ranking')) {
+      null => null,
+      {'day': int day, 'challengers': List challengers} => WeekRanking(
+        day: day,
+        challengers: [
+          for (final entry in challengers)
+            if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})
+              RankedChallenger(card: await _card(server, character), stars: stars, fights: fights, wins: wins)
+            else
+              throw const FormatException('Unexpected ranked challenger.'),
+        ],
+      ),
+      _ => throw const FormatException('Unexpected ranking.'),
+    };
   }
 
   @override

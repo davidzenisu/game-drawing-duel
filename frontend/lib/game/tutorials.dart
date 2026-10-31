@@ -27,7 +27,7 @@ enum Tutorial {
   draw('draw', 'Drawing a challenger', Icons.brush_rounded),
   boost('boost', 'Boosting challengers', Icons.keyboard_double_arrow_up_rounded),
   fight('fight', 'Fights and results', Icons.groups_rounded),
-  finale('finale', 'The weekly finale', Icons.how_to_vote_rounded),
+  finale('finale', 'The weekly ranking', Icons.emoji_events_rounded),
   gacha('gacha', 'Summoning', Icons.auto_awesome_rounded),
   upgrades('upgrades', 'Duplicates and upgrades', Icons.collections_rounded);
 
@@ -149,20 +149,17 @@ enum Tutorial {
     finale => const [
       TutorialPage(
         icon: Icons.emoji_events_rounded,
-        title: 'Every Sunday',
-        text: 'Every challenger that won a fight this week enters the finale. Pick one of each pair you\'re shown.',
-      ),
-      TutorialPage(
-        icon: Icons.swipe_rounded,
-        title: 'Swipe to vote',
+        title: 'Every week',
         text:
-            'Swipe left for the left one, right for the right one, or tap your pick. Each vote adds a star, '
-            'and you never vote on your own challengers.',
+            'Once a week is over, its challengers are ranked by their stars: their own and the boost stars '
+            'they got.',
       ),
       TutorialPage(
         icon: Icons.auto_awesome_rounded,
         title: 'A new hero',
-        text: 'On Monday the challenger with the most stars joins the gacha pool as a hero.',
+        text:
+            'On Monday the challenger with the most stars joins the gacha pool as a hero. Everyone can see the '
+            'whole ranking from the hub.',
       ),
     ],
     gacha => [

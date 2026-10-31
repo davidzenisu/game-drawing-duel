@@ -487,38 +487,28 @@ void main() {
     expect(game.day, 2);
   });
 
-  test('on Sundays the finale: vote on pairs, the best joins the pool as a hero', () async {
-    // A Monday: day 7 is the Sunday of the finale.
+  test('once a week is over, its challengers are ranked and the best joins the pool', () async {
+    // A Monday: day 7 is the Sunday the week ends on.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
-    for (var day = 1; day < 7; day++) {
-      expect(game.day, day);
-      expect(game.finale, isNull);
+    for (var day = 1; day <= 7; day++) {
       expect(game.weeklyHero, isNull);
+      expect(await game.weekRanking(), isNull);
       await game.advanceDay();
     }
-    final ballot = game.finale!;
-    expect(ballot.contenders, greaterThan(2));
-    expect(ballot.pairs, greaterThan(0));
-    expect(game.hasOpenSteps, isTrue);
+    final ranking = (await game.weekRanking())!;
+    expect(ranking.day, 7);
+    final ranked = ranking.challengers;
+    expect(ranked, isNotEmpty);
+    // The ones boosted that week: drawn on days 2 to 6 (nobody draws on day 1).
+    expect(ranked.map((r) => r.card.day).toSet(), {2, 3, 4, 5, 6});
+    expect([for (final r in ranked) r.stars], [...ranked.map((r) => r.stars)]..sort((a, b) => b.compareTo(a)));
+    expect(ranked.first.stars, greaterThan(Stars.challengerBase), reason: 'everyone spreads their stars');
 
-    final seen = <String>{};
-    for (var pair = game.finale!.pair; pair != null; pair = game.finale!.pair) {
-      final (left, right) = pair;
-      expect([left.artist, right.artist], isNot(contains(game.you.name)), reason: 'not your own challengers');
-      expect(seen.add({left.id, right.id}.toList().join('|')), isTrue, reason: 'every pair once');
-      await game.voteFinale(left, right);
-      expect(game.finale!.votes, seen.length);
-    }
-    expect(game.finale!.votes, ballot.pairs);
-    expect(game.canVoteFinale, isFalse);
-
-    await game.advanceDay();
-    expect(game.finale, isNull);
     final hero = game.weeklyHero!;
-    expect(hero.day, 7);
+    expect((hero.card.id, hero.day, hero.stars), (ranked.first.card.id, 7, ranked.first.stars));
     expect(hero.card.rarity, Rarity.hero);
-    expect(hero.stars, greaterThanOrEqualTo(Stars.challengerBase + hero.votes));
     expect(game.pool.map((c) => c.id), contains(hero.card.id));
+    expect(game.pool.map((c) => c.id), isNot(contains(ranked.last.card.id)));
   });
 
   test('every challenger has one fight, and three to boost every day', () async {

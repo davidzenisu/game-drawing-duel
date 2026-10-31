@@ -110,36 +110,32 @@ class IncomingHurry(BaseModel):
     at_fraction: float
 
 
-class FinalePair(BaseModel):
-    left: CharacterResponse
-    right: CharacterResponse
-
-
-class FinaleStep(BaseModel):
-    """Step 5, on the last day (Sunday, UTC) of a week: vote on pairs of the
-    week's challengers that won a fight. Each vote adds a star to the one
-    picked; once the week is over, the one with the most stars joins the
-    gacha pool as a hero. The stars stay secret until then."""
-
-    # The next pair to vote on, or null once you voted on every pair.
-    pair: FinalePair | None
-    # How many pairs you voted on, out of the pairs you may vote on: every
-    # pair of contenders without a challenger you drew.
-    votes: int
-    pairs: int
-    # The week's challengers that won a fight.
-    contenders: int
-
-
 class WeeklyHeroResponse(BaseModel):
     """The latest finale's winner, now in the gacha pool."""
 
     character: CharacterResponse
-    # The finale day it won on.
+    # The finale day it won on: the last day of its week.
     day: int
-    # Its stars in the end: its challenger stars with boosts, plus its votes.
+    # Its own stars plus its boost stars.
     stars: int
-    votes: int
+
+
+class RankedChallenger(BaseModel):
+    character: CharacterResponse
+    # Its own stars plus its boost stars.
+    stars: int
+    # Its fights by the end of the week, and how many of them it won.
+    fights: int
+    wins: int
+
+
+class RankingResponse(BaseModel):
+    """The latest finished week's challengers, most stars first; the first
+    joined the gacha pool as a hero."""
+
+    # The last day of the week.
+    day: int
+    challengers: list[RankedChallenger]
 
 
 class TodayResponse(BaseModel):
@@ -160,8 +156,6 @@ class TodayResponse(BaseModel):
     incoming_hurries: list[IncomingHurry]
     # Test sessions: the seats that ended the day. Empty on regular servers.
     day_ended: list[int]
-    # Step 5, on the last day of a week.
-    finale: FinaleStep | None
     weekly_hero: WeeklyHeroResponse | None
 
 
@@ -186,12 +180,6 @@ class BoostGiven(BaseModel):
 class BoostSubmit(BaseModel):
     # Replaces the stars you gave today.
     boosts: list[BoostGiven] = Field(max_length=BOOST_CHALLENGERS)
-
-
-class FinaleVoteSubmit(BaseModel):
-    # The challenger you pick, and the other one of the pair.
-    chosen_id: uuid.UUID
-    other_id: uuid.UUID
 
 
 class HurrySubmit(BaseModel):

@@ -12,16 +12,13 @@ import 'upgrades.dart';
 ///      before,
 ///   4. pick up to four fighters against a challenger drawn two days
 ///      before; the stars decide right away.
-/// The day after, everyone involved sees the outcome. Once a week comes
-/// step 5, the [Finale].
+/// The day after, everyone involved sees the outcome. Once a week, the
+/// [Finale] ranks the week's challengers.
 abstract final class LoopStep {
   static const prompt = 1;
   static const draw = 2;
   static const boost = 3;
   static const fight = 4;
-
-  /// On the last day of every week, see [Finale].
-  static const finale = 5;
 
   /// The first day with yesterday's fights to show.
   static const results = 5;
@@ -234,47 +231,48 @@ abstract final class FightScript {
   }
 }
 
-/// Step 5, on the last day of every week (Sunday, UTC): every challenger
-/// that won a fight that week before Sunday enters, and players vote on
-/// pairs of them. Each vote adds a star; once the week is over, the one with
-/// the most stars joins the gacha pool as a hero.
+/// Once a week, the finale: the week's challengers are ranked by their
+/// stars, their own and their boost stars. A challenger counts for the week
+/// of its boosting day, so its stars are final once the week is over (Sunday,
+/// UTC); then the one with the most stars joins the gacha pool as a hero.
 abstract final class Finale {
-  /// The finale counts the fights up to this many days before it: Sunday's
-  /// count for the next week.
-  static const fightsUntil = 1;
-
   /// Whether [date] (UTC) is the last day of its week, the finale's.
   static bool isFinaleDate(DateTime date) => date.weekday == DateTime.sunday;
 }
 
-/// Where you stand in today's [Finale].
-class FinaleBallot {
-  const FinaleBallot({required this.pair, required this.votes, required this.pairs, required this.contenders});
-
-  /// The next two challengers to pick one of, or null once you voted on
-  /// every pair.
-  final (CharacterCard, CharacterCard)? pair;
-
-  /// How many pairs you voted on, of the [pairs] you may: every pair of the
-  /// contenders without a challenger you drew.
-  final int votes;
-  final int pairs;
-
-  /// The week's challengers that won a fight.
-  final int contenders;
-}
-
 /// The winner of the latest [Finale], now in the gacha pool as a hero.
 class WeeklyHero {
-  const WeeklyHero({required this.card, required this.day, required this.stars, required this.votes});
+  const WeeklyHero({required this.card, required this.day, required this.stars});
 
   final CharacterCard card;
 
-  /// The finale day it won on.
+  /// The finale day it won on: the last day of its week.
   final int day;
 
-  /// Its stars in the end: its challenger stars with boost stars, plus
-  /// [votes].
+  /// Its own stars plus its boost stars.
   final int stars;
-  final int votes;
+}
+
+/// A challenger in a week's ranking.
+class RankedChallenger {
+  const RankedChallenger({required this.card, required this.stars, required this.fights, required this.wins});
+
+  final CharacterCard card;
+
+  /// Its own stars plus its boost stars.
+  final int stars;
+
+  /// Its fights by the end of the week, and how many of them it won.
+  final int fights;
+  final int wins;
+}
+
+/// The latest finished week's challengers, most stars first; the first
+/// joined the gacha pool as a hero.
+class WeekRanking {
+  const WeekRanking({required this.day, required this.challengers});
+
+  /// The last day of the week.
+  final int day;
+  final List<RankedChallenger> challengers;
 }

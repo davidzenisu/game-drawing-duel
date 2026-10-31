@@ -41,14 +41,13 @@ from app.schemas import (
     FightersSubmit,
     FightResponse,
     FightStep,
-    FinalePair,
-    FinaleStep,
-    FinaleVoteSubmit,
     HurrySubmit,
     IncomingHurry,
     OutcomeResponse,
     PromptSubmit,
     PromptToDrawResponse,
+    RankedChallenger,
+    RankingResponse,
     TodayResponse,
     WeeklyHeroResponse,
     YourPrompt,
@@ -158,7 +157,6 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         hurry_sent_to=_hurry_sent_to(session, server, seat, day),
         incoming_hurries=_incoming_hurries(session, server, seat, day),
         day_ended=list(ended),
-        finale=_finale_step(session, server, day, seat),
         weekly_hero=_weekly_hero(session, server),
     )
 
@@ -180,25 +178,6 @@ def _boost_step(
     )
 
 
-def _finale_step(
-    session: Session, server: Server, day: int, seat: ServerSeat
-) -> FinaleStep | None:
-    if not finale.is_finale_day(server, day):
-        return None
-    ballot = finale.ballot(session, server, day, seat)
-    return FinaleStep(
-        pair=None
-        if ballot.pair is None
-        else FinalePair(
-            left=character_response(ballot.pair[0]),
-            right=character_response(ballot.pair[1]),
-        ),
-        votes=ballot.votes,
-        pairs=ballot.pairs,
-        contenders=ballot.contenders,
-    )
-
-
 def _weekly_hero(session: Session, server: Server) -> WeeklyHeroResponse | None:
     hero = finale.latest_hero(session, server)
     if hero is None:
@@ -207,7 +186,6 @@ def _weekly_hero(session: Session, server: Server) -> WeeklyHeroResponse | None:
         character=character_response(hero.character),
         day=hero.day,
         stars=hero.stars,
-        votes=hero.votes,
     )
 
 
@@ -418,27 +396,6 @@ def boost(
     return _today(session, server, seat)
 
 
-@router.post("/{code}/today/finale", response_model=TodayResponse)
-def vote_finale(
-    code: Code, body: FinaleVoteSubmit, player: CurrentPlayer, session: DbSession
-) -> TodayResponse:
-    """Step 5, on the last day of a week: picks one of a pair of the week's
-    challengers that won a fight, adding a star to it. Once per pair."""
-    server, seat = _running(session, code, player.id)
-    day = days.current_day(server)
-    if not finale.is_finale_day(server, day):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, detail="The finale is on the last day of a week"
-        )
-    # Yesterday's fights count, including the ones chance picked for.
-    fights.complete_fights(session, server, day - 1)
-    try:
-        finale.vote(session, server, day, seat, body.chosen_id, body.other_id)
-    except finale.InvalidVote as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
-    return _today(session, server, seat)
-
-
 @router.post("/{code}/today/hurry", response_model=TodayResponse)
 def send_hurry(
     code: Code, body: HurrySubmit, player: CurrentPlayer, session: DbSession
@@ -553,3 +510,28 @@ def get_challengers(
         )
         for record in fights.encountered_challengers(session, server, seat)
     ]
+
+
+@router.get("/{code}/ranking", response_model=RankingResponse | None)
+def get_ranking(
+    code: Code, player: CurrentPlayer, session: DbSession
+) -> RankingResponse | None:
+    """The latest finished week's challengers, most stars first; the first
+    joined the gacha pool as a hero. Null before the first week is over."""
+    server, _ = _running(session, code, player.id)
+    finale.settle(session, server)
+    week = finale.latest_finale(session, server)
+    if week is None:
+        return None
+    return RankingResponse(
+        day=week.day,
+        challengers=[
+            RankedChallenger(
+                character=character_response(r.challenger),
+                stars=r.stars,
+                fights=r.fights,
+                wins=r.wins,
+            )
+            for r in finale.ranking(session, server, week.day)
+        ],
+    )
