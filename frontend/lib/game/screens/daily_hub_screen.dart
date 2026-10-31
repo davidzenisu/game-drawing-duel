@@ -283,7 +283,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               : fight != null
               ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
                     '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★'
-                    '${fight.fightersWin ? '. +1 pull, +${fight.challengerStars} victory ★' : '.'}'
+                    '${fight.fightersWin ? '. +${c.pullsForWin(fight)} pull${c.pullsForWin(fight) == 1 ? '' : 's'}, '
+                              '+${fight.challengerStars} victory ★' : '.'}'
               : c.availableFighters.isEmpty
               ? 'All your characters fought this week. They\'re back on Monday.'
               : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '

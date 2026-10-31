@@ -925,9 +925,9 @@ class MockGameSession extends GameSession {
         boostStars: _boostStars[challenger.id] ?? 0,
       ),
     );
-    // A win earns a pull and the challenger's stars.
+    // A win earns pulls and the challenger's stars.
     if (yourFight!.fightersWin) {
-      _tickets++;
+      _tickets += pullsForWin(yourFight!);
       _victoryStars += yourFight!.challengerStars;
     }
     notifyListeners();

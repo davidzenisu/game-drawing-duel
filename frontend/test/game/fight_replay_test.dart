@@ -32,13 +32,13 @@ FightSetup _fight({int boostStars = 0}) => FightSetup(
   boostStars: boostStars,
 );
 
-Future<void> _open(WidgetTester tester, FightSetup fight, {bool showReward = false}) async {
+Future<void> _open(WidgetTester tester, FightSetup fight, {int? rewardPulls}) async {
   tester.view.physicalSize = const Size(400, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
-      home: FightReplayScreen(fight: fight, showReward: showReward),
+      home: FightReplayScreen(fight: fight, rewardPulls: rewardPulls),
     ),
   );
 }
@@ -107,15 +107,21 @@ void main() {
 
   testWidgets('right after locking in, a win shows what it earned', (tester) async {
     final win = _fight();
-    await _open(tester, win, showReward: true);
+    await _open(tester, win, rewardPulls: 1);
     await _skipToReveal(tester);
     expect(find.text('The fighters win!'), findsOneWidget);
     expect(find.text('+1 pull · +${win.challengerStars} victory ★'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     await tester.pumpWidget(const SizedBox());
 
+    // In speed mode, a pull per challenger star.
+    await _open(tester, win, rewardPulls: win.challengerStars);
+    await _skipToReveal(tester);
+    expect(find.text('+${win.challengerStars} pulls · +${win.challengerStars} victory ★'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+
     // A loss earns nothing, and replays never show it again.
-    await _open(tester, _fight(boostStars: 3), showReward: true);
+    await _open(tester, _fight(boostStars: 3), rewardPulls: 1);
     await _skipToReveal(tester);
     expect(find.textContaining('victory ★'), findsNothing);
     await tester.pumpWidget(const SizedBox());

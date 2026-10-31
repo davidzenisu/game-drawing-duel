@@ -189,7 +189,10 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                                         // The stars decide right away: watch the fight.
                                         await Navigator.of(context).pushReplacement(
                                           MaterialPageRoute<bool>(
-                                            builder: (_) => FightReplayScreen(fight: fight, showReward: true),
+                                            builder: (_) => FightReplayScreen(
+                                              fight: fight,
+                                              rewardPulls: controller.pullsForWin(fight),
+                                            ),
                                           ),
                                         );
                                       },

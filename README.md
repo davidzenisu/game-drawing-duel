@@ -371,6 +371,8 @@ session of about 17 minutes, for playing the whole loop in one sitting
 - A day ends early once every player did everything there is to do, or
   ended their day (`POST today/end`); the admin can also start the next day
   (`POST days/next`). After day 6 the session is over (phase `finished`).
+- A won fight earns a pull per star of the challenger (`fight:day-N:1`,
+  …) instead of one, so the strongest challengers pay the most.
 - There is no weekly finale.
 
 #### Test sessions

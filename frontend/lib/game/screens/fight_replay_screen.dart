@@ -8,12 +8,13 @@ import '../widgets/animated_fight.dart';
 
 /// Plays out a fight that ends with the outcome the stars decided.
 class FightReplayScreen extends StatefulWidget {
-  const FightReplayScreen({super.key, required this.fight, this.showReward = false});
+  const FightReplayScreen({super.key, required this.fight, this.rewardPulls});
 
   final FightSetup fight;
 
-  /// Shows what a win earned you, right after you locked in your fighters.
-  final bool showReward;
+  /// The pulls a win earned you, shown right after you locked in your
+  /// fighters; null for replays.
+  final int? rewardPulls;
 
   @override
   State<FightReplayScreen> createState() => _FightReplayScreenState();
@@ -47,7 +48,7 @@ class _FightReplayScreenState extends State<FightReplayScreen> {
           ),
           if (_finished)
             Positioned.fill(
-              child: FightOutcome(fight: widget.fight, showReward: widget.showReward),
+              child: FightOutcome(fight: widget.fight, rewardPulls: widget.rewardPulls),
             ),
         ],
       ),
@@ -58,12 +59,13 @@ class _FightReplayScreenState extends State<FightReplayScreen> {
 /// Reveals how a fight ended: each side's stars count up, the side with
 /// more stands out and the winner drops in. Tap to see it all at once.
 class FightOutcome extends StatefulWidget {
-  const FightOutcome({super.key, required this.fight, this.showReward = false});
+  const FightOutcome({super.key, required this.fight, this.rewardPulls});
 
   final FightSetup fight;
 
-  /// Shows what a win earned you: a pull and the challenger's stars.
-  final bool showReward;
+  /// The pulls a win earned you, shown with the challenger's stars; null
+  /// shows no reward.
+  final int? rewardPulls;
 
   @override
   State<FightOutcome> createState() => _FightOutcomeState();
@@ -169,10 +171,10 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
                                     ),
                                     if (fight.fighterStars == fight.challengerStars)
                                       const Text('Ties go to the challenger.'),
-                                    if (widget.showReward && fightersWin) ...[
+                                    if (widget.rewardPulls case final pulls? when fightersWin) ...[
                                       const SizedBox(height: 8),
                                       Text(
-                                        '+1 pull · +${fight.challengerStars} victory ★',
+                                        '+$pulls pull${pulls == 1 ? '' : 's'} · +${fight.challengerStars} victory ★',
                                         style: text.titleMedium?.copyWith(color: AppPalette.ticket),
                                       ),
                                     ],

@@ -129,7 +129,8 @@ enum Tutorial {
         text:
             'You need more stars than the challenger\'s ${_stars(Stars.challengerBase)} plus its boosts, '
             'which stay secret until you lock in; ties go to the challenger. The fight plays out right away, '
-            'and a win earns a pull and the challenger\'s stars as victory stars.',
+            'and a win earns a pull (one per challenger star in speed mode) and the challenger\'s stars as '
+            'victory stars.',
       ),
       const TutorialPage(
         icon: Icons.bedtime_rounded,

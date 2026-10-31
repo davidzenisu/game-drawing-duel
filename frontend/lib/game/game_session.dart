@@ -258,6 +258,10 @@ abstract class GameSession extends ChangeNotifier {
   /// Whether you have boost stars left to give today.
   bool get canBoost => boostTargets.isNotEmpty && boostStarsLeft > 0;
 
+  /// The pulls a won [fight] earns: one, or in speed mode one per star of
+  /// the challenger.
+  int pullsForWin(FightSetup fight) => server.isSpeed ? fight.challengerStars : 1;
+
   /// Whether a step of the daily loop is available today.
   bool stepUnlocked(int step) => day >= step;
 
