@@ -141,7 +141,7 @@ day each player:
    premade title of their description stands in (with the description), for
    a random person other than them.
    The challenger
-   is a hero and earns the day's only pull (`challenger:day-N`). It doesn't
+   is a hero and earns a pull (`challenger:day-N`). It doesn't
    join the gacha pool unless it wins a weekly finale (see below).
 3. spreads 3 boost stars across up to three of the challengers drawn the day
    before, at most 3 on one, never the one they drew or the one they fight
@@ -168,9 +168,12 @@ yet) against the challenger's 3 plus its boost stars, which stay secret
 until then. The fighters need more stars to win; ties go to the challenger
 (`rules.fighters_win`, shared with the mockup). With teams of four rolled at
 the gacha rates and boosts spread at random, the fighters win a bit over
-half the fights (`tests/test_balance.py`). A player who picked no fighters
-gets random ones from their collection once the day is over (stored the
-first time the next day is opened). The next day, everyone sees the
+half the fights (`tests/test_balance.py`). A win earns a pull
+(`fight:day-N`) and the challenger's stars as **victory stars**, a currency
+to spend later (`victory_stars` in `GET gacha`, summed from the won fights).
+A player who picked no fighters gets random ones from their collection once
+the day is over (stored the first time the next day is opened); their wins
+earn nothing. The next day, everyone sees the
 results of their fight and of the fight against their challenger.
 
 A fight's result is stored on its `fight` row (`boosts`, the challenger's

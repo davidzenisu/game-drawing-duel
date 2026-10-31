@@ -333,6 +333,18 @@ def fights_on(session: Session, server: Server, day: int) -> list[Fight]:
     )
 
 
+def victory_stars(session: Session, seat_id: uuid.UUID) -> int:
+    """The stars `seat_id` won: the challenger's stars of every fight they
+    picked the fighters for and won. A currency to spend later."""
+    return session.scalar(
+        select(func.coalesce(func.sum(Fight.challenger_stars), 0)).where(
+            Fight.owner_seat_id == seat_id,
+            Fight.fighters_win.is_(True),
+            Fight.by_chance.is_(False),
+        )
+    )
+
+
 @dataclass(frozen=True)
 class Outcome:
     fighter_stars: int

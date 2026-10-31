@@ -32,11 +32,24 @@ FightSetup _fight({int boostStars = 0}) => FightSetup(
   boostStars: boostStars,
 );
 
-Future<void> _open(WidgetTester tester, FightSetup fight) async {
+Future<void> _open(WidgetTester tester, FightSetup fight, {bool showReward = false}) async {
   tester.view.physicalSize = const Size(400, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(MaterialApp(home: FightReplayScreen(fight: fight)));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: FightReplayScreen(fight: fight, showReward: showReward),
+    ),
+  );
+}
+
+Future<void> _skipToReveal(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.text('Skip'));
+  await tester.pump();
+  await tester.pump();
+  await tester.tap(find.byType(FightOutcome));
+  await tester.pump();
 }
 
 void main() {
@@ -89,6 +102,26 @@ void main() {
     expect(find.text('${fight.challenger.subject} wins!'), findsOneWidget);
     expect(find.text('3 + 3 from boosts'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('right after locking in, a win shows what it earned', (tester) async {
+    final win = _fight();
+    await _open(tester, win, showReward: true);
+    await _skipToReveal(tester);
+    expect(find.text('The fighters win!'), findsOneWidget);
+    expect(find.text('+1 pull · +${win.challengerStars} victory ★'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.pumpWidget(const SizedBox());
+
+    // A loss earns nothing, and replays never show it again.
+    await _open(tester, _fight(boostStars: 3), showReward: true);
+    await _skipToReveal(tester);
+    expect(find.textContaining('victory ★'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await _open(tester, win);
+    await _skipToReveal(tester);
+    expect(find.textContaining('victory ★'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 }

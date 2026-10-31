@@ -211,6 +211,34 @@ class FightTests(FightTestCase):
         self.assertEqual(self.pick([]).status_code, 422)
         self.assertEqual(self.pick(mine * 2).status_code, 422, "four at most")
 
+    def test_a_win_earns_a_pull_and_the_challengers_stars(self) -> None:
+        self.next_day()
+        gacha = self.get(f"/servers/{self.code}/gacha").json()
+        self.assertEqual(gacha["victory_stars"], 0)
+        with patch.object(rules, "team_stars", lambda team: 99):
+            won = self.pick(self.owned()[:1]).json()["fight"]["yours"]["outcome"]
+        self.assertTrue(won["fighters_win"])
+        after = self.get(f"/servers/{self.code}/gacha").json()
+        self.assertEqual(after["tickets"], gacha["tickets"] + 1, "a pull")
+        self.assertEqual(after["victory_stars"], won["challenger_stars"])
+
+        # A loss earns nothing.
+        before = self.get(f"/servers/{self.code}/gacha", SAM).json()
+        with patch.object(rules, "team_stars", lambda team: 0):
+            lost = self.pick(self.owned(SAM)[:1], SAM).json()["fight"]["yours"]
+        self.assertFalse(lost["outcome"]["fighters_win"])
+        self.assertEqual(self.get(f"/servers/{self.code}/gacha", SAM).json(), before)
+
+        # Neither does a win chance picked the fighters for.
+        before = self.get(f"/servers/{self.code}/gacha", ROBIN).json()
+        with patch.object(rules, "team_stars", lambda team: 99):
+            self.next_day()
+        [chance] = [
+            r for r in self.today(ROBIN)["results"] if r["owner_position"] == 2
+        ]
+        self.assertTrue(chance["by_chance"] and chance["outcome"]["fighters_win"])
+        self.assertEqual(self.get(f"/servers/{self.code}/gacha", ROBIN).json(), before)
+
     def test_ties_go_to_the_challenger(self) -> None:
         self.next_day()
         challenger = self.today()["fight"]["challenger"]["id"]

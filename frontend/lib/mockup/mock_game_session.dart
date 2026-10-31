@@ -145,6 +145,10 @@ class MockGameSession extends GameSession {
   final Map<String, OwnedCard> _owned = {};
 
   int _tickets = 0;
+
+  @override
+  int get victoryStars => _victoryStars;
+  int _victoryStars = 0;
   @override
   int get tickets => _tickets;
 
@@ -229,6 +233,7 @@ class MockGameSession extends GameSession {
     _pool.clear();
     _owned.clear();
     _tickets = 0;
+    _victoryStars = 0;
     _day = 0;
     _theme = DailyTheme.forest;
     _gacha = GachaMachine(random: _random);
@@ -960,6 +965,11 @@ class MockGameSession extends GameSession {
         boostStars: _boostStars[challenger.id] ?? 0,
       ),
     );
+    // A win earns a pull and the challenger's stars.
+    if (yourFight!.fightersWin) {
+      _tickets++;
+      _victoryStars += yourFight!.challengerStars;
+    }
     notifyListeners();
   }
 

@@ -188,7 +188,9 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                                         if (!locked || fight == null || !context.mounted) return;
                                         // The stars decide right away: watch the fight.
                                         await Navigator.of(context).pushReplacement(
-                                          MaterialPageRoute<bool>(builder: (_) => FightReplayScreen(fight: fight)),
+                                          MaterialPageRoute<bool>(
+                                            builder: (_) => FightReplayScreen(fight: fight, showReward: true),
+                                          ),
                                         );
                                       },
                                 icon: const Icon(Icons.lock_rounded),
