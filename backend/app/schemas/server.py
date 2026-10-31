@@ -67,3 +67,9 @@ class AssignmentResponse(BaseModel):
     hint: str | None = None
     # Your drawing for it, once submitted.
     character: CharacterResponse | None
+
+
+class CleanupResponse(BaseModel):
+    """The codes of the servers that were deleted."""
+
+    deleted: list[str]

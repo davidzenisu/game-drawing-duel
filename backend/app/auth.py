@@ -7,7 +7,8 @@ adds it to the `permissions` claim (RBAC with "Add Permissions in the Access
 Token" enabled on the API).
 
 The content routes also need `edit:content`, for the accounts that manage the
-prompt hints and premade titles (see `require_content_editor`).
+prompt hints and premade titles (see `require_content_editor`), and the admin
+routes `manage:servers` (see `require_server_admin`).
 """
 
 import os
@@ -30,6 +31,9 @@ ALGORITHMS = ["RS256"]
 REQUIRED_PERMISSION = "read:api"
 # For the accounts that manage the prompt hints and premade titles.
 CONTENT_PERMISSION = "edit:content"
+
+# For the accounts that clean up servers (`app.routers.admin`).
+ADMIN_PERMISSION = "manage:servers"
 
 
 class TokenVerifier:
@@ -136,6 +140,12 @@ def require_content_editor(claims: TokenClaims) -> None:
     """Lets only accounts with the content permission through."""
     if CONTENT_PERMISSION not in claims["permissions"]:
         raise _forbidden(CONTENT_PERMISSION)
+
+
+def require_server_admin(claims: TokenClaims) -> None:
+    """Lets only accounts with the admin permission through."""
+    if ADMIN_PERMISSION not in claims["permissions"]:
+        raise _forbidden(ADMIN_PERMISSION)
 
 
 Auth0Subject = Annotated[str, Depends(get_auth0_subject)]

@@ -198,7 +198,7 @@ def claim_seat(
     return server_response(load_server(session, code), player)
 
 
-def _delete_game_data(session: Session, server: Server) -> list[uuid.UUID]:
+def delete_game_data(session: Session, server: Server) -> list[uuid.UUID]:
     """Deletes everything played on `server` but the server and its seats;
     returns the ids of the deleted characters, whose drawings to delete."""
     seat_ids = [s.id for s in server.seats]
@@ -242,7 +242,7 @@ def cancel_server(
     session.refresh(server)
     if server.cancelled_at is not None:
         raise HTTPException(status.HTTP_410_GONE, detail="The server was cancelled")
-    character_ids = _delete_game_data(session, server)
+    character_ids = delete_game_data(session, server)
     now = utc_now()
     server.cancelled_at = now
     server.cancelled_by = seat.name

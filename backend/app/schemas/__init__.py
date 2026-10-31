@@ -46,6 +46,7 @@ from app.schemas.gacha import (
 from app.schemas.player import MeResponse, PlayerResponse, PlayerUpdate
 from app.schemas.server import (
     AssignmentResponse,
+    CleanupResponse,
     SeatResponse,
     ServerCreate,
     ServerResponse,
@@ -60,6 +61,7 @@ __all__ = [
     "ChallengerResponse",
     "ChallengerSubmit",
     "CharacterResponse",
+    "CleanupResponse",
     "ContentAdd",
     "ContentAdded",
     "ContentItem",
