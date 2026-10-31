@@ -364,6 +364,10 @@ class MockGameSession extends GameSession {
   /// Fights set up per day.
   final Map<int, List<FightSetup>> _fights = {};
 
+  /// The challengers drawn on [day].
+  @visibleForTesting
+  List<CharacterCard> challengersDrawnOn(int day) => List.unmodifiable(_challengers[day] ?? const <CharacterCard>[]);
+
   /// Everyone's fights on [day].
   @visibleForTesting
   List<FightSetup> fightsOn(int day) => List.unmodifiable(_fights[day] ?? const <FightSetup>[]);
@@ -644,6 +648,11 @@ class MockGameSession extends GameSession {
 
   @override
   Future<WeekRanking?> weekRanking() async {
+    // A speed session ranks all its challengers once it's over.
+    if (server.isSpeed) {
+      final lastDay = SpeedMode.days.length;
+      return sessionOver ? WeekRanking(day: lastDay, challengers: _ranked(lastDay + 1)) : null;
+    }
     final days = _rankings.keys.toList()..sort();
     return days.isEmpty ? null : _rankings[days.last];
   }
@@ -654,6 +663,20 @@ class MockGameSession extends GameSession {
   /// (the ones boosted that week) ranked by their stars, then their wins,
   /// then the one drawn first; the first joins the pool as a hero.
   void _decideFinale(int day) {
+    final ranked = _ranked(day);
+    _rankings[day] = WeekRanking(day: day, challengers: ranked);
+    if (ranked.isEmpty) {
+      _weeklyHero = null;
+      return;
+    }
+    final winner = ranked.first;
+    if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
+    _weeklyHero = WeeklyHero(card: winner.card, day: day, stars: winner.stars);
+  }
+
+  /// The challengers boosted in the week up to [day] (drawn the week before
+  /// it), most stars first, then the most wins, then the one drawn first.
+  List<RankedChallenger> _ranked(int day) {
     final ranked = [
       for (var drawn = day - 7; drawn <= day - 1; drawn++)
         for (final challenger in _challengers[drawn] ?? const <CharacterCard>[])
@@ -679,14 +702,7 @@ class MockGameSession extends GameSession {
         return byStars != 0 ? byStars : b.wins.compareTo(a.wins);
       },
     );
-    _rankings[day] = WeekRanking(day: day, challengers: ranked);
-    if (ranked.isEmpty) {
-      _weeklyHero = null;
-      return;
-    }
-    final winner = ranked.first;
-    if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
-    _weeklyHero = WeeklyHero(card: winner.card, day: day, stars: winner.stars);
+    return ranked;
   }
 
   List<HurryPlan> _incomingHurries = const [];

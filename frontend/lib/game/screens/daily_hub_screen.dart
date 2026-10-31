@@ -26,6 +26,7 @@ import 'gacha_screen.dart';
 import 'how_to_play_screen.dart';
 import 'prompt_screen.dart';
 import 'ranking_screen.dart';
+import 'speed_finale_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
 class DailyHubScreen extends StatefulWidget {
@@ -64,7 +65,11 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     } catch (_) {
       // Polling: try again on the next tick.
     }
+    // The session just ended: on to the final ranking.
+    if (_controller.sessionOver && mounted) _openFinale();
   }
+
+  void _openFinale() => _open(SpeedFinaleScreen(controller: _controller));
 
   /// The welcome intro the first time, then the launch bonus.
   Future<void> _greet() async {
@@ -173,9 +178,11 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       if (confirmed != true || !mounted) return;
     }
     await runGameAction(context, _controller.advanceDay);
+    if (_controller.sessionOver && mounted) _openFinale();
   }
 
-  /// Test sessions: you're done for today; the day moves on once everyone is.
+  /// Speed mode and test sessions: you're done for today; the day moves on
+  /// once everyone is.
   Future<void> _endDay() async {
     if (_controller.hasOpenSteps) {
       final confirmed = await showDialog<bool>(
@@ -192,6 +199,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
       if (confirmed != true || !mounted) return;
     }
     await runGameAction(context, _controller.endDay);
+    if (_controller.sessionOver && mounted) _openFinale();
   }
 
   /// Who ended today, in a test session.
@@ -377,11 +385,13 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                               ),
                             ),
                           if (_controller.sessionOver)
-                            const Card(
+                            Card(
                               child: ListTile(
-                                leading: Icon(Icons.flag_rounded),
-                                title: Text('The speed session is over'),
-                                subtitle: Text('Every challenger had its fight. Thanks for playing!'),
+                                leading: const Icon(Icons.flag_rounded),
+                                title: const Text('The speed session is over'),
+                                subtitle: const Text('Every challenger had its fight. See how they ranked!'),
+                                trailing: const Icon(Icons.emoji_events_rounded, color: AppPalette.rarityLegend),
+                                onTap: _openFinale,
                               ),
                             ),
                           if (_controller.canEndDay) _dayEndedCard(),
