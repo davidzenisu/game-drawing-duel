@@ -342,7 +342,8 @@ def pick_fighters(
 ) -> TodayResponse:
     """Step 4: sends up to four of your characters against today's
     challenger, boosted yesterday. The stars decide right away: a win earns
-    a pull (`fight:day-N`) and the challenger's stars as victory stars. Once
+    a pull (`fight:day-N`), or in speed mode one per challenger star
+    (`fight:day-N:1`, …), and the challenger's stars as victory stars. Once
     a day, and every character but the basic ones once a week."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
@@ -368,7 +369,10 @@ def pick_fighters(
         )
     fight = fights.new_fight(session, seat, day, challenger, fighters)
     if fight.fighters_win:
-        session.add(PullGrant(seat_id=seat.id, reason=f"fight:day-{day}"))
+        session.add_all(
+            PullGrant(seat_id=seat.id, reason=reason)
+            for reason in fights.win_rewards(server, day, fight)
+        )
     try:
         session.commit()
     except IntegrityError as error:

@@ -134,6 +134,14 @@ void main() {
         await expectLater(game.submitPrompt('Late', game.promptCandidates.first), throwsStateError);
       }
       expect(game.sessionOver, isFalse);
+      if (game.fightChallenger != null && game.yourFight == null) {
+        final tickets = game.tickets;
+        await game.submitFighters([game.availableFighters.first]);
+        final fight = game.yourFight!;
+        // A win earns a pull per challenger star.
+        expect(game.pullsForWin(fight), fight.challengerStars);
+        expect(game.tickets, tickets + (fight.fightersWin ? fight.challengerStars : 0));
+      }
       await game.advanceDay();
     }
     expect(game.sessionOver, isTrue);

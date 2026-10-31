@@ -18,7 +18,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import days, pulls, rules, upgrades
+from app import days, pulls, rules, speed, upgrades
 from app.models import Boost, Character, Fight, Fighter, Server, ServerSeat
 from app.rules import (
     BOOST_CHALLENGERS,
@@ -331,6 +331,14 @@ def fights_on(session: Session, server: Server, day: int) -> list[Fight]:
             .order_by(ServerSeat.position)
         )
     )
+
+
+def win_rewards(server: Server, day: int, fight: Fight) -> list[str]:
+    """The reasons of the pulls a won fight on `day` earns: one, or in speed
+    mode one per star of the challenger."""
+    if not speed.is_speed(server):
+        return [f"fight:day-{day}"]
+    return [f"fight:day-{day}:{n}" for n in range(1, fight.challenger_stars + 1)]
 
 
 def victory_stars(session: Session, seat_id: uuid.UUID) -> int:

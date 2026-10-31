@@ -1,7 +1,9 @@
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 from sqlalchemy import select
 
+from app import rules
 from app.models import Character, Server
 from app.rules import SPEED_DAY_SECONDS
 from tests.helpers import bearer, make_token
@@ -141,6 +143,37 @@ class SpeedDayTests(SpeedTestCase):
         self.assertEqual(self.today()["day"], 2, "one is still drawing")
         self.post("today/end", PLAYERS[-1])
         self.assertEqual(self.today()["day"], 3)
+
+    def test_a_win_earns_a_pull_per_challenger_star(self) -> None:
+        # Days 1 and 2: everyone writes a prompt, then draws one.
+        self.write_prompts()
+        for subject in PLAYERS:
+            response = self.client.put(
+                f"/servers/{self.code}/today/challenger",
+                json={"sketch": SKETCH},
+                headers=bearer(make_token(subject)),
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+        # Days 3 and 4: chance spreads the boosts, then the fights.
+        while self.today()["day"] < 4:
+            self.post("days/next")
+        tickets = self.get(f"/servers/{self.code}/gacha").json()["tickets"]
+        owned = [
+            o["character"]["id"]
+            for o in self.get(f"/servers/{self.code}/collection").json()
+        ]
+        with patch.object(rules, "team_stars", lambda team: 99):
+            response = self.client.put(
+                f"/servers/{self.code}/today/fighters",
+                json={"character_ids": owned[:1]},
+                headers=bearer(make_token(ADMIN)),
+            )
+        outcome = response.json()["fight"]["yours"]["outcome"]
+        self.assertTrue(outcome["fighters_win"])
+        self.assertGreater(outcome["challenger_stars"], 3, "boosted")
+        gacha = self.get(f"/servers/{self.code}/gacha").json()
+        self.assertEqual(gacha["tickets"], tickets + outcome["challenger_stars"])
+        self.assertEqual(gacha["victory_stars"], outcome["challenger_stars"])
 
     def test_prompts_are_written_on_the_first_three_days_only(self) -> None:
         for day in range(1, 4):
