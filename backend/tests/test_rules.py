@@ -99,6 +99,30 @@ class SharedRulesTest(unittest.TestCase):
             self.assertEqual(len(costs), len(path), rarity)
             self.assertEqual(list(costs), sorted(costs), "never cheaper later")
 
+    def test_speed(self):
+        speed = SHARED["speed"]
+        self.assertEqual(rules.SPEED_SETUP_SECONDS, speed["setup_seconds"])
+        self.assertEqual(list(rules.SPEED_DAY_SECONDS), speed["day_seconds"])
+        self.assertEqual(rules.SPEED_LAST_PROMPT_DAY, speed["last_prompt_day"])
+        for count in range(rules.MIN_PLAYERS, rules.MAX_PLAYERS + 1):
+            self.assertEqual(
+                [p.value for p in rules.speed_prompts_for(count)],
+                speed["setup"][str(count)],
+            )
+            drawn = [
+                (a.prompt, a.subject)
+                for artist in range(count)
+                for a in rules.speed_assignments_for(count, artist)
+            ]
+            # Everyone is drawn twice: once as a basic, once as another.
+            for subject in range(count):
+                prompts = [p for p, s in drawn if s == subject]
+                self.assertEqual(len(prompts), 2, (count, subject))
+                self.assertIn(rules.SetupPrompt.BASIC, prompts)
+            self.assertNotIn(
+                rules.SetupPrompt.ALTER, [p for p, _ in drawn], "no alter to base on"
+            )
+
     def test_themes(self):
         self.assertEqual([t.value for t in rules.Theme], SHARED["themes"])
         # One per weekday, from Monday (2026-10-05) to Sunday.

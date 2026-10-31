@@ -16,6 +16,9 @@ class ServerCreate(BaseModel):
     """The other players; the admin takes the first seat themselves."""
 
     other_names: list[SeatName]
+    # "speed" for a one-off session of about 20 minutes on timers.
+    mode: Literal["regular", "speed"] = "regular"
+    # A test session; only accounts with the admin permission make them.
     is_test: bool = False
 
     @field_validator("other_names")
@@ -39,12 +42,16 @@ class SeatResponse(BaseModel):
 class ServerResponse(BaseModel):
     code: str
     created_at: datetime
+    mode: Literal["regular", "speed"]
     is_test: bool
     is_admin: bool
     # "lobby" while players join, "setup" once the admin started the setup,
-    # "running" once everyone finished their setup drawings, "cancelled" once
-    # a player cancelled it and its game data was deleted.
-    phase: Literal["lobby", "setup", "running", "cancelled"]
+    # "running" once everyone finished their setup drawings, "finished" once
+    # a speed mode session is over, "cancelled" once a player cancelled it
+    # and its game data was deleted.
+    phase: Literal["lobby", "setup", "running", "finished", "cancelled"]
+    # Speed mode: when the setup launches at the latest.
+    setup_ends_at: datetime | None = None
     # The seat name of the player who cancelled the server.
     cancelled_by: str | None
     # Your seat, or null if you haven't joined (yet).

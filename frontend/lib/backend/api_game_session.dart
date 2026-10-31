@@ -259,7 +259,9 @@ class ApiGameSession extends GameSession {
         await _loadSetup(server);
         _server = server;
         _setPhase(GamePhase.setup);
-      case 'running':
+      // A finished speed mode session stays in the daily hub, see
+      // [sessionOver].
+      case 'running' || 'finished':
         await _loadPool(server);
         _server = server;
         _setPhase(GamePhase.daily);
@@ -311,6 +313,11 @@ class ApiGameSession extends GameSession {
       isAdmin: json['is_admin'] as bool,
       joined: joined,
       isTest: json['is_test'] as bool,
+      isSpeed: json['mode'] == 'speed',
+      setupEndsAt: switch (json['setup_ends_at']) {
+        final String at => DateTime.parse(at),
+        _ => null,
+      },
       setupDone: setupDone,
     );
   }
@@ -385,6 +392,18 @@ class ApiGameSession extends GameSession {
   }
 
   int _day = 0;
+  bool _promptsToday = true;
+  DateTime? _dayEndsAt;
+  bool _sessionOver = false;
+
+  @override
+  bool get promptsToday => _promptsToday;
+
+  @override
+  DateTime? get dayEndsAt => _dayEndsAt;
+
+  @override
+  bool get sessionOver => _sessionOver;
   DailyTheme _dayTheme = DailyTheme.forest;
   DailyTheme _promptTheme = DailyTheme.forest;
   String? _promptHint;
@@ -473,33 +492,40 @@ class ApiGameSession extends GameSession {
 
   /// Today's step 1 and 2 from the API; [known] is the challenger you just drew.
   Future<void> _setToday(ServerSession server, Object? json, {Sketch? known}) async {
-    if (json case {
-      'day': int day,
-      'theme': String theme,
-      'prompt': {
+    if (json case {'day': int day, 'theme': String theme, 'prompt': final prompt, 'day_ended': List ended}) {
+      _day = day;
+      _dayTheme = _theme(theme);
+      _dayEndsAt = switch (json['ends_at']) {
+        final String at => DateTime.parse(at),
+        _ => null,
+      };
+      _sessionOver = server.isSpeed && day > SpeedMode.days.length;
+      final you = server.players.firstWhere((p) => p.isYou);
+      _promptsToday = prompt != null;
+      _yourPrompt = null;
+      _promptHint = null;
+      if (prompt case {
         'hint': String? hint,
         'theme': String promptTheme,
         'subject_position': int? subject,
         'title': String? title,
-      },
-      'day_ended': List ended,
-    }) {
-      _day = day;
-      _dayTheme = _theme(theme);
-      final you = server.players.firstWhere((p) => p.isYou);
-      _promptTheme = _theme(promptTheme);
-      _promptHint = hint;
-      _yourPrompt = title == null || subject == null
-          ? null
-          : ChallengerPrompt(
-              id: 'prompt-$day-${you.id}',
-              author: you,
-              subject: _seat(server, subject),
-              theme: _promptTheme,
-              title: title,
-              day: day,
-              hint: hint,
-            );
+      }) {
+        _promptTheme = _theme(promptTheme);
+        _promptHint = hint;
+        _yourPrompt = title == null || subject == null
+            ? null
+            : ChallengerPrompt(
+                id: 'prompt-$day-${you.id}',
+                author: you,
+                subject: _seat(server, subject),
+                theme: _promptTheme,
+                title: title,
+                day: day,
+                hint: hint,
+              );
+      } else if (prompt != null) {
+        throw const FormatException('Unexpected prompt.');
+      }
       _promptToDraw = null;
       _yourChallenger = null;
       if (json['to_draw'] case {
@@ -711,8 +737,9 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> createServer(List<String> otherNames, {bool isTest = false}) async =>
-      _enterServer(await _post('/servers', {'other_names': otherNames, 'is_test': isTest}));
+  Future<void> createServer(List<String> otherNames, {bool isTest = false, bool speed = false}) async => _enterServer(
+    await _post('/servers', {'other_names': otherNames, 'is_test': isTest, 'mode': speed ? 'speed' : 'regular'}),
+  );
 
   @override
   Future<ServerSession> previewServer(String code) async {
@@ -975,7 +1002,7 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  bool get canAdvanceDay => _server?.isTest == true && _server!.isAdmin;
+  bool get canAdvanceDay => (_server?.isTest == true || _server?.isSpeed == true) && _server!.isAdmin;
 
   @override
   Future<void> advanceDay() async {
@@ -984,7 +1011,7 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  bool get canEndDay => _server?.isTest == true;
+  bool get canEndDay => _server?.isTest == true || (_server?.isSpeed == true && !sessionOver);
 
   @override
   Set<String> get dayEnded => _dayEnded;

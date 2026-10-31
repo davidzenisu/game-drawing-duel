@@ -9,6 +9,7 @@ import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
 import '../widgets/content_editor_button.dart';
+import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
 import 'drawing_screen.dart';
@@ -111,6 +112,12 @@ class _SetupScreenState extends State<SetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (server.setupEndsAt case final endsAt?) ...[
+                        Center(
+                          child: Countdown(endsAt: endsAt, label: 'Speed setup', onDone: controller.refreshServer),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Text('Draw your friends', style: textTheme.headlineSmall),
                       const SizedBox(height: 4),
                       Text(

@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import Character, Server, ServerSeat, SetupAssignment
-from app.pulls import grant_launch_bonus
 from app.routers.servers import (
     Code,
     DbSession,
@@ -26,7 +25,7 @@ from app.schemas import (
     DrawingSubmit,
     ServerResponse,
 )
-from app.setup import assign_setup, give_hints
+from app.setup import assign_setup, give_hints, launch
 from app.storage import Files, delete_quietly
 
 logger = logging.getLogger(__name__)
@@ -246,12 +245,7 @@ def finish_setup(
         session.flush()
     session.refresh(server)
     if all(s.setup_done_at is not None for s in server.seats if s.id in artist_ids):
-        server.launched_at = func.now()
-        if server.is_test:
-            server.test_day = 1
-        grant_launch_bonus(
-            session, [s for s in server.seats if s.player_id is not None]
-        )
+        launch(session, server)
     session.commit()
     session.expire_all()
     return server_response(load_server(session, code), player)

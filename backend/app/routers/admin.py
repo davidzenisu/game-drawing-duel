@@ -4,8 +4,9 @@
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
+from app import speed
 from app.auth import require_server_admin
 from app.database import utc_now
 from app.models import Server
@@ -21,18 +22,18 @@ router = APIRouter(
     dependencies=[Depends(require_server_admin)],
 )
 
-# Test sessions are deleted once they're this old.
+# Test sessions and speed mode sessions are deleted once they're this old.
 SHORT_LIVED_FOR = timedelta(days=1)
 
 
 @router.post("/servers/cleanup", response_model=CleanupResponse)
 def clean_up_servers(session: DbSession, files: Files) -> CleanupResponse:
-    """Deletes every test session created more than a day ago, with its
-    seats, game data and drawings. Players can't open test sessions anymore,
-    so this only clears out the old ones."""
+    """Deletes every test session and speed mode session created more than
+    a day ago, with its seats, game data and drawings: they're one-offs."""
     stale = session.scalars(
         select(Server).where(
-            Server.is_test.is_(True), Server.created_at < utc_now() - SHORT_LIVED_FOR
+            or_(Server.is_test.is_(True), Server.mode == speed.SPEED),
+            Server.created_at < utc_now() - SHORT_LIVED_FOR,
         )
     ).all()
     codes = []

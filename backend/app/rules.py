@@ -116,6 +116,66 @@ def test_assignments_for(
     return [Assignment(p, s) for p, s in zip(TEST_PROMPTS, subjects, strict=True)]
 
 
+# Speed mode: a one-off session of about 20 minutes. Its setup and its days
+# run on these timers, back to back; challenger prompts are written on the
+# first days only, so the last days finish the loop.
+SPEED_SETUP_SECONDS = 300
+SPEED_DAY_SECONDS = (60, 120, 180, 180, 120, 60)
+SPEED_DAYS = len(SPEED_DAY_SECONDS)
+SPEED_LAST_PROMPT_DAY = 3
+
+# Per player count, the higher-rarity drawing of each artist (by roster
+# index) in a speed mode setup, besides the basic one.
+_SPEED_SETUP = {
+    5: ("legend", "hero", "knight", "legend", "hero"),
+    6: ("legend", "hero", "knight", "legend", "hero", "mage"),
+    7: ("legend", "hero", "knight", "legend", "hero", "mage", "hero"),
+    8: ("legend", "hero", "knight", "legend", "hero", "mage", "hero", "rogue"),
+    9: (
+        "legend",
+        "hero",
+        "knight",
+        "legend",
+        "hero",
+        "mage",
+        "legend",
+        "hero",
+        "rogue",
+    ),
+    10: (
+        "legend",
+        "hero",
+        "knight",
+        "legend",
+        "hero",
+        "mage",
+        "legend",
+        "hero",
+        "rogue",
+        "knight",
+    ),
+}
+
+
+def speed_prompts_for(player_count: int) -> tuple[SetupPrompt, ...]:
+    """The higher-rarity drawing of each artist in a speed mode setup."""
+    if player_count not in _SPEED_SETUP:
+        raise ValueError(f"A server has {MIN_PLAYERS} to {MAX_PLAYERS} players")
+    return tuple(SetupPrompt(p) for p in _SPEED_SETUP[player_count])
+
+
+def speed_assignments_for(player_count: int, artist: int) -> list[Assignment]:
+    """What the player at index `artist` draws in a speed mode setup: the
+    basic of the next player and a higher-rarity character of the one after,
+    so everyone is drawn twice."""
+    return [
+        Assignment(SetupPrompt.BASIC, (artist + 1) % player_count),
+        Assignment(
+            speed_prompts_for(player_count)[artist], (artist + 2) % player_count
+        ),
+    ]
+
+
 def _assign(
     count: int, artist: int, prompts: tuple[SetupPrompt, ...]
 ) -> list[Assignment]:

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -142,7 +143,11 @@ class TodayResponse(BaseModel):
     day: int
     # An `app.rules.Theme`.
     theme: str
-    prompt: YourPrompt
+    # Speed mode: when today ends, at the latest.
+    ends_at: datetime | None = None
+    # Null on days without challenger prompts (the last days of a speed mode
+    # session).
+    prompt: YourPrompt | None
     to_draw: PromptToDrawResponse | None
     fight: FightStep | None
     boost: BoostStep | None

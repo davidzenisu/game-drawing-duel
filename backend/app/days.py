@@ -15,6 +15,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
+from app import speed
 from app.models import (
     ChallengerPrompt,
     HintAssignment,
@@ -22,7 +23,7 @@ from app.models import (
     ServerSeat,
     ThemeHint,
 )
-from app.rules import Theme, theme_of_date
+from app.rules import SPEED_LAST_PROMPT_DAY, Theme, theme_of_date
 
 # Stands in if the author of a missing prompt got no hint ("NO PROMPT").
 FALLBACK_TITLE = "The Mystery Challenger"
@@ -37,9 +38,13 @@ def _launch_date(server: Server) -> date:
 
 def current_day(server: Server, now: datetime | None = None) -> int:
     """Day 1 is the launch day. Regular servers move on at midnight UTC,
-    test sessions when the admin or everyone ends the day."""
+    speed mode sessions on their timers or once everyone is done (past the
+    last day, the session is over), test sessions when the admin or everyone
+    ends the day."""
     if server.is_test:
         return server.test_day or 1
+    if speed.is_speed(server):
+        return speed.clock(server, now).day
     today = (now or datetime.now(UTC)).astimezone(UTC).date()
     return (today - _launch_date(server)).days + 1
 
@@ -185,6 +190,12 @@ def assigned_hint(
     return assignment.hint if assignment else None
 
 
+def prompts_on(server: Server, day: int) -> bool:
+    """Whether challenger prompts are written on `day`: every day, but only
+    the first days of a speed mode session."""
+    return not speed.is_speed(server) or day <= SPEED_LAST_PROMPT_DAY
+
+
 def prompt_hint(
     session: Session, server: Server, day: int, author: ServerSeat
 ) -> str | None:
@@ -220,8 +231,9 @@ def prompt_to_draw(
     session: Session, server: Server, day: int, drawer: ServerSeat
 ) -> PromptToDraw | None:
     """The prompt `drawer` draws on `day`: the one the previous player wrote
-    the day before, or a premade one if they didn't."""
-    if day <= 1:
+    the day before, or a premade one if they didn't. In speed mode, only
+    the prompts of the days that have them are drawn."""
+    if day <= 1 or not prompts_on(server, day - 1):
         return None
     author = author_for(server, drawer)
     written = session.scalar(

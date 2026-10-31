@@ -19,6 +19,19 @@ void main() {
     }
   });
 
+  test('a speed mode pool follows the concept table: two drawings each', () {
+    String plan(int n) {
+      final pool = SetupPlan.poolAtLaunch(n, speed: true);
+      return Rarity.values.map((r) => pool[r]).join(' ');
+    }
+
+    // Basics, adventurers, heroes and legends.
+    expect(
+      {for (var n = 5; n <= 10; n++) n: plan(n)},
+      {5: '5 1 2 2', 6: '6 2 2 2', 7: '7 2 3 2', 8: '8 3 3 2', 9: '9 3 3 3', 10: '10 4 3 3'},
+    );
+  });
+
   test('unsupported player counts are rejected', () {
     expect(() => SetupPlan.promptsFor(4), throwsArgumentError);
     expect(() => SetupPlan.promptsFor(11), throwsArgumentError);

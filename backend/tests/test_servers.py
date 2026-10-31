@@ -21,12 +21,20 @@ class ServerTestCase(ApiTestCase):
         subject: str = ADMIN,
         *,
         is_test: bool | None = None,
+        mode: str | None = None,
     ):
         body: dict = {"other_names": FRIENDS if names is None else names}
+        permissions = None
         if is_test is not None:
             body["is_test"] = is_test
+            # Test sessions are for server admins.
+            permissions = ["read:api", "manage:servers"]
+        if mode is not None:
+            body["mode"] = mode
         return self.client.post(
-            "/servers", json=body, headers=bearer(make_token(subject))
+            "/servers",
+            json=body,
+            headers=bearer(make_token(subject, permissions=permissions)),
         )
 
     def claim(self, code: str, position: int, subject: str):

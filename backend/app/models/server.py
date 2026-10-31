@@ -26,8 +26,14 @@ class Server(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(String(6), nullable=False, unique=True)
     admin_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("player.id"), nullable=False)
+    # "regular", or "speed" for a one-off session on timers (see
+    # `app.speed`).
+    mode: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="regular", server_default="regular"
+    )
     # Test sessions start without everyone, use a short setup and let the
-    # day be advanced on demand (see README, "Test sessions").
+    # day be advanced on demand. Only accounts with the admin permission
+    # create them (see README, "Test sessions").
     is_test: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
@@ -44,6 +50,13 @@ class Server(Base):
     # The current day of a test session, which advances on demand. Regular
     # servers count days from the launch, at midnight UTC.
     test_day: Mapped[int | None] = mapped_column(Integer)
+    # Speed mode: the latest day that started early, once everyone was done,
+    # and when; later days follow on their timers (`app.speed`). Day 1 from
+    # the launch on.
+    speed_day: Mapped[int | None] = mapped_column(Integer)
+    speed_day_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     # When a player cancelled the server and its game data was deleted. The
     # server and its seats stay so the others find out when they return.
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

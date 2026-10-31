@@ -462,6 +462,34 @@ void main() {
       );
     });
 
+    test('a speed mode session: a short setup and days on timers', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], speed: true);
+      expect((jsonDecode(backend.requests.last.body) as Map)['mode'], 'speed');
+      expect(admin.server.isSpeed, isTrue);
+      final friends = await everyoneJoins();
+      await admin.refreshServer();
+      await admin.startSetup();
+      expect(admin.server.setupEndsAt, DateTime.parse(FakeBackend.speedEndsAt));
+      expect([for (final a in admin.assignments) a.prompt], [SetupPrompt.basic, SetupPrompt.legend]);
+      for (final player in [admin, ...friends]) {
+        await player.refreshServer();
+        await drawAll(player);
+        await player.launch();
+      }
+      await admin.refreshServer();
+      expect(admin.phase, GamePhase.daily);
+      expect(admin.dayEndsAt, DateTime.parse(FakeBackend.speedEndsAt));
+      expect((admin.canEndDay, admin.canAdvanceDay), (true, true));
+      expect(admin.promptsToday, isTrue);
+      for (var day = 1; day < 4; day++) {
+        await admin.advanceDay();
+      }
+      expect(admin.day, 4);
+      expect(admin.promptsToday, isFalse, reason: 'prompts on the first three days only');
+      expect(admin.yourPrompt, isNull);
+      expect(admin.sessionOver, isFalse);
+    });
+
     test('the daily loop: prompts, challengers and ending the day', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       final sam = await signedUp('sam', 'Sam');

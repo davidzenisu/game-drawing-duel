@@ -110,6 +110,38 @@ void main() {
     expect(basic.map((a) => a.hint), everyElement('them on a Sunday'));
   });
 
+  test('a speed mode session: two drawings each, prompts on three days, over after six', () async {
+    final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 10, 3, 12));
+    await game.signUp('Pat');
+    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim'], speed: true);
+    expect(game.server.isSpeed, isTrue);
+    while (!game.server.everyoneJoined) {
+      await game.refreshServer();
+    }
+    await game.startSetup();
+    expect([for (final a in game.assignments) a.prompt.rarity], [Rarity.basic, Rarity.legend]);
+    for (final assignment in game.assignments) {
+      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+    }
+    await game.launch();
+    expect(game.collection.map((o) => o.card.rarity), everyElement(Rarity.basic), reason: 'you keep your basic one');
+    expect(game.pool, hasLength(10));
+
+    for (var day = 1; day <= SpeedMode.days.length; day++) {
+      expect(game.day, day);
+      expect(game.promptsToday, day <= SpeedMode.lastPromptDay, reason: 'day $day');
+      if (!game.promptsToday) {
+        await expectLater(game.submitPrompt('Late', game.promptCandidates.first), throwsStateError);
+      }
+      expect(game.sessionOver, isFalse);
+      await game.advanceDay();
+    }
+    expect(game.sessionOver, isTrue);
+    expect(game.hasOpenSteps, isFalse);
+    expect(game.canAdvanceDay, isFalse);
+    expect(game.weeklyHero, isNull, reason: 'no weekly finale, even past a Sunday');
+  });
+
   test('cancelling the server returns to creating one', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

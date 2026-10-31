@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import days, fights, rules
+from app import days, fights, rules, speed
 from app.models import Character, Fight, Server, WeeklyHero
 
 
@@ -82,7 +82,10 @@ def _decide(session: Session, server: Server, day: int) -> WeeklyHero:
 
 
 def settle(session: Session, server: Server) -> None:
-    """Decides every finale that's over and isn't yet. Commits."""
+    """Decides every finale that's over and isn't yet. Commits. Speed mode
+    sessions have no weeks."""
+    if speed.is_speed(server):
+        return
     today = days.current_day(server)
     decided = set(
         session.scalars(select(WeeklyHero.day).where(WeeklyHero.server_id == server.id))

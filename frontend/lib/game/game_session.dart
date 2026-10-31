@@ -26,6 +26,8 @@ class ServerSession {
     required this.isAdmin,
     required this.joined,
     this.isTest = false,
+    this.isSpeed = false,
+    this.setupEndsAt,
     Set<String>? setupDone,
   }) : setupDone = setupDone ?? {};
 
@@ -36,6 +38,12 @@ class ServerSession {
   /// A test session: starts without everyone, uses [SetupPlan.testPrompts]
   /// and lets the day be advanced on demand.
   final bool isTest;
+
+  /// A speed mode session: a one-off on timers, see [SpeedMode].
+  final bool isSpeed;
+
+  /// Speed mode: when the setup launches at the latest, once it started.
+  final DateTime? setupEndsAt;
 
   /// Ids of the players that already joined the server.
   final Set<String> joined;
@@ -162,6 +170,16 @@ abstract class GameSession extends ChangeNotifier {
 
   ChallengerPrompt? get yourPrompt;
 
+  /// Whether challenger prompts are written today: every day, but only on
+  /// the first days of a speed mode session.
+  bool get promptsToday;
+
+  /// Speed mode: when today ends at the latest; null otherwise.
+  DateTime? get dayEndsAt;
+
+  /// Speed mode: the session is over, after its last day.
+  bool get sessionOver;
+
   /// The prompt you draw today, written by someone else yesterday.
   ChallengerPrompt? get promptToDraw;
 
@@ -258,10 +276,11 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Whether there is still something to do on the current day.
   bool get hasOpenSteps =>
-      yourPrompt == null ||
-      (promptToDraw != null && !challengerDrawn) ||
-      (fightChallenger != null && yourFight == null && availableFighters.isNotEmpty) ||
-      canBoost;
+      !sessionOver &&
+      ((promptsToday && yourPrompt == null) ||
+          (promptToDraw != null && !challengerDrawn) ||
+          (fightChallenger != null && yourFight == null && availableFighters.isNotEmpty) ||
+          canBoost);
 
   // Actions ------------------------------------------------------------------
 
@@ -275,7 +294,9 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> signUp(String firstName);
 
   /// Creates a server with a prepopulated roster; the creator is the admin.
-  Future<void> createServer(List<String> otherNames, {bool isTest = false});
+  /// A [speed] server is a one-off session on timers, see [SpeedMode]. Test
+  /// sessions ([isTest]) are for accounts with the admin permission.
+  Future<void> createServer(List<String> otherNames, {bool isTest = false, bool speed = false});
 
   /// Looks up a server by its 6-digit code: its roster and who already
   /// joined, so the joining player can claim a free seat.

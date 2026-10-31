@@ -7,7 +7,8 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import CurrentPlayer
+from app import speed
+from app.auth import ADMIN_PERMISSION, CurrentPlayer, TokenClaims
 from app.database import get_db, utc_now
 from app.models import (
     Boost,
@@ -28,7 +29,7 @@ from app.models import (
 )
 from app.rules import SERVER_CODE_LENGTH
 from app.schemas import SeatResponse, ServerCreate, ServerResponse
-from app.setup import assign_setup
+from app.setup import assign_setup, launch_if_due
 from app.storage import Files, delete_quietly
 
 router = APIRouter(prefix="/servers", tags=["servers"])
@@ -44,10 +45,14 @@ def _new_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(SERVER_CODE_LENGTH))
 
 
-def phase(server: Server) -> Literal["lobby", "setup", "running", "cancelled"]:
+def phase(
+    server: Server,
+) -> Literal["lobby", "setup", "running", "finished", "cancelled"]:
     if server.cancelled_at is not None:
         return "cancelled"
     if server.launched_at is not None:
+        if speed.is_speed(server) and speed.clock(server).over:
+            return "finished"
         return "running"
     return "lobby" if server.setup_started_at is None else "setup"
 
@@ -64,10 +69,12 @@ def server_response(server: Server, player: Player) -> ServerResponse:
     return ServerResponse(
         code=server.code,
         created_at=server.created_at,
+        mode=server.mode,
         is_test=server.is_test,
         is_admin=server.admin_id == player.id,
         phase=phase(server),
         cancelled_by=server.cancelled_by,
+        setup_ends_at=speed.setup_ends_at(server),
         your_position=your_seat.position if your_seat else None,
         seats=[
             SeatResponse(
@@ -91,6 +98,8 @@ def load_server(session: Session, code: str, *, cancelled_ok: bool = False) -> S
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No server with this code")
     if server.cancelled_at is not None and not cancelled_ok:
         raise HTTPException(status.HTTP_410_GONE, detail="The server was cancelled")
+    if server.cancelled_at is None:
+        launch_if_due(session, server)
     return server
 
 
@@ -105,9 +114,19 @@ def your_seat(server: Server, player_id: uuid.UUID) -> ServerSeat:
 
 @router.post("", response_model=ServerResponse, status_code=status.HTTP_201_CREATED)
 def create_server(
-    body: ServerCreate, player: CurrentPlayer, session: DbSession
+    body: ServerCreate, player: CurrentPlayer, claims: TokenClaims, session: DbSession
 ) -> ServerResponse:
-    """Creates a server with the full list of players; you are its admin."""
+    """Creates a server with the full list of players; you are its admin.
+    Test sessions are for accounts with the admin permission only."""
+    if body.is_test and ADMIN_PERMISSION not in claims["permissions"]:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, detail=f"Missing permission {ADMIN_PERMISSION}"
+        )
+    if body.is_test and body.mode != "regular":
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="A test session can't be in speed mode",
+        )
     names = [player.first_name, *body.other_names]
     if len({name.casefold() for name in names}) != len(names):
         raise HTTPException(
@@ -115,7 +134,9 @@ def create_server(
             detail="Every player needs a different name",
         )
     for _ in range(_CODE_ATTEMPTS):
-        server = Server(code=_new_code(), admin_id=player.id, is_test=body.is_test)
+        server = Server(
+            code=_new_code(), admin_id=player.id, mode=body.mode, is_test=body.is_test
+        )
         server.seats = [
             ServerSeat(position=position, name=name)
             for position, name in enumerate(names)

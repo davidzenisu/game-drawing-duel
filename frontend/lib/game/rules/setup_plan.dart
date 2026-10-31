@@ -85,9 +85,17 @@ abstract final class SetupPlan {
 
   static int drawingsPerPlayer(int playerCount) => promptsFor(playerCount).length;
 
-  /// Total number of characters in the pool at launch, per rarity.
-  static Map<Rarity, int> poolAtLaunch(int playerCount) {
+  /// Total number of characters in the pool at launch, per rarity; in
+  /// [speed] mode everyone draws a basic and one of [speedPromptsFor].
+  static Map<Rarity, int> poolAtLaunch(int playerCount, {bool speed = false}) {
     final counts = {for (final rarity in Rarity.values) rarity: 0};
+    if (speed) {
+      counts[Rarity.basic] = playerCount;
+      for (final prompt in speedPromptsFor(playerCount)) {
+        counts[prompt.rarity] = counts[prompt.rarity]! + 1;
+      }
+      return counts;
+    }
     for (final prompt in promptsFor(playerCount)) {
       counts[prompt.rarity] = counts[prompt.rarity]! + playerCount;
     }
@@ -108,6 +116,89 @@ abstract final class SetupPlan {
     return [
       for (final (i, prompt) in testPrompts.indexed)
         DrawingAssignment(id: '${players[artistIndex].id}-${prompt.name}', prompt: prompt, subject: others[i]),
+    ];
+  }
+
+  /// Speed mode: the higher-rarity drawing of each artist (by roster index)
+  /// besides the basic one, per player count.
+  static List<SetupPrompt> speedPromptsFor(int playerCount) {
+    if (!supports(playerCount)) {
+      throw ArgumentError.value(playerCount, 'playerCount', 'must be between $minPlayers and $maxPlayers');
+    }
+    return _speedPlans[playerCount]!;
+  }
+
+  static const _speedPlans = {
+    5: [SetupPrompt.legend, SetupPrompt.hero, SetupPrompt.knight, SetupPrompt.legend, SetupPrompt.hero],
+    6: [
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.knight,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.mage,
+    ],
+    7: [
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.knight,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.mage,
+      SetupPrompt.hero,
+    ],
+    8: [
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.knight,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.mage,
+      SetupPrompt.hero,
+      SetupPrompt.rogue,
+    ],
+    9: [
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.knight,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.mage,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.rogue,
+    ],
+    10: [
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.knight,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.mage,
+      SetupPrompt.legend,
+      SetupPrompt.hero,
+      SetupPrompt.rogue,
+      SetupPrompt.knight,
+    ],
+  };
+
+  /// The assignments of the player at [artistIndex] in speed mode: the
+  /// basic of the next player and a higher-rarity character of the one after,
+  /// so everyone is drawn twice.
+  static List<DrawingAssignment> speedAssignmentsFor(List<Player> players, int artistIndex) {
+    final count = players.length;
+    final higher = speedPromptsFor(count)[artistIndex];
+    return [
+      DrawingAssignment(
+        id: '${players[artistIndex].id}-${SetupPrompt.basic.name}',
+        prompt: SetupPrompt.basic,
+        subject: players[(artistIndex + 1) % count],
+      ),
+      DrawingAssignment(
+        id: '${players[artistIndex].id}-${higher.name}',
+        prompt: higher,
+        subject: players[(artistIndex + 2) % count],
+      ),
     ];
   }
 
