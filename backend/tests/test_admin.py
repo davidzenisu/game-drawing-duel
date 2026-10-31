@@ -3,6 +3,7 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from app.database import utc_now
+from app.main import app
 from app.models import Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_cancel import CancelTestMixin
@@ -15,7 +16,7 @@ SERVER_ADMIN = ["read:api", "manage:servers"]
 class CleanupTests(CancelTestMixin, FightTestCase):
     def clean_up(self, permissions=SERVER_ADMIN):
         return self.client.post(
-            "/admin/servers/cleanup",
+            "/manage/servers/cleanup",
             headers=bearer(make_token(ADMIN, permissions=permissions)),
         )
 
@@ -24,6 +25,13 @@ class CleanupTests(CancelTestMixin, FightTestCase):
             server = session.scalar(select(Server).where(Server.code == code))
             server.created_at = utc_now() - timedelta(days=days)
             session.commit()
+
+    def test_no_route_lives_under_admin(self) -> None:
+        # The Azure Functions host answers every /admin path itself, with a
+        # 404 when deployed.
+        paths = list(app.openapi()["paths"])
+        self.assertIn("/manage/servers/cleanup", paths)
+        self.assertEqual([p for p in paths if p.startswith("/admin")], [])
 
     def test_only_server_admins_clean_up(self) -> None:
         response = self.clean_up(permissions=["read:api"])

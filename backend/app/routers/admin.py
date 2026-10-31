@@ -14,7 +14,9 @@ from app.schemas import CleanupResponse
 from app.storage import Files, delete_quietly
 
 router = APIRouter(
-    prefix="/admin",
+    # Not /admin: the Azure Functions host keeps every path under /admin for
+    # its own API and answers 404 before the app sees the request.
+    prefix="/manage",
     tags=["admin"],
     dependencies=[Depends(require_server_admin)],
 )
