@@ -48,6 +48,23 @@ void main() {
     expect([for (final p in SetupPlan.testPrompts) p.name], rules['test_setup']);
   });
 
+  test('speed mode', () {
+    final speed = rules['speed'] as Map<String, dynamic>;
+    expect(SpeedMode.setup.inSeconds, speed['setup_seconds']);
+    expect([for (final d in SpeedMode.days) d.inSeconds], speed['day_seconds']);
+    expect(SpeedMode.lastPromptDay, speed['last_prompt_day']);
+    for (var n = SetupPlan.minPlayers; n <= SetupPlan.maxPlayers; n++) {
+      expect([for (final p in SetupPlan.speedPromptsFor(n)) p.name], (speed['setup'] as Map)['$n'], reason: '$n');
+      final players = roster(n);
+      final drawn = [for (var a = 0; a < n; a++) ...SetupPlan.speedAssignmentsFor(players, a)];
+      for (final player in players) {
+        final ofThem = drawn.where((d) => d.subject.id == player.id).map((d) => d.prompt).toList();
+        expect(ofThem, hasLength(2), reason: '$n players: drawn twice');
+        expect(ofThem, contains(SetupPrompt.basic));
+      }
+    }
+  });
+
   test('assignments', () {
     for (final MapEntry(:key, :value) in (rules['assignments'] as Map<String, dynamic>).entries) {
       expect(subjects(roster(int.parse(key)), SetupPlan.assignmentsFor), value, reason: '$key players');

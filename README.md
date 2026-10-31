@@ -109,7 +109,7 @@ back to creating or joining a server.
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /servers` | Create a server; you take the first seat as admin |
+| `POST /servers` | Create a server (`"mode": "regular"` or `"speed"`); you take the first seat as admin |
 | `GET /servers/mine` | The servers you joined, newest first, including cancelled ones you haven't dismissed |
 | `GET /servers/{code}` | Roster and who joined |
 | `POST /servers/{code}/seats/{position}/claim` | Join by claiming a free seat (`409` if it is taken) |
@@ -230,8 +230,8 @@ hits (`GET today` lists them as `incoming_hurries`).
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
 | `GET /servers/{code}/ranking` | The latest finished week's challengers, most stars first, with their stars, fights and wins; `null` before the first week is over |
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |
-| `POST /servers/{code}/today/end` | Test sessions: end your day; the next starts once everyone did |
-| `POST /servers/{code}/days/next` | Test sessions: the admin starts the next day |
+| `POST /servers/{code}/today/end` | Speed mode and test sessions: end your day; the next starts once everyone did |
+| `POST /servers/{code}/days/next` | Speed mode and test sessions: the admin starts the next day |
 
 ### Themes
 
@@ -351,19 +351,42 @@ character and deletes the old file. The API reaches the container through
 `app/storage.py`'s `FileStore` interface; in Azure that is the blob container
 accessed with the Function App's managed identity, in tests an in-memory store.
 
-#### Test sessions (retired)
+#### Speed mode
 
-Test sessions (`"is_test": true`) are being replaced by speed mode. The app
-no longer offers them, and the ones that were still running when they were
-retired are closed for their players like a cancelled server (migration
-`b17ad0eded77`). The API still accepts `"is_test"` until speed mode takes
-over, for the tests.
+Choosing **Speed** when creating a server (`"mode": "speed"`) makes a one-off
+session of about 17 minutes, for playing the whole loop in one sitting
+(`app/speed.py`, timings in `shared/rules.json` under `speed`):
 
-`POST /manage/servers/cleanup` deletes every test session created more than a
-day ago, with its seats, game data and drawings, and returns the deleted
-codes. It needs the `manage:servers` permission of the Auth0 API on top of
-the player permission; like `edit:content`, give it through a role in the
-infrastructure repository.
+- Everyone joins, like a regular server (5 to 10 players). The setup lasts 5
+  minutes: everyone draws the basic character of the next player and a rarer
+  one (adventurer, hero or legend, spread per player count) of the player
+  after. Each player keeps only their basic drawing; the rarer ones go into
+  the pool. The setup launches once everyone is done, or when the time is up
+  with the drawings made so far (`setup_ends_at` in the server response).
+- Days 1 to 6 follow back to back on timers (1, 2, 3, 3, 2 and 1 minutes).
+  Challenger prompts are written on days 1 to 3 only, so the last days
+  finish the loop: drawing on days 2 to 4, boosting on 3 to 5, fighting on
+  4 to 6. `GET today` says when the day ends (`ends_at`); `prompt` is null on
+  days without prompts.
+- A day ends early once every player did everything there is to do, or
+  ended their day (`POST today/end`); the admin can also start the next day
+  (`POST days/next`). After day 6 the session is over (phase `finished`).
+- There is no weekly finale.
+
+#### Test sessions
+
+Test sessions (`"is_test": true`) start without everyone, use a short setup
+and let the day be advanced on demand. Speed mode replaced them for players:
+only accounts with the `manage:servers` permission can create one, for
+debugging and the automated tests, and the ones still running when they were
+retired were closed for their players like a cancelled server (migration
+`b17ad0eded77`).
+
+`POST /manage/servers/cleanup` deletes every test session and speed mode
+session created more than a day ago, with its seats, game data and drawings,
+and returns the deleted codes. It needs the `manage:servers` permission of
+the Auth0 API on top of the player permission; like `edit:content`, give it
+through a role in the infrastructure repository.
 
 ### Game rules
 

@@ -62,6 +62,11 @@ class FakeBackend {
   /// Servers by code; every seat has a `name` and the `player` id or null.
   final Map<String, ({String admin, bool isTest, List<Map<String, Object?>> seats})> servers = {};
 
+  /// The codes of the speed mode servers. Their setup ends and today ends at
+  /// [speedEndsAt]; prompts are written on the first three days only.
+  final Set<String> speedServers = {};
+  static const speedEndsAt = '2026-10-09T10:05:00Z';
+
   /// Codes of the servers whose setup started.
   final Set<String> started = {};
 
@@ -228,9 +233,10 @@ class FakeBackend {
 
     if (request.method == 'POST' && request.url.path == '/servers') {
       final code = '${_nextCode++}';
+      if (body!['mode'] == 'speed') speedServers.add(code);
       servers[code] = (
         admin: myId,
-        isTest: body!['is_test'] as bool? ?? false,
+        isTest: body['is_test'] as bool? ?? false,
         seats: [
           {'name': me['first_name'], 'player': myId},
           for (final name in body['other_names'] as List) {'name': name, 'player': null},
@@ -414,6 +420,8 @@ class FakeBackend {
     return {
       'code': code,
       'created_at': '2026-10-09T10:00:00Z',
+      'mode': speedServers.contains(code) ? 'speed' : 'regular',
+      'setup_ends_at': speedServers.contains(code) && started.contains(code) ? speedEndsAt : null,
       'is_test': server.isTest,
       'is_admin': server.admin == playerId,
       'phase': cancelled.containsKey(code)
@@ -606,12 +614,15 @@ class FakeBackend {
     return _json(200, {
       'day': today,
       'theme': theme(today),
-      'prompt': {
-        'hint': 'a challenger on a ${theme(today + 3)} day',
-        'theme': theme(today + 3),
-        'subject_position': prompts[(code, yours, today)]?.subject,
-        'title': prompts[(code, yours, today)]?.title,
-      },
+      'ends_at': speedServers.contains(code) ? speedEndsAt : null,
+      'prompt': speedServers.contains(code) && today > 3
+          ? null
+          : {
+              'hint': 'a challenger on a ${theme(today + 3)} day',
+              'theme': theme(today + 3),
+              'subject_position': prompts[(code, yours, today)]?.subject,
+              'title': prompts[(code, yours, today)]?.title,
+            },
       'to_draw': today == 1
           ? null
           : {
@@ -722,6 +733,8 @@ class FakeBackend {
     // Seeded, so the same artist keeps the same random subjects.
     final planned = server.isTest
         ? SetupPlan.testAssignmentsFor(seats, artist, Random(int.parse(code) + artist))
+        : speedServers.contains(code)
+        ? SetupPlan.speedAssignmentsFor(seats, artist)
         : SetupPlan.assignmentsFor(seats, artist);
     String id(DrawingAssignment a) => 'assignment-uuid-${seats[artist].id}-${a.prompt.name}';
     return [

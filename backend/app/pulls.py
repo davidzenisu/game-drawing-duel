@@ -88,13 +88,14 @@ def _pulled(session: Session, seat_id: uuid.UUID) -> list[tuple[Banner, Rarity]]
 
 def copies(session: Session, seat: ServerSeat) -> dict[uuid.UUID, int]:
     """How many copies of each character the seat owns: the ones they drew
-    during the setup, plus every pull."""
+    during the setup (in speed mode only the basic one), plus every pull."""
     owned: dict[uuid.UUID, int] = defaultdict(int)
-    for character_id in session.scalars(
-        select(Character.id).where(
-            Character.artist_seat_id == seat.id, Character.assignment_id.is_not(None)
-        )
-    ):
+    drawn = select(Character.id).where(
+        Character.artist_seat_id == seat.id, Character.assignment_id.is_not(None)
+    )
+    if seat.server.mode == "speed":
+        drawn = drawn.where(Character.rarity == Rarity.BASIC.value)
+    for character_id in session.scalars(drawn):
         owned[character_id] += 1
     for character_id in session.scalars(
         select(Pull.character_id).where(Pull.seat_id == seat.id)

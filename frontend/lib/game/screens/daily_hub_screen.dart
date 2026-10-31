@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -9,6 +11,7 @@ import '../widgets/cancel_server_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
+import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
@@ -36,11 +39,31 @@ class DailyHubScreen extends StatefulWidget {
 
 class _DailyHubScreenState extends State<DailyHubScreen> {
   GameSession get _controller => widget.controller;
+  Timer? _speedTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _greet());
+    // In speed mode, a day ends early once everyone is done: keep up.
+    if (_controller.server.isSpeed) {
+      _speedTimer = Timer.periodic(_controller.refreshInterval, (_) => _refreshQuietly());
+    }
+  }
+
+  @override
+  void dispose() {
+    _speedTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshQuietly() async {
+    if (_controller.sessionOver) return _speedTimer?.cancel();
+    try {
+      await _controller.refreshDay();
+    } catch (_) {
+      // Polling: try again on the next tick.
+    }
   }
 
   /// The welcome intro the first time, then the launch bonus.
@@ -207,19 +230,20 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     final toDraw = c.promptToDraw;
     final fight = c.yourFight;
     return [
-      _ActionCard(
-        icon: Icons.edit_note_rounded,
-        step: LoopStep.prompt,
-        title: 'Choose a challenger',
-        subtitle: prompt != null
-            ? 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.'
-            : switch (c.promptHint) {
-                final hint? => 'Who is $hint? Choose them and give them a title.',
-                null => 'NO PROMPT',
-              },
-        done: prompt != null,
-        onTap: prompt == null ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt) : null,
-      ),
+      if (c.promptsToday)
+        _ActionCard(
+          icon: Icons.edit_note_rounded,
+          step: LoopStep.prompt,
+          title: 'Choose a challenger',
+          subtitle: prompt != null
+              ? 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.'
+              : switch (c.promptHint) {
+                  final hint? => 'Who is $hint? Choose them and give them a title.',
+                  null => 'NO PROMPT',
+                },
+          done: prompt != null,
+          onTap: prompt == null ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt) : null,
+        ),
       _ActionCard(
         icon: Icons.brush_rounded,
         step: LoopStep.draw,
@@ -343,8 +367,24 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (_controller.dayEndsAt case final endsAt?)
+                            Center(
+                              child: Countdown(
+                                endsAt: endsAt,
+                                label: 'Day ${_controller.day} of ${SpeedMode.days.length}',
+                                onDone: _refreshQuietly,
+                              ),
+                            ),
+                          if (_controller.sessionOver)
+                            const Card(
+                              child: ListTile(
+                                leading: Icon(Icons.flag_rounded),
+                                title: Text('The speed session is over'),
+                                subtitle: Text('Every challenger had its fight. Thanks for playing!'),
+                              ),
+                            ),
                           if (_controller.canEndDay) _dayEndedCard(),
-                          ..._steps(),
+                          if (!_controller.sessionOver) ..._steps(),
                           const SizedBox(height: 12),
                           if (_controller.weeklyHero case final hero?) _WeeklyHeroCard(hero: hero),
                           _ActionCard(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../game_session.dart';
 import '../rules/models.dart';
+import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
@@ -64,6 +65,7 @@ class _CreateServer extends StatefulWidget {
 }
 
 class _CreateServerState extends State<_CreateServer> {
+  bool _speed = false;
   final _newName = TextEditingController();
   late final List<String> _names = widget.controller.suggestedPlayerNames
       .where((name) => name != widget.controller.you.name)
@@ -129,15 +131,38 @@ class _CreateServerState extends State<_CreateServer> {
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
           child: valid
-              ? _PlanSummary(key: ValueKey(_playerCount), playerCount: _playerCount)
+              ? _PlanSummary(key: ValueKey((_playerCount, _speed)), playerCount: _playerCount, speed: _speed)
               : Text(
                   'You need between ${SetupPlan.minPlayers} and ${SetupPlan.maxPlayers} players.',
                   style: textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error),
                 ),
         ),
         const SizedBox(height: 16),
+        SegmentedButton<bool>(
+          segments: [
+            const ButtonSegment(value: false, label: Text('Regular'), icon: Icon(Icons.calendar_month_rounded)),
+            ButtonSegment(
+              value: true,
+              label: Text('Speed · ${SpeedMode.total.inMinutes} min'),
+              icon: const Icon(Icons.bolt_rounded),
+            ),
+          ],
+          selected: {_speed},
+          onSelectionChanged: (selection) => setState(() => _speed = selection.single),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _speed
+              ? 'A one-off session: everyone draws 2 characters, then ${SpeedMode.days.length} short days run '
+                    'back to back on timers. A day ends early once everyone is done.'
+              : 'One day of the game per real day, for as long as you like.',
+          style: textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: valid ? () => runGameAction(context, () => widget.controller.createServer(_names)) : null,
+          onPressed: valid
+              ? () => runGameAction(context, () => widget.controller.createServer(_names, speed: _speed))
+              : null,
           icon: const Icon(Icons.rocket_launch_rounded),
           label: const Text('Create server'),
         ),
@@ -147,13 +172,14 @@ class _CreateServerState extends State<_CreateServer> {
 }
 
 class _PlanSummary extends StatelessWidget {
-  const _PlanSummary({super.key, required this.playerCount});
+  const _PlanSummary({super.key, required this.playerCount, required this.speed});
 
   final int playerCount;
+  final bool speed;
 
   @override
   Widget build(BuildContext context) {
-    final pool = SetupPlan.poolAtLaunch(playerCount);
+    final pool = SetupPlan.poolAtLaunch(playerCount, speed: speed);
     final total = pool.values.reduce((a, b) => a + b);
     return Card.filled(
       child: Padding(
@@ -161,7 +187,7 @@ class _PlanSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('$playerCount players · ${SetupPlan.drawingsPerPlayer(playerCount)} drawings each'),
+            Text('$playerCount players · ${speed ? 2 : SetupPlan.drawingsPerPlayer(playerCount)} drawings each'),
             const SizedBox(height: 8),
             Wrap(
               spacing: 12,

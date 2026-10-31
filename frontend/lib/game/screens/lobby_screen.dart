@@ -9,6 +9,7 @@ import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
 import '../widgets/content_editor_button.dart';
 import '../widgets/sign_out_button.dart';
+import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
 
 /// Waiting room showing the server code while friends join.
@@ -77,6 +78,14 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
+                          if (server.isSpeed) ...[
+                            Chip(
+                              avatar: const Icon(Icons.bolt_rounded, size: 18),
+                              label: Text('SPEED MODE · ${SpeedMode.total.inMinutes} MIN'),
+                              backgroundColor: colors.tertiaryContainer,
+                            ),
+                            const SizedBox(height: 8),
+                          ],
                           if (server.isTest) ...[
                             Chip(
                               avatar: const Icon(Icons.science_rounded, size: 18),
@@ -132,6 +141,9 @@ class _LobbyScreenState extends State<LobbyScreen> {
                     server.isTest
                         ? 'Test session: everyone who joined draws ${SetupPlan.testPrompts.length} quick characters '
                               '(${SetupPlan.testPrompts.map((p) => p.label).join(', ')}). It can start without the others.'
+                        : server.isSpeed
+                        ? 'Speed mode: everyone draws a basic character and a rarer one of the others in '
+                              '${SpeedMode.setup.inMinutes} minutes; you keep your basic one.'
                         : 'Everyone draws $drawings characters of the other players to fill the gacha pool.',
                     style: textTheme.bodyMedium,
                   ),

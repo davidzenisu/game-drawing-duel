@@ -20,6 +20,26 @@ abstract final class LoopStep {
   static const fight = 4;
 }
 
+/// Speed mode: a one-off session of about 20 minutes. Its setup and days
+/// run on timers, back to back; a day ends early once everyone is done.
+/// Challenger prompts are written on the first days only, so the last days
+/// finish the loop; after the last day the session is over.
+abstract final class SpeedMode {
+  static const setup = Duration(seconds: 300);
+  static const days = [
+    Duration(seconds: 60),
+    Duration(seconds: 120),
+    Duration(seconds: 180),
+    Duration(seconds: 180),
+    Duration(seconds: 120),
+    Duration(seconds: 60),
+  ];
+  static const lastPromptDay = 3;
+
+  /// The whole session, if no day ends early.
+  static Duration get total => days.fold(setup, (a, b) => a + b);
+}
+
 /// Step 3: every day, you spread [stars] across up to [challengers] of the
 /// challengers drawn the day before, at most [maxPerChallenger] on one. Once
 /// the day is over, chance spreads the ones you left.

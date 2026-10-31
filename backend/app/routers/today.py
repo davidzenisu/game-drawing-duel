@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import days, fights, finale
+from app import days, fights, finale, pulls, speed
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import (
@@ -120,12 +120,13 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             .where(ServerSeat.server_id == server.id, DayEnd.day == day)
             .order_by(ServerSeat.position)
         ).all()
-        if server.is_test
+        if server.is_test or speed.is_speed(server)
         else []
     )
     return TodayResponse(
         day=day,
         theme=days.theme_of(server, day).value,
+        ends_at=speed.clock(server).ends_at if speed.is_speed(server) else None,
         prompt=YourPrompt(
             hint=days.prompt_hint(session, server, day, seat),
             theme=days.challenger_theme(server, day).value,
@@ -135,7 +136,9 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             if written
             else None,
             title=written.title if written else None,
-        ),
+        )
+        if days.prompts_on(server, day)
+        else None,
         to_draw=None
         if to_draw is None
         else PromptToDrawResponse(
@@ -249,6 +252,10 @@ def write_prompt(
     it tomorrow. Once a day."""
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
+    if not days.prompts_on(server, day):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="No challenger prompts today"
+        )
     subject = next(
         (s for s in server.seats if s.position == body.subject_position), None
     )
@@ -274,6 +281,7 @@ def write_prompt(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You wrote today's prompt already"
         ) from error
+    _end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -324,6 +332,7 @@ def draw_challenger(
         conflict="You drew today's challenger already",
         before_insert=reward,
     )
+    _end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -367,6 +376,7 @@ def pick_fighters(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You picked today's fighters already"
         ) from error
+    _end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -393,6 +403,7 @@ def boost(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Your boosts changed at the same time"
         ) from error
+    _end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -431,16 +442,21 @@ def send_hurry(
     return _today(session, server, seat)
 
 
-def _test_session(server: Server) -> None:
-    if not server.is_test:
+def _day_controls(server: Server) -> None:
+    if not (server.is_test or speed.is_speed(server)):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail="Only test sessions move on before midnight UTC",
+            detail="Only test sessions and speed mode move on before midnight UTC",
         )
 
 
 def _advance(session: Session, server: Server, day: int) -> None:
-    """Moves a test session from `day` to the next, once."""
+    """Moves a test session or speed mode session from `day` to the next,
+    once."""
+    if speed.is_speed(server):
+        if days.current_day(server) == day and not speed.clock(server).over:
+            speed.start_next_day(server, day)
+        return
     session.execute(
         update(Server)
         .where(Server.id == server.id, Server.test_day == day)
@@ -448,12 +464,62 @@ def _advance(session: Session, server: Server, day: int) -> None:
     )
 
 
+def _done(session: Session, server: Server, day: int, seat: ServerSeat) -> bool:
+    """Whether `seat` did everything there is to do on `day`, or ended it."""
+    if session.scalar(
+        select(DayEnd.id).where(DayEnd.seat_id == seat.id, DayEnd.day == day)
+    ):
+        return True
+    if days.prompts_on(server, day) and not session.scalar(
+        select(ChallengerPrompt.id).where(
+            ChallengerPrompt.author_seat_id == seat.id, ChallengerPrompt.day == day
+        )
+    ):
+        return False
+    if (
+        days.prompt_to_draw(session, server, day, seat) is not None
+        and _challenger(session, seat, day) is None
+    ):
+        return False
+    if (
+        fights.boost_targets(session, server, day, seat)
+        and sum(fights.given_boosts(session, seat, day).values()) < BOOST_STARS
+    ):
+        return False
+    can_fight = set(pulls.copies(session, seat)) - fights.resting(
+        session, server, seat, day
+    )
+    return not (
+        fights.fight_challenger(session, server, day, seat) is not None
+        and fights.fight_of(session, seat, day) is None
+        and can_fight
+    )
+
+
+def _end_speed_day_if_done(session: Session, server: Server) -> None:
+    """In speed mode, starts the next day as soon as everyone is done with
+    today. Commits."""
+    if not speed.is_speed(server):
+        return
+    # Players finishing at once wait for each other here, so the last one
+    # sees everyone else's and moves the day on.
+    session.scalar(select(Server.id).where(Server.id == server.id).with_for_update())
+    session.refresh(server)
+    day = days.current_day(server)
+    if not speed.clock(server).over and all(
+        _done(session, server, day, s) for s in days.active_seats(server)
+    ):
+        _advance(session, server, day)
+    session.commit()
+    session.refresh(server)
+
+
 @router.post("/{code}/today/end", response_model=TodayResponse)
 def end_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayResponse:
-    """Test sessions: you're done for today. Once everyone is, the next day
-    starts."""
+    """Test sessions and speed mode: you're done for today. Once everyone
+    is, the next day starts."""
     server, seat = _running(session, code, player.id)
-    _test_session(server)
+    _day_controls(server)
     # Players ending the day at once wait for each other here, so the last
     # one sees everyone else's and moves the day on.
     session.scalar(select(Server.id).where(Server.id == server.id).with_for_update())
@@ -464,6 +530,10 @@ def end_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayRespo
     ):
         session.add(DayEnd(seat_id=seat.id, day=day))
         session.flush()
+    if speed.is_speed(server):
+        session.commit()
+        _end_speed_day_if_done(session, server)
+        return _today(session, server, seat)
     ended = set(
         session.scalars(
             select(DayEnd.seat_id).where(
@@ -481,9 +551,10 @@ def end_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayRespo
 
 @router.post("/{code}/days/next", response_model=TodayResponse)
 def next_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayResponse:
-    """Test sessions: the admin starts the next day for everyone."""
+    """Test sessions and speed mode: the admin starts the next day for
+    everyone."""
     server, seat = _running(session, code, player.id)
-    _test_session(server)
+    _day_controls(server)
     if server.admin_id != player.id:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail="Only the admin can start the next day"

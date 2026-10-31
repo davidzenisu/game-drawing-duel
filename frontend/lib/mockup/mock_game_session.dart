@@ -171,9 +171,16 @@ class MockGameSession extends GameSession {
 
   /// Creates a server with a prepopulated roster; the creator is the admin.
   @override
-  Future<void> createServer(List<String> otherNames, {bool isTest = false}) async {
+  Future<void> createServer(List<String> otherNames, {bool isTest = false, bool speed = false}) async {
     final players = [you, for (final (i, name) in otherNames.indexed) Player(id: 'p$i', name: name.trim())];
-    _server = ServerSession(code: _newCode(), players: players, isAdmin: true, joined: {you.id}, isTest: isTest);
+    _server = ServerSession(
+      code: _newCode(),
+      players: players,
+      isAdmin: true,
+      joined: {you.id},
+      isTest: isTest,
+      isSpeed: speed,
+    );
     _setPhase(GamePhase.lobby);
   }
 
@@ -273,6 +280,8 @@ class MockGameSession extends GameSession {
     final index = players.indexWhere((p) => p.id == artist.id);
     final planned = server.isTest
         ? SetupPlan.testAssignmentsFor(players, index, _random)
+        : server.isSpeed
+        ? SetupPlan.speedAssignmentsFor(players, index)
         : SetupPlan.assignmentsFor(players, index);
     return [
       for (final a in planned)
@@ -330,13 +339,14 @@ class MockGameSession extends GameSession {
           artist: artist.name,
           sketch: _bots.doodle(assignment.prompt.label),
         );
-        roster.add(card);
+        // In speed mode, artists own only their basic drawing.
+        if (!server.isSpeed || card.rarity == Rarity.basic) roster.add(card);
         _pool.add(card);
       }
     }
     _pool.addAll(_setupDrawings.values);
     for (final card in _setupDrawings.values) {
-      _owned[card.id] = OwnedCard(card);
+      if (!server.isSpeed || card.rarity == Rarity.basic) _owned[card.id] = OwnedCard(card);
     }
     _tickets += GachaMachine.launchBonus;
     _startDay();
@@ -705,7 +715,7 @@ class MockGameSession extends GameSession {
     // Once the day is over, chance spreads the boost stars you left; then a
     // week that's over has its finale.
     if (_day > 0) _spreadBoosts(_boostTargetsOf(you, _day), _yourBoosts[_day] ?? const {});
-    if (_day > 0 && _isFinaleDay(_day)) _decideFinale(_day);
+    if (_day > 0 && _isFinaleDay(_day) && !server.isSpeed) _decideFinale(_day);
     _day++;
     _theme = _themeOfDay(_day);
     // Today's prompts are for challengers fought in three days, in that day's theme.
@@ -724,19 +734,21 @@ class MockGameSession extends GameSession {
     _hurrySentTo = null;
     final others = otherPlayers;
 
-    // Step 1: everyone chooses a person and writes a title.
+    // Step 1: everyone chooses a person and writes a title, on the days that
+    // have prompts.
     _prompts[_day] = [
-      // The simulated players write their hint's premade title.
-      for (final (author, hint) in [for (final author in others) (author, nextHint())])
-        ChallengerPrompt(
-          id: 'prompt$_day-${author.id}',
-          author: author,
-          subject: _randomSubject(author),
-          theme: _promptTheme,
-          title: hint?.premadeTitle ?? _bots.title(),
-          day: _day,
-          hint: hint?.text,
-        ),
+      if (promptsToday)
+        // The simulated players write their hint's premade title.
+        for (final (author, hint) in [for (final author in others) (author, nextHint())])
+          ChallengerPrompt(
+            id: 'prompt$_day-${author.id}',
+            author: author,
+            subject: _randomSubject(author),
+            theme: _promptTheme,
+            title: hint?.premadeTitle ?? _bots.title(),
+            day: _day,
+            hint: hint?.text,
+          ),
     ];
 
     // Step 2: yesterday's prompts are drawn by the next player in the roster.
@@ -831,7 +843,17 @@ class MockGameSession extends GameSession {
   }
 
   @override
-  bool get canAdvanceDay => true;
+  bool get canAdvanceDay => !sessionOver;
+
+  @override
+  bool get promptsToday => !server.isSpeed || _day <= SpeedMode.lastPromptDay;
+
+  /// The mockup's days only move on when you skip ahead.
+  @override
+  DateTime? get dayEndsAt => null;
+
+  @override
+  bool get sessionOver => server.isSpeed && _day > SpeedMode.days.length;
 
   /// The simulated players never wait for you.
   @override
@@ -856,6 +878,7 @@ class MockGameSession extends GameSession {
   @override
   Future<void> submitPrompt(String title, Player subject) async {
     if (yourPrompt != null) return;
+    if (!promptsToday) throw StateError('No challenger prompts today.');
     if (subject.id == you.id) throw ArgumentError('Choose another player');
     _prompts[_day]!.add(
       ChallengerPrompt(
