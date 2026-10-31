@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
-import 'package:frontend/game/screens/results_screen.dart';
+import 'package:frontend/game/screens/fight_replay_screen.dart';
 
 const _doodle = Sketch([
   Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),

@@ -183,12 +183,6 @@ abstract class GameSession extends ChangeNotifier {
   /// you fight tomorrow.
   List<BoostTarget> get boostTargets;
 
-  /// Yesterday's fights you picked the fighters for, or chance did.
-  List<FightSetup> get yourFightResults;
-
-  /// Yesterday's fights against a challenger you drew.
-  List<FightSetup> get yourChallengerResults;
-
   /// The challengers you encountered, newest first: the ones you drew,
   /// fought against or boosted. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;

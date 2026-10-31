@@ -23,7 +23,6 @@ import 'gacha_screen.dart';
 import 'how_to_play_screen.dart';
 import 'prompt_screen.dart';
 import 'ranking_screen.dart';
-import 'results_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
 class DailyHubScreen extends StatefulWidget {
@@ -207,7 +206,6 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     final prompt = c.yourPrompt;
     final toDraw = c.promptToDraw;
     final fight = c.yourFight;
-    final hasResults = c.yourFightResults.isNotEmpty || c.yourChallengerResults.isNotEmpty;
     return [
       _ActionCard(
         icon: Icons.edit_note_rounded,
@@ -255,31 +253,23 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: Icons.groups_rounded,
         step: LoopStep.fight,
         title: 'Pick your fighters',
-        subtitle: c.fightChallenger == null
-            ? _unlocksOn(LoopStep.fight)
-            : fight != null
-            ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
-                  '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★'
-                  '${fight.fightersWin ? '. +1 pull, +${fight.challengerStars} victory ★' : '.'}'
-            : c.availableFighters.isEmpty
-            ? 'All your characters fought this week. They\'re back on Monday.'
-            : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '
-                  'A win earns a pull and its stars.',
+        subtitle: [
+          c.fightChallenger == null
+              ? _unlocksOn(LoopStep.fight)
+              : fight != null
+              ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
+                    '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★'
+                    '${fight.fightersWin ? '. +1 pull, +${fight.challengerStars} victory ★' : '.'}'
+              : c.availableFighters.isEmpty
+              ? 'All your characters fought this week. They\'re back on Monday.'
+              : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '
+                    'A win earns a pull and its stars.',
+          if (c.victoryStars > 0) 'Victory stars won so far: ${c.victoryStars} ★',
+        ].join(' '),
         done: fight != null,
         onTap: c.fightChallenger == null || (fight == null && c.availableFighters.isEmpty)
             ? null
             : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
-      ),
-      _ActionCard(
-        icon: Icons.sports_martial_arts_rounded,
-        title: 'Battle results',
-        subtitle: [
-          hasResults
-              ? 'Watch yesterday\'s fights of your fighters and your challenger.'
-              : 'Your first results arrive on day ${LoopStep.results}.',
-          if (c.victoryStars > 0) 'Victory stars won: ${c.victoryStars} ★',
-        ].join(' '),
-        onTap: hasResults ? () => _openStep(ResultsScreen(controller: c), Tutorial.fight) : null,
       ),
       _ActionCard(
         icon: Icons.emoji_events_rounded,

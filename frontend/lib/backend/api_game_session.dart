@@ -404,7 +404,6 @@ class ApiGameSession extends GameSession {
   FightSetup? _yourFight;
   Set<String> _resting = const {};
   List<BoostTarget> _boostTargets = const [];
-  List<FightSetup> _results = const [];
   WeeklyHero? _weeklyHero;
   List<ChallengerRecord> _challengers = const [];
 
@@ -546,7 +545,6 @@ class ApiGameSession extends GameSession {
         ],
         _ => throw const FormatException('Unexpected boost step.'),
       };
-      _results = [for (final fight in json['results'] as List? ?? const []) await _parseFight(server, fight)];
       _hurrySentTo = switch (json['hurry_sent_to']) {
         final int position => _seat(server, position),
         _ => null,
@@ -826,18 +824,6 @@ class ApiGameSession extends GameSession {
 
   @override
   List<BoostTarget> get boostTargets => _boostTargets;
-
-  @override
-  List<FightSetup> get yourFightResults => [
-    for (final fight in _results)
-      if (fight.owner.isYou) fight,
-  ];
-
-  @override
-  List<FightSetup> get yourChallengerResults => [
-    for (final fight in _results)
-      if (fight.challenger.artist == you.name) fight,
-  ];
 
   @override
   List<HurryPlan> get incomingHurries => _incomingHurries;

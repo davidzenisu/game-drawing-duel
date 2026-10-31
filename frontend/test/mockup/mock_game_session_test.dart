@@ -204,7 +204,7 @@ void main() {
     expect(game.yourPrompt?.theme, game.promptTheme);
   });
 
-  test('the 4 day loop: prompt, draw, boost, fighters and results', () async {
+  test('the 4 day loop: prompt, draw, boost and fighters', () async {
     final game = await launchedGame();
     final you = game.you;
 
@@ -225,6 +225,7 @@ void main() {
     await game.submitChallenger(_doodle);
     expect(game.tickets, tickets + 1);
     expect(game.yourChallenger?.title, toDraw.title);
+    final drawn = game.yourChallenger!;
     await game.submitChallenger(_doodle);
     expect(game.tickets, tickets + 1, reason: 'one challenger per day');
     await game.submitPrompt('Day two prompt', game.promptCandidates.first);
@@ -270,13 +271,8 @@ void main() {
     expect(fight.fighterStars, Stars.ofTeam(fight.fighters.map((f) => f.card.rarity)));
     expect(fight.boostStars, greaterThan(0), reason: 'everyone spreads their stars');
     expect(fight.fightersWin, fight.fighterStars > Stars.ofChallenger(fight.boostStars));
-
-    // Day 5: the results of yesterday's fights.
-    await game.advanceDay();
-    expect(game.yourFightResults.single, fight);
-    // Somebody fought the challenger you drew three days ago.
-    expect(game.yourChallengerResults, hasLength(1));
-    expect(game.yourChallengerResults.first.challenger.day, 2);
+    // Somebody fights the challenger you drew two days ago.
+    expect(game.fightsOn(game.day).where((f) => f.challenger.id == drawn.id), hasLength(1));
   });
 
   test('the boost stars you leave are spread by chance', () async {
@@ -318,11 +314,11 @@ void main() {
     final opponent = game.fightChallenger!;
     expect(game.challengers.map((c) => c.card), isNot(contains(opponent)));
     await game.submitFighters(game.collection.take(2).toList());
+    final fight = game.yourFight!;
     expect(game.challengers.map((c) => c.card), contains(opponent));
     expect(game.challengers.firstWhere((c) => c.card == opponent).winRate, isNull, reason: 'counts tomorrow');
 
     await game.advanceDay();
-    final fight = game.yourFightResults.single;
     final record = game.challengers.firstWhere((c) => c.card == opponent);
     expect(record.fights, 1);
     expect(record.wins, fight.fightersWin ? 0 : 1);

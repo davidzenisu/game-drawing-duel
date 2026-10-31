@@ -12,16 +12,12 @@ import 'upgrades.dart';
 ///      before,
 ///   4. pick up to four fighters against a challenger drawn two days
 ///      before; the stars decide right away.
-/// The day after, everyone involved sees the outcome. Once a week, the
-/// [Finale] ranks the week's challengers.
+/// Once a week, the [Finale] ranks the week's challengers.
 abstract final class LoopStep {
   static const prompt = 1;
   static const draw = 2;
   static const boost = 3;
   static const fight = 4;
-
-  /// The first day with yesterday's fights to show.
-  static const results = 5;
 }
 
 /// Step 3: every day, you spread [stars] across up to [challengers] of the

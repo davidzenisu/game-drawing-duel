@@ -139,11 +139,9 @@ enum Tutorial {
             'never run out.',
       ),
       const TutorialPage(
-        icon: Icons.sports_martial_arts_rounded,
-        title: 'Battle results',
-        text:
-            'Pick nobody and random fighters go for you once the day is over. The next day, watch the fights '
-            'in "Battle results": your fighters\' and the ones against the challenger you drew.',
+        icon: Icons.casino_rounded,
+        title: 'Missed a day?',
+        text: 'Pick nobody and random fighters go for you once the day is over, but their wins earn nothing.',
       ),
     ],
     finale => const [

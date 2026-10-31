@@ -602,8 +602,7 @@ void main() {
       expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
       expect(admin.restingCharacterIds, isEmpty);
 
-      // Day 5: Alex's two fighters rest until Monday, and everyone sees
-      // yesterday's results.
+      // Day 5: Alex's two fighters rest until Monday.
       await nextDay();
       final rested = {
         for (final o in admin.collection.take(2))
@@ -611,12 +610,8 @@ void main() {
       };
       expect(admin.restingCharacterIds, rested, reason: 'basic ones fight every day');
       expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
-      final result = admin.yourFightResults.single;
-      expect(result.id, fight.id);
-      expect(sam.yourChallengerResults.single.id, result.id);
-      expect(robin.yourFightResults, isEmpty);
       final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);
-      expect((record.fights, record.wins), (1, result.fightersWin ? 0 : 1));
+      expect((record.fights, record.wins), (1, fight.fightersWin ? 0 : 1));
     });
 
     test('the finale: the weekly hero and the week ranking', () async {
