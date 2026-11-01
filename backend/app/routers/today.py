@@ -29,6 +29,7 @@ from app.rules import (
     BOOST_STARS,
     HURRY_EARLIEST,
     HURRY_LATEST,
+    SPEED_DAYS,
     Rarity,
 )
 from app.schemas import (
@@ -592,14 +593,27 @@ def get_ranking(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> RankingResponse | None:
     """The latest finished week's challengers, most stars first; the first
-    joined the gacha pool as a hero. Null before the first week is over."""
+    joined the gacha pool as a hero. Null before the first week is over.
+
+    In speed mode, all of the session's challengers once it's over."""
     server, _ = _running(session, code, player.id)
-    finale.settle(session, server)
-    week = finale.latest_finale(session, server)
-    if week is None:
-        return None
+    if speed.is_speed(server):
+        if not speed.clock(server).over:
+            return None
+        # The last day's boosts and fights nobody finished count too.
+        last_day = SPEED_DAYS
+        fights.complete_boosts(session, server, last_day)
+        fights.complete_fights(session, server, last_day)
+        ranked = finale.ranking(session, server, last_day + 1)
+    else:
+        finale.settle(session, server)
+        week = finale.latest_finale(session, server)
+        if week is None:
+            return None
+        last_day = week.day
+        ranked = finale.ranking(session, server, week.day)
     return RankingResponse(
-        day=week.day,
+        day=last_day,
         challengers=[
             RankedChallenger(
                 character=character_response(r.challenger),
@@ -607,6 +621,6 @@ def get_ranking(
                 fights=r.fights,
                 wins=r.wins,
             )
-            for r in finale.ranking(session, server, week.day)
+            for r in ranked
         ],
     )

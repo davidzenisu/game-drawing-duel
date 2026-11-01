@@ -124,6 +124,7 @@ void main() {
       await game.submitSetupDrawing(assignment, _doodle, 'Title');
     }
     await game.launch();
+    expect(await game.weekRanking(), isNull, reason: 'not before the session is over');
     expect(game.collection.map((o) => o.card.rarity), everyElement(Rarity.basic), reason: 'you keep your basic one');
     expect(game.pool, hasLength(10));
 
@@ -148,6 +149,14 @@ void main() {
     expect(game.hasOpenSteps, isFalse);
     expect(game.canAdvanceDay, isFalse);
     expect(game.weeklyHero, isNull, reason: 'no weekly finale, even past a Sunday');
+
+    // Every challenger of the session is ranked, most stars first.
+    final ranking = (await game.weekRanking())!;
+    expect(ranking.day, SpeedMode.days.length);
+    final drawn = [for (var day = 1; day <= SpeedMode.days.length; day++) ...game.challengersDrawnOn(day)];
+    expect(ranking.challengers.map((r) => r.card.id), unorderedEquals(drawn.map((c) => c.id)));
+    final stars = [for (final r in ranking.challengers) r.stars];
+    expect(stars, [...stars]..sort((a, b) => b.compareTo(a)));
   });
 
   test('cancelling the server returns to creating one', () async {

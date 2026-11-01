@@ -228,7 +228,7 @@ hits (`GET today` lists them as `incoming_hurries`).
 | `PUT /servers/{code}/today/boosts` | Spread your boost stars across today's challengers to boost (`boosts`, each a `challenger_id` and its `stars`), replacing the ones you gave today |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once; the stars decide right away |
 | `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
-| `GET /servers/{code}/ranking` | The latest finished week's challengers, most stars first, with their stars, fights and wins; `null` before the first week is over |
+| `GET /servers/{code}/ranking` | The latest finished week's challengers, most stars first, with their stars, fights and wins; `null` before the first week is over. In speed mode, all of the session's challengers once it's over |
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Speed mode and test sessions: end your day; the next starts once everyone did |
 | `POST /servers/{code}/days/next` | Speed mode and test sessions: the admin starts the next day |
@@ -370,7 +370,10 @@ session of about 17 minutes, for playing the whole loop in one sitting
   days without prompts.
 - A day ends early once every player did everything there is to do, or
   ended their day (`POST today/end`); the admin can also start the next day
-  (`POST days/next`). After day 6 the session is over (phase `finished`).
+  (`POST days/next`). After day 6 the session is over (phase `finished`):
+  `GET ranking` then ranks all of the session's challengers by their stars,
+  and the app presents the winner with its stars, then scrolls through
+  every other challenger.
 - A won fight earns a pull per star of the challenger (`fight:day-N:1`,
   …) instead of one, so the strongest challengers pay the most.
 - There is no weekly finale.

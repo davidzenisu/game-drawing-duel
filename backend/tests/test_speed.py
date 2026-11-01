@@ -199,12 +199,35 @@ class SpeedDayTests(SpeedTestCase):
             self.post("days/next")
         self.assertEqual(self.today()["day"], 7, "it stops when it's over")
 
-    def test_speed_sessions_have_no_weekly_finale(self) -> None:
-        for _ in range(6):
+    def test_once_over_every_challenger_is_ranked_without_a_weekly_hero(self) -> None:
+        # Day 1: everyone writes a prompt; day 2: everyone draws it.
+        self.write_prompts()
+        for subject in PLAYERS:
+            self.client.put(
+                f"/servers/{self.code}/today/challenger",
+                json={"sketch": SKETCH},
+                headers=bearer(make_token(subject)),
+            )
+        while self.today()["day"] < 6:
+            self.assertIsNone(self.get(f"/servers/{self.code}/ranking").json())
             self.post("days/next")
+        self.post("days/next")
+        self.assertEqual(self.server()["phase"], "finished")
         self.assertIsNone(self.today()["weekly_hero"])
-        ranking = self.get(f"/servers/{self.code}/ranking")
-        self.assertIsNone(ranking.json())
+
+        ranking = self.get(f"/servers/{self.code}/ranking").json()
+        self.assertEqual(ranking["day"], 6)
+        ranked = ranking["challengers"]
+        self.assertEqual(len(ranked), 5, "everyone's challenger")
+        stars = [r["stars"] for r in ranked]
+        self.assertEqual(stars, sorted(stars, reverse=True))
+        # Chance spread every boost star and picked every fighter.
+        self.assertEqual(sum(stars), 5 * 3 + 5 * 3)
+        self.assertEqual([r["fights"] for r in ranked], [1] * 5)
+        for subject in PLAYERS:
+            self.assertEqual(
+                self.get(f"/servers/{self.code}/ranking", subject).json(), ranking
+            )
 
 
 class SpeedCleanupTests(SpeedTestCase):
