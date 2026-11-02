@@ -133,8 +133,11 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
                                 Expanded(
                                   child: _StarTally(
                                     label: 'Fighters',
-                                    stars: (fight.fighterStars * fighterCount).round(),
-                                    detail: '${fight.fighters.length} fighter${fight.fighters.length == 1 ? '' : 's'}',
+                                    stars: (fight.fighterTotal * fighterCount).round(),
+                                    detail: [
+                                      '${fight.fighters.length} fighter${fight.fighters.length == 1 ? '' : 's'}',
+                                      if (fight.fighterExtraStars > 0) '+${fight.fighterExtraStars} from win rates',
+                                    ].join(' · '),
                                     wins: fightersWin,
                                     standOut: standOut,
                                   ),
@@ -146,10 +149,14 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
                                 Expanded(
                                   child: _StarTally(
                                     label: fight.challenger.subject,
-                                    stars: (fight.challengerStars * challengerCount).round(),
-                                    detail: fight.boostStars == 0
-                                        ? 'No boosts'
-                                        : '${Stars.challengerBase} + ${fight.boostStars} from boosts',
+                                    stars: (fight.challengerTotal * challengerCount).round(),
+                                    detail: [
+                                      fight.boostStars == 0
+                                          ? 'No boosts'
+                                          : '${Stars.challengerBase} + ${fight.boostStars} from boosts',
+                                      if (fight.challengerExtraStars > 0)
+                                        '+${fight.challengerExtraStars} from win rates',
+                                    ].join(' · '),
                                     wins: !fightersWin,
                                     standOut: standOut,
                                   ),
@@ -169,7 +176,7 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
                                       textAlign: TextAlign.center,
                                       style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
                                     ),
-                                    if (fight.fighterStars == fight.challengerStars)
+                                    if (fight.fighterTotal == fight.challengerTotal)
                                       const Text('Ties go to the challenger.'),
                                     if (widget.rewardPulls case final pulls? when fightersWin) ...[
                                       const SizedBox(height: 8),

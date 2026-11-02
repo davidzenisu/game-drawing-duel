@@ -420,7 +420,7 @@ class MockGameSession extends GameSession {
   /// starts on Monday.
   @override
   Set<String> get restingCharacterIds {
-    final weekStart = _day - (_launchedOn.add(Duration(days: _day - 1)).weekday - DateTime.monday);
+    final weekStart = _weekStart(_day);
     return {
       for (var day = weekStart; day < _day; day++)
         for (final fight in _fights[day] ?? const <FightSetup>[])
@@ -657,6 +657,55 @@ class MockGameSession extends GameSession {
     return days.isEmpty ? null : _rankings[days.last];
   }
 
+  /// The first day of [day]'s week, which starts on Monday.
+  int _weekStart(int day) => day - (_launchedOn.add(Duration(days: day - 1)).weekday - DateTime.monday);
+
+  @override
+  Future<WeekWinRates?> winRates() async => server.isSpeed ? null : _winRates(_day);
+
+  /// The win rates of [day]'s week, like online: from the week before's
+  /// fights.
+  WeekWinRates _winRates(int day) {
+    final start = _weekStart(day);
+    return WeekWinRates(
+      fromDay: start - 7,
+      toDay: start - 1,
+      rates: server.isSpeed
+          ? const []
+          : WeekWinRates.count(
+              [for (var d = start - 7; d < start; d++) ...?_fights[d]],
+              (name) => server.players.firstWhere(
+                (p) => p.name == name,
+                orElse: () => Player(id: name, name: name),
+              ),
+            ),
+    );
+  }
+
+  /// A fight on today's [challenger], decided right away with both sides'
+  /// win rate extra stars.
+  FightSetup _fight(Player owner, CharacterCard challenger, List<FighterEntry> fighters) {
+    final rates = _winRates(_day);
+    final against = challenger.subject;
+    return FightSetup(
+      id: 'fight$_day-${owner.id}',
+      owner: owner,
+      challenger: challenger,
+      fighters: [
+        for (final f in fighters)
+          FighterEntry(
+            card: f.card,
+            effects: f.effects,
+            element: f.element,
+            extraStars: rates.extraStars(f.card.subject, against),
+          ),
+      ],
+      day: _day,
+      boostStars: _boostStars[challenger.id] ?? 0,
+      challengerExtraStars: fighters.fold(0, (sum, f) => sum + rates.extraStars(against, f.card.subject)),
+    );
+  }
+
   bool _isFinaleDay(int day) => Finale.isFinaleDate(_launchedOn.add(Duration(days: day - 1)));
 
   /// Once the week that ends on [day] is over, like online: its challengers
@@ -803,16 +852,7 @@ class MockGameSession extends GameSession {
       final challenger = _fightChallengerOf(owner, _day);
       if (roster.isEmpty || challenger == null) continue;
       final picks = ([...roster]..shuffle(_random)).take(1 + _random.nextInt(FightSetup.maxFighters));
-      _fights[_day]!.add(
-        FightSetup(
-          id: 'fight$_day-${owner.id}',
-          owner: owner,
-          challenger: challenger,
-          fighters: [for (final card in picks) FighterEntry(card: card)],
-          day: _day,
-          boostStars: _boostStars[challenger.id] ?? 0,
-        ),
-      );
+      _fights[_day]!.add(_fight(owner, challenger, [for (final card in picks) FighterEntry(card: card)]));
     }
 
     // The simulated players pull a character every day.
@@ -931,16 +971,7 @@ class MockGameSession extends GameSession {
       throw ArgumentError('Pick between 1 and ${FightSetup.maxFighters} fighters.');
     }
     if (fighters.any(isResting)) throw ArgumentError("Every character fights once a week; they're back on Monday.");
-    _fights[_day]!.add(
-      FightSetup(
-        id: 'fight$_day-${you.id}',
-        owner: you,
-        challenger: challenger,
-        fighters: [for (final owned in fighters) FighterEntry.fromOwned(owned)],
-        day: _day,
-        boostStars: _boostStars[challenger.id] ?? 0,
-      ),
-    );
+    _fights[_day]!.add(_fight(you, challenger, [for (final owned in fighters) FighterEntry.fromOwned(owned)]));
     // A win earns pulls and the challenger's stars.
     if (yourFight!.fightersWin) {
       _tickets += pullsForWin(yourFight!);

@@ -125,6 +125,7 @@ void main() {
     }
     await game.launch();
     expect(await game.weekRanking(), isNull, reason: 'not before the session is over');
+    expect(await game.winRates(), isNull, reason: 'speed mode has no win rates');
     expect(game.collection.map((o) => o.card.rarity), everyElement(Rarity.basic), reason: 'you keep your basic one');
     expect(game.pool, hasLength(10));
 
@@ -554,6 +555,40 @@ void main() {
     expect(hero.card.rarity, Rarity.hero);
     expect(game.pool.map((c) => c.id), contains(hero.card.id));
     expect(game.pool.map((c) => c.id), isNot(contains(ranked.last.card.id)));
+  });
+
+  test("last week's fights give this week's win rate extra stars", () async {
+    // A Monday: days 1 to 7 are the first week.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+    expect((await game.winRates())!.rates, isEmpty, reason: 'none in the first week');
+    while (game.day < 8) {
+      await game.advanceDay();
+    }
+    final rates = (await game.winRates())!;
+    expect((rates.fromDay, rates.toDay), (1, 7));
+    final lastWeek = [for (var day = 1; day <= 7; day++) ...game.fightsOn(day)];
+    final counted = WeekWinRates.count(lastWeek, (name) => Player(id: name, name: name));
+    expect(
+      {for (final r in rates.rates) (r.player.name, r.against.name, r.fights, r.wins)},
+      {for (final r in counted) (r.player.name, r.against.name, r.fights, r.wins)},
+    );
+    expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty, reason: 'four players fought all week');
+
+    // Day 8's fights get them, each side against the other's player.
+    await game.advanceDay();
+    final fights = game.fightsOn(8);
+    expect(fights, isNotEmpty);
+    for (final fight in fights) {
+      final against = fight.challenger.subject;
+      expect(
+        [for (final f in fight.fighters) f.extraStars],
+        [for (final f in fight.fighters) rates.extraStars(f.card.subject, against)],
+      );
+      expect(
+        fight.challengerExtraStars,
+        fight.fighters.fold(0, (sum, f) => sum + rates.extraStars(against, f.card.subject)),
+      );
+    }
   });
 
   test('every challenger has one fight, and three to boost every day', () async {

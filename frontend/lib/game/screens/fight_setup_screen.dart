@@ -142,8 +142,9 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${locked.fightersWin ? 'You won' : 'You lost'}: ${locked.fighterStars} ★ against '
-                          '${locked.challengerStars} ★.',
+                          '${locked.fightersWin ? 'You won' : 'You lost'}: ${locked.fighterTotal} ★ against '
+                          '${locked.challengerTotal} ★'
+                          '${_extraStars(locked)}.',
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
@@ -213,4 +214,13 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
       ),
     );
   }
+}
+
+/// The win rate extra stars in [fight]'s stars, if any.
+String _extraStars(FightSetup fight) {
+  final parts = [
+    if (fight.fighterExtraStars > 0) 'yours +${fight.fighterExtraStars}',
+    if (fight.challengerExtraStars > 0) "the challenger's +${fight.challengerExtraStars}",
+  ];
+  return parts.isEmpty ? '' : ' (win rate extra stars: ${parts.join(', ')})';
 }

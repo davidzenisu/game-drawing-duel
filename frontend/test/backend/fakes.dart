@@ -113,13 +113,26 @@ class FakeBackend {
     const stars = {'basic': 1, 'adventurer': 2, 'hero': 3, 'legend': 4};
     final fighterStars = fight.fighters.fold(0, (sum, c) => sum + stars[c['rarity']]!);
     final challengerStars = 3 + fight.boostStars;
+    final extra = extraStars[fight.id];
+    final fighterExtraStars = extra?.fighters.fold(0, (a, b) => a + b) ?? 0;
+    final challengerExtraStars = extra?.challenger ?? 0;
     return {
       'fighter_stars': fighterStars,
       'boost_stars': fight.boostStars,
       'challenger_stars': challengerStars,
-      'fighters_win': fighterStars > challengerStars,
+      'fighter_extra_stars': fighterExtraStars,
+      'challenger_extra_stars': challengerExtraStars,
+      'fighters_win': fighterStars + fighterExtraStars > challengerStars + challengerExtraStars,
     };
   }
+
+  /// The win rate extra stars of fights, by fight id: the challenger's and
+  /// each fighter's. Fights without any have none; tests set them up.
+  final Map<String, ({int challenger, List<int> fighters})> extraStars = {};
+
+  /// This week's win rates by server code, as `GET win-rates` returns them;
+  /// tests set them up.
+  final Map<String, Map<String, Object?>> winRates = {};
 
   /// The latest weekly hero by server code, as `GET today` returns it, and
   /// the latest week's ranking, as `GET ranking` does; tests set them up.
@@ -355,6 +368,10 @@ class FakeBackend {
         );
         return _json(200, _owned(code, myId, character, copies));
       }
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'win-rates') {
+        if (speedServers.contains(code)) return _json(409, {'detail': 'Speed mode sessions have no win rates'});
+        return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
         return _json(200, rankings[code]);
       }
@@ -524,7 +541,13 @@ class FakeBackend {
         'owner_position': f.owner,
         'challenger': f.challenger,
         'fighters': [
-          for (final c in f.fighters) {'character': c, 'upgrades': const <String>[], 'element': null},
+          for (final (i, c) in f.fighters.indexed)
+            {
+              'character': c,
+              'upgrades': const <String>[],
+              'element': null,
+              'extra_stars': extraStars[f.id]?.fighters[i] ?? 0,
+            },
         ],
         'by_chance': false,
         'outcome': _outcome(f),

@@ -463,7 +463,7 @@ class ApiGameSession extends GameSession {
       'owner_position': int owner,
       'challenger': final challenger,
       'fighters': List fighters,
-      'outcome': {'boost_stars': int boostStars},
+      'outcome': {'boost_stars': int boostStars, 'challenger_extra_stars': int challengerExtraStars},
     }) {
       return FightSetup(
         id: id,
@@ -471,7 +471,12 @@ class ApiGameSession extends GameSession {
         challenger: await _card(server, challenger),
         fighters: [
           for (final fighter in fighters)
-            if (fighter case {'character': final character, 'upgrades': List upgrades, 'element': String? element})
+            if (fighter case {
+              'character': final character,
+              'upgrades': List upgrades,
+              'element': String? element,
+              'extra_stars': int extraStars,
+            })
               FighterEntry(
                 card: await _card(server, character),
                 effects: [
@@ -479,12 +484,14 @@ class ApiGameSession extends GameSession {
                     UpgradeEffect.values.asNameMap()[effect] ?? (throw FormatException('Unknown upgrade $effect.')),
                 ],
                 element: element == null ? null : ElementKind.values.asNameMap()[element],
+                extraStars: extraStars,
               )
             else
               throw const FormatException('Unexpected fighter.'),
         ],
         day: day,
         boostStars: boostStars,
+        challengerExtraStars: challengerExtraStars,
       );
     }
     throw const FormatException('Unexpected fight.');
@@ -923,6 +930,31 @@ class ApiGameSession extends GameSession {
         ],
       ),
       _ => throw const FormatException('Unexpected ranking.'),
+    };
+  }
+
+  @override
+  Future<WeekWinRates?> winRates() async {
+    final server = this.server;
+    if (server.isSpeed) return null;
+    return switch (await _get('/servers/${server.code}/win-rates')) {
+      {'from_day': int fromDay, 'to_day': int toDay, 'win_rates': List rates} => WeekWinRates(
+        fromDay: fromDay,
+        toDay: toDay,
+        rates: [
+          for (final rate in rates)
+            if (rate case {
+              'player_position': int player,
+              'against_position': int against,
+              'fights': int fights,
+              'wins': int wins,
+            })
+              WinRate(player: _seat(server, player), against: _seat(server, against), fights: fights, wins: wins)
+            else
+              throw const FormatException('Unexpected win rate.'),
+        ],
+      ),
+      _ => throw const FormatException('Unexpected win rates.'),
     };
   }
 
