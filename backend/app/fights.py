@@ -18,7 +18,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import days, pulls, rules, speed, upgrades
+from app import days, pulls, rules, speed, upgrades, win_rates
 from app.models import Boost, Character, Fight, Fighter, Server, ServerSeat
 from app.rules import (
     BOOST_CHALLENGERS,
@@ -245,11 +245,14 @@ def new_fight(
     by_chance: bool = False,
 ) -> Fight:
     """A fight with the fighters' upgrades as they are now, without the
-    effects their owner switched off, decided right away. The boosts of the
-    day before must be complete (`complete_boosts`)."""
+    effects their owner switched off, decided right away with both sides'
+    win rate extra stars (`app.win_rates`). The boosts of the day before
+    must be complete (`complete_boosts`), and the fights of the week before
+    (`complete_fights`)."""
     unlocked = upgrades.unlocked(session, seat.id)
     fighter_stars = rules.team_stars([Rarity(c.rarity) for c in fighters])
     boosted = boost_stars(session, challenger.id)
+    extra = win_rates.for_fight(session, seat, day, challenger, fighters)
     fight = Fight(
         owner_seat_id=seat.id,
         day=day,
@@ -258,7 +261,13 @@ def new_fight(
         boosts=boosted,
         fighter_stars=fighter_stars,
         challenger_stars=rules.challenger_stars(boosted),
-        fighters_win=rules.fighters_win(fighter_stars, boosted),
+        challenger_extra_stars=extra.challenger,
+        fighters_win=rules.fighters_win(
+            fighter_stars,
+            boosted,
+            fighter_extra_stars=sum(extra.fighters),
+            challenger_extra_stars=extra.challenger,
+        ),
     )
     fight.fighters = [
         Fighter(
@@ -266,6 +275,7 @@ def new_fight(
             character_id=c.id,
             upgrades=",".join(unlocked[c.id].shown),
             element=unlocked[c.id].element,
+            extra_stars=extra.fighters[i],
         )
         for i, c in enumerate(fighters)
     ]
@@ -297,7 +307,15 @@ def resting(
 
 def complete_fights(session: Session, server: Server, day: int) -> None:
     """Once `day` is over, picks fighters by chance for everyone who picked
-    none, out of their characters that didn't fight yet that week. Commits."""
+    none, out of their characters that didn't fight yet that week. The week
+    before's last day first: its fights give `day`'s win rates
+    (`app.win_rates`). Commits."""
+    if not speed.is_speed(server):
+        _complete_fights(session, server, days.week_start(server, day) - 1)
+    _complete_fights(session, server, day)
+
+
+def _complete_fights(session: Session, server: Server, day: int) -> None:
     if day < FIRST_FIGHT_DAY:
         return
     complete_boosts(session, server, day - 1)
@@ -360,15 +378,23 @@ class Outcome:
     boosts: int
     challenger_stars: int
     fighters_win: bool
+    # Both sides' win rate extra stars.
+    fighter_extra_stars: int = 0
+    challenger_extra_stars: int = 0
 
 
 def outcome(session: Session, fight: Fight) -> Outcome:
     """The stars of the fighters and of the boosted challenger: as stored
     when the fight was decided, or under the current rules for fights
-    picked before results were stored."""
+    picked before results were stored, which had no extra stars."""
     if fight.fighters_win is not None:
         return Outcome(
-            fight.fighter_stars, fight.boosts, fight.challenger_stars, fight.fighters_win
+            fight.fighter_stars,
+            fight.boosts,
+            fight.challenger_stars,
+            fight.fighters_win,
+            sum(f.extra_stars for f in fight.fighters),
+            fight.challenger_extra_stars,
         )
     team = [Rarity(f.character.rarity) for f in fight.fighters]
     fighter_stars = rules.team_stars(team)

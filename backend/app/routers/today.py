@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import days, fights, finale, pulls, speed
+from app import days, fights, finale, pulls, speed, win_rates
 from app.auth import CurrentPlayer
 from app.drawings import save_character
 from app.models import (
@@ -30,6 +30,7 @@ from app.rules import (
     HURRY_EARLIEST,
     HURRY_LATEST,
     SPEED_DAYS,
+    WIN_RATE_MIN_FIGHTS,
     Rarity,
 )
 from app.schemas import (
@@ -51,6 +52,8 @@ from app.schemas import (
     RankingResponse,
     TodayResponse,
     WeeklyHeroResponse,
+    WinRate,
+    WinRatesResponse,
     YourPrompt,
 )
 from app.storage import Files
@@ -86,6 +89,7 @@ def _fight_response(session: Session, server: Server, fight: Fight) -> FightResp
                 character=character_response(f.character),
                 upgrades=f.upgrades.split(",") if f.upgrades else [],
                 element=f.element,
+                extra_stars=f.extra_stars,
             )
             for f in fight.fighters
         ],
@@ -94,6 +98,8 @@ def _fight_response(session: Session, server: Server, fight: Fight) -> FightResp
             fighter_stars=result.fighter_stars,
             boost_stars=result.boosts,
             challenger_stars=result.challenger_stars,
+            fighter_extra_stars=result.fighter_extra_stars,
+            challenger_extra_stars=result.challenger_extra_stars,
             fighters_win=result.fighters_win,
         ),
     )
@@ -349,6 +355,8 @@ def pick_fighters(
     server, seat = _running(session, code, player.id)
     day = days.current_day(server)
     fights.complete_boosts(session, server, day - 1)
+    # Last week's fights give this week's win rates.
+    fights.complete_fights(session, server, day - 1)
     challenger = fights.fight_challenger(session, server, day, seat)
     if challenger is None:
         raise HTTPException(
@@ -622,5 +630,40 @@ def get_ranking(
                 wins=r.wins,
             )
             for r in ranked
+        ],
+    )
+
+
+@router.get("/{code}/win-rates", response_model=WinRatesResponse)
+def get_win_rates(
+    code: Code, player: CurrentPlayer, session: DbSession
+) -> WinRatesResponse:
+    """This week's win rates, from last week's fights: a player's characters
+    get extra stars against another player's after winning most of their
+    meetings, every fighter meeting the challenger once. Speed mode sessions
+    have none."""
+    server, _ = _running(session, code, player.id)
+    if speed.is_speed(server):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Speed mode sessions have no win rates"
+        )
+    day = days.current_day(server)
+    fights.complete_fights(session, server, day - 1)
+    fights.decide_fights(session, server)
+    positions = {s.id: s.position for s in server.seats}
+    first, last = win_rates.counted_week(server, day)
+    return WinRatesResponse(
+        from_day=first,
+        to_day=last,
+        min_fights=WIN_RATE_MIN_FIGHTS,
+        win_rates=[
+            WinRate(
+                player_position=positions[r.player],
+                against_position=positions[r.against],
+                fights=r.fights,
+                wins=r.wins,
+                extra_stars=r.extra_stars,
+            )
+            for r in win_rates.records(session, server, day)
         ],
     )

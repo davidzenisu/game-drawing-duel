@@ -192,6 +192,10 @@ class SpeedDayTests(SpeedTestCase):
         self.post("days/next")
         self.assertIsNone(self.today()["to_draw"], "nothing to draw on day 5")
 
+    def test_speed_mode_has_no_win_rates(self) -> None:
+        response = self.get(f"/servers/{self.code}/win-rates")
+        self.assertEqual(response.status_code, 409)
+
     def test_only_the_admin_skips_ahead(self) -> None:
         self.assertEqual(self.post("days/next", FRIEND_SUBJECTS[0]).status_code, 403)
         self.assertEqual(self.post("days/next").json()["day"], 2)

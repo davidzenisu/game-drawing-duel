@@ -143,6 +143,22 @@ class SharedRulesTest(unittest.TestCase):
                 (team, boost_stars),
             )
 
+    def test_win_rates(self):
+        win_rates = SHARED["win_rates"]
+        self.assertEqual(rules.WIN_RATE_MIN_FIGHTS, win_rates["min_fights"])
+        self.assertEqual(
+            [list(t) for t in rules.WIN_RATE_EXTRA_STARS], win_rates["extra_stars"]
+        )
+        for wins, fights, extra_stars in win_rates["cases"]:
+            self.assertEqual(
+                rules.win_rate_extra_stars(wins, fights), extra_stars, (wins, fights)
+            )
+        self.assertTrue(
+            rules.fighters_win(4, 1, fighter_extra_stars=1),
+            "the fighters' extra stars count",
+        )
+        self.assertFalse(rules.fighters_win(5, 1, challenger_extra_stars=1))
+
     def test_boost(self):
         boost = SHARED["boost"]
         self.assertEqual(rules.BOOST_CHALLENGERS, boost["challengers"])
