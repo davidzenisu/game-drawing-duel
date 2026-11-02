@@ -44,16 +44,23 @@ class FighterResponse(BaseModel):
     # The upgrades it had when it was sent in (`app.rules.UpgradeEffect`).
     upgrades: list[str]
     element: str | None
+    # Its extra stars from its player's win rate against the challenger's.
+    extra_stars: int
 
 
 class OutcomeResponse(BaseModel):
-    """The stars decide: the fighters win with more than the challenger."""
+    """The stars decide: the fighters win with more than the challenger,
+    each side with its win rate extra stars."""
 
     # The fighters' stars: their rarities' (upgrades don't count yet).
     fighter_stars: int
     # The challenger's boost stars, and its stars with them.
     boost_stars: int
     challenger_stars: int
+    # Both sides' extra stars from their players' win rates of last week
+    # (`GET /servers/{code}/win-rates`): the fighters' all together.
+    fighter_extra_stars: int
+    challenger_extra_stars: int
     # Ties go to the challenger.
     fighters_win: bool
 
@@ -189,3 +196,29 @@ class BoostSubmit(BaseModel):
 
 class HurrySubmit(BaseModel):
     target_position: int
+
+
+class WinRate(BaseModel):
+    """How a player's characters did against another player's last week, and
+    the extra stars that gives them against that player this week."""
+
+    player_position: int
+    against_position: int
+    # The fighters and challengers of both that met, and how many of those
+    # meetings `player_position` won.
+    fights: int
+    wins: int
+    extra_stars: int
+
+
+class WinRatesResponse(BaseModel):
+    """This week's win rates, from last week's fights: every fighter meets
+    the challenger once, and characters count for the player they depict."""
+
+    # The first and last day of the week whose fights count.
+    from_day: int
+    to_day: int
+    # The meetings it takes for a win rate to give extra stars.
+    min_fights: int
+    # Every pair of players whose characters met, both ways.
+    win_rates: list[WinRate]

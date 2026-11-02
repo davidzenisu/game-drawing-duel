@@ -175,6 +175,9 @@ class FightTests(FightTestCase):
                 "fighter_stars": stars,
                 "boost_stars": 3,
                 "challenger_stars": 6,
+                # No win rates in the first week.
+                "fighter_extra_stars": 0,
+                "challenger_extra_stars": 0,
                 "fighters_win": stars > 6,
             },
         )
@@ -260,6 +263,8 @@ class FightTests(FightTestCase):
                     "fighter_stars": stored.fighter_stars,
                     "boost_stars": stored.boosts,
                     "challenger_stars": stored.challenger_stars,
+                    "fighter_extra_stars": 0,
+                    "challenger_extra_stars": stored.challenger_extra_stars,
                     "fighters_win": stored.fighters_win,
                 },
                 alex_fight["outcome"],

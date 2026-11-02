@@ -46,6 +46,11 @@ class Fight(Base):
     fighter_stars: Mapped[int | None] = mapped_column(Integer)
     challenger_stars: Mapped[int | None] = mapped_column(Integer)
     fighters_win: Mapped[bool | None] = mapped_column(Boolean)
+    # The challenger's extra stars from its player's win rates against the
+    # fighters' players (`app.win_rates`); each fighter has its own.
+    challenger_extra_stars: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -80,6 +85,11 @@ class Fighter(Base):
     upgrades: Mapped[str] = mapped_column(String(100), nullable=False, default="")
     # An `app.rules.Element`.
     element: Mapped[str | None] = mapped_column(String(20))
+    # Its extra stars from its player's win rate against the challenger's
+    # player (`app.win_rates`).
+    extra_stars: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     character: Mapped[Character] = relationship()
 

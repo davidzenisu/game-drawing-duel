@@ -292,10 +292,36 @@ def challenger_stars(boost_stars: int) -> int:
     return CHALLENGER_STARS + boost_stars
 
 
-def fighters_win(fighter_stars: int, boost_stars: int) -> bool:
-    """The fighters win with more stars than the boosted challenger; ties go
-    to the challenger."""
-    return fighter_stars > challenger_stars(boost_stars)
+def fighters_win(
+    fighter_stars: int,
+    boost_stars: int,
+    *,
+    fighter_extra_stars: int = 0,
+    challenger_extra_stars: int = 0,
+) -> bool:
+    """The fighters win with more stars than the boosted challenger, each
+    side with its win rate extra stars; ties go to the challenger."""
+    return (
+        fighter_stars + fighter_extra_stars
+        > challenger_stars(boost_stars) + challenger_extra_stars
+    )
+
+
+# A player's characters get extra stars against another player's after
+# winning more than a share of last week's fights against them: the most
+# extra stars of every share they beat. It takes this many fights to count.
+WIN_RATE_MIN_FIGHTS = 3
+WIN_RATE_EXTRA_STARS = ((0.5, 1), (0.75, 2))
+
+
+def win_rate_extra_stars(wins: int, fights: int) -> int:
+    """The extra stars for winning `wins` of `fights` last week."""
+    if fights < WIN_RATE_MIN_FIGHTS:
+        return 0
+    return max(
+        (stars for share, stars in WIN_RATE_EXTRA_STARS if wins > share * fights),
+        default=0,
+    )
 
 
 # The time limit for drawing a challenger.

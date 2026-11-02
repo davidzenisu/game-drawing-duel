@@ -31,6 +31,8 @@ from app.schemas.day import (
     RankingResponse,
     TodayResponse,
     WeeklyHeroResponse,
+    WinRate,
+    WinRatesResponse,
     YourPrompt,
 )
 from app.schemas.gacha import (
@@ -97,5 +99,7 @@ __all__ = [
     "TodayResponse",
     "UpgradeRequest",
     "WeeklyHeroResponse",
+    "WinRate",
+    "WinRatesResponse",
     "YourPrompt",
 ]
