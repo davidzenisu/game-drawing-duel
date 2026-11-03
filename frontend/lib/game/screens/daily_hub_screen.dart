@@ -27,6 +27,7 @@ import 'how_to_play_screen.dart';
 import 'prompt_screen.dart';
 import 'ranking_screen.dart';
 import 'speed_finale_screen.dart';
+import 'win_rates_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
 class DailyHubScreen extends StatefulWidget {
@@ -290,7 +291,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               ? _unlocksOn(LoopStep.fight)
               : fight != null
               ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
-                    '${fight.challenger.subject}: ${fight.fighterStars} ★ vs. ${fight.challengerStars} ★'
+                    '${fight.challenger.subject}: ${fight.fighterTotal} ★ vs. ${fight.challengerTotal} ★'
                     '${fight.fightersWin ? '. +${c.pullsForWin(fight)} pull${c.pullsForWin(fight) == 1 ? '' : 's'}, '
                               '+${fight.challengerStars} victory ★' : '.'}'
               : c.availableFighters.isEmpty
@@ -422,6 +423,14 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                                 : '${_controller.challengers.length} encountered · see how they fare',
                             onTap: () => _open(ChallengersScreen(controller: _controller)),
                           ),
+                          if (!_controller.server.isSpeed)
+                            _ActionCard(
+                              icon: Icons.percent_rounded,
+                              title: 'Win rates',
+                              subtitle:
+                                  "Beat a player's characters most of the time this week for extra ★ against them next week.",
+                              onTap: () => _open(WinRatesScreen(controller: _controller)),
+                            ),
                           _ActionCard(
                             icon: Icons.bolt_rounded,
                             title: 'Send a hurry',

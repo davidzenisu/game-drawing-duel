@@ -25,6 +25,7 @@ class FightStage extends StatelessWidget {
     this.wrapChallenger,
     this.wrapFighter,
     this.wrapNameplate,
+    this.starChanges,
   });
 
   final DailyTheme theme;
@@ -40,6 +41,11 @@ class FightStage extends StatelessWidget {
   /// Wraps a nameplate, e.g. to animate it: the challenger's at
   /// [FightBeat.challenger], else the fighter's at that index.
   final Widget Function(BuildContext context, int index, Widget plate)? wrapNameplate;
+
+  /// The win rate star change each fighter brings, by index: positive when
+  /// it gets extra stars, negative when the challenger gets them against it.
+  /// Shown as a badge on its standee unless zero.
+  final List<int>? starChanges;
 
   /// Height of a standee relative to its width (card plus base).
   static const _standeeHeight = 1 / cardAspectRatio + 0.62 * 0.32;
@@ -132,7 +138,17 @@ class FightStage extends StatelessWidget {
   Widget _fighter(BuildContext context, int index, double width) {
     final fighter = fighters[index];
     final standee = Standee(card: fighter.card, width: width, effects: fighter.effects, element: fighter.element);
-    final wrapped = wrapFighter?.call(context, index, standee) ?? standee;
+    var wrapped = wrapFighter?.call(context, index, standee) ?? standee;
+    final change = starChanges != null && index < starChanges!.length ? starChanges![index] : 0;
+    if (change != 0) {
+      wrapped = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          wrapped,
+          Positioned(top: -6, right: -6, child: StarChangeBadge(change: change)),
+        ],
+      );
+    }
     final plate = Nameplate(name: fighter.card.subject, title: fighter.card.title, compact: true);
     return GestureDetector(
       onTap: onSlotTap == null ? null : () => onSlotTap!(index),
@@ -183,6 +199,33 @@ class _EmptySlot extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A win rate star change: "+2 ★" in green when it's yours, "−1 ★" in red
+/// when the challenger gets it.
+class StarChangeBadge extends StatelessWidget {
+  const StarChangeBadge({super.key, required this.change});
+
+  final int change;
+
+  @override
+  Widget build(BuildContext context) {
+    final yours = change > 0;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: yours ? Colors.green.shade700 : Colors.red.shade700,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 3)],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(
+          '${yours ? '+' : '−'}${change.abs()} ★',
+          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+        ),
+      ),
     );
   }
 }

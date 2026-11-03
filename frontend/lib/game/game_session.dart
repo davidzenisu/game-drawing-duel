@@ -219,6 +219,10 @@ abstract class GameSession extends ChangeNotifier {
   /// first week is over.
   Future<WeekRanking?> weekRanking();
 
+  /// Loads this week's win rates, from last week's fights (see [WinRates]);
+  /// null in speed mode, which has none.
+  Future<WeekWinRates?> winRates();
+
   /// The keys of the intros you saw (see `Tutorial`), so each shows once.
   /// Online they're kept with your account, on every device.
   Set<String> get tutorialsSeen;

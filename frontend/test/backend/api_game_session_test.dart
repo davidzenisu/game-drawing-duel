@@ -488,6 +488,9 @@ void main() {
       expect(admin.promptsToday, isFalse, reason: 'prompts on the first three days only');
       expect(admin.yourPrompt, isNull);
       expect(admin.sessionOver, isFalse);
+      final requests = backend.requests.length;
+      expect(await admin.winRates(), isNull, reason: 'speed mode has no win rates');
+      expect(backend.requests, hasLength(requests), reason: 'without asking');
     });
 
     test('the daily loop: prompts, challengers and ending the day', () async {
@@ -613,9 +616,11 @@ void main() {
       }
 
       // Day 4: Alex sends two fighters against Sam's challenger, decided
-      // right away against its 3 + 2 stars.
+      // right away against its 3 + 2 stars, each side with its win rate
+      // extra stars.
       await nextDay();
       expect(admin.fightChallenger!.id, samsChallenger);
+      backend.extraStars['fight-4-0'] = (challenger: 1, fighters: [2, 0]);
       await admin.submitFighters(admin.collection.take(2).toList());
       final fighters = backend.requests.lastWhere((r) => r.method == 'PUT');
       expect(fighters.url.path, '/servers/123456/today/fighters');
@@ -623,7 +628,10 @@ void main() {
       final fight = admin.yourFight!;
       expect(fight.fighters, hasLength(2));
       expect((fight.boostStars, fight.challengerStars), (2, 5));
-      expect(fight.fightersWin, fight.fighterStars > 5);
+      expect([for (final f in fight.fighters) f.extraStars], [2, 0]);
+      expect((fight.fighterExtraStars, fight.challengerExtraStars), (2, 1));
+      expect((fight.fighterTotal, fight.challengerTotal), (fight.fighterStars + 2, 6));
+      expect(fight.fightersWin, fight.fighterStars + 2 > 6);
       // A win earns a pull and the challenger's stars, reloaded right away.
       expect(backend.requests.last.url.path, '/servers/123456/gacha');
       expect(admin.victoryStars, fight.fightersWin ? 5 : 0);
@@ -676,6 +684,32 @@ void main() {
         final legend = admin.pool.firstWhere((c) => c.id == id);
         expect((legend.rarity, legend.subject), (Rarity.legend, hero.card.subject));
       }
+    });
+
+    test("this week's win rates, from last week's fights", () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      expect((await admin.winRates())!.rates, isEmpty, reason: 'none in the first week');
+
+      backend.winRates['123456'] = {
+        'from_day': 1,
+        'to_day': 7,
+        'min_fights': 3,
+        'win_rates': [
+          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 4, 'extra_stars': 2},
+          {'player_position': 2, 'against_position': 1, 'fights': 4, 'wins': 0, 'extra_stars': 0},
+        ],
+      };
+      final rates = (await admin.winRates())!;
+      expect(backend.requests.last.url.path, '/servers/123456/win-rates');
+      expect((rates.fromDay, rates.toDay), (1, 7));
+      expect(
+        [for (final r in rates.rates) (r.player.name, r.against.name, r.fights, r.wins, r.extraStars)],
+        [('Sam', 'Robin', 4, 4, 2), ('Robin', 'Sam', 4, 0, 0)],
+      );
+      expect((rates.extraStars('Sam', 'Robin'), rates.extraStars('Robin', 'Sam')), (2, 0));
     });
 
     test('seen tutorials are stored with the account', () async {

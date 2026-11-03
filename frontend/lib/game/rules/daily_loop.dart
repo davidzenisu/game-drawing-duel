@@ -61,9 +61,33 @@ abstract final class Stars {
   /// The stars of a team: its rarities'. Upgrades don't count (yet).
   static int ofTeam(Iterable<Rarity> team) => team.fold(0, (sum, rarity) => sum + rarity.stars);
 
-  /// The fighters win with more stars than the boosted challenger; ties go
-  /// to the challenger.
-  static bool fightersWin(int fighterStars, int boostStars) => fighterStars > ofChallenger(boostStars);
+  /// The fighters win with more stars than the boosted challenger, each side
+  /// with its [WinRates] extra stars; ties go to the challenger.
+  static bool fightersWin(
+    int fighterStars,
+    int boostStars, {
+    int fighterExtraStars = 0,
+    int challengerExtraStars = 0,
+  }) => fighterStars + fighterExtraStars > ofChallenger(boostStars) + challengerExtraStars;
+}
+
+/// After each week, a player's characters get extra stars this week against
+/// the players whose characters they beat most of the time last week.
+/// Characters count for the player they depict, and every fighter meets the
+/// challenger once. Speed mode sessions have none.
+abstract final class WinRates {
+  /// The meetings it takes for a win rate to count.
+  static const minFights = 3;
+
+  /// Winning more than a share of the meetings gives these extra stars: the
+  /// most of every share beaten.
+  static const extraStarsByShare = [(0.5, 1), (0.75, 2)];
+
+  /// The extra stars for winning [wins] of [fights] last week.
+  static int extraStars(int wins, int fights) {
+    if (fights < minFights) return 0;
+    return extraStarsByShare.fold(0, (most, tier) => wins > tier.$1 * fights ? max(most, tier.$2) : most);
+  }
 }
 
 /// The time limit for drawing a challenger.
@@ -103,14 +127,21 @@ class ChallengerPrompt {
 
 /// A character sent into a fight, with the effects it had at that time.
 class FighterEntry {
-  const FighterEntry({required this.card, this.effects = const [], this.element});
+  const FighterEntry({required this.card, this.effects = const [], this.element, this.extraStars = 0});
 
-  factory FighterEntry.fromOwned(OwnedCard owned) =>
-      FighterEntry(card: owned.card, effects: List.unmodifiable(owned.shown), element: owned.element);
+  factory FighterEntry.fromOwned(OwnedCard owned, {int extraStars = 0}) => FighterEntry(
+    card: owned.card,
+    effects: List.unmodifiable(owned.shown),
+    element: owned.element,
+    extraStars: extraStars,
+  );
 
   final CharacterCard card;
   final List<UpgradeEffect> effects;
   final ElementKind? element;
+
+  /// Its [WinRates] extra stars against the challenger's player.
+  final int extraStars;
 }
 
 /// Step 4 of the daily loop: up to four fighters against a challenger the
@@ -123,6 +154,7 @@ class FightSetup {
     required this.fighters,
     required this.day,
     required this.boostStars,
+    this.challengerExtraStars = 0,
   }) : assert(fighters.isNotEmpty && fighters.length <= maxFighters);
 
   static const maxFighters = 4;
@@ -138,12 +170,30 @@ class FightSetup {
   /// The boost stars the challenger got the day before.
   final int boostStars;
 
+  /// The challenger's [WinRates] extra stars against the fighters' players.
+  final int challengerExtraStars;
+
+  /// The fighters' rarities' stars, without their extra stars.
   int get fighterStars => Stars.ofTeam(fighters.map((f) => f.card.rarity));
 
+  /// The fighters' [WinRates] extra stars, all together.
+  int get fighterExtraStars => fighters.fold(0, (sum, f) => sum + f.extraStars);
+
+  /// The challenger's own and boost stars, without its extra stars: what a
+  /// win pays in victory stars.
   int get challengerStars => Stars.ofChallenger(boostStars);
 
+  /// Both sides' stars in the fight, extra stars included.
+  int get fighterTotal => fighterStars + fighterExtraStars;
+  int get challengerTotal => challengerStars + challengerExtraStars;
+
   /// Ties go to the challenger.
-  bool get fightersWin => Stars.fightersWin(fighterStars, boostStars);
+  bool get fightersWin => Stars.fightersWin(
+    fighterStars,
+    boostStars,
+    fighterExtraStars: fighterExtraStars,
+    challengerExtraStars: challengerExtraStars,
+  );
 }
 
 /// Step 3 of the daily loop: one of yesterday's challengers you may boost,
@@ -291,4 +341,56 @@ class WeekRanking {
   /// The last day of the week.
   final int day;
   final List<RankedChallenger> challengers;
+}
+
+/// How [player]'s characters did against [against]'s last week, and the
+/// extra stars that gives them against that player this week.
+class WinRate {
+  const WinRate({required this.player, required this.against, required this.fights, required this.wins});
+
+  final Player player;
+  final Player against;
+
+  /// The meetings of their characters, and how many [player] won.
+  final int fights;
+  final int wins;
+
+  int get extraStars => WinRates.extraStars(wins, fights);
+}
+
+/// This week's win rates, from the fights of the days [fromDay] to [toDay]:
+/// every pair of players whose characters met, both ways.
+class WeekWinRates {
+  const WeekWinRates({required this.fromDay, required this.toDay, required this.rates});
+
+  final int fromDay;
+  final int toDay;
+  final List<WinRate> rates;
+
+  /// The extra stars [player]'s characters get against [against]'s.
+  int extraStars(String player, String against) =>
+      rates.where((r) => r.player.name == player && r.against.name == against).firstOrNull?.extraStars ?? 0;
+
+  /// Every meeting of a fighter and the challenger in [fights], and who won
+  /// it. Fighters of the challenger's own player don't count.
+  static List<WinRate> count(Iterable<FightSetup> fights, Player Function(String name) player) {
+    final meetings = <(String, String), int>{};
+    final won = <(String, String), int>{};
+    for (final fight in fights) {
+      final challenger = fight.challenger.subject;
+      for (final fighter in fight.fighters) {
+        final subject = fighter.card.subject;
+        if (subject == challenger) continue;
+        final (winner, loser) = fight.fightersWin ? (subject, challenger) : (challenger, subject);
+        for (final pair in [(winner, loser), (loser, winner)]) {
+          meetings[pair] = (meetings[pair] ?? 0) + 1;
+        }
+        won[(winner, loser)] = (won[(winner, loser)] ?? 0) + 1;
+      }
+    }
+    return [
+      for (final MapEntry(key: (a, b), value: n) in meetings.entries)
+        WinRate(player: player(a), against: player(b), fights: n, wins: won[(a, b)] ?? 0),
+    ];
+  }
 }
