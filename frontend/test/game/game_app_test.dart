@@ -15,6 +15,8 @@ import 'package:frontend/game/widgets/cancel_server_button.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 import 'package:frontend/theme/palette.dart';
 
+import '../helpers.dart';
+
 void main() {
   testWidgets('walks from signup through the lobby into the drawing setup', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
@@ -255,9 +257,6 @@ void main() {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    const doodle = Sketch([
-      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-    ]);
     final controller = MockGameSession(seed: 1);
     await controller.signUp('Pat');
     await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
@@ -292,9 +291,6 @@ void main() {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    const doodle = Sketch([
-      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-    ]);
     final controller = MockGameSession(seed: 1);
     await controller.signUp('Pat');
     await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
@@ -328,9 +324,6 @@ void main() {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    const doodle = Sketch([
-      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-    ]);
     final controller = MockGameSession(seed: 1);
     await controller.signUp('Pat');
     await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);

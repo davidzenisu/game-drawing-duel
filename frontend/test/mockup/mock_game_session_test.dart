@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/content.dart';
@@ -11,24 +9,7 @@ import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 
-const _doodle = Sketch([
-  Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-]);
-
-Future<MockGameSession> launchedGame({int seed = 1, DateTime? launchDate}) async {
-  final game = MockGameSession(seed: seed, launchDate: launchDate);
-  await game.signUp('Pat');
-  await game.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
-  while (!game.server.everyoneJoined) {
-    await game.refreshServer();
-  }
-  await game.startSetup();
-  for (final assignment in game.assignments) {
-    await game.submitSetupDrawing(assignment, _doodle, 'Title');
-  }
-  await game.launch();
-  return game;
-}
+import '../helpers.dart';
 
 void main() {
   test('starting on day 8 plays a regular first week for everyone, you too', () async {
@@ -114,7 +95,7 @@ void main() {
     expect(subjects, hasLength(3), reason: 'different players');
     expect(subjects, isNot(contains('Pat')));
     for (final assignment in game.assignments) {
-      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+      await game.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await game.launch();
     expect(game.pool, hasLength(2 * SetupPlan.testPrompts.length), reason: 'only Pat and Alex drew');
@@ -151,7 +132,7 @@ void main() {
     await game.startSetup();
     expect([for (final a in game.assignments) a.prompt.rarity], [Rarity.basic, Rarity.legend]);
     for (final assignment in game.assignments) {
-      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+      await game.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await game.launch();
     expect(await game.weekRanking(), isNull, reason: 'not before the session is over');
@@ -195,7 +176,7 @@ void main() {
     await game.signUp('Pat');
     await game.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
     await game.startSetup();
-    await game.submitSetupDrawing(game.assignments.first, _doodle, 'Basic');
+    await game.submitSetupDrawing(game.assignments.first, doodle, 'Basic');
     await game.cancelServer();
     expect(game.phase, GamePhase.server);
     expect(game.assignments, isEmpty);
@@ -211,7 +192,7 @@ void main() {
       await game.createServer(['Alex', 'Sam', 'Robin', 'Kim'], isTest: true);
       await game.startSetup();
       for (final assignment in game.assignments) {
-        await game.submitSetupDrawing(assignment, _doodle, 'Title');
+        await game.submitSetupDrawing(assignment, doodle, 'Title');
       }
       await game.launch();
     }
@@ -239,7 +220,7 @@ void main() {
     expect(game.server.setupDone, hasLength(2));
     expect(game.waitingForLaunch, isFalse);
     for (final assignment in game.assignments) {
-      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+      await game.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await game.launch();
     expect(game.server.setupDone, hasLength(5), reason: 'everyone finishes at the launch');
@@ -253,7 +234,7 @@ void main() {
     await game.startSetup();
     final alter = game.assignments.firstWhere((a) => a.prompt == SetupPrompt.alter);
     expect(game.isUnlocked(alter), isFalse);
-    await game.submitSetupDrawing(game.assignments.first, _doodle, 'Basic');
+    await game.submitSetupDrawing(game.assignments.first, doodle, 'Basic');
     expect(game.isUnlocked(alter), isTrue);
   });
 
@@ -302,11 +283,11 @@ void main() {
     expect(toDraw.day, 1);
     expect(toDraw.subject.id, isNot(you.id));
     final tickets = game.tickets;
-    await game.submitChallenger(_doodle);
+    await game.submitChallenger(doodle);
     expect(game.tickets, tickets + 1);
     expect(game.yourChallenger?.title, toDraw.title);
     final drawn = game.yourChallenger!;
-    await game.submitChallenger(_doodle);
+    await game.submitChallenger(doodle);
     expect(game.tickets, tickets + 1, reason: 'one challenger per day');
     await game.submitPrompt('Day two prompt', game.promptCandidates.first);
 
@@ -359,7 +340,7 @@ void main() {
     final game = await launchedGame();
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     await game.advanceDay();
-    await game.submitChallenger(_doodle);
+    await game.submitChallenger(doodle);
     await game.advanceDay();
     final targets = game.boostTargets;
     await game.setBoosts({targets.first.challenger.id: 1});
@@ -378,7 +359,7 @@ void main() {
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     await game.advanceDay();
     expect(game.challengers, isEmpty, reason: 'the others drew some, but you met none');
-    await game.submitChallenger(_doodle);
+    await game.submitChallenger(doodle);
     expect(game.pool, hasLength(pool), reason: 'challengers never join the gacha pool');
     expect(game.challengers.single.card, game.yourChallenger);
 
@@ -444,7 +425,7 @@ void main() {
     ]);
     await game.startSetup();
     for (final assignment in game.assignments) {
-      await game.submitSetupDrawing(assignment, _doodle, 'Title');
+      await game.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await game.launch();
     await game.advanceDay();
@@ -525,7 +506,7 @@ void main() {
 
     while (!game.collection.any((o) => o.hasUnspentPoints)) {
       await game.advanceDay();
-      if (game.promptToDraw != null) await game.submitChallenger(_doodle);
+      if (game.promptToDraw != null) await game.submitChallenger(doodle);
       await game.pull(game.tickets);
     }
     final owned = game.collection.firstWhere((o) => o.hasUnspentPoints);
@@ -635,7 +616,7 @@ void main() {
         expect(fights.map((f) => f.challenger.id).toSet(), hasLength(fights.length), reason: 'one fight each');
       }
       await game.submitPrompt('Title $day', game.promptCandidates.first);
-      if (game.promptToDraw != null) await game.submitChallenger(_doodle);
+      if (game.promptToDraw != null) await game.submitChallenger(doodle);
       if (game.fightChallenger case final challenger?) {
         expect(challenger.artist, isNot(game.you.name));
         expect(boosted, isNot(contains(challenger.id)), reason: 'day $day: not one you boosted');

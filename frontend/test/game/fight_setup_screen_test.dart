@@ -1,37 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/upgrades.dart';
-import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/fight_setup_screen.dart';
 import 'package:frontend/game/widgets/fight_stage.dart';
-import 'package:frontend/mockup/mock_game_session.dart';
 
-const _doodle = Sketch([
-  Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-]);
-
-Future<MockGameSession> _launched() async {
-  // Day 1 is a Monday: the first week ends on day 7.
-  final controller = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 10, 5, 12));
-  await controller.signUp('Pat');
-  await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
-  while (!controller.server.everyoneJoined) {
-    await controller.refreshServer();
-  }
-  await controller.startSetup();
-  for (final (i, assignment) in controller.assignments.indexed) {
-    await controller.submitSetupDrawing(assignment, _doodle, 'Drawing $i');
-  }
-  await controller.launch();
-  return controller;
-}
+import '../helpers.dart';
 
 void main() {
   testWidgets('picking fighters shows the stars their win rates add for you or the challenger', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final controller = await _launched();
+    final controller = await launchedGame(launchDate: firstMonday, numberedTitles: true);
     // Last week's fights give this week's win rates; find a day whose
     // challenger meets a player your characters have a win rate against.
     late OwnedCard pick;

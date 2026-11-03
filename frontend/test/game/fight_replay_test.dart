@@ -5,9 +5,7 @@ import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/fight_replay_screen.dart';
 
-const _doodle = Sketch([
-  Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-]);
+import '../helpers.dart';
 
 CharacterCard _card(String id, Rarity rarity) => CharacterCard(
   id: id,
@@ -16,7 +14,7 @@ CharacterCard _card(String id, Rarity rarity) => CharacterCard(
   rarity: rarity,
   prompt: 'Prompt',
   artist: 'Alex',
-  sketch: _doodle,
+  sketch: doodle,
 );
 
 /// Two adventurers (4 ★) against a challenger: they win without boosts.
