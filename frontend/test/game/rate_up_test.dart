@@ -13,12 +13,8 @@ import '../helpers.dart';
 
 /// A mockup game played to the Monday after its first finale.
 Future<MockGameSession> _afterTheFinale() async {
-  final controller = await launchedGame(launchDate: firstMonday);
   // Day 1 is a Monday: the finale is on day 7, its hero joins on day 8.
-  for (var day = 1; day < 8; day++) {
-    await controller.advanceDay();
-  }
-  return controller;
+  return launchedGame(launchDate: firstMonday, day: 8);
 }
 
 Finder _bannerArt(GachaBanner banner) => find.byWidgetPredicate((w) => w is BannerArt && w.banner == banner);

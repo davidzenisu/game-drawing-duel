@@ -10,10 +10,7 @@ void main() {
     tester.view.physicalSize = const Size(360, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final controller = await launchedGame(launchDate: firstMonday);
-    for (var day = 1; day < 8; day++) {
-      await controller.advanceDay();
-    }
+    final controller = await launchedGame(launchDate: firstMonday, day: 8);
     final rates = (await controller.winRates())!;
 
     await tester.pumpWidget(MaterialApp(home: WinRatesScreen(controller: controller)));
