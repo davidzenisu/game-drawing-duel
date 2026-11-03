@@ -154,7 +154,24 @@ class SpeedDayTests(SpeedTestCase):
                 headers=bearer(make_token(subject)),
             )
             self.assertEqual(response.status_code, 200, response.text)
-        # Days 3 and 4: chance spreads the boosts, then the fights.
+        # Day 3: everyone gives a star to each of their challengers to boost,
+        # so every challenger is boosted (chance could leave one out).
+        self.post("days/next")
+        self.assertEqual(self.today()["day"], 3)
+        for subject in PLAYERS:
+            targets = self.today(subject)["boost"]["targets"]
+            response = self.client.put(
+                f"/servers/{self.code}/today/boosts",
+                json={
+                    "boosts": [
+                        {"challenger_id": t["challenger"]["id"], "stars": 1}
+                        for t in targets
+                    ]
+                },
+                headers=bearer(make_token(subject)),
+            )
+            self.assertEqual(response.status_code, 200, response.text)
+        # Day 4: the fights.
         while self.today()["day"] < 4:
             self.post("days/next")
         tickets = self.get(f"/servers/{self.code}/gacha").json()["tickets"]
