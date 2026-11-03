@@ -1,7 +1,5 @@
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show mergeSort, visibleForTesting;
-
 import '../game/game_session.dart';
 import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
@@ -11,9 +9,12 @@ import '../game/rules/setup_plan.dart';
 import '../game/rules/themes.dart';
 import '../game/rules/upgrades.dart';
 import 'bot_artist.dart';
+import 'demo_days.dart';
 
-/// The mockup of the gameplay loop: everything happens in memory within a
-/// single session and all other players are simulated locally.
+/// The mockup of the game for demos and PR previews: everything happens in
+/// memory within a single session. Your friends are sample data
+/// ([DemoDays]), not a simulation: only your own actions change the game,
+/// under the shared rules (stars, gacha, upgrades).
 class MockGameSession extends GameSession {
   /// [launchDate] fixes the calendar day of day 1, which sets the themes;
   /// by default it's the day the game launches.
@@ -23,10 +24,13 @@ class MockGameSession extends GameSession {
       _gacha = GachaMachine(random: Random(seed));
 
   final DateTime? launchDate;
-  DateTime _launchedOn = DateTime.now().toUtc();
 
-  /// The launch date of a simulated first week, see [startOnDayEight].
-  DateTime? _simulatedLaunch;
+  /// The canned days of the running game.
+  DemoDays? _demo;
+  DemoDays get _days => _demo!;
+
+  /// The Monday a week ago, when starting on day 8, see [startOnDayEight].
+  DateTime? _dayEightLaunch;
 
   /// A few of the prompt hints the API keeps in its database, per theme:
   /// each a description and the premade title that comes with it.
@@ -170,49 +174,23 @@ class MockGameSession extends GameSession {
     _setPhase(GamePhase.server);
   }
 
-  /// Signs up, creates a regular server with five simulated friends and
-  /// plays its first week: you take every step too, with doodles and
-  /// premade titles, so day 8 starts with last week's ranking and win rates.
-  /// The first week runs Monday to Sunday, so day 8 is a Monday.
+  /// Signs up, creates a regular server with five friends and jumps to day
+  /// 8, the Monday of this week: last week's ranking, weekly hero and win
+  /// rates are in place.
   @override
   Future<void> startOnDayEight(String firstName) async {
     await signUp(firstName);
-    final others = suggestedNames.where((name) => name != you.name).take(5).toList();
-    await createServer(others);
+    await createServer(suggestedNames.where((name) => name != you.name).take(5).toList());
     server.joined.addAll(server.players.map((p) => p.id));
     await startSetup();
     for (final assignment in assignments) {
       await submitSetupDrawing(assignment, _bots.doodle(assignment.prompt.label), _bots.title());
     }
     final now = (launchDate ?? DateTime.now()).toUtc();
-    final monday = DateTime.utc(now.year, now.month, now.day - (now.weekday - DateTime.monday), 12);
-    _simulatedLaunch = monday.subtract(const Duration(days: 7));
+    _dayEightLaunch = DateTime.utc(now.year, now.month, now.day - (now.weekday - DateTime.monday) - 7, 12);
     await launch();
     while (day < 8) {
-      await _playYourDay();
       await advanceDay();
-    }
-  }
-
-  /// Takes every step of today for you, like a simulated friend would.
-  Future<void> _playYourDay() async {
-    if (promptsToday && yourPrompt == null) {
-      final others = otherPlayers;
-      await submitPrompt(_bots.title(), others[_random.nextInt(others.length)]);
-    }
-    if (promptToDraw != null && !challengerDrawn) await submitChallenger(_bots.doodle('challenger'));
-    final targets = boostTargets;
-    if (targets.isNotEmpty) {
-      final stars = <String, int>{};
-      for (var i = 0; i < Boost.stars; i++) {
-        final target = targets[_random.nextInt(targets.length)].challenger.id;
-        stars[target] = (stars[target] ?? 0) + 1;
-      }
-      await setBoosts(stars);
-    }
-    final fighters = [...availableFighters]..shuffle(_random);
-    if (fightChallenger != null && yourFight == null && fighters.isNotEmpty) {
-      await submitFighters(fighters.take(1 + _random.nextInt(FightSetup.maxFighters)).toList());
     }
   }
 
@@ -284,7 +262,8 @@ class MockGameSession extends GameSession {
   @override
   Future<void> cancelServer() async {
     _server = null;
-    _simulatedLaunch = null;
+    _demo = null;
+    _dayEightLaunch = null;
     _assignments = const [];
     _setupDrawings.clear();
     _pool.clear();
@@ -294,22 +273,11 @@ class MockGameSession extends GameSession {
     _day = 0;
     _theme = DailyTheme.forest;
     _gacha = GachaMachine(random: _random);
-    _prompts.clear();
-    _challengers.clear();
-    _fights.clear();
-    _boostStars.clear();
+    _yourPrompts.clear();
+    _yourChallengers.clear();
+    _yourFights.clear();
     _yourBoosts.clear();
-    _fightOffsets.clear();
-    _boostOffsets.clear();
-    _rankings.clear();
     _weeklyHero = null;
-    _usedHints.clear();
-    _botRosters.clear();
-    _promptTheme = DailyTheme.forest;
-    _promptHint = null;
-    _promptToDraw = null;
-    _fightChallenger = null;
-    _incomingHurries = const [];
     _hurrySentTo = null;
     _setPhase(GamePhase.server);
   }
@@ -369,33 +337,35 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Fills the pool with your drawings and everybody else's and starts day 1;
-  /// the simulated friends finish their drawings right away.
-  /// Every artist's setup drawings also land in their own roster.
+  /// Fills the pool with your drawings and your friends' and starts day 1,
+  /// on [launchDate] or today.
   @override
   Future<void> launch() async {
-    _launchedOn = (_simulatedLaunch ?? launchDate ?? DateTime.now()).toUtc();
+    _demo = DemoDays(
+      players: server.players,
+      launchedOn: (_dayEightLaunch ?? launchDate ?? DateTime.now()).toUtc(),
+      bots: _bots,
+    );
     server.setupDone.addAll(server.artists.map((p) => p.id));
     for (final artist in server.artists) {
       if (artist.isYou) continue;
-      final roster = _botRosters[artist.id] = [];
       for (final assignment in _assignmentsOf(artist)) {
-        final card = CharacterCard(
-          id: assignment.id,
-          subject: assignment.subject.name,
-          title: _bots.title(),
-          rarity: assignment.prompt.rarity,
-          prompt: assignment.prompt.label,
-          artist: artist.name,
-          sketch: _bots.doodle(assignment.prompt.label),
+        _pool.add(
+          CharacterCard(
+            id: assignment.id,
+            subject: assignment.subject.name,
+            title: _bots.title(),
+            rarity: assignment.prompt.rarity,
+            prompt: assignment.prompt.label,
+            artist: artist.name,
+            sketch: _bots.doodle(assignment.prompt.label),
+          ),
         );
-        // In speed mode, artists own only their basic drawing.
-        if (!server.isSpeed || card.rarity == Rarity.basic) roster.add(card);
-        _pool.add(card);
       }
     }
     _pool.addAll(_setupDrawings.values);
     for (final card in _setupDrawings.values) {
+      // In speed mode, artists own only their basic drawing.
       if (!server.isSpeed || card.rarity == Rarity.basic) _owned[card.id] = OwnedCard(card);
     }
     _tickets += GachaMachine.launchBonus;
@@ -405,80 +375,56 @@ class MockGameSession extends GameSession {
 
   // Daily routine ---------------------------------------------------------------
 
-  /// Prompts per day, in roster order.
-  final Map<int, List<ChallengerPrompt>> _prompts = {};
-
-  /// Challengers drawn per day.
-  final Map<int, List<CharacterCard>> _challengers = {};
-
-  /// Fights set up per day.
-  final Map<int, List<FightSetup>> _fights = {};
-
-  /// The challengers drawn on [day].
-  @visibleForTesting
-  List<CharacterCard> challengersDrawnOn(int day) => List.unmodifiable(_challengers[day] ?? const <CharacterCard>[]);
-
-  /// Everyone's fights on [day].
-  @visibleForTesting
-  List<FightSetup> fightsOn(int day) => List.unmodifiable(_fights[day] ?? const <FightSetup>[]);
-
-  /// The boost stars every challenger got, by its id.
-  final Map<String, int> _boostStars = {};
-
-  /// The boost stars you gave each day, by challenger id.
+  /// What you did, by day: your prompts, challengers, boosts and fights.
+  final Map<int, ChallengerPrompt> _yourPrompts = {};
+  final Map<int, CharacterCard> _yourChallengers = {};
   final Map<int, Map<String, int>> _yourBoosts = {};
-
-  /// Like online, everyone fights the challenger of the player a number of
-  /// seats on, picked per day, so every challenger has one fight when all
-  /// drew; and boosts the challengers of the players other offsets on.
-  final Map<int, int> _fightOffsets = {};
-  final Map<int, List<int>> _boostOffsets = {};
-
-  /// Characters in the simulated players' rosters.
-  final Map<String, List<CharacterCard>> _botRosters = {};
-
-  /// The character you write today's prompt for.
-  @override
-  DailyTheme get promptTheme => _promptTheme;
-  DailyTheme _promptTheme = DailyTheme.forest;
+  final Map<int, FightSetup> _yourFights = {};
 
   @override
-  String? get promptHint => _promptHint;
-  String? _promptHint;
+  DailyTheme get promptTheme => _days.themeOf(_day + 3);
+
+  /// The description of today's prompt: one of the theme's hints in use.
+  @override
+  String? get promptHint {
+    final hints = _hintsOn(promptTheme, _day);
+    return hints.isEmpty ? null : hints[_day % hints.length].text;
+  }
 
   @override
-  ChallengerPrompt? get yourPrompt => _prompts[_day]?.where((p) => p.author.isYou).firstOrNull;
+  ChallengerPrompt? get yourPrompt => _yourPrompts[_day];
 
-  /// The prompt you draw today, written by someone else yesterday.
-  @override
-  ChallengerPrompt? get promptToDraw => _promptToDraw;
-  ChallengerPrompt? _promptToDraw;
+  bool _promptsOn(int day) => day >= 1 && (!server.isSpeed || day <= SpeedMode.lastPromptDay);
 
-  @override
-  CharacterCard? get yourChallenger =>
-      _challengers[_day]?.where((c) => c.artist == you.name && c.day == _day).firstOrNull;
-
-  /// One randomly selected challenger from yesterday to pick fighters against.
-  @override
-  CharacterCard? get fightChallenger => _fightChallenger;
-  CharacterCard? _fightChallenger;
+  /// Friends drew challengers on the days after one with prompts.
+  bool _drawnOn(int day) => _promptsOn(day - 1);
 
   @override
-  FightSetup? get yourFight => _fights[_day]?.where((f) => f.owner.isYou).firstOrNull;
+  ChallengerPrompt? get promptToDraw => _drawnOn(_day) && !sessionOver ? _days.promptToDraw(_day) : null;
+
+  @override
+  CharacterCard? get yourChallenger => _yourChallengers[_day];
+
+  /// A friend's challenger drawn on [day], see [DemoDays.challenger].
+  CharacterCard _challenger(int day, int slot) => _days.challenger(day, slot, yourPrompt: _yourPrompts[day - 1]);
+
+  /// The fourth of the challengers drawn two days ago.
+  @override
+  CharacterCard? get fightChallenger =>
+      _drawnOn(_day - 2) && !sessionOver ? _challenger(_day - 2, DemoDays.slots - 1) : null;
+
+  @override
+  FightSetup? get yourFight => _yourFights[_day];
 
   /// Like online: your characters that fought earlier this week, which
   /// starts on Monday.
   @override
-  Set<String> get restingCharacterIds {
-    final weekStart = _weekStart(_day);
-    return {
-      for (var day = weekStart; day < _day; day++)
-        for (final fight in _fights[day] ?? const <FightSetup>[])
-          if (fight.owner.isYou)
-            for (final fighter in fight.fighters)
-              if (fighter.card.rarity != Rarity.basic) fighter.card.id,
-    };
-  }
+  Set<String> get restingCharacterIds => {
+    for (final MapEntry(key: day, value: fight) in _yourFights.entries)
+      if (day >= _days.weekStart(_day) && day < _day)
+        for (final fighter in fight.fighters)
+          if (fighter.card.rarity != Rarity.basic) fighter.card.id,
+  };
 
   // Game content -----------------------------------------------------------------
 
@@ -498,9 +444,6 @@ class MockGameSession extends GameSession {
       for (final text in value)
         SetupHintEntry(id: 'setup-${key.name}-$text', prompt: key, text: text, createdAt: DateTime.now()),
   ];
-
-  /// The ids of the hints the server gave out: every one is used once only.
-  final Set<String> _usedHints = {};
 
   /// The hints of [theme] used on [day].
   List<_MockContent> _hintsOn(DailyTheme theme, int day) => [
@@ -597,63 +540,22 @@ class MockGameSession extends GameSession {
     _setupContent.removeWhere((h) => h.id == entry.id);
   }
 
-  int _fightOffset(int day) => _fightOffsets.putIfAbsent(day, () => 1 + _random.nextInt(server.players.length - 1));
-
-  /// The challenger [player] fights on [day]: the one drawn two days before
-  /// by the player [_fightOffset] seats on, or the next one on who drew.
-  CharacterCard? _fightChallengerOf(Player player, int day) {
-    final players = server.players;
-    final drawn = _challengers[day - 2] ?? const <CharacterCard>[];
-    if (players.length < 2 || drawn.isEmpty) return null;
-    final position = players.indexOf(player);
-    for (var step = 0; step < players.length; step++) {
-      final other = players[(position + _fightOffset(day) + step) % players.length];
-      if (other.id == player.id) continue;
-      final challenger = drawn.where((c) => c.artist == other.name).firstOrNull;
-      if (challenger != null) return challenger;
-    }
-    return null;
-  }
-
-  /// The challengers [player] may boost on [day], like online: up to
-  /// [Boost.challengers] of the day before's, of the players the same
-  /// offsets on for everyone, never their own or the one they fight
-  /// tomorrow.
-  List<CharacterCard> _boostTargetsOf(Player player, int day) {
-    final players = server.players;
-    final drawn = _challengers[day - 1] ?? const <CharacterCard>[];
-    if (players.length < 2 || drawn.isEmpty) return const [];
-    final offsets = _boostOffsets.putIfAbsent(day, () {
-      final fightOffset = _fightOffset(day + 1);
-      return [
-        for (var offset = 1; offset < players.length; offset++)
-          if (offset != fightOffset) offset,
-      ]..shuffle(_random);
-    });
-    final fought = _fightChallengerOf(player, day + 1);
-    final position = players.indexOf(player);
-    final targets = <CharacterCard>[];
-    for (final offset in offsets) {
-      final artist = players[(position + offset) % players.length];
-      final challenger = drawn.where((c) => c.artist == artist.name).firstOrNull;
-      if (challenger == null || challenger.artist == player.name || challenger.id == fought?.id) continue;
-      targets.add(challenger);
-      if (targets.length == Boost.challengers) break;
-    }
-    return targets;
-  }
-
+  /// The first three of yesterday's challengers.
   @override
   List<BoostTarget> get boostTargets => [
-    for (final challenger in _boostTargetsOf(you, _day))
-      BoostTarget(challenger: challenger, stars: _yourBoosts[_day]?[challenger.id] ?? 0),
+    if (_drawnOn(_day - 1) && !sessionOver)
+      for (var slot = 0; slot < Boost.challengers; slot++)
+        BoostTarget(
+          challenger: _challenger(_day - 1, slot),
+          stars: _yourBoosts[_day]?[_challenger(_day - 1, slot).id] ?? 0,
+        ),
   ];
 
   /// Step 3: gives today's challengers to boost these stars, replacing the
   /// ones you gave today.
   @override
   Future<void> setBoosts(Map<String, int> stars) async {
-    final targets = {for (final challenger in _boostTargetsOf(you, _day)) challenger.id};
+    final targets = {for (final t in boostTargets) t.challenger.id};
     if (targets.isEmpty) throw StateError('No challengers to boost today.');
     if (!targets.containsAll(stars.keys)) throw ArgumentError("You can't boost that challenger today.");
     if (stars.values.any((n) => n < 0 || n > Boost.maxPerChallenger)) {
@@ -669,290 +571,107 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Adds [given] and [left] more stars spread at random to [targets]'
-  /// boost stars, at most [Boost.maxPerChallenger] on one in all.
-  void _spreadBoosts(List<CharacterCard> targets, Map<String, int> given) {
-    final spread = {...given};
-    var left = Boost.stars - given.values.fold(0, (a, b) => a + b);
-    while (left > 0) {
-      final open = targets.where((c) => (spread[c.id] ?? 0) < Boost.maxPerChallenger).toList();
-      if (open.isEmpty) break;
-      final pick = open[_random.nextInt(open.length)];
-      spread[pick.id] = (spread[pick.id] ?? 0) + 1;
-      left--;
-    }
-    for (final MapEntry(key: id, value: n) in spread.entries) {
-      _boostStars[id] = (_boostStars[id] ?? 0) + n;
-    }
-  }
+  /// A challenger's boost stars: the friends' plus yours.
+  int _boostStars(CharacterCard challenger) =>
+      _days.friendsBoostStars(challenger) +
+      _yourBoosts.values.fold(0, (sum, given) => sum + (given[challenger.id] ?? 0));
 
   // The finale -----------------------------------------------------------------
-
-  /// The ranking of each finished week, by its last day.
-  final Map<int, WeekRanking> _rankings = {};
 
   WeeklyHero? _weeklyHero;
 
   @override
   WeeklyHero? get weeklyHero => _weeklyHero;
 
+  /// The challengers drawn from [from] to [to], the friends' and yours, most
+  /// stars first. Each had one fight: the even ones won it.
+  List<RankedChallenger> _ranked(int from, int to) =>
+      [
+            for (var day = from; day <= to; day++)
+              if (_drawnOn(day)) ...[
+                for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
+                ?_yourChallengers[day],
+              ],
+          ]
+          .map(
+            (c) => RankedChallenger(
+              card: c,
+              stars: Stars.ofChallenger(_boostStars(c)),
+              fights: 1,
+              wins: c.day.isEven ? 1 : 0,
+            ),
+          )
+          .toList()
+        ..sort((a, b) => b.stars.compareTo(a.stars));
+
+  /// The latest finished week's ranking: the challengers boosted that week.
+  /// A speed session ranks all of its challengers once it's over.
   @override
   Future<WeekRanking?> weekRanking() async {
-    // A speed session ranks all its challengers once it's over.
     if (server.isSpeed) {
       final lastDay = SpeedMode.days.length;
-      return sessionOver ? WeekRanking(day: lastDay, challengers: _ranked(lastDay + 1)) : null;
+      return sessionOver ? WeekRanking(day: lastDay, challengers: _ranked(1, lastDay)) : null;
     }
-    final days = _rankings.keys.toList()..sort();
-    return days.isEmpty ? null : _rankings[days.last];
+    final lastDay = _days.weekStart(_day) - 1;
+    if (lastDay < 7) return null;
+    return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 7, lastDay - 1));
   }
-
-  /// The first day of [day]'s week, which starts on Monday.
-  int _weekStart(int day) => day - (_launchedOn.add(Duration(days: day - 1)).weekday - DateTime.monday);
 
   @override
-  Future<WeekWinRates?> winRates() async => server.isSpeed ? null : _winRates(_day);
-
-  /// The win rates of [day]'s week, like online: from the week before's
-  /// fights.
-  WeekWinRates _winRates(int day) {
-    final start = _weekStart(day);
-    return WeekWinRates(
-      fromDay: start - 7,
-      toDay: start - 1,
-      rates: server.isSpeed
-          ? const []
-          : WeekWinRates.count(
-              [for (var d = start - 7; d < start; d++) ...?_fights[d]],
-              (name) => server.players.firstWhere(
-                (p) => p.name == name,
-                orElse: () => Player(id: name, name: name),
-              ),
-            ),
-    );
-  }
-
-  /// A fight on today's [challenger], decided right away with both sides'
-  /// win rate extra stars.
-  FightSetup _fight(Player owner, CharacterCard challenger, List<FighterEntry> fighters) {
-    final rates = _winRates(_day);
-    final against = challenger.subject;
-    return FightSetup(
-      id: 'fight$_day-${owner.id}',
-      owner: owner,
-      challenger: challenger,
-      fighters: [
-        for (final f in fighters)
-          FighterEntry(
-            card: f.card,
-            effects: f.effects,
-            element: f.element,
-            extraStars: rates.extraStars(f.card.subject, against),
-          ),
-      ],
-      day: _day,
-      boostStars: _boostStars[challenger.id] ?? 0,
-      challengerExtraStars: fighters.fold(0, (sum, f) => sum + rates.extraStars(against, f.card.subject)),
-    );
-  }
-
-  bool _isFinaleDay(int day) => Finale.isFinaleDate(_launchedOn.add(Duration(days: day - 1)));
-
-  /// Once the week that ends on [day] is over, like online: its challengers
-  /// (the ones boosted that week) ranked by their stars, then their wins,
-  /// then the one drawn first; the first joins the pool as a hero.
-  void _decideFinale(int day) {
-    final ranked = _ranked(day);
-    _rankings[day] = WeekRanking(day: day, challengers: ranked);
-    if (ranked.isEmpty) {
-      _weeklyHero = null;
-      return;
-    }
-    final winner = ranked.first;
-    if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
-    _weeklyHero = WeeklyHero(card: winner.card, day: day, stars: winner.stars);
-  }
-
-  /// The challengers boosted in the week up to [day] (drawn the week before
-  /// it), most stars first, then the most wins, then the one drawn first.
-  List<RankedChallenger> _ranked(int day) {
-    final ranked = [
-      for (var drawn = day - 7; drawn <= day - 1; drawn++)
-        for (final challenger in _challengers[drawn] ?? const <CharacterCard>[])
-          () {
-            final against = [
-              for (var fightDay = drawn; fightDay <= day; fightDay++)
-                for (final fight in _fights[fightDay] ?? const <FightSetup>[])
-                  if (fight.challenger.id == challenger.id) fight,
-            ];
-            return RankedChallenger(
-              card: challenger,
-              stars: Stars.ofChallenger(_boostStars[challenger.id] ?? 0),
-              fights: against.length,
-              wins: against.where((f) => !f.fightersWin).length,
-            );
-          }(),
-    ];
-    // A stable sort keeps the ones drawn first ahead on ties.
-    mergeSort(
-      ranked,
-      compare: (a, b) {
-        final byStars = b.stars.compareTo(a.stars);
-        return byStars != 0 ? byStars : b.wins.compareTo(a.wins);
-      },
-    );
-    return ranked;
-  }
+  Future<WeekWinRates?> winRates() async => server.isSpeed ? null : _days.winRates(_day, you);
 
   List<HurryPlan> _incomingHurries = const [];
   @override
   List<HurryPlan> get incomingHurries => _incomingHurries;
 
-  /// The player you sent today's free hurry to.
   @override
   Player? get hurrySentTo => _hurrySentTo;
   Player? _hurrySentTo;
 
-  Player _drawerOf(Player author) {
-    final players = server.players;
-    return players[(players.indexOf(author) + 1) % players.length];
-  }
-
-  /// The person a simulated player chooses: anyone but themselves.
-  Player _randomSubject(Player author) {
-    final candidates = server.players.where((p) => p.id != author.id).toList();
-    return candidates[_random.nextInt(candidates.length)];
-  }
-
-  DailyTheme _themeOfDay(int day) => DailyTheme.ofDate(_launchedOn.add(Duration(days: day - 1)));
-
   void _startDay() {
-    // Once the day is over, chance spreads the boost stars you left; then a
-    // week that's over has its finale.
-    if (_day > 0) _spreadBoosts(_boostTargetsOf(you, _day), _yourBoosts[_day] ?? const {});
-    if (_day > 0 && _isFinaleDay(_day) && !server.isSpeed) _decideFinale(_day);
     _day++;
-    _theme = _themeOfDay(_day);
-    // Today's prompts are for challengers fought in three days, in that day's theme.
-    _promptTheme = _themeOfDay(_day + 3);
-    // Like online, every hint is used once at most; you get the first.
-    final hints = _hintsOn(_promptTheme, _day).where((h) => !_usedHints.contains(h.entry.id)).toList()
-      ..shuffle(_random);
-    _MockContent? nextHint() {
-      if (hints.isEmpty) return null;
-      final hint = hints.removeAt(0);
-      _usedHints.add(hint.entry.id);
-      return hint;
-    }
-
-    _promptHint = nextHint()?.text;
+    _theme = _days.themeOf(_day);
     _hurrySentTo = null;
-    final others = otherPlayers;
-
-    // Step 1: everyone chooses a person and writes a title, on the days that
-    // have prompts.
-    _prompts[_day] = [
-      if (promptsToday)
-        // The simulated players write their hint's premade title.
-        for (final (author, hint) in [for (final author in others) (author, nextHint())])
-          ChallengerPrompt(
-            id: 'prompt$_day-${author.id}',
-            author: author,
-            subject: _randomSubject(author),
-            theme: _promptTheme,
-            title: hint?.premadeTitle ?? _bots.title(),
-            day: _day,
-            hint: hint?.text,
-          ),
-    ];
-
-    // Step 2: yesterday's prompts are drawn by the next player in the roster.
-    _challengers[_day] = [];
-    _promptToDraw = null;
-    for (final prompt in _prompts[_day - 1] ?? const <ChallengerPrompt>[]) {
-      final drawer = _drawerOf(prompt.author);
-      if (drawer.isYou) {
-        _promptToDraw = prompt;
-      } else {
-        _addChallenger(prompt, drawer, _bots.doodle('challenger'));
+    _incomingHurries = promptToDraw == null ? const [] : _days.hurries(_day);
+    // A new week: last week's best challenger joins the pool as its hero.
+    if (!server.isSpeed && _days.weekStart(_day) == _day && _day > 7) {
+      final ranked = _ranked(_day - 8, _day - 2);
+      if (ranked.isNotEmpty) {
+        final winner = ranked.first;
+        if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
+        _weeklyHero = WeeklyHero(card: winner.card, day: _day - 1, stars: winner.stars);
       }
     }
-    // Each simulated player may spend their free hurry on you.
-    _incomingHurries = [
-      if (_promptToDraw != null)
-        for (final sender in others)
-          if (_random.nextDouble() < 0.3)
-            HurryPlan(
-              by: sender.name,
-              atFraction: HurryPlan.earliest + _random.nextDouble() * (HurryPlan.latest - HurryPlan.earliest),
-            ),
-    ]..sort((a, b) => a.atFraction.compareTo(b.atFraction));
-
-    // Step 3: the simulated players spread their boost stars at random.
-    for (final booster in others) {
-      _spreadBoosts(_boostTargetsOf(booster, _day), const {});
-    }
-
-    // Step 4: they fight the challengers boosted yesterday, decided right
-    // away.
-    _fightChallenger = _fightChallengerOf(you, _day);
-    _fights[_day] = [];
-    for (final owner in others) {
-      final roster = _botRosters[owner.id] ?? const <CharacterCard>[];
-      final challenger = _fightChallengerOf(owner, _day);
-      if (roster.isEmpty || challenger == null) continue;
-      final picks = ([...roster]..shuffle(_random)).take(1 + _random.nextInt(FightSetup.maxFighters));
-      _fights[_day]!.add(_fight(owner, challenger, [for (final card in picks) FighterEntry(card: card)]));
-    }
-
-    // The simulated players pull a character every day.
-    for (final roster in _botRosters.values) {
-      roster.add(_pool[_random.nextInt(_pool.length)]);
-    }
   }
 
-  void _addChallenger(ChallengerPrompt prompt, Player artist, Sketch sketch) {
-    final card = CharacterCard(
-      id: 'challenger$_day-${artist.id}',
-      subject: prompt.subject.name,
-      title: prompt.title,
-      rarity: Rarity.hero,
-      prompt: 'Challenger: ${prompt.theme.label}',
-      artist: artist.name,
-      sketch: sketch,
-      day: _day,
-      theme: prompt.theme,
-    );
-    _challengers[_day]!.add(card);
-  }
-
-  /// The challengers you drew, fought against or boosted. Like the results,
-  /// a challenger's fights count once their day is over.
+  /// The challengers you drew, boosted or fought, newest first. Yours had
+  /// one fight once fought, two days after: the even ones won it.
   @override
   List<ChallengerRecord> get challengers {
-    final allFights = [for (final day in _fights.values) ...day];
-    bool encountered(CharacterCard card) =>
-        card.artist == you.name ||
-        _yourBoosts.values.any((given) => given.containsKey(card.id)) ||
-        allFights.any((f) => f.challenger.id == card.id && f.owner.isYou);
+    final encountered = <CharacterCard>{
+      ..._yourChallengers.values,
+      for (final given in _yourBoosts.entries)
+        for (final t in given.value.keys) _challenger(given.key - 1, _slotOf(t)),
+      for (final fight in _yourFights.values) fight.challenger,
+    };
     ChallengerRecord record(CharacterCard card) {
-      final decided = allFights.where((f) => f.challenger.id == card.id && f.day < _day).toList();
-      return ChallengerRecord(card: card, fights: decided.length, wins: decided.where((f) => !f.fightersWin).length);
+      final yours = _yourChallengers.containsValue(card);
+      final fought = _yourFights.values.where((f) => f.challenger.id == card.id && f.day < _day).toList();
+      final fights = yours ? (_day > card.day + 2 ? 1 : 0) : fought.length;
+      final wins = yours ? (fights > 0 && card.day.isEven ? 1 : 0) : fought.where((f) => !f.fightersWin).length;
+      return ChallengerRecord(card: card, fights: fights, wins: wins);
     }
 
-    final days = _challengers.keys.toList()..sort((a, b) => b.compareTo(a));
-    return [
-      for (final day in days)
-        for (final card in _challengers[day]!)
-          if (encountered(card)) record(card),
-    ];
+    return [for (final card in encountered.toList()..sort((a, b) => b.day.compareTo(a.day))) record(card)];
   }
+
+  int _slotOf(String challengerId) => int.parse(challengerId.split('-').last);
 
   @override
   bool get canAdvanceDay => !sessionOver;
 
   @override
-  bool get promptsToday => !server.isSpeed || _day <= SpeedMode.lastPromptDay;
+  bool get promptsToday => _promptsOn(_day);
 
   /// The mockup's days only move on when you skip ahead.
   @override
@@ -961,7 +680,7 @@ class MockGameSession extends GameSession {
   @override
   bool get sessionOver => server.isSpeed && _day > SpeedMode.days.length;
 
-  /// The simulated players never wait for you.
+  /// Your friends never wait for you.
   @override
   bool get canEndDay => false;
 
@@ -980,22 +699,21 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Step 1: choose a person and write their title.
+  /// Step 1: choose a person and write their title; a friend draws it
+  /// tomorrow, see [DemoDays.challenger].
   @override
   Future<void> submitPrompt(String title, Player subject) async {
     if (yourPrompt != null) return;
     if (!promptsToday) throw StateError('No challenger prompts today.');
     if (subject.id == you.id) throw ArgumentError('Choose another player');
-    _prompts[_day]!.add(
-      ChallengerPrompt(
-        id: 'prompt$_day-${you.id}',
-        author: you,
-        subject: subject,
-        theme: _promptTheme,
-        title: title.trim(),
-        day: _day,
-        hint: _promptHint,
-      ),
+    _yourPrompts[_day] = ChallengerPrompt(
+      id: 'prompt$_day-${you.id}',
+      author: you,
+      subject: subject,
+      theme: promptTheme,
+      title: title.trim(),
+      day: _day,
+      hint: promptHint,
     );
     notifyListeners();
   }
@@ -1004,28 +722,51 @@ class MockGameSession extends GameSession {
   /// pool) as a hero and earns a pull.
   @override
   Future<void> submitChallenger(Sketch sketch) async {
-    final prompt = _promptToDraw;
+    final prompt = promptToDraw;
     if (prompt == null || challengerDrawn) return;
-    _addChallenger(prompt, you, sketch);
+    _yourChallengers[_day] = CharacterCard(
+      id: 'challenger$_day-${you.id}',
+      subject: prompt.subject.name,
+      title: prompt.title,
+      rarity: Rarity.hero,
+      prompt: 'Challenger: ${prompt.theme.label}',
+      artist: you.name,
+      sketch: sketch,
+      day: _day,
+      theme: prompt.theme,
+    );
     _tickets++;
     notifyListeners();
   }
 
   /// Step 4: lock in up to four fighters against today's challenger, decided
-  /// right away.
+  /// right away with both sides' win rate extra stars.
   @override
   Future<void> submitFighters(List<OwnedCard> fighters) async {
-    final challenger = _fightChallenger;
+    final challenger = fightChallenger;
     if (challenger == null || yourFight != null) return;
     if (fighters.isEmpty || fighters.length > FightSetup.maxFighters) {
       throw ArgumentError('Pick between 1 and ${FightSetup.maxFighters} fighters.');
     }
     if (fighters.any(isResting)) throw ArgumentError("Every character fights once a week; they're back on Monday.");
-    _fights[_day]!.add(_fight(you, challenger, [for (final owned in fighters) FighterEntry.fromOwned(owned)]));
+    final rates = _days.winRates(_day, you);
+    final against = challenger.subject;
+    final fight = _yourFights[_day] = FightSetup(
+      id: 'fight$_day-${you.id}',
+      owner: you,
+      challenger: challenger,
+      fighters: [
+        for (final owned in fighters)
+          FighterEntry.fromOwned(owned, extraStars: rates.extraStars(owned.card.subject, against)),
+      ],
+      day: _day,
+      boostStars: _boostStars(challenger),
+      challengerExtraStars: fighters.fold(0, (sum, o) => sum + rates.extraStars(against, o.card.subject)),
+    );
     // A win earns pulls and the challenger's stars.
-    if (yourFight!.fightersWin) {
-      _tickets += pullsForWin(yourFight!);
-      _victoryStars += yourFight!.challengerStars;
+    if (fight.fightersWin) {
+      _tickets += pullsForWin(fight);
+      _victoryStars += fight.challengerStars;
     }
     notifyListeners();
   }

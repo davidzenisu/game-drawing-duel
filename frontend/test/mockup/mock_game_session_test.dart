@@ -12,8 +12,8 @@ import 'package:frontend/game/rules/upgrades.dart';
 import '../helpers.dart';
 
 void main() {
-  test('starting on day 8 plays a regular first week for everyone, you too', () async {
-    // A Wednesday: the simulated week runs from Monday a week before.
+  test('starting on day 8 jumps to the Monday after a first week', () async {
+    // A Wednesday: the first week ran from Monday a week before.
     final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 11, 4, 9));
     await game.startOnDayEight('Pat');
     expect(game.phase, GamePhase.daily);
@@ -23,22 +23,17 @@ void main() {
     expect(game.day, 8);
     expect(game.theme, DailyTheme.forest, reason: 'day 8 is a Monday');
 
-    // Last week is over: ranked, with win rates from everyone's fights.
+    // Last week is over: ranked, its hero in the pool, and win rates.
     expect((await game.weekRanking())!.day, 7);
-    expect(game.weeklyHero, isNotNull);
+    expect(game.pool.map((c) => c.id), contains(game.weeklyHero!.card.id));
     final rates = (await game.winRates())!;
     expect((rates.fromDay, rates.toDay), (1, 7));
-    expect(rates.rates, isNotEmpty);
-    // You took every step: a fight on each fighting day, and challengers.
-    for (var day = 4; day <= 7; day++) {
-      expect(game.fightsOn(day).where((f) => f.owner.isYou), hasLength(1), reason: 'day $day');
-    }
-    expect(
-      [for (var day = 2; day <= 7; day++) ...game.challengersDrawnOn(day)].where((c) => c.artist == 'Pat'),
-      hasLength(6),
-    );
-    // Today is yours to play.
+    expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty);
+    // Today is yours to play: every step.
     expect(game.yourPrompt, isNull);
+    expect(game.promptToDraw, isNotNull);
+    expect(game.boostTargets, hasLength(Boost.challengers));
+    expect(game.fightChallenger, isNotNull);
     expect(game.yourFight, isNull);
   });
 
@@ -162,13 +157,15 @@ void main() {
     expect(game.canAdvanceDay, isFalse);
     expect(game.weeklyHero, isNull, reason: 'no weekly finale, even past a Sunday');
 
-    // Every challenger of the session is ranked, most stars first.
+    // Every challenger of the session is ranked, most stars first: four a
+    // day drawn on days 2 to 4, after the prompt days.
     final ranking = (await game.weekRanking())!;
     expect(ranking.day, SpeedMode.days.length);
-    final drawn = [for (var day = 1; day <= SpeedMode.days.length; day++) ...game.challengersDrawnOn(day)];
-    expect(ranking.challengers.map((r) => r.card.id), unorderedEquals(drawn.map((c) => c.id)));
+    expect(ranking.challengers, hasLength(3 * 4));
+    expect(ranking.challengers.map((r) => r.card.day).toSet(), {2, 3, 4});
     final stars = [for (final r in ranking.challengers) r.stars];
     expect(stars, [...stars]..sort((a, b) => b.compareTo(a)));
+    expect(stars.first, greaterThan(stars[1]), reason: 'a clear winner');
   });
 
   test('cancelling the server returns to creating one', () async {
@@ -302,6 +299,7 @@ void main() {
       expect(target.challenger.artist, isNot(you.name));
       expect(target.stars, 0);
     }
+    expect(targets.first.challenger.title, 'Sunburnt', reason: 'a friend drew your prompt from day 1');
     expect((game.canBoost, game.boostStarsLeft), (true, Boost.stars));
     await game.setBoosts({targets.first.challenger.id: 2});
     expect(game.boostTargets.first.stars, 2);
@@ -330,27 +328,25 @@ void main() {
     expect(game.victoryStars, fight.fightersWin ? fight.challengerStars : 0);
     expect(fight.fighters, hasLength(4));
     expect(fight.fighterStars, Stars.ofTeam(fight.fighters.map((f) => f.card.rarity)));
-    expect(fight.boostStars, greaterThan(0), reason: 'everyone spreads their stars');
     expect(fight.fightersWin, fight.fighterStars > Stars.ofChallenger(fight.boostStars));
-    // Somebody fights the challenger you drew two days ago.
-    expect(game.fightsOn(game.day).where((f) => f.challenger.id == drawn.id), hasLength(1));
+    expect(game.challengers.map((c) => c.card.id), contains(drawn.id));
   });
 
-  test('the boost stars you leave are spread by chance', () async {
-    final game = await launchedGame();
-    await game.submitPrompt('Sunburnt', game.promptCandidates.first);
-    await game.advanceDay();
-    await game.submitChallenger(doodle);
-    await game.advanceDay();
-    final targets = game.boostTargets;
-    await game.setBoosts({targets.first.challenger.id: 1});
-    await game.advanceDay();
-    // The others spread all their stars, and chance the two you left: every
-    // one of them shows up in today's fights, one against each challenger.
-    await game.submitFighters([game.collection.first]);
-    final fights = game.fightsOn(game.day);
-    expect(fights, hasLength(game.server.players.length));
-    expect(fights.fold(0, (sum, f) => sum + f.boostStars), game.server.players.length * Boost.stars);
+  test('the canned days are the same in every game', () async {
+    Future<List<String>> dayFour(int seed) async {
+      final game = await launchedGame(seed: seed);
+      for (var day = 1; day < 4; day++) {
+        await game.advanceDay();
+      }
+      final prompt = game.promptToDraw!;
+      return [
+        '${prompt.author.name}: ${prompt.title}',
+        for (final t in game.boostTargets) '${t.challenger.id} ${t.challenger.title}',
+        '${game.fightChallenger!.id} ${game.fightChallenger!.title}',
+      ];
+    }
+
+    expect(await dayFour(1), await dayFour(2));
   });
 
   test('challengers stay out of the pool, listed once encountered with their record', () async {
@@ -411,43 +407,12 @@ void main() {
     expect(game.restingCharacterIds, isEmpty, reason: 'a new week');
   });
 
-  test('the simulated players write the premade title of their description', () async {
-    // A Monday: the prompts of day 1 are for Thursday's snow.
-    final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 10, 5, 12));
-    await game.signUp('Pat');
-    await game.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
-    while (!game.server.everyoneJoined) {
-      await game.refreshServer();
-    }
-    // Enough for everyone, added before day 1.
-    await game.addContent(DailyTheme.snow, [
-      for (var i = 0; i < 6; i++) HintDraft(text: 'a snow hint $i', premadeTitle: 'Snow Title $i'),
-    ]);
-    await game.startSetup();
-    for (final assignment in game.assignments) {
-      await game.submitSetupDrawing(assignment, doodle, 'Title');
-    }
-    await game.launch();
-    await game.advanceDay();
-    final toDraw = game.promptToDraw!;
-    final entry = (await game.contentEntries(DailyTheme.snow)).firstWhere((e) => e.text == toDraw.hint);
-    expect(toDraw.title, entry.premadeTitle);
-  });
-
-  test('every description is used once only, then there is none', () async {
-    // A Monday: prompts are written for Thursday's snow on days 1 and 8.
-    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
-    final first = game.promptHint;
-    expect(first, isNotNull);
-    final seen = <String>{first!};
-    for (var day = 2; day <= 8; day++) {
-      await game.advanceDay();
-      final hint = game.promptHint;
-      if (hint != null) expect(seen.add(hint), isTrue, reason: 'day $day: $hint again');
-    }
-    // Five players, two snow descriptions: used up on day 1.
+  test("today's description is one of the theme's hints", () async {
+    // A Monday: prompts are written for Thursday's snow on day 1.
+    final game = await launchedGame(launchDate: firstMonday);
     expect(game.promptTheme, DailyTheme.snow);
-    expect(game.promptHint, isNull);
+    final snow = [for (final e in await game.contentEntries(DailyTheme.snow)) e.text];
+    expect(snow, contains(game.promptHint));
   });
 
   test('the content screen works on the mockup, from the next day on', () async {
@@ -476,9 +441,6 @@ void main() {
       await game.advanceDay();
       if (day == 8) expect(game.promptHint, 'a chili lover');
     }
-    // Drawn on day 9: a simulated player's prompt from day 8. You got the
-    // one description, so they had none.
-    expect(game.promptToDraw!.hint, isNull);
   });
 
   test('the theme follows the weekday, with a hint for it', () async {
@@ -568,60 +530,43 @@ void main() {
     expect(game.pool.map((c) => c.id), isNot(contains(ranked.last.card.id)));
   });
 
-  test("last week's fights give this week's win rate extra stars", () async {
+  test("from the second week, win rates give extra stars", () async {
     // A Monday: days 1 to 7 are the first week.
-    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+    final game = await launchedGame(launchDate: firstMonday);
     expect((await game.winRates())!.rates, isEmpty, reason: 'none in the first week');
     while (game.day < 8) {
       await game.advanceDay();
     }
     final rates = (await game.winRates())!;
     expect((rates.fromDay, rates.toDay), (1, 7));
-    final lastWeek = [for (var day = 1; day <= 7; day++) ...game.fightsOn(day)];
-    final counted = WeekWinRates.count(lastWeek, (name) => Player(id: name, name: name));
-    expect(
-      {for (final r in rates.rates) (r.player.name, r.against.name, r.fights, r.wins)},
-      {for (final r in counted) (r.player.name, r.against.name, r.fights, r.wins)},
-    );
-    expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty, reason: 'four players fought all week');
+    expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty);
+    expect(rates.rates.where((r) => r.player.isYou || r.against.isYou), isNotEmpty, reason: 'you are in it');
 
-    // Day 8's fights get them, each side against the other's player.
-    await game.advanceDay();
-    final fights = game.fightsOn(8);
-    expect(fights, isNotEmpty);
-    for (final fight in fights) {
-      final against = fight.challenger.subject;
-      expect(
-        [for (final f in fight.fighters) f.extraStars],
-        [for (final f in fight.fighters) rates.extraStars(f.card.subject, against)],
-      );
-      expect(
-        fight.challengerExtraStars,
-        fight.fighters.fold(0, (sum, f) => sum + rates.extraStars(against, f.card.subject)),
-      );
-    }
+    // Your fight gets them, each side against the other's player.
+    final against = game.fightChallenger!.subject;
+    await game.submitFighters(game.availableFighters.take(4).toList());
+    final fight = game.yourFight!;
+    expect(
+      [for (final f in fight.fighters) f.extraStars],
+      [for (final f in fight.fighters) rates.extraStars(f.card.subject, against)],
+    );
+    expect(
+      fight.challengerExtraStars,
+      fight.fighters.fold(0, (sum, f) => sum + rates.extraStars(against, f.card.subject)),
+    );
   });
 
-  test('every challenger has one fight, and three to boost every day', () async {
+  test('three to boost every day from day 3, and one to fight from day 4, never one you boosted', () async {
     final game = await launchedGame();
     var boosted = <String>{};
     for (var day = 1; day < 9; day++) {
-      if (day >= LoopStep.boost) {
-        final targets = game.boostTargets;
-        expect(targets, hasLength(Boost.challengers), reason: 'day $day');
-        boosted = {for (final t in targets) t.challenger.id};
-      }
-      if (day >= LoopStep.fight) {
-        final fights = game.fightsOn(day);
-        expect(fights.map((f) => f.challenger.id).toSet(), hasLength(fights.length), reason: 'one fight each');
-      }
-      await game.submitPrompt('Title $day', game.promptCandidates.first);
-      if (game.promptToDraw != null) await game.submitChallenger(doodle);
+      expect(game.boostTargets, hasLength(day >= LoopStep.boost ? Boost.challengers : 0), reason: 'day $day');
+      expect(game.fightChallenger == null, day < LoopStep.fight, reason: 'day $day');
       if (game.fightChallenger case final challenger?) {
         expect(challenger.artist, isNot(game.you.name));
         expect(boosted, isNot(contains(challenger.id)), reason: 'day $day: not one you boosted');
-        await game.submitFighters([game.availableFighters.firstWhere((o) => o.card.rarity == Rarity.basic)]);
       }
+      boosted = {for (final t in game.boostTargets) t.challenger.id};
       await game.advanceDay();
     }
   });
