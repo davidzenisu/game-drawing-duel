@@ -9,23 +9,11 @@ import 'package:frontend/game/widgets/banner_art.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
-const _doodle = Sketch([
-  Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-]);
+import '../helpers.dart';
 
 /// A mockup game played to the Monday after its first finale.
 Future<MockGameSession> _afterTheFinale() async {
-  final controller = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 10, 5, 12));
-  await controller.signUp('Pat');
-  await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim', 'Jo']);
-  while (!controller.server.everyoneJoined) {
-    await controller.refreshServer();
-  }
-  await controller.startSetup();
-  for (final assignment in controller.assignments) {
-    await controller.submitSetupDrawing(assignment, _doodle, 'Title');
-  }
-  await controller.launch();
+  final controller = await launchedGame(launchDate: firstMonday);
   // Day 1 is a Monday: the finale is on day 7, its hero joins on day 8.
   for (var day = 1; day < 8; day++) {
     await controller.advanceDay();
@@ -98,7 +86,7 @@ void main() {
     }
     await controller.startSetup();
     for (final assignment in controller.assignments) {
-      await controller.submitSetupDrawing(assignment, _doodle, 'Title');
+      await controller.submitSetupDrawing(assignment, doodle, 'Title');
     }
     await controller.launch();
     await tester.pumpWidget(MaterialApp(home: GachaScreen(controller: controller)));

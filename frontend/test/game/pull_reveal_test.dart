@@ -4,9 +4,7 @@ import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/pull_reveal_screen.dart';
 
-const _doodle = Sketch([
-  Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-]);
+import '../helpers.dart';
 
 PullOutcome _outcome(String subject, Rarity rarity, {bool isNew = true}) => PullOutcome(
   card: CharacterCard(
@@ -16,7 +14,7 @@ PullOutcome _outcome(String subject, Rarity rarity, {bool isNew = true}) => Pull
     rarity: rarity,
     prompt: 'Prompt',
     artist: 'Alex',
-    sketch: _doodle,
+    sketch: doodle,
   ),
   isNew: isNew,
   copies: isNew ? 1 : 2,

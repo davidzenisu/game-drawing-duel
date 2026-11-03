@@ -1,28 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_app.dart';
-import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/tutorials.dart';
-import 'package:frontend/mockup/mock_game_session.dart';
 
-const _doodle = Sketch([
-  Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-]);
-
-Future<MockGameSession> _launched() async {
-  final controller = MockGameSession(seed: 1);
-  await controller.signUp('Pat');
-  await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
-  while (!controller.server.everyoneJoined) {
-    await controller.refreshServer();
-  }
-  await controller.startSetup();
-  for (final assignment in controller.assignments) {
-    await controller.submitSetupDrawing(assignment, _doodle, 'Title');
-  }
-  await controller.launch();
-  return controller;
-}
+import '../helpers.dart';
 
 void main() {
   test('every tutorial has pages and a key the API accepts', () {
@@ -37,7 +18,7 @@ void main() {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final controller = await _launched();
+    final controller = await launchedGame(others: ['Alex', 'Sam', 'Robin', 'Kim']);
 
     await tester.pumpWidget(GameApp(session: controller));
     await tester.pumpAndSettle();

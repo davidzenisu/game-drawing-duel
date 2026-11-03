@@ -6,7 +6,7 @@ import 'package:frontend/game/screens/collection_screen.dart';
 import 'package:frontend/game/screens/progress_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 
-import '../mockup/mock_game_session_test.dart' show launchedGame;
+import '../helpers.dart';
 
 void main() {
   testWidgets('each upgrade shows its cost, and the next one how far along it is', (tester) async {

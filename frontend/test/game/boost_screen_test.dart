@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
-import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/boost_screen.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
+
+import '../helpers.dart';
 
 void main() {
   testWidgets("spreads the boost stars across yesterday's challengers", (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    const doodle = Sketch([
-      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
-    ]);
     final controller = MockGameSession(seed: 1);
     await controller.signUp('Pat');
     await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
