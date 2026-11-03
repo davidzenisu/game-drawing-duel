@@ -266,9 +266,6 @@ abstract class GameSession extends ChangeNotifier {
   /// the challenger.
   int pullsForWin(FightSetup fight) => server.isSpeed ? fight.challengerStars : 1;
 
-  /// Whether a step of the daily loop is available today.
-  bool stepUnlocked(int step) => day >= step;
-
   /// Whether [owned]'s next upgrade can be unlocked; the mockup unlocks on credit.
   bool canUpgrade(OwnedCard owned) => owned.canUpgrade(onCredit: isMockup);
 
