@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import select
 
 from app.auth import CurrentPlayer
+from app.deps import DbSession
 from app.models import Character, ServerSeat
-from app.routers.servers import DbSession
 from app.storage import FileNotFound, Files, StorageUnavailable
 
 router = APIRouter(prefix="/characters", tags=["characters"])

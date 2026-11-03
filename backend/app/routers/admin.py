@@ -9,8 +9,9 @@ from sqlalchemy import or_, select
 from app import speed
 from app.auth import require_server_admin
 from app.database import utc_now
+from app.deps import DbSession
+from app.game_data import delete_game_data
 from app.models import Server
-from app.routers.servers import DbSession, delete_game_data
 from app.schemas import CleanupResponse
 from app.storage import Files, delete_quietly
 

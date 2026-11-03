@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, selectinload
 from app import speed
 from app.models import (
     ChallengerPrompt,
+    Character,
     HintAssignment,
     Server,
     ServerSeat,
@@ -261,4 +262,13 @@ def prompt_to_draw(
         theme=challenger_theme(server, day - 1),
         hint=hint.text if hint else None,
         premade=True,
+    )
+
+
+def drawn_challenger(session: Session, seat: ServerSeat, day: int) -> Character | None:
+    """The challenger `seat` drew on `day`, if any."""
+    return session.scalar(
+        select(Character).where(
+            Character.artist_seat_id == seat.id, Character.day == day
+        )
     )

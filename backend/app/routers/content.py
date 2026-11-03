@@ -17,8 +17,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import require_content_editor
 from app.database import utc_now
+from app.deps import DbSession
 from app.models import SetupHint, ThemeHint
-from app.routers.servers import DbSession
 from app.rules import SetupPrompt, Theme
 from app.schemas import (
     ContentAdd,
