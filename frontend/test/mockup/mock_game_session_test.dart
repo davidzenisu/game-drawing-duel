@@ -31,6 +31,36 @@ Future<MockGameSession> launchedGame({int seed = 1, DateTime? launchDate}) async
 }
 
 void main() {
+  test('starting on day 8 plays a regular first week for everyone, you too', () async {
+    // A Wednesday: the simulated week runs from Monday a week before.
+    final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 11, 4, 9));
+    await game.startOnDayEight('Pat');
+    expect(game.phase, GamePhase.daily);
+    expect((game.server.isSpeed, game.server.isTest, game.server.isAdmin), (false, false, true));
+    expect(game.server.players, hasLength(6));
+    expect(game.you.name, 'Pat');
+    expect(game.day, 8);
+    expect(game.theme, DailyTheme.forest, reason: 'day 8 is a Monday');
+
+    // Last week is over: ranked, with win rates from everyone's fights.
+    expect((await game.weekRanking())!.day, 7);
+    expect(game.weeklyHero, isNotNull);
+    final rates = (await game.winRates())!;
+    expect((rates.fromDay, rates.toDay), (1, 7));
+    expect(rates.rates, isNotEmpty);
+    // You took every step: a fight on each fighting day, and challengers.
+    for (var day = 4; day <= 7; day++) {
+      expect(game.fightsOn(day).where((f) => f.owner.isYou), hasLength(1), reason: 'day $day');
+    }
+    expect(
+      [for (var day = 2; day <= 7; day++) ...game.challengersDrawnOn(day)].where((c) => c.artist == 'Pat'),
+      hasLength(6),
+    );
+    // Today is yours to play.
+    expect(game.yourPrompt, isNull);
+    expect(game.yourFight, isNull);
+  });
+
   test('creating a server generates a 6-digit code and an admin roster', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

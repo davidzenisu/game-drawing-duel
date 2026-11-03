@@ -94,6 +94,22 @@ class _SignupScreenState extends State<SignupScreen> {
                         icon: const Icon(Icons.arrow_forward_rounded),
                         label: const Text('Finish account'),
                       ),
+                      if (widget.controller.isMockup) ...[
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: canContinue
+                              ? () => runGameAction(context, () => widget.controller.startOnDayEight(_name.text))
+                              : null,
+                          icon: const Icon(Icons.fast_forward_rounded),
+                          label: const Text('Start on day 8'),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Skips ahead: a regular server with 5 simulated friends, its first week already played.',
+                          style: textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       if (!widget.controller.isMockup) ...[
                         const SizedBox(height: 8),
                         TextButton(

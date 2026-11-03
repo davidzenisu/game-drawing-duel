@@ -57,6 +57,28 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the mockup can start on day 8 of a simulated regular server', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = MockGameSession(seed: 1);
+    await tester.pumpWidget(GameApp(session: controller));
+
+    await tester.enterText(find.byType(TextField), 'Pat');
+    await tester.pump();
+    await tester.tap(find.text('Start on day 8'));
+    await tester.pumpAndSettle();
+    if (find.text("Let's go").evaluate().isNotEmpty) {
+      await tester.tap(find.text("Let's go"));
+      await tester.pumpAndSettle();
+    }
+    expect(controller.phase, GamePhase.daily);
+    expect(controller.day, 8);
+    expect(find.text('Win rates'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('joins a server by code and only offers free seats', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;

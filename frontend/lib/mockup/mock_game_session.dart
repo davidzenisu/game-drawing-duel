@@ -25,6 +25,9 @@ class MockGameSession extends GameSession {
   final DateTime? launchDate;
   DateTime _launchedOn = DateTime.now().toUtc();
 
+  /// The launch date of a simulated first week, see [startOnDayEight].
+  DateTime? _simulatedLaunch;
+
   /// A few of the prompt hints the API keeps in its database, per theme:
   /// each a description and the premade title that comes with it.
   static const _hints = {
@@ -167,6 +170,52 @@ class MockGameSession extends GameSession {
     _setPhase(GamePhase.server);
   }
 
+  /// Signs up, creates a regular server with five simulated friends and
+  /// plays its first week: you take every step too, with doodles and
+  /// premade titles, so day 8 starts with last week's ranking and win rates.
+  /// The first week runs Monday to Sunday, so day 8 is a Monday.
+  @override
+  Future<void> startOnDayEight(String firstName) async {
+    await signUp(firstName);
+    final others = suggestedNames.where((name) => name != you.name).take(5).toList();
+    await createServer(others);
+    server.joined.addAll(server.players.map((p) => p.id));
+    await startSetup();
+    for (final assignment in assignments) {
+      await submitSetupDrawing(assignment, _bots.doodle(assignment.prompt.label), _bots.title());
+    }
+    final now = (launchDate ?? DateTime.now()).toUtc();
+    final monday = DateTime.utc(now.year, now.month, now.day - (now.weekday - DateTime.monday), 12);
+    _simulatedLaunch = monday.subtract(const Duration(days: 7));
+    await launch();
+    while (day < 8) {
+      await _playYourDay();
+      await advanceDay();
+    }
+  }
+
+  /// Takes every step of today for you, like a simulated friend would.
+  Future<void> _playYourDay() async {
+    if (promptsToday && yourPrompt == null) {
+      final others = otherPlayers;
+      await submitPrompt(_bots.title(), others[_random.nextInt(others.length)]);
+    }
+    if (promptToDraw != null && !challengerDrawn) await submitChallenger(_bots.doodle('challenger'));
+    final targets = boostTargets;
+    if (targets.isNotEmpty) {
+      final stars = <String, int>{};
+      for (var i = 0; i < Boost.stars; i++) {
+        final target = targets[_random.nextInt(targets.length)].challenger.id;
+        stars[target] = (stars[target] ?? 0) + 1;
+      }
+      await setBoosts(stars);
+    }
+    final fighters = [...availableFighters]..shuffle(_random);
+    if (fightChallenger != null && yourFight == null && fighters.isNotEmpty) {
+      await submitFighters(fighters.take(1 + _random.nextInt(FightSetup.maxFighters)).toList());
+    }
+  }
+
   // Server creation / join ----------------------------------------------------
 
   /// Creates a server with a prepopulated roster; the creator is the admin.
@@ -235,6 +284,7 @@ class MockGameSession extends GameSession {
   @override
   Future<void> cancelServer() async {
     _server = null;
+    _simulatedLaunch = null;
     _assignments = const [];
     _setupDrawings.clear();
     _pool.clear();
@@ -324,7 +374,7 @@ class MockGameSession extends GameSession {
   /// Every artist's setup drawings also land in their own roster.
   @override
   Future<void> launch() async {
-    _launchedOn = (launchDate ?? DateTime.now()).toUtc();
+    _launchedOn = (_simulatedLaunch ?? launchDate ?? DateTime.now()).toUtc();
     server.setupDone.addAll(server.artists.map((p) => p.id));
     for (final artist in server.artists) {
       if (artist.isYou) continue;
