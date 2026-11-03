@@ -301,6 +301,11 @@ abstract class GameSession extends ChangeNotifier {
   /// Finishes the account by picking a first name.
   Future<void> signUp(String firstName);
 
+  /// Mockup only, see [isMockup]: signs up as [firstName] and plays a
+  /// regular server through its first week, everyone taking every step, so
+  /// the game starts on day 8 with a week ranking and win rates.
+  Future<void> startOnDayEight(String firstName) => throw UnsupportedError('Only the mockup simulates a first week.');
+
   /// Creates a server with a prepopulated roster; the creator is the admin.
   /// A [speed] server is a one-off session on timers, see [SpeedMode]. Test
   /// sessions ([isTest]) are for accounts with the admin permission.
