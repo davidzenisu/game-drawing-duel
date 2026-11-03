@@ -231,8 +231,9 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     await Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => screen));
   }
 
-  String _unlocksOn(int step) => 'Starts on day $step of the loop.';
-
+  /// Today's steps of the loop: only the ones there's something to do for
+  /// today, e.g. only the prompt on day 1, and none of the prompt days in
+  /// speed mode's last days.
   List<Widget> _steps() {
     final c = _controller;
     final prompt = c.yourPrompt;
@@ -253,67 +254,63 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           done: prompt != null,
           onTap: prompt == null ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt) : null,
         ),
-      _ActionCard(
-        icon: Icons.brush_rounded,
-        step: LoopStep.draw,
-        title: 'Draw a challenger',
-        subtitle: !c.stepUnlocked(LoopStep.draw) || toDraw == null
-            ? _unlocksOn(LoopStep.draw)
-            : c.challengerDrawn
-            ? 'Done. "${toDraw.title}" joined the challengers.'
-            : [
-                toDraw.question,
-                'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 1:30 · +1 pull',
-              ].nonNulls.join(' '),
-        done: c.challengerDrawn,
-        onTap: toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
-      ),
-      _ActionCard(
-        icon: Icons.keyboard_double_arrow_up_rounded,
-        step: LoopStep.boost,
-        title: 'Boost challengers',
-        subtitle: !c.stepUnlocked(LoopStep.boost) || c.boostTargets.isEmpty
-            ? _unlocksOn(LoopStep.boost)
-            : c.canBoost
-            ? 'Spread ${c.boostStarsLeft} of your ${Boost.stars} ★ across ${c.boostTargets.length} of '
-                  'yesterday\'s challengers. They\'re fought tomorrow.'
-            : 'All ${Boost.stars} ★ given. You can move them until the day is over.',
-        done: c.boostTargets.isNotEmpty && !c.canBoost,
-        badge: c.canBoost ? 1 : 0,
-        onTap: c.boostTargets.isEmpty ? null : () => _openStep(BoostScreen(controller: c), Tutorial.boost),
-      ),
-      _ActionCard(
-        icon: Icons.groups_rounded,
-        step: LoopStep.fight,
-        title: 'Pick your fighters',
-        subtitle: [
-          c.fightChallenger == null
-              ? _unlocksOn(LoopStep.fight)
-              : fight != null
-              ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
-                    '${fight.challenger.subject}: ${fight.fighterTotal} ★ vs. ${fight.challengerTotal} ★'
-                    '${fight.fightersWin ? '. +${c.pullsForWin(fight)} pull${c.pullsForWin(fight) == 1 ? '' : 's'}, '
-                              '+${fight.challengerStars} victory ★' : '.'}'
-              : c.availableFighters.isEmpty
-              ? 'All your characters fought this week. They\'re back on Monday.'
-              : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '
-                    'A win earns a pull and its stars.',
-          if (c.victoryStars > 0) 'Victory stars won so far: ${c.victoryStars} ★',
-        ].join(' '),
-        done: fight != null,
-        onTap: c.fightChallenger == null || (fight == null && c.availableFighters.isEmpty)
-            ? null
-            : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
-      ),
-      _ActionCard(
-        icon: Icons.emoji_events_rounded,
-        title: 'Week ranking',
-        subtitle: switch (c.weeklyHero) {
-          null => 'Once a week is over, its challengers are ranked by their stars. The first becomes a hero.',
-          final hero => 'See how last week\'s challengers ranked. ${hero.card.subject} won with ${hero.stars} ★.',
-        },
-        onTap: c.weeklyHero == null ? null : () => _openStep(RankingScreen(controller: c), Tutorial.finale),
-      ),
+      if (toDraw != null)
+        _ActionCard(
+          icon: Icons.brush_rounded,
+          step: LoopStep.draw,
+          title: 'Draw a challenger',
+          subtitle: c.challengerDrawn
+              ? 'Done. "${toDraw.title}" joined the challengers.'
+              : [
+                  toDraw.question,
+                  'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 1:30 · +1 pull',
+                ].nonNulls.join(' '),
+          done: c.challengerDrawn,
+          onTap: c.challengerDrawn ? null : _drawChallenger,
+        ),
+      if (c.boostTargets.isNotEmpty)
+        _ActionCard(
+          icon: Icons.keyboard_double_arrow_up_rounded,
+          step: LoopStep.boost,
+          title: 'Boost challengers',
+          subtitle: c.canBoost
+              ? 'Spread ${c.boostStarsLeft} of your ${Boost.stars} ★ across ${c.boostTargets.length} of '
+                    'yesterday\'s challengers. They\'re fought tomorrow.'
+              : 'All ${Boost.stars} ★ given. You can move them until the day is over.',
+          done: !c.canBoost,
+          badge: c.canBoost ? 1 : 0,
+          onTap: () => _openStep(BoostScreen(controller: c), Tutorial.boost),
+        ),
+      if (c.fightChallenger != null)
+        _ActionCard(
+          icon: Icons.groups_rounded,
+          step: LoopStep.fight,
+          title: 'Pick your fighters',
+          subtitle: [
+            fight != null
+                ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
+                      '${fight.challenger.subject}: ${fight.fighterTotal} ★ vs. ${fight.challengerTotal} ★'
+                      '${fight.fightersWin ? '. +${c.pullsForWin(fight)} pull${c.pullsForWin(fight) == 1 ? '' : 's'}, '
+                                '+${fight.challengerStars} victory ★' : '.'}'
+                : c.availableFighters.isEmpty
+                ? 'All your characters fought this week. They\'re back on Monday.'
+                : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '
+                      'A win earns a pull and its stars.',
+            if (c.victoryStars > 0) 'Victory stars won so far: ${c.victoryStars} ★',
+          ].join(' '),
+          done: fight != null,
+          onTap: fight == null && c.availableFighters.isEmpty
+              ? null
+              : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
+        ),
+      // Once a week is over; speed mode has its own finale instead.
+      if (c.weeklyHero case final hero? when !c.server.isSpeed)
+        _ActionCard(
+          icon: Icons.emoji_events_rounded,
+          title: 'Week ranking',
+          subtitle: 'See how last week\'s challengers ranked. ${hero.card.subject} won with ${hero.stars} ★.',
+          onTap: () => _openStep(RankingScreen(controller: c), Tutorial.finale),
+        ),
     ];
   }
 
@@ -431,15 +428,17 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                                   "Beat a player's characters most of the time this week for extra ★ against them next week.",
                               onTap: () => _open(WinRatesScreen(controller: _controller)),
                             ),
-                          _ActionCard(
-                            icon: Icons.bolt_rounded,
-                            title: 'Send a hurry',
-                            subtitle: _controller.hurrySentTo == null
-                                ? "Free once a day: cut a friend's drawing time as a surprise."
-                                : 'Sent to ${_controller.hurrySentTo!.name} today.',
-                            done: _controller.hurrySentTo != null,
-                            onTap: _controller.hurrySentTo == null ? _sendHurry : null,
-                          ),
+                          // Hurries cut someone's drawing time: only on drawing days.
+                          if (_controller.promptToDraw != null && !_controller.sessionOver)
+                            _ActionCard(
+                              icon: Icons.bolt_rounded,
+                              title: 'Send a hurry',
+                              subtitle: _controller.hurrySentTo == null
+                                  ? "Free once a day: cut a friend's drawing time as a surprise."
+                                  : 'Sent to ${_controller.hurrySentTo!.name} today.',
+                              done: _controller.hurrySentTo != null,
+                              onTap: _controller.hurrySentTo == null ? _sendHurry : null,
+                            ),
                         ],
                       ),
                     ),
