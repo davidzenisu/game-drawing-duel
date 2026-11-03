@@ -1,41 +1,23 @@
 import secrets
-import uuid
-from typing import Annotated, Literal
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
-from sqlalchemy import delete, func, select, update
+from fastapi import APIRouter, HTTPException, Path, status
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import selectinload
 
-from app import speed
 from app.auth import ADMIN_PERMISSION, CurrentPlayer, TokenClaims
-from app.database import get_db, utc_now
-from app.models import (
-    Boost,
-    ChallengerPrompt,
-    Character,
-    DayEnd,
-    Fight,
-    Fighter,
-    HintAssignment,
-    Hurry,
-    Player,
-    Pull,
-    PullGrant,
-    Server,
-    ServerSeat,
-    SetupAssignment,
-    Upgrade,
-)
+from app.database import utc_now
+from app.deps import Code, DbSession, load_server, require_not_launched, your_seat
+from app.game_data import delete_game_data
+from app.models import Server, ServerSeat
+from app.responses import server_response
 from app.rules import SERVER_CODE_LENGTH
-from app.schemas import SeatResponse, ServerCreate, ServerResponse
-from app.setup import assign_setup, launch_if_due
+from app.schemas import ServerCreate, ServerResponse
+from app.setup import assign_setup
 from app.storage import Files, delete_quietly
 
 router = APIRouter(prefix="/servers", tags=["servers"])
-
-Code = Annotated[str, Path(pattern=rf"^\d{{{SERVER_CODE_LENGTH}}}$")]
-DbSession = Annotated[Session, Depends(get_db)]
 
 # Retries when a random code is already taken.
 _CODE_ATTEMPTS = 10
@@ -43,73 +25,6 @@ _CODE_ATTEMPTS = 10
 
 def _new_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(SERVER_CODE_LENGTH))
-
-
-def phase(
-    server: Server,
-) -> Literal["lobby", "setup", "running", "finished", "cancelled"]:
-    if server.cancelled_at is not None:
-        return "cancelled"
-    if server.launched_at is not None:
-        if speed.is_speed(server) and speed.clock(server).over:
-            return "finished"
-        return "running"
-    return "lobby" if server.setup_started_at is None else "setup"
-
-
-def require_not_launched(server: Server) -> None:
-    if server.launched_at is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, detail="The game already launched"
-        )
-
-
-def server_response(server: Server, player: Player) -> ServerResponse:
-    your_seat = next((s for s in server.seats if s.player_id == player.id), None)
-    return ServerResponse(
-        code=server.code,
-        created_at=server.created_at,
-        mode=server.mode,
-        is_test=server.is_test,
-        is_admin=server.admin_id == player.id,
-        phase=phase(server),
-        cancelled_by=server.cancelled_by,
-        setup_ends_at=speed.setup_ends_at(server),
-        your_position=your_seat.position if your_seat else None,
-        seats=[
-            SeatResponse(
-                position=s.position,
-                name=s.name,
-                joined=s.player_id is not None,
-                setup_done=s.setup_done_at is not None,
-            )
-            for s in server.seats
-        ],
-    )
-
-
-def load_server(session: Session, code: str, *, cancelled_ok: bool = False) -> Server:
-    """The server with `code`; `410 Gone` once it was cancelled, unless
-    `cancelled_ok`."""
-    server = session.scalar(
-        select(Server).where(Server.code == code).options(selectinload(Server.seats))
-    )
-    if server is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No server with this code")
-    if server.cancelled_at is not None and not cancelled_ok:
-        raise HTTPException(status.HTTP_410_GONE, detail="The server was cancelled")
-    if server.cancelled_at is None:
-        launch_if_due(session, server)
-    return server
-
-
-def your_seat(server: Server, player_id: uuid.UUID) -> ServerSeat:
-    seat = next((s for s in server.seats if s.player_id == player_id), None)
-    if seat is None:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, detail="You haven't joined this server"
-        )
-    return seat
 
 
 @router.post("", response_model=ServerResponse, status_code=status.HTTP_201_CREATED)
@@ -217,32 +132,6 @@ def claim_seat(
         ) from error
     session.expire_all()
     return server_response(load_server(session, code), player)
-
-
-def delete_game_data(session: Session, server: Server) -> list[uuid.UUID]:
-    """Deletes everything played on `server` but the server and its seats;
-    returns the ids of the deleted characters, whose drawings to delete."""
-    seat_ids = [s.id for s in server.seats]
-    character_ids = list(
-        session.scalars(select(Character.id).where(Character.server_id == server.id))
-    )
-    fight_ids = select(Fight.id).where(Fight.owner_seat_id.in_(seat_ids))
-    for statement in (
-        delete(Boost).where(Boost.booster_seat_id.in_(seat_ids)),
-        delete(Fighter).where(Fighter.fight_id.in_(fight_ids)),
-        delete(Fight).where(Fight.owner_seat_id.in_(seat_ids)),
-        delete(Upgrade).where(Upgrade.seat_id.in_(seat_ids)),
-        delete(Pull).where(Pull.seat_id.in_(seat_ids)),
-        delete(PullGrant).where(PullGrant.seat_id.in_(seat_ids)),
-        delete(Hurry).where(Hurry.sender_seat_id.in_(seat_ids)),
-        delete(DayEnd).where(DayEnd.seat_id.in_(seat_ids)),
-        delete(HintAssignment).where(HintAssignment.server_id == server.id),
-        delete(ChallengerPrompt).where(ChallengerPrompt.author_seat_id.in_(seat_ids)),
-        delete(Character).where(Character.server_id == server.id),
-        delete(SetupAssignment).where(SetupAssignment.artist_seat_id.in_(seat_ids)),
-    ):
-        session.execute(statement)
-    return character_ids
 
 
 @router.delete("/{code}", status_code=status.HTTP_204_NO_CONTENT)

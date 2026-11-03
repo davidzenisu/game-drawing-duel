@@ -8,16 +8,10 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth import CurrentPlayer
+from app.deps import Code, DbSession, load_server, require_not_launched, your_seat
 from app.drawings import save_character
 from app.models import Character, Server, ServerSeat, SetupAssignment
-from app.routers.servers import (
-    Code,
-    DbSession,
-    load_server,
-    require_not_launched,
-    server_response,
-    your_seat,
-)
+from app.responses import character_response, server_response
 from app.rules import SetupPrompt
 from app.schemas import (
     AssignmentResponse,
@@ -38,19 +32,6 @@ def _require_setup(server: Server) -> None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="The setup hasn't started yet"
         )
-
-
-def character_response(character: Character) -> CharacterResponse:
-    return CharacterResponse(
-        id=character.id,
-        title=character.title,
-        rarity=character.rarity,
-        prompt=character.prompt,
-        artist_position=character.artist.position,
-        subject_position=character.subject.position,
-        day=character.day,
-        theme=character.theme,
-    )
 
 
 @router.post("/{code}/setup", response_model=ServerResponse)

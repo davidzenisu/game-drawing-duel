@@ -8,9 +8,16 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import fights, finale, pulls, upgrades
 from app.auth import CurrentPlayer
-from app.models import Character, Server, ServerSeat
-from app.routers.servers import Code, DbSession, load_server, your_seat
-from app.routers.setup import character_response
+from app.deps import (
+    Code,
+    DbSession,
+    load_server,
+    require_launched,
+    running_game,
+    your_seat,
+)
+from app.models import Character, ServerSeat
+from app.responses import character_response
 from app.schemas import (
     CharacterResponse,
     EffectsRequest,
@@ -24,13 +31,6 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/servers", tags=["pool"])
-
-
-def require_launched(server: Server) -> None:
-    if server.launched_at is None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, detail="The game hasn't launched yet"
-        )
 
 
 def _characters(session: DbSession, *conditions) -> list[CharacterResponse]:
@@ -69,17 +69,10 @@ def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
     )
 
 
-def _running_seat(session: Session, code: str, player_id: uuid.UUID) -> ServerSeat:
-    server = load_server(session, code)
-    seat = your_seat(server, player_id)
-    require_launched(server)
-    return seat
-
-
 @router.get("/{code}/gacha", response_model=GachaResponse)
 def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaResponse:
     """Your pulls left, pity progress and this week's rate-up characters."""
-    seat = _running_seat(session, code, player.id)
+    _, seat = running_game(session, code, player.id)
     # A week's hero joins the pool, and the rate-up, once its finale is over.
     finale.settle(session, seat.server)
     return _gacha(session, seat)
@@ -90,7 +83,7 @@ def pull(
     code: Code, body: PullRequest, player: CurrentPlayer, session: DbSession
 ) -> PullsResponse:
     """Spends pulls on random characters of a banner, see `app/gacha.py`."""
-    seat = _running_seat(session, code, player.id)
+    _, seat = running_game(session, code, player.id)
     # A week's hero joins the pool once its finale is over.
     finale.settle(session, seat.server)
     try:
@@ -125,7 +118,7 @@ def get_collection(
 ) -> list[OwnedCharacterResponse]:
     """Your characters: the ones you drew during the setup and the ones you
     pulled, with how many copies you own."""
-    seat = _running_seat(session, code, player.id)
+    _, seat = running_game(session, code, player.id)
     return _collection(session, seat)
 
 
@@ -165,7 +158,7 @@ def set_effects(
 ) -> OwnedCharacterResponse:
     """Switches unlocked effects of a character off, or back on. Fights set
     up from now on leave the switched off ones out."""
-    seat = _running_seat(session, code, player.id)
+    _, seat = running_game(session, code, player.id)
     character = session.get(Character, character_id)
     if character is None or character.server_id != seat.server_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
@@ -190,7 +183,7 @@ def set_element(
 ) -> OwnedCharacterResponse:
     """Changes the element of an unlocked element upgrade, for free. Fights
     set up from now on use the new one."""
-    seat = _running_seat(session, code, player.id)
+    _, seat = running_game(session, code, player.id)
     character = session.get(Character, character_id)
     if character is None or character.server_id != seat.server_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
@@ -214,7 +207,7 @@ def unlock_upgrade(
     session: DbSession,
 ) -> OwnedCharacterResponse:
     """Spends a duplicate on the character's next upgrade."""
-    seat = _running_seat(session, code, player.id)
+    _, seat = running_game(session, code, player.id)
     character = session.get(Character, character_id)
     if character is None or character.server_id != seat.server_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")

@@ -4,12 +4,13 @@ import random
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import days, fights, finale, pulls, speed, win_rates
+from app import day_flow, days, fights, finale, speed, win_rates
 from app.auth import CurrentPlayer
+from app.deps import Code, DbSession, running_game
 from app.drawings import save_character
 from app.models import (
     ChallengerPrompt,
@@ -21,9 +22,7 @@ from app.models import (
     Server,
     ServerSeat,
 )
-from app.routers.pool import require_launched
-from app.routers.servers import Code, DbSession, load_server, your_seat
-from app.routers.setup import character_response
+from app.responses import character_response
 from app.rules import (
     BOOST_MAX_PER_CHALLENGER,
     BOOST_STARS,
@@ -59,21 +58,6 @@ from app.schemas import (
 from app.storage import Files
 
 router = APIRouter(prefix="/servers", tags=["today"])
-
-
-def _running(session: Session, code: str, player_id: uuid.UUID):
-    server = load_server(session, code)
-    seat = your_seat(server, player_id)
-    require_launched(server)
-    return server, seat
-
-
-def _challenger(session: Session, seat: ServerSeat, day: int) -> Character | None:
-    return session.scalar(
-        select(Character).where(
-            Character.artist_seat_id == seat.id, Character.day == day
-        )
-    )
 
 
 def _fight_response(session: Session, server: Server, fight: Fight) -> FightResponse:
@@ -119,7 +103,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         )
     )
     to_draw = days.prompt_to_draw(session, server, day, seat)
-    drawn = _challenger(session, seat, day)
+    drawn = days.drawn_challenger(session, seat, day)
     ended = (
         session.scalars(
             select(ServerSeat.position)
@@ -246,7 +230,7 @@ def _fight_step(
 @router.get("/{code}/today", response_model=TodayResponse)
 def get_today(code: Code, player: CurrentPlayer, session: DbSession) -> TodayResponse:
     """Today's day and theme, your prompt to write and your prompt to draw."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     return _today(session, server, seat)
 
 
@@ -257,7 +241,7 @@ def write_prompt(
     """Step 1: chooses the person who fits today's description best (anyone
     but yourself) and writes their challenger title; the next player draws
     it tomorrow. Once a day."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     if not days.prompts_on(server, day):
         raise HTTPException(
@@ -288,7 +272,7 @@ def write_prompt(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You wrote today's prompt already"
         ) from error
-    _end_speed_day_if_done(session, server)
+    day_flow.end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -302,14 +286,14 @@ def draw_challenger(
 ) -> TodayResponse:
     """Step 2: draws today's prompt. The challenger joins the pool as a hero
     and earns a pull. Once a day."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     prompt = days.prompt_to_draw(session, server, day, seat)
     if prompt is None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="There's no prompt to draw today"
         )
-    if _challenger(session, seat, day) is not None:
+    if days.drawn_challenger(session, seat, day) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You drew today's challenger already"
         )
@@ -339,7 +323,7 @@ def draw_challenger(
         conflict="You drew today's challenger already",
         before_insert=reward,
     )
-    _end_speed_day_if_done(session, server)
+    day_flow.end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -352,7 +336,7 @@ def pick_fighters(
     a pull (`fight:day-N`), or in speed mode one per challenger star
     (`fight:day-N:1`, …), and the challenger's stars as victory stars. Once
     a day, and every character but the basic ones once a week."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     fights.complete_boosts(session, server, day - 1)
     # Last week's fights give this week's win rates.
@@ -389,7 +373,7 @@ def pick_fighters(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You picked today's fighters already"
         ) from error
-    _end_speed_day_if_done(session, server)
+    day_flow.end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -400,7 +384,7 @@ def boost(
     """Step 3: spreads your boost stars across today's challengers to boost,
     replacing the ones you gave today. Once the day is over, chance spreads
     the stars you left."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     stars = {b.challenger_id: b.stars for b in body.boosts}
     if len(stars) != len(body.boosts):
@@ -416,7 +400,7 @@ def boost(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Your boosts changed at the same time"
         ) from error
-    _end_speed_day_if_done(session, server)
+    day_flow.end_speed_day_if_done(session, server)
     return _today(session, server, seat)
 
 
@@ -426,7 +410,7 @@ def send_hurry(
 ) -> TodayResponse:
     """Sends today's free hurry: it cuts the target's challenger drawing time
     at a random moment, which they find out while drawing. Once a day."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     target = next(
         (s for s in days.active_seats(server) if s.position == body.target_position),
         None,
@@ -463,102 +447,13 @@ def _day_controls(server: Server) -> None:
         )
 
 
-def _advance(session: Session, server: Server, day: int) -> None:
-    """Moves a test session or speed mode session from `day` to the next,
-    once."""
-    if speed.is_speed(server):
-        if days.current_day(server) == day and not speed.clock(server).over:
-            speed.start_next_day(server, day)
-        return
-    session.execute(
-        update(Server)
-        .where(Server.id == server.id, Server.test_day == day)
-        .values(test_day=day + 1)
-    )
-
-
-def _done(session: Session, server: Server, day: int, seat: ServerSeat) -> bool:
-    """Whether `seat` did everything there is to do on `day`, or ended it."""
-    if session.scalar(
-        select(DayEnd.id).where(DayEnd.seat_id == seat.id, DayEnd.day == day)
-    ):
-        return True
-    if days.prompts_on(server, day) and not session.scalar(
-        select(ChallengerPrompt.id).where(
-            ChallengerPrompt.author_seat_id == seat.id, ChallengerPrompt.day == day
-        )
-    ):
-        return False
-    if (
-        days.prompt_to_draw(session, server, day, seat) is not None
-        and _challenger(session, seat, day) is None
-    ):
-        return False
-    if (
-        fights.boost_targets(session, server, day, seat)
-        and sum(fights.given_boosts(session, seat, day).values()) < BOOST_STARS
-    ):
-        return False
-    can_fight = set(pulls.copies(session, seat)) - fights.resting(
-        session, server, seat, day
-    )
-    return not (
-        fights.fight_challenger(session, server, day, seat) is not None
-        and fights.fight_of(session, seat, day) is None
-        and can_fight
-    )
-
-
-def _end_speed_day_if_done(session: Session, server: Server) -> None:
-    """In speed mode, starts the next day as soon as everyone is done with
-    today. Commits."""
-    if not speed.is_speed(server):
-        return
-    # Players finishing at once wait for each other here, so the last one
-    # sees everyone else's and moves the day on.
-    session.scalar(select(Server.id).where(Server.id == server.id).with_for_update())
-    session.refresh(server)
-    day = days.current_day(server)
-    if not speed.clock(server).over and all(
-        _done(session, server, day, s) for s in days.active_seats(server)
-    ):
-        _advance(session, server, day)
-    session.commit()
-    session.refresh(server)
-
-
 @router.post("/{code}/today/end", response_model=TodayResponse)
 def end_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayResponse:
     """Test sessions and speed mode: you're done for today. Once everyone
     is, the next day starts."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     _day_controls(server)
-    # Players ending the day at once wait for each other here, so the last
-    # one sees everyone else's and moves the day on.
-    session.scalar(select(Server.id).where(Server.id == server.id).with_for_update())
-    session.refresh(server)
-    day = days.current_day(server)
-    if not session.scalar(
-        select(DayEnd.id).where(DayEnd.seat_id == seat.id, DayEnd.day == day)
-    ):
-        session.add(DayEnd(seat_id=seat.id, day=day))
-        session.flush()
-    if speed.is_speed(server):
-        session.commit()
-        _end_speed_day_if_done(session, server)
-        return _today(session, server, seat)
-    ended = set(
-        session.scalars(
-            select(DayEnd.seat_id).where(
-                DayEnd.day == day,
-                DayEnd.seat_id.in_([s.id for s in server.seats]),
-            )
-        )
-    )
-    if all(s.id in ended for s in days.active_seats(server)):
-        _advance(session, server, day)
-    session.commit()
-    session.refresh(server)
+    day_flow.end_day(session, server, seat)
     return _today(session, server, seat)
 
 
@@ -566,13 +461,13 @@ def end_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayRespo
 def next_day(code: Code, player: CurrentPlayer, session: DbSession) -> TodayResponse:
     """Test sessions and speed mode: the admin starts the next day for
     everyone."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     _day_controls(server)
     if server.admin_id != player.id:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail="Only the admin can start the next day"
         )
-    _advance(session, server, days.current_day(server))
+    day_flow.advance(session, server, days.current_day(server))
     session.commit()
     session.refresh(server)
     return _today(session, server, seat)
@@ -585,7 +480,7 @@ def get_challengers(
     """The challengers you encountered, newest first: the ones you drew,
     fought against or boosted, with their decided fights and wins.
     Challengers aren't part of the gacha pool."""
-    server, seat = _running(session, code, player.id)
+    server, seat = running_game(session, code, player.id)
     return [
         ChallengerResponse(
             character=character_response(record.challenger),
@@ -604,7 +499,7 @@ def get_ranking(
     joined the gacha pool as a hero. Null before the first week is over.
 
     In speed mode, all of the session's challengers once it's over."""
-    server, _ = _running(session, code, player.id)
+    server, _ = running_game(session, code, player.id)
     if speed.is_speed(server):
         if not speed.clock(server).over:
             return None
@@ -642,7 +537,7 @@ def get_win_rates(
     get extra stars against another player's after winning most of their
     meetings, every fighter meeting the challenger once. Speed mode sessions
     have none."""
-    server, _ = _running(session, code, player.id)
+    server, _ = running_game(session, code, player.id)
     if speed.is_speed(server):
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Speed mode sessions have no win rates"
