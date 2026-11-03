@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../rules/daily_loop.dart';
 import '../game_session.dart';
+import '../rules/daily_loop.dart';
+import '../rules/models.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/fight_stage.dart';
@@ -22,6 +23,54 @@ class FightSetupScreen extends StatefulWidget {
 
 class _FightSetupScreenState extends State<FightSetupScreen> {
   final List<OwnedCard> _picked = [];
+
+  /// This week's win rates, once loaded: the star changes your fighters
+  /// bring against the challenger's player.
+  WeekWinRates? _rates;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRates();
+  }
+
+  Future<void> _loadRates() async {
+    try {
+      final rates = await widget.controller.winRates();
+      if (mounted) setState(() => _rates = rates);
+    } on Object {
+      // Without them, the picker just shows no star changes.
+    }
+  }
+
+  /// The win rate star change [card] brings against today's challenger:
+  /// its extra stars, minus the challenger's against it.
+  int _starChange(CharacterCard card) {
+    final rates = _rates;
+    if (rates == null) return 0;
+    final against = widget.controller.fightChallenger!.subject;
+    return rates.extraStars(card.subject, against) - rates.extraStars(against, card.subject);
+  }
+
+  /// The extra stars [fighters] and the challenger get from the win rates.
+  (int yours, int challenger) _extraStarsOf(List<FighterEntry> fighters) {
+    final rates = _rates;
+    if (rates == null) return (0, 0);
+    final against = widget.controller.fightChallenger!.subject;
+    return (
+      fighters.fold(0, (sum, f) => sum + rates.extraStars(f.card.subject, against)),
+      fighters.fold(0, (sum, f) => sum + rates.extraStars(against, f.card.subject)),
+    );
+  }
+
+  int _yourExtraStars(List<FighterEntry> fighters) => _extraStarsOf(fighters).$1;
+
+  /// What the picked fighters' win rates change, if anything.
+  String? _winRateSummary(List<FighterEntry> fighters) {
+    final (yours, theirs) = _extraStarsOf(fighters);
+    if (yours == 0 && theirs == 0) return null;
+    return 'Win rates: ${[if (yours > 0) 'your fighters +$yours ★', if (theirs > 0) 'the challenger +$theirs ★'].join(' · ')}';
+  }
 
   Future<void> _openRoster() async {
     await showModalBottomSheet<void>(
@@ -87,7 +136,16 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                               children: [
                                 Standee(card: owned.card, width: 90, effects: owned.shown, element: owned.element),
                                 const SizedBox(height: 4),
-                                StarRow(rarity: owned.card.rarity, size: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    StarRow(rarity: owned.card.rarity, size: 12),
+                                    if (_starChange(owned.card) case final change when change != 0) ...[
+                                      const SizedBox(width: 4),
+                                      StarChangeBadge(change: change),
+                                    ],
+                                  ],
+                                ),
                                 Text(owned.card.subject, overflow: TextOverflow.ellipsis),
                                 Text(
                                   resting ? 'Resting until Monday' : owned.card.title,
@@ -131,6 +189,7 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
               fighters: fighters,
               showEmptySlots: locked == null,
               onSlotTap: locked == null ? (_) => _openRoster() : null,
+              starChanges: [for (final f in fighters) _starChange(f.card)],
             ),
           ),
           SafeArea(
@@ -165,6 +224,10 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                           'until you lock in. Bring more: ties go to the challenger.',
                           textAlign: TextAlign.center,
                         ),
+                        if (_winRateSummary(fighters) case final summary?) ...[
+                          const SizedBox(height: 4),
+                          Text(summary, textAlign: TextAlign.center, style: Theme.of(context).textTheme.labelLarge),
+                        ],
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -200,7 +263,7 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                                 icon: const Icon(Icons.lock_rounded),
                                 label: Text(
                                   'Lock in ${_picked.length}/${FightSetup.maxFighters} · '
-                                  '${Stars.ofTeam(_picked.map((o) => o.card.rarity))} ★',
+                                  '${Stars.ofTeam(_picked.map((o) => o.card.rarity)) + _yourExtraStars(fighters)} ★',
                                 ),
                               ),
                             ),
