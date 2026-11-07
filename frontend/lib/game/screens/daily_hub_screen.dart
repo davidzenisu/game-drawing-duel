@@ -7,6 +7,7 @@ import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../tutorials.dart';
+import '../unavailable.dart';
 import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
@@ -211,6 +212,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: Icons.edit_note_rounded,
         title: 'Choose a challenger',
         done: c.yourPrompt != null,
+        unavailable: Unavailable.prompt(c),
         onTap: !over && c.promptsToday && c.yourPrompt == null
             ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt)
             : null,
@@ -219,12 +221,14 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: Icons.brush_rounded,
         title: 'Draw a challenger',
         done: c.challengerDrawn,
+        unavailable: Unavailable.draw(c),
         onTap: !over && toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
       ),
       HubTile(
         icon: Icons.keyboard_double_arrow_up_rounded,
         title: 'Boost challengers',
         done: c.boostTargets.isNotEmpty && !c.canBoost,
+        unavailable: Unavailable.boost(c),
         badge: c.canBoost ? c.boostStarsLeft : 0,
         // Boosts can be moved all day, even once all stars are given.
         onTap: !over && c.boostTargets.isNotEmpty ? () => _openStep(BoostScreen(controller: c), Tutorial.boost) : null,
@@ -233,6 +237,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         icon: Icons.groups_rounded,
         title: 'Pick your fighters',
         done: fight != null,
+        unavailable: Unavailable.fight(c),
         onTap: !over && c.fightChallenger != null && (fight != null || c.availableFighters.isNotEmpty)
             ? () => _openStep(FightSetupScreen(controller: c), Tutorial.fight)
             : null,
