@@ -309,23 +309,7 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
                     tween: Tween(end: hp / FightScript.maxHp),
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
-                    // Outlined, so the bar stands out on every scenery.
-                    builder: (context, value, _) => DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 3, offset: Offset(0, 1))],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: value,
-                          minHeight: 7,
-                          color: Color.lerp(AppPalette.hpLow, AppPalette.hpHigh, value),
-                          backgroundColor: Colors.black38,
-                        ),
-                      ),
-                    ),
+                    builder: (context, value, _) => _LifeBar(value: value),
                   ),
                   const SizedBox(height: 4),
                   _Topple(
@@ -507,4 +491,67 @@ class _Call extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A fighter's life: a thick, bright bar in a dark frame with a white rim,
+/// like the classic RPG party boxes, so it reads on every scenery. Green
+/// when full, through yellow to red when nearly out.
+class _LifeBar extends StatelessWidget {
+  const _LifeBar({required this.value});
+
+  /// From 0, out, to 1, full.
+  final double value;
+
+  static const _full = Color(0xFF7CFF9B);
+  static const _half = Color(0xFFFFE45C);
+  static const _low = Color(0xFFFF5C5C);
+
+  Color get _color => value > 0.5 ? Color.lerp(_half, _full, (value - 0.5) * 2)! : Color.lerp(_low, _half, value * 2)!;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color;
+    return Container(
+      height: 16,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      padding: const EdgeInsets.all(2),
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: AppPalette.nameplateBottom, borderRadius: BorderRadius.circular(6)),
+        // Painted, so the bar sizes to its column like a plain box.
+        child: CustomPaint(
+          painter: _LifeFill(value: value.clamp(0.0, 1.0), color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _LifeFill extends CustomPainter {
+  _LifeFill({required this.value, required this.color});
+
+  final double value;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inner = (Offset.zero & size).deflate(2);
+    if (value <= 0 || inner.isEmpty) return;
+    final fill = Rect.fromLTWH(inner.left, inner.top, inner.width * value, inner.height);
+    // A highlight on top, like a shiny tube.
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color.lerp(color, Colors.white, 0.6)!, color, color],
+        stops: const [0, 0.45, 1],
+      ).createShader(fill);
+    canvas.drawRRect(RRect.fromRectAndRadius(fill, const Radius.circular(4)), paint);
+  }
+
+  @override
+  bool shouldRepaint(_LifeFill old) => old.value != value || old.color != color;
 }
