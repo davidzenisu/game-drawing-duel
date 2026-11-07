@@ -774,7 +774,7 @@ class MockGameSession extends GameSession {
   /// Hurries are free, once per day. The target only finds out while drawing.
   @override
   Future<bool> sendHurry(Player target) async {
-    if (_hurrySentTo != null || target.isYou) return false;
+    if (!canSendHurry || target.isYou) return false;
     _hurrySentTo = target;
     notifyListeners();
     return true;

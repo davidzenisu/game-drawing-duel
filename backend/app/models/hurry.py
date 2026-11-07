@@ -17,7 +17,7 @@ from app.database import Base, utc_now
 
 class Hurry(Base):
     """A seat's free daily hurry: it cuts another seat's challenger drawing
-    time that day, as a surprise while drawing."""
+    time the day after it was sent (`day`), as a surprise while drawing."""
 
     __tablename__ = "hurry"
     __table_args__ = (UniqueConstraint("sender_seat_id", "day"),)
@@ -29,6 +29,7 @@ class Hurry(Base):
     target_seat_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
     )
+    # The day it hits: the day after it was sent. One a sender and day.
     day: Mapped[int] = mapped_column(Integer, nullable=False)
     # When it hits, as a fraction of the time limit. It takes away
     # `rules.HURRY_CUT_FRACTION` of the time left then.

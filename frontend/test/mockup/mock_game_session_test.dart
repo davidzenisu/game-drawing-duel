@@ -138,6 +138,7 @@ void main() {
     for (var day = 1; day <= SpeedMode.days.length; day++) {
       expect(game.day, day);
       expect(game.promptsToday, day <= SpeedMode.lastPromptDay, reason: 'day $day');
+      expect(game.canSendHurry, day <= SpeedMode.lastPromptDay, reason: 'day $day: a drawing tomorrow');
       if (!game.promptsToday) {
         await expectLater(game.submitPrompt('Late', game.promptCandidates.first), throwsStateError);
       }

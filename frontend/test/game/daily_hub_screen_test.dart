@@ -91,7 +91,7 @@ void main() {
         'Win rates': true,
         'Fight replay': false, // no fight today
         'Week ranking': false, // the first week isn't over
-        'Send a hurry': false, // nobody draws on day 1
+        'Send a hurry': true, // against a drawing tomorrow
       },
     );
     expect(tester.takeException(), isNull, reason: 'fits a phone');

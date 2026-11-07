@@ -549,12 +549,17 @@ void main() {
       expect(admin.day, 3);
       await expectLater(sam.advanceDay(), throwsA(isA<ApiException>()));
 
-      // The free hurry: once a day, a surprise for the target's drawing.
+      // The free hurry: once a day, a surprise for the target's drawing
+      // tomorrow.
       await sam.refreshDay();
       expect(await admin.sendHurry(sam.server.players[1].copyWith(isYou: false)), isTrue);
       expect(admin.hurrySentTo!.name, 'Sam');
       expect(await admin.sendHurry(admin.server.players[1]), isFalse, reason: 'once a day');
       await sam.refreshDay();
+      expect(sam.incomingHurries, isEmpty, reason: 'it hits tomorrow');
+      await admin.advanceDay();
+      await sam.refreshDay();
+      expect(admin.hurrySentTo, isNull, reason: 'a new day, a new hurry');
       expect(sam.incomingHurries.single.by, 'Alex');
       expect(sam.incomingHurries.single.atFraction, 0.4);
       expect(admin.incomingHurries, isEmpty);

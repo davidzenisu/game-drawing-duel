@@ -209,6 +209,14 @@ class SpeedDayTests(SpeedTestCase):
         self.post("days/next")
         self.assertIsNone(self.today()["to_draw"], "nothing to draw on day 5")
 
+    def test_hurries_are_sent_the_day_before_a_drawing_day(self) -> None:
+        # Drawn on days 2 to 4: hurries go out on days 1 to 3.
+        for day in range(1, 7):
+            self.assertEqual(self.today()["day"], day)
+            response = self.post("today/hurry", json={"target_position": 1})
+            self.assertEqual(response.status_code, 200 if day <= 3 else 409, day)
+            self.post("days/next")
+
     def test_speed_mode_has_no_win_rates(self) -> None:
         response = self.get(f"/servers/{self.code}/win-rates")
         self.assertEqual(response.status_code, 409)
