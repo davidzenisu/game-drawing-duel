@@ -4,6 +4,7 @@ import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/models.dart';
 import '../tutorials.dart';
+import '../unavailable.dart';
 import '../widgets/game_action.dart';
 import '../widgets/hub_tile.dart';
 import '../widgets/ticket_chip.dart';
@@ -74,18 +75,21 @@ class HeroesMenuScreen extends StatelessWidget {
                           HubTile(
                             icon: Icons.percent_rounded,
                             title: 'Win rates',
+                            unavailable: Unavailable.winRates(c),
                             // Speed mode sessions have none.
                             onTap: c.server.isSpeed ? null : () => open(WinRatesScreen(controller: c)),
                           ),
                           HubTile(
                             icon: Icons.play_circle_fill_rounded,
                             title: 'Fight replay',
+                            unavailable: Unavailable.fightReplay(c),
                             // Today's fight, once you picked your fighters.
                             onTap: fight == null ? null : () => open(FightReplayScreen(fight: fight)),
                           ),
                           HubTile(
                             icon: Icons.emoji_events_rounded,
                             title: 'Week ranking',
+                            unavailable: Unavailable.weekRanking(c),
                             // Once a week is over; speed mode has its own finale.
                             onTap: c.weeklyHero == null || c.server.isSpeed
                                 ? null
@@ -95,6 +99,7 @@ class HeroesMenuScreen extends StatelessWidget {
                             icon: Icons.bolt_rounded,
                             title: c.hurrySentTo == null ? 'Send a hurry' : 'Hurry sent',
                             done: c.hurrySentTo != null,
+                            unavailable: Unavailable.hurry(c),
                             // Hurries cut someone's drawing time tomorrow, once a day.
                             onTap: c.canSendHurry ? () => _sendHurry(context) : null,
                           ),

@@ -6,6 +6,7 @@ import '../../theme/palette.dart';
 
 /// A big menu button: an icon over a title. Greyed out without [onTap],
 /// e.g. a step of the loop that doesn't start today; a check once [done].
+/// Tapping one without [onTap] shows why it isn't available: [unavailable].
 class HubTile extends StatelessWidget {
   const HubTile({
     super.key,
@@ -15,6 +16,7 @@ class HubTile extends StatelessWidget {
     this.done = false,
     this.badge = 0,
     this.height = 136,
+    this.unavailable,
   });
 
   final IconData icon;
@@ -24,8 +26,24 @@ class HubTile extends StatelessWidget {
   final int badge;
   final double height;
 
+  /// Why the tile can't be tapped right now, shown when it's tapped anyway.
+  final String? unavailable;
+
   @override
   Widget build(BuildContext context) {
+    final tile = _tile(context);
+    final reason = unavailable;
+    if (onTap != null || reason == null) return tile;
+    return Tooltip(
+      message: reason,
+      triggerMode: TooltipTriggerMode.tap,
+      showDuration: const Duration(seconds: 4),
+      preferBelow: false,
+      child: tile,
+    );
+  }
+
+  Widget _tile(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final enabled = onTap != null;
     final accent = done ? AppPalette.victory : colors.primary;
