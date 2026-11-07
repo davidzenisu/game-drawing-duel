@@ -89,6 +89,11 @@ class DrawingScreen extends StatefulWidget {
 class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProviderStateMixin {
   final _pad = SketchPadController();
   late final _title = TextEditingController(text: widget.initialTitle);
+
+  /// While the title is being typed, the keyboard shrinks the canvas: a
+  /// tap on it then only hides the keyboard, so no stroke is drawn by
+  /// mistake.
+  final _titleFocus = FocusNode();
   // From `clock`, so tests can control the time.
   final _stopwatch = clock.stopwatch();
   late final AnimationController _shake;
@@ -130,6 +135,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _pad.addListener(_rebuild);
     _title.addListener(_rebuild);
+    _titleFocus.addListener(_rebuild);
     if (_limit != null) {
       _stopwatch.start();
       _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) => _tick());
@@ -166,6 +172,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _shake.dispose();
     _pad.dispose();
     _title.dispose();
+    _titleFocus.dispose();
     super.dispose();
   }
 
@@ -214,30 +221,6 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                 Expanded(child: _canvas()),
                 const SizedBox(height: 12),
                 _toolbar(context),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _title,
-                        readOnly: widget.titleLocked,
-                        maxLength: CharacterCard.maxTitleLength,
-                        decoration: const InputDecoration(
-                          labelText: 'Title',
-                          hintText: 'e.g. The early years',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: _canSubmit ? _submit : null,
-                      icon: const Icon(Icons.check_rounded),
-                      label: const Text('Done'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -388,6 +371,14 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           fit: StackFit.expand,
           children: [
             SketchPad(controller: _pad),
+            if (_titleFocus.hasFocus)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (_) => _titleFocus.unfocus(),
+                  onPanStart: (_) => _titleFocus.unfocus(),
+                ),
+              ),
             _hurryBanner(context),
             IgnorePointer(
               child: AnimatedOpacity(
@@ -410,48 +401,121 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
+  /// The tools, the title to type and Done, on a card of their own, so they
+  /// read well on every day's scenery, in light and dark mode.
   Widget _toolbar(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 4,
-      runSpacing: 4,
-      children: [
-        for (final brush in [...AppPalette.brushes, AppPalette.eraser])
-          InkResponse(
-            onTap: _pad.enabled ? () => _pad.setColor(brush) : null,
-            radius: 20,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: brush,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _pad.color == brush ? colors.primary : colors.outlineVariant,
-                  width: _pad.color == brush ? 3 : 1,
+    return Card(
+      margin: EdgeInsets.zero,
+      color: colors.surface,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final brush in [...AppPalette.brushes, AppPalette.eraser])
+                  InkResponse(
+                    onTap: _pad.enabled ? () => _pad.setColor(brush) : null,
+                    radius: 20,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: brush,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _pad.color == brush ? colors.primary : colors.outline,
+                          width: _pad.color == brush ? 3 : 1,
+                        ),
+                      ),
+                      child: brush == AppPalette.eraser
+                          ? const Icon(Icons.auto_fix_normal_rounded, size: 16, color: AppPalette.ink)
+                          : null,
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                for (final width in brushWidths) _widthButton(context, width),
+                IconButton(
+                  onPressed: _pad.enabled ? _pad.undo : null,
+                  tooltip: 'Undo',
+                  icon: const Icon(Icons.undo_rounded),
                 ),
-              ),
-              child: brush == AppPalette.eraser ? const Icon(Icons.auto_fix_normal_rounded, size: 16) : null,
+                IconButton(
+                  onPressed: _pad.enabled ? _pad.clear : null,
+                  tooltip: 'Clear',
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                // A title given by the prompt shows at the top already.
+                if (widget.titleLocked)
+                  const Spacer()
+                else
+                  Expanded(
+                    child: TextField(
+                      controller: _title,
+                      focusNode: _titleFocus,
+                      maxLength: CharacterCard.maxTitleLength,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                        hintText: 'e.g. The early years',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        counterText: '',
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  onPressed: _canSubmit ? _submit : null,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Done'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A brush width: a dot of that size, ringed when it's the one in use.
+  Widget _widthButton(BuildContext context, double width) {
+    final colors = Theme.of(context).colorScheme;
+    final selected = _pad.width == width;
+    return InkResponse(
+      onTap: _pad.enabled ? () => _pad.setWidth(width) : null,
+      radius: 22,
+      child: Tooltip(
+        message: 'Brush size',
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: selected ? colors.primaryContainer : null,
+            border: Border.all(color: selected ? colors.primary : Colors.transparent, width: 2),
+          ),
+          child: Center(
+            child: Icon(
+              Icons.circle,
+              size: 6 + width * 400,
+              color: selected ? colors.onPrimaryContainer : colors.onSurfaceVariant,
             ),
           ),
-        const SizedBox(width: 8),
-        for (final width in brushWidths)
-          IconButton(
-            isSelected: _pad.width == width,
-            onPressed: _pad.enabled ? () => _pad.setWidth(width) : null,
-            tooltip: 'Brush size',
-            icon: Icon(Icons.circle, size: 6 + width * 400),
-          ),
-        IconButton(onPressed: _pad.enabled ? _pad.undo : null, tooltip: 'Undo', icon: const Icon(Icons.undo_rounded)),
-        IconButton(
-          onPressed: _pad.enabled ? _pad.clear : null,
-          tooltip: 'Clear',
-          icon: const Icon(Icons.delete_outline_rounded),
         ),
-      ],
+      ),
     );
   }
 }

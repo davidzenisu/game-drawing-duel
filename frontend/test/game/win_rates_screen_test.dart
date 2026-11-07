@@ -19,7 +19,7 @@ void main() {
     expect(find.textContaining('From the fights of days 1 to 7'), findsOneWidget);
     // Every player is a card with their basic drawing as the preview.
     final players = controller.server.players;
-    expect(find.text('Show win rates'), findsNWidgets(players.length));
+    expect(find.widgetWithText(FilledButton, 'Win rates'), findsNWidgets(players.length));
     for (final player in players) {
       expect(basicDrawingOf(controller, player), isNotNull, reason: player.name);
     }
@@ -29,8 +29,8 @@ void main() {
     final best = rates.rates.reduce((a, b) => b.extraStars > a.extraStars ? b : a);
     expect(best.extraStars, greaterThan(0));
     final index = players.indexWhere((p) => p.name == best.player.name);
-    await tester.ensureVisible(find.text('Show win rates').at(index));
-    await tester.tap(find.text('Show win rates').at(index));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Win rates').at(index));
+    await tester.tap(find.widgetWithText(FilledButton, 'Win rates').at(index));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     expect(find.byType(PlayerWinRatesScreen), findsOneWidget);
@@ -45,6 +45,12 @@ void main() {
           r.player.name == best.player.name ? r.against.name : r.player.name,
     };
     expect(find.text('vs'), findsNWidgets(changing.length));
+    // The two sides of a matchup are the same size, extra stars or not.
+    for (final vs in find.text('vs').evaluate()) {
+      final row = find.ancestor(of: find.byWidget(vs.widget), matching: find.byType(Row)).first;
+      final sides = find.descendant(of: row, matching: find.byType(Card));
+      expect(tester.getSize(sides.at(0)), tester.getSize(sides.at(1)));
+    }
     await tester.pumpWidget(const SizedBox());
   });
 

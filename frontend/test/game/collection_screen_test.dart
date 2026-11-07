@@ -81,6 +81,13 @@ void main() {
     await tap('Upgrade ready');
     expect(shownIds(), contains(ready.card.id));
     expect(shownIds(), isNot(contains(maxed.card.id)));
+    // Its upgrade-ready icon sits under its nameplate, next to its copies,
+    // closer to it than to the next row.
+    final icon = find.byTooltip('Upgrade ready').first;
+    final plate = tester.getRect(find.byType(Nameplate).first);
+    final mark = tester.getRect(icon);
+    expect(mark.top, greaterThan(plate.bottom));
+    expect(mark.top - plate.bottom, lessThan(20));
 
     await tap('Not summoned');
     final standees = tester.widgetList<Standee>(find.byType(Standee));

@@ -6,6 +6,7 @@ import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
+import '../rules/themes.dart';
 import '../tutorials.dart';
 import '../unavailable.dart';
 import '../widgets/cancel_server_button.dart';
@@ -253,10 +254,9 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           appBar: AppBar(
             backgroundColor: Colors.transparent,
             foregroundColor: onScenery,
-            title: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: Text('Day ${_controller.day} · ${theme.label}', key: ValueKey(_controller.day)),
-            ),
+            // The day and its theme show in the body, where a phone has
+            // room for them next to all the actions.
+            automaticallyImplyLeading: false,
             actions: [
               if (_controller.canEndDay && _controller.canAdvanceDay)
                 IconButton(
@@ -301,6 +301,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          _DayHeader(day: _controller.day, theme: theme, color: onScenery),
+                          const SizedBox(height: 8),
                           if (_controller.dayEndsAt case final endsAt?)
                             Center(
                               child: Countdown(
@@ -340,6 +342,39 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Today's day number and theme, big over the scenery.
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.day, required this.theme, required this.color});
+
+  final int day;
+  final DailyTheme theme;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    const shadow = [Shadow(color: Colors.black26, blurRadius: 4)];
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      layoutBuilder: (current, previous) => Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
+      child: Column(
+        key: ValueKey(day),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Day $day',
+            style: textTheme.headlineMedium?.copyWith(color: color, fontWeight: FontWeight.w900, shadows: shadow),
+          ),
+          Text(
+            theme.label,
+            style: textTheme.titleMedium?.copyWith(color: color, shadows: shadow),
+          ),
+        ],
+      ),
     );
   }
 }

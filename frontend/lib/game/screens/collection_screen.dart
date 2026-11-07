@@ -169,9 +169,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
                         padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 170,
-                          mainAxisExtent: 270,
+                          mainAxisExtent: 274,
                           crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
+                          mainAxisSpacing: 20,
                         ),
                         itemCount: entries.length,
                         itemBuilder: (context, index) => switch (entries[index]) {
@@ -204,23 +204,40 @@ class _CollectionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = owned.card;
+    final colors = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Badge(
-        isLabelVisible: owned.hasUnspentPoints,
-        label: const Icon(Icons.upgrade_rounded, size: 12, color: Colors.white),
-        child: Column(
-          children: [
-            Hero(
-              tag: 'standee-${card.id}',
-              child: Standee(card: card, width: 120, effects: owned.shown, element: owned.element),
+      child: Column(
+        children: [
+          Hero(
+            tag: 'standee-${card.id}',
+            child: Standee(card: card, width: 120, effects: owned.shown, element: owned.element),
+          ),
+          const SizedBox(height: 6),
+          Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
+          // Right under its nameplate, with more room before the next row,
+          // so it's clear which character it belongs to.
+          if (owned.copies > 1 || owned.hasUnspentPoints) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (owned.copies > 1) Text('×${owned.copies}', style: Theme.of(context).textTheme.labelMedium),
+                if (owned.copies > 1 && owned.hasUnspentPoints) const SizedBox(width: 6),
+                if (owned.hasUnspentPoints)
+                  Tooltip(
+                    message: 'Upgrade ready',
+                    child: CircleAvatar(
+                      radius: 9,
+                      backgroundColor: colors.error,
+                      child: const Icon(Icons.upgrade_rounded, size: 14, color: Colors.white),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
-            if (owned.copies > 1) Text('×${owned.copies}', style: Theme.of(context).textTheme.labelSmall),
           ],
-        ),
+        ],
       ),
     );
   }

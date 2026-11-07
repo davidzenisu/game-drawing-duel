@@ -40,15 +40,18 @@ The app can run an offline mockup of the gameplay loop described in
 setup, gacha pulls with duplicate upgrades, and the daily loop. Every challenger
 goes through four days, and each day every player works on a different stage:
 
-1. write a challenger title prompt for the day's theme and a given character,
+1. choose a player for the day's description and write their challenger title,
 2. draw a challenger from a prompt another player wrote the day before,
-3. pick up to four fighters against a challenger drawn the day before,
-4. vote who would win the fights the others set up the day before.
+3. spread boost stars across a few of the challengers drawn the day before,
+4. pick up to four fighters against a challenger drawn two days before.
 
-Afterwards the fights play out under **Battle results** for the players who drew
-the challenger or picked the fighters. Everything happens in memory within a
-single session; the other players are simulated and no backend, database or
-Auth0 is used.
+Everything happens in memory within a single session, and no backend, database
+or Auth0 is used. The other players are sample data on canned demo days, not a
+simulation. "Start on day 8" on the sign-up screen jumps straight to the Monday
+after a first week, with its ranking, weekly hero and win rates.
+
+Every pull request that changes the frontend gets a preview site running the
+mockup, so UI changes can be tried and screenshotted before they are merged.
 
 Enable it with the `MOCKUP_GAMEPLAY` feature flag, either in
 `config/config.json` (`"MOCKUP_GAMEPLAY": true`) or directly:
