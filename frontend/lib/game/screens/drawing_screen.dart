@@ -11,12 +11,28 @@ import '../rules/themes.dart';
 import '../widgets/card_art.dart';
 import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
+import '../../platform/leave_guard.dart';
 
 class DrawingResult {
-  const DrawingResult(this.sketch, this.title);
+  const DrawingResult(this.sketch, this.title, {this.hurries = const []});
 
   final Sketch sketch;
   final String title;
+
+  /// Every hurry sent against this drawing, in the order they hit or would
+  /// have.
+  final List<HurryOutcome> hurries;
+}
+
+/// A hurry sent against a drawing, and the time it took away: none when the
+/// drawing was done before it hit.
+class HurryOutcome {
+  const HurryOutcome({required this.by, this.cut});
+
+  final String by;
+  final Duration? cut;
+
+  bool get hit => cut != null;
 }
 
 /// Timed drawing of a single character. Pops with a [DrawingResult].
@@ -34,6 +50,7 @@ class DrawingScreen extends StatefulWidget {
     this.theme,
     this.timeLimit,
     this.hurries = const [],
+    this.noBackingOut = false,
   });
 
   final String subject;
@@ -59,6 +76,12 @@ class DrawingScreen extends StatefulWidget {
   /// Hurries other players sent, revealed only while drawing as they hit.
   final List<HurryPlan> hurries;
 
+  /// Once the timer runs, there's no leaving before the drawing is done, so
+  /// it can't be started over: no back button, and on the web the browser
+  /// asks before the page is closed or reloaded. If time runs out with
+  /// nothing drawn, leaving is allowed again.
+  final bool noBackingOut;
+
   @override
   State<DrawingScreen> createState() => _DrawingScreenState();
 }
@@ -71,6 +94,14 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   late final AnimationController _shake;
   Timer? _ticker;
   bool _timeUp = false;
+  bool _done = false;
+  final _leaveGuard = LeaveGuard();
+
+  /// What each hurry took away, by its index, once it hit.
+  final List<Duration> _cuts = [];
+
+  /// Whether leaving now would let the drawing be started over.
+  bool get _locked => widget.noBackingOut && _limit != null && !_done && !(_timeUp && _pad.isEmpty);
 
   /// How many of the hurries hit so far, and the time they took away.
   int _hits = 0;
@@ -103,6 +134,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       _stopwatch.start();
       _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) => _tick());
     }
+    if (_locked) _leaveGuard.enable();
   }
 
   void _rebuild() => setState(() {});
@@ -111,6 +143,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     // Each hurry takes away a share of the time left when it hits.
     while (_hits < widget.hurries.length && _stopwatch.elapsed >= _limit! * widget.hurries[_hits].atFraction) {
       _lastCut = _remaining * HurryPlan.cutFraction;
+      _cuts.add(_lastCut);
       _cut += _lastCut;
       _hits++;
       _hitAt = _stopwatch.elapsed;
@@ -121,12 +154,14 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       _stopwatch.stop();
       _pad.lock();
       _timeUp = true;
+      if (!_locked) _leaveGuard.disable();
     }
     setState(() {});
   }
 
   @override
   void dispose() {
+    _leaveGuard.disable();
     _ticker?.cancel();
     _shake.dispose();
     _pad.dispose();
@@ -138,7 +173,29 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
 
   void _submit() {
     _ticker?.cancel();
-    Navigator.of(context).pop(DrawingResult(_pad.toSketch(), _title.text.trim()));
+    _done = true;
+    _leaveGuard.disable();
+    Navigator.of(context).pop(
+      DrawingResult(
+        _pad.toSketch(),
+        _title.text.trim(),
+        hurries: [
+          for (final (i, hurry) in widget.hurries.indexed)
+            HurryOutcome(by: hurry.by, cut: i < _cuts.length ? _cuts[i] : null),
+        ],
+      ),
+    );
+  }
+
+  void _blockedBack() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text("The clock is running: finish your drawing and press Done. There's no starting over."),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   @override
@@ -187,9 +244,16 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
         ),
       ),
     );
-    return Scaffold(
-      appBar: AppBar(title: Text('Draw ${widget.subject}')),
-      body: widget.theme == null ? body : ThemedBackground(theme: widget.theme!, child: body),
+    final locked = _locked;
+    return PopScope(
+      canPop: !locked,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _blockedBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text('Draw ${widget.subject}'), automaticallyImplyLeading: !locked),
+        body: widget.theme == null ? body : ThemedBackground(theme: widget.theme!, child: body),
+      ),
     );
   }
 
