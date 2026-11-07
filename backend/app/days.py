@@ -56,6 +56,14 @@ def date_of_day(server: Server, day: int) -> date:
     return _launch_date(server) + timedelta(days=day - 1)
 
 
+def calendar_date(server: Server, day: int) -> date:
+    """The calendar day (UTC) a day of the game was played on: a speed mode
+    session plays all of its days on its launch date."""
+    if speed.is_speed(server):
+        return _launch_date(server)
+    return date_of_day(server, day)
+
+
 def theme_of(server: Server, day: int) -> Theme:
     """The theme of a day of the game: the one of its weekday."""
     return theme_of_date(date_of_day(server, day))

@@ -18,7 +18,7 @@ void main() {
     expect(Unavailable.boost(game), 'Boosting starts on day 3.');
     expect(Unavailable.fight(game), 'Fighting starts on day 4.');
     expect(Unavailable.weekRanking(game), contains('once the first week is over'));
-    expect(Unavailable.fightReplay(game), 'Pick your fighters today to watch the fight.');
+    expect(Unavailable.fightReplay(game), 'The first fights are on day 4: replay them from day 5 on.');
 
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     expect(Unavailable.prompt(game), 'Done: you chose ${game.yourPrompt!.subject.name} today.');
@@ -64,7 +64,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Fight replay'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Pick your fighters today to watch the fight.'), findsOneWidget);
+    expect(find.text('The first fights are on day 4: replay them from day 5 on.'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpWidget(const SizedBox());
   });

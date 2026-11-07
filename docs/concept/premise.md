@@ -28,8 +28,10 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 |---|---|
 | **Summon** (an animated banner with the pulls ready) | |
 | Hero List | Challengers |
-| Win rates | Fight replay (today's fight) |
+| Win rates | Fight replay (past days' fights) |
 | Week ranking | Send a hurry |
+
+**Fight replay** lists the days before today that had fights, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). Picking a day shows every challenger fought that day; the one you fought and the one you drew come first and are highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen.
 
 A button that isn't available (yet) is greyed out instead of hidden, e.g. everything but step 1 on day 1. Tapping a greyed out button shows why, e.g. "Boosting starts on day 3." or "Speed mode has no win rates.".
 

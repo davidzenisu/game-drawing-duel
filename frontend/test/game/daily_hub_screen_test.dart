@@ -89,7 +89,7 @@ void main() {
         'Hero List': true,
         'Challengers': true,
         'Win rates': true,
-        'Fight replay': false, // no fight today
+        'Fight replay': false, // no past fights yet
         'Week ranking': false, // the first week isn't over
         'Send a hurry': true, // against a drawing tomorrow
       },
@@ -111,6 +111,7 @@ void main() {
     await tester.pump();
     expect(_enabled(tester, 'Week ranking'), isTrue);
     expect(_enabled(tester, 'Send a hurry'), isTrue);
+    expect(_enabled(tester, 'Fight replay'), isTrue, reason: 'the fights of days 4 to 7');
     await tester.pumpWidget(const SizedBox());
   });
 }

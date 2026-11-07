@@ -667,6 +667,73 @@ class MockGameSession extends GameSession {
 
   int _slotOf(String challengerId) => int.parse(challengerId.split('-').last);
 
+  /// Like online, the days before today with fights: two days after
+  /// friends drew challengers. A speed session plays them all on its
+  /// launch date.
+  @override
+  Future<List<FightDay>> fightDays() async => [
+    for (var day = _day - 1; day >= LoopStep.fight; day--)
+      if (_drawnOn(day - 2)) FightDay(day: day, date: server.isSpeed ? _days.dateOf(1) : _days.dateOf(day)),
+  ];
+
+  /// The fights against the challengers drawn two days before [day]: yours
+  /// (or one chance picked for you) against the fourth friend's, and canned
+  /// ones by friends against the others. Like in the ranking, the ones drawn
+  /// on even days won theirs.
+  @override
+  Future<List<FightSetup>> fightsOn(int day) async {
+    if (day >= _day || !_drawnOn(day - 2)) return const [];
+    final drawn = day - 2;
+    final challengers = [
+      for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(drawn, slot),
+      ?_yourChallengers[drawn],
+    ];
+    final friends = _days.friends;
+    return [
+      for (final (i, challenger) in challengers.indexed)
+        if (challenger.id == _challenger(drawn, DemoDays.slots - 1).id)
+          _yourFights[day] ?? _cannedFight(day, challenger, you)
+        else
+          _cannedFight(
+            day,
+            challenger,
+            [
+              for (var k = 0; k < friends.length; k++) friends[(day + i + k) % friends.length],
+            ].firstWhere((p) => p.name != challenger.artist),
+          ),
+    ];
+  }
+
+  /// A friend's (or chance's) fighters from the pool against [challenger]:
+  /// strong enough to beat it if it was drawn on an odd day, too weak if not.
+  FightSetup _cannedFight(int day, CharacterCard challenger, Player owner) {
+    final challengerStars = Stars.ofChallenger(_boostStars(challenger));
+    final win = challenger.day.isOdd;
+    final shuffled = [..._pool]..shuffle(Random(challenger.id.hashCode));
+    final order = {for (final (i, c) in shuffled.indexed) c.id: i};
+    // Strongest first to win, weakest first to lose.
+    final cards = shuffled
+      ..sort((a, b) {
+        final byStars = win ? b.rarity.stars.compareTo(a.rarity.stars) : a.rarity.stars.compareTo(b.rarity.stars);
+        return byStars != 0 ? byStars : order[a.id]!.compareTo(order[b.id]!);
+      });
+    final team = <CharacterCard>[];
+    for (final card in cards) {
+      if (team.length == FightSetup.maxFighters) break;
+      final stars = Stars.ofTeam(team.map((c) => c.rarity));
+      if (win ? stars > challengerStars : team.isNotEmpty && stars + card.rarity.stars > challengerStars) break;
+      team.add(card);
+    }
+    return FightSetup(
+      id: 'demo-fight-$day-${challenger.id}',
+      owner: owner,
+      challenger: challenger,
+      fighters: [for (final card in team) FighterEntry(card: card)],
+      day: day,
+      boostStars: _boostStars(challenger),
+    );
+  }
+
   @override
   bool get canAdvanceDay => !sessionOver;
 

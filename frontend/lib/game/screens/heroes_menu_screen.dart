@@ -11,13 +11,13 @@ import '../widgets/ticket_chip.dart';
 import '../widgets/tutorial_dialog.dart';
 import 'challengers_screen.dart';
 import 'collection_screen.dart';
-import 'fight_replay_screen.dart';
+import 'fight_history_screen.dart';
 import 'gacha_screen.dart';
 import 'ranking_screen.dart';
 import 'win_rates_screen.dart';
 
 /// Everything around your heroes, off the daily hub: summoning, your
-/// heroes, the challengers, win rates, your fight's replay, the week
+/// heroes, the challengers, win rates, replays of past fights, the week
 /// ranking and hurries. What doesn't apply right now is greyed out.
 class HeroesMenuScreen extends StatelessWidget {
   const HeroesMenuScreen({super.key, required this.controller});
@@ -36,7 +36,6 @@ class HeroesMenuScreen extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final c = controller;
-        final fight = c.yourFight;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Heroes'),
@@ -83,8 +82,10 @@ class HeroesMenuScreen extends StatelessWidget {
                             icon: Icons.play_circle_fill_rounded,
                             title: 'Fight replay',
                             unavailable: Unavailable.fightReplay(c),
-                            // Today's fight, once you picked your fighters.
-                            onTap: fight == null ? null : () => open(FightReplayScreen(fight: fight)),
+                            // Every fight of the days before today.
+                            onTap: Unavailable.fightReplay(c) == null
+                                ? () => open(FightHistoryScreen(controller: c))
+                                : null,
                           ),
                           HubTile(
                             icon: Icons.emoji_events_rounded,

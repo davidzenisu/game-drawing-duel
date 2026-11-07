@@ -237,6 +237,16 @@ class BoostTarget {
 /// A challenger you encountered (drew, fought against or boosted) and how
 /// it fared in its fights of the days before. Challengers aren't part of the
 /// gacha pool.
+/// A past day with fights to replay.
+class FightDay {
+  const FightDay({required this.day, required this.date});
+
+  final int day;
+
+  /// The calendar day it was played on.
+  final DateTime date;
+}
+
 class ChallengerRecord {
   const ChallengerRecord({required this.card, required this.fights, required this.wins});
 
