@@ -18,6 +18,7 @@ import '../widgets/tutorial_dialog.dart';
 import '../widgets/ticket_chip.dart';
 import '../widgets/hub_tile.dart';
 import 'boost_screen.dart';
+import 'drawing_recap_screen.dart';
 import 'drawing_screen.dart';
 import 'fight_setup_screen.dart';
 import 'heroes_menu_screen.dart';
@@ -91,12 +92,6 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     );
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
-  }
-
   /// Opens [screen], after [intro] the first time.
   Future<void> _open(Widget screen, [Tutorial? intro]) async {
     if (intro != null) await showTutorialOnce(context, _controller, intro);
@@ -123,12 +118,13 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           theme: prompt.theme,
           timeLimit: challengerDrawTime,
           hurries: _controller.incomingHurries,
+          noBackingOut: true,
         ),
       ),
     );
     if (result == null || !mounted) return;
     if (!await runGameAction(context, () => _controller.submitChallenger(result.sketch)) || !mounted) return;
-    _toast('Challenger drawn. +1 pull!');
+    await _open(DrawingRecapScreen(subject: prompt.subject.name, result: result, theme: prompt.theme));
   }
 
   Future<void> _nextDay() async {

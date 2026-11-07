@@ -325,7 +325,7 @@ def win_rate_extra_stars(wins: int, fights: int) -> int:
 
 
 # The time limit for drawing a challenger.
-CHALLENGER_DRAW_SECONDS = 90
+CHALLENGER_DRAW_SECONDS = 60
 
 # A free daily hurry takes away this share of the drawing time left when it
 # hits, somewhere between these fractions of the time limit. Every hurry a
