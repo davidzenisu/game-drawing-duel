@@ -8,26 +8,21 @@ import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../tutorials.dart';
 import '../widgets/cancel_server_button.dart';
-import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
 import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
-import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/tutorial_dialog.dart';
 import '../widgets/ticket_chip.dart';
+import '../widgets/hub_tile.dart';
 import 'boost_screen.dart';
-import 'challengers_screen.dart';
-import 'collection_screen.dart';
 import 'drawing_screen.dart';
 import 'fight_setup_screen.dart';
-import 'gacha_screen.dart';
+import 'heroes_menu_screen.dart';
 import 'how_to_play_screen.dart';
 import 'prompt_screen.dart';
-import 'ranking_screen.dart';
 import 'speed_finale_screen.dart';
-import 'win_rates_screen.dart';
 
 /// The daily routine: draw a challenger, pull, fight and upgrade.
 class DailyHubScreen extends StatefulWidget {
@@ -135,34 +130,6 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     _toast('Challenger drawn. +1 pull!');
   }
 
-  Future<void> _sendHurry() async {
-    final target = await showModalBottomSheet<Player>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(
-              title: Text('Send a hurry'),
-              subtitle: Text('Free once a day. Their next drawing gets shorter, and they only find out while drawing.'),
-            ),
-            for (final player in _controller.otherPlayers)
-              ListTile(
-                leading: CircleAvatar(child: Text(player.name.characters.first)),
-                title: Text(player.name),
-                trailing: const Icon(Icons.bolt_rounded, color: AppPalette.hurry),
-                onTap: () => Navigator.of(context).pop(player),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (target == null || !mounted) return;
-    final sent = await runGameQuery(context, () => _controller.sendHurry(target));
-    if (sent == true && mounted) _toast('${target.name} will have to hurry. Shh!');
-  }
-
   Future<void> _nextDay() async {
     if (_controller.hasOpenSteps) {
       final confirmed = await showDialog<bool>(
@@ -231,86 +198,45 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     await Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => screen));
   }
 
-  /// Today's steps of the loop: only the ones there's something to do for
-  /// today, e.g. only the prompt on day 1, and none of the prompt days in
-  /// speed mode's last days.
+  /// The four steps of the loop, two by two: greyed out on days without
+  /// anything to do for them, e.g. all but the prompt on day 1, or the
+  /// prompt and drawing in speed mode's last days.
   List<Widget> _steps() {
     final c = _controller;
-    final prompt = c.yourPrompt;
+    final over = c.sessionOver;
     final toDraw = c.promptToDraw;
     final fight = c.yourFight;
     return [
-      if (c.promptsToday)
-        _ActionCard(
-          icon: Icons.edit_note_rounded,
-          step: LoopStep.prompt,
-          title: 'Choose a challenger',
-          subtitle: prompt != null
-              ? 'Sent: ${prompt.subject.name} · "${prompt.title}". Someone draws it tomorrow.'
-              : switch (c.promptHint) {
-                  final hint? => 'Who is $hint? Choose them and give them a title.',
-                  null => 'NO PROMPT',
-                },
-          done: prompt != null,
-          onTap: prompt == null ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt) : null,
-        ),
-      if (toDraw != null)
-        _ActionCard(
-          icon: Icons.brush_rounded,
-          step: LoopStep.draw,
-          title: 'Draw a challenger',
-          subtitle: c.challengerDrawn
-              ? 'Done. "${toDraw.title}" joined the challengers.'
-              : [
-                  toDraw.question,
-                  'Draw ${toDraw.subject.name}: "${toDraw.title}" (prompt by ${toDraw.author.name}). ★★★ · 1:30 · +1 pull',
-                ].nonNulls.join(' '),
-          done: c.challengerDrawn,
-          onTap: c.challengerDrawn ? null : _drawChallenger,
-        ),
-      if (c.boostTargets.isNotEmpty)
-        _ActionCard(
-          icon: Icons.keyboard_double_arrow_up_rounded,
-          step: LoopStep.boost,
-          title: 'Boost challengers',
-          subtitle: c.canBoost
-              ? 'Spread ${c.boostStarsLeft} of your ${Boost.stars} ★ across ${c.boostTargets.length} of '
-                    'yesterday\'s challengers. They\'re fought tomorrow.'
-              : 'All ${Boost.stars} ★ given. You can move them until the day is over.',
-          done: !c.canBoost,
-          badge: c.canBoost ? 1 : 0,
-          onTap: () => _openStep(BoostScreen(controller: c), Tutorial.boost),
-        ),
-      if (c.fightChallenger != null)
-        _ActionCard(
-          icon: Icons.groups_rounded,
-          step: LoopStep.fight,
-          title: 'Pick your fighters',
-          subtitle: [
-            fight != null
-                ? '${fight.fightersWin ? 'Won' : 'Lost'} with ${fight.fighters.length} fighters against '
-                      '${fight.challenger.subject}: ${fight.fighterTotal} ★ vs. ${fight.challengerTotal} ★'
-                      '${fight.fightersWin ? '. +${c.pullsForWin(fight)} pull${c.pullsForWin(fight) == 1 ? '' : 's'}, '
-                                '+${fight.challengerStars} victory ★' : '.'}'
-                : c.availableFighters.isEmpty
-                ? 'All your characters fought this week. They\'re back on Monday.'
-                : 'Beat a challenger\'s ${Stars.challengerBase} ★ and its secret boosts with up to 4 fighters. '
-                      'A win earns a pull and its stars.',
-            if (c.victoryStars > 0) 'Victory stars won so far: ${c.victoryStars} ★',
-          ].join(' '),
-          done: fight != null,
-          onTap: fight == null && c.availableFighters.isEmpty
-              ? null
-              : () => _openStep(FightSetupScreen(controller: c), Tutorial.fight),
-        ),
-      // Once a week is over; speed mode has its own finale instead.
-      if (c.weeklyHero case final hero? when !c.server.isSpeed)
-        _ActionCard(
-          icon: Icons.emoji_events_rounded,
-          title: 'Week ranking',
-          subtitle: 'See how last week\'s challengers ranked. ${hero.card.subject} won with ${hero.stars} ★.',
-          onTap: () => _openStep(RankingScreen(controller: c), Tutorial.finale),
-        ),
+      HubTile(
+        icon: Icons.edit_note_rounded,
+        title: 'Choose a challenger',
+        done: c.yourPrompt != null,
+        onTap: !over && c.promptsToday && c.yourPrompt == null
+            ? () => _openStep(PromptScreen(controller: c), Tutorial.prompt)
+            : null,
+      ),
+      HubTile(
+        icon: Icons.brush_rounded,
+        title: 'Draw a challenger',
+        done: c.challengerDrawn,
+        onTap: !over && toDraw != null && !c.challengerDrawn ? _drawChallenger : null,
+      ),
+      HubTile(
+        icon: Icons.keyboard_double_arrow_up_rounded,
+        title: 'Boost challengers',
+        done: c.boostTargets.isNotEmpty && !c.canBoost,
+        badge: c.canBoost ? c.boostStarsLeft : 0,
+        // Boosts can be moved all day, even once all stars are given.
+        onTap: !over && c.boostTargets.isNotEmpty ? () => _openStep(BoostScreen(controller: c), Tutorial.boost) : null,
+      ),
+      HubTile(
+        icon: Icons.groups_rounded,
+        title: 'Pick your fighters',
+        done: fight != null,
+        onTap: !over && c.fightChallenger != null && (fight != null || c.availableFighters.isNotEmpty)
+            ? () => _openStep(FightSetupScreen(controller: c), Tutorial.fight)
+            : null,
+      ),
     ];
   }
 
@@ -393,52 +319,16 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                               ),
                             ),
                           if (_controller.canEndDay) _dayEndedCard(),
-                          if (!_controller.sessionOver) ..._steps(),
-                          const SizedBox(height: 12),
-                          if (_controller.weeklyHero case final hero?) _WeeklyHeroCard(hero: hero),
-                          _ActionCard(
-                            icon: Icons.auto_awesome_rounded,
-                            title: 'Summon',
-                            subtitle:
-                                '${_controller.tickets} pulls available · ${_controller.pool.length} characters in the pool',
-                            onTap: () => _open(GachaScreen(controller: _controller), Tutorial.gacha),
-                          ),
-                          _ActionCard(
-                            icon: Icons.collections_rounded,
-                            title: 'Collection',
-                            subtitle:
-                                '${_controller.collection.length} characters'
-                                '${_controller.upgradesAvailable > 0 ? ' · ${_controller.upgradesAvailable} upgrades ready' : ''}',
+                          const SizedBox(height: 8),
+                          HubGrid(tiles: _steps()),
+                          const SizedBox(height: 4),
+                          HubTile(
+                            icon: Icons.military_tech_rounded,
+                            title: 'Heroes',
+                            height: 112,
                             badge: _controller.upgradesAvailable,
-                            onTap: () => _open(CollectionScreen(controller: _controller), Tutorial.upgrades),
+                            onTap: () => _open(HeroesMenuScreen(controller: _controller)),
                           ),
-                          _ActionCard(
-                            icon: Icons.shield_rounded,
-                            title: 'Challengers',
-                            subtitle: _controller.challengers.isEmpty
-                                ? 'The challengers you draw, fight and boost, with their win rates.'
-                                : '${_controller.challengers.length} encountered · see how they fare',
-                            onTap: () => _open(ChallengersScreen(controller: _controller)),
-                          ),
-                          if (!_controller.server.isSpeed)
-                            _ActionCard(
-                              icon: Icons.percent_rounded,
-                              title: 'Win rates',
-                              subtitle:
-                                  "Beat a player's characters most of the time this week for extra ★ against them next week.",
-                              onTap: () => _open(WinRatesScreen(controller: _controller)),
-                            ),
-                          // Hurries cut someone's drawing time: only on drawing days.
-                          if (_controller.promptToDraw != null && !_controller.sessionOver)
-                            _ActionCard(
-                              icon: Icons.bolt_rounded,
-                              title: 'Send a hurry',
-                              subtitle: _controller.hurrySentTo == null
-                                  ? "Free once a day: cut a friend's drawing time as a surprise."
-                                  : 'Sent to ${_controller.hurrySentTo!.name} today.',
-                              done: _controller.hurrySentTo != null,
-                              onTap: _controller.hurrySentTo == null ? _sendHurry : null,
-                            ),
                         ],
                       ),
                     ),
@@ -449,81 +339,6 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-/// The latest finale's winner, now in the gacha pool.
-class _WeeklyHeroCard extends StatelessWidget {
-  const _WeeklyHeroCard({required this.hero});
-
-  final WeeklyHero hero;
-
-  @override
-  Widget build(BuildContext context) {
-    final card = hero.card;
-    return Card(
-      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: SizedBox(width: 40, child: CardboardCard(child: SketchView(card.sketch))),
-        title: Text('Weekly hero: ${card.subject} · "${card.title}"'),
-        subtitle: Text(
-          'Topped last week\'s ranking with ${hero.stars} ★ and joined the pool as a hero. '
-          'Drawn by ${card.artist}.',
-        ),
-        trailing: const Icon(Icons.emoji_events_rounded, color: AppPalette.rarityHero),
-      ),
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.onTap,
-    this.done = false,
-    this.badge = 0,
-    this.step,
-  });
-
-  /// The step of the daily loop this card belongs to.
-  final int? step;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final bool done;
-  final int badge;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      color: colors.surface.withValues(alpha: 0.92),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Badge(
-          isLabelVisible: badge > 0,
-          label: Text('$badge'),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            transitionBuilder: (child, animation) => RotationTransition(turns: animation, child: child),
-            child: Icon(
-              done ? Icons.check_circle_rounded : icon,
-              key: ValueKey(done),
-              color: done ? AppPalette.victory : colors.primary,
-              size: 32,
-            ),
-          ),
-        ),
-        title: Text(step == null ? title : 'Step $step · $title'),
-        subtitle: Text(subtitle),
-        trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
-        onTap: onTap,
-      ),
     );
   }
 }

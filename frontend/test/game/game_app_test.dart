@@ -76,7 +76,7 @@ void main() {
     }
     expect(controller.phase, GamePhase.daily);
     expect(controller.day, 8);
-    expect(find.text('Win rates'), findsOneWidget);
+    expect(find.text('Heroes'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
@@ -278,10 +278,14 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    final card = find.text('Challengers');
-    await tester.ensureVisible(card);
-    await tester.tap(card);
-    await tester.pumpAndSettle();
+    // From the heroes menu, whose summon button keeps shining.
+    await tester.ensureVisible(find.text('Heroes'));
+    await tester.tap(find.text('Heroes'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('Challengers'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('No fights decided yet'), findsOneWidget);
     expect(find.textContaining('Day 2 · by Pat'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
