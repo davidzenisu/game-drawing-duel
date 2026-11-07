@@ -3,8 +3,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/models.dart';
+import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 
 /// How long a pull builds up before it flips: the rarer, the longer.
@@ -29,9 +31,14 @@ Color _climb(double t, Rarity rarity) {
 /// glowing in its rarity's colour, then reveals them one by one the same
 /// way, and ends on an overview of them all.
 class PullRevealScreen extends StatefulWidget {
-  const PullRevealScreen({super.key, required this.outcomes});
+  const PullRevealScreen({super.key, required this.outcomes, this.owned = const {}});
 
   final List<PullOutcome> outcomes;
+
+  /// Your characters after the pulls, by card id: a duplicate tells
+  /// whether its next upgrade is ready. Characters show plain here, so the
+  /// drawing stays the focus.
+  final Map<String, OwnedCard> owned;
 
   @override
   State<PullRevealScreen> createState() => _PullRevealScreenState();
@@ -82,13 +89,20 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
           children: [
             if (!_single)
               Positioned.fill(
-                child: _MultiPull(outcomes: widget.outcomes, onReveal: _reveal, onInspect: _inspect, onDone: _close),
+                child: _MultiPull(
+                  outcomes: widget.outcomes,
+                  owned: widget.owned,
+                  onReveal: _reveal,
+                  onInspect: _inspect,
+                  onDone: _close,
+                ),
               ),
             if (spotlight != null)
               Positioned.fill(
                 child: _SingleReveal(
                   key: ObjectKey(spotlight),
                   outcome: spotlight,
+                  owned: widget.owned[spotlight.card.id],
                   // Cards shown again from the overview are face up already.
                   buildUp: _single || _next != null,
                   progress: _progress,
@@ -112,11 +126,15 @@ class _SingleReveal extends StatefulWidget {
     required this.outcome,
     required this.buildUp,
     required this.onDone,
+    this.owned,
     this.progress,
     this.onSkip,
   });
 
   final PullOutcome outcome;
+
+  /// The pulled character as you own it now, for its upgrade points.
+  final OwnedCard? owned;
   final bool buildUp;
   final VoidCallback onDone;
 
@@ -302,6 +320,12 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
                   avatar: Icon(outcome.isNew ? Icons.fiber_new_rounded : Icons.upgrade_rounded),
                   label: Text(outcome.isNew ? 'New character!' : 'Duplicate · +1 upgrade point (×${outcome.copies})'),
                 ),
+                if (!outcome.isNew && (widget.owned?.hasUnspentPoints ?? false))
+                  const Chip(
+                    backgroundColor: AppPalette.victory,
+                    avatar: Icon(Icons.auto_fix_high_rounded, color: Colors.white),
+                    label: Text('Upgrade ready!', style: TextStyle(color: Colors.white)),
+                  ),
                 Text('drawn by ${card.artist}', style: const TextStyle(color: Colors.white70)),
               ],
             ),
@@ -346,9 +370,16 @@ enum _Stage { carousel, reveal, results }
 /// up in its rarity's colour at once, then each one gets a reveal of its
 /// own in order, and the overview of them all comes last.
 class _MultiPull extends StatefulWidget {
-  const _MultiPull({required this.outcomes, required this.onReveal, required this.onInspect, required this.onDone});
+  const _MultiPull({
+    required this.outcomes,
+    required this.owned,
+    required this.onReveal,
+    required this.onInspect,
+    required this.onDone,
+  });
 
   final List<PullOutcome> outcomes;
+  final Map<String, OwnedCard> owned;
 
   /// Reveals one card, then calls `next`; `skip` skips the rest.
   final void Function(PullOutcome outcome, String progress, VoidCallback next, VoidCallback skip) onReveal;
@@ -582,7 +613,11 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              outcome.isNew ? 'NEW' : '+1 upgrade',
+                              outcome.isNew
+                                  ? 'NEW'
+                                  : widget.owned[outcome.card.id]?.hasUnspentPoints ?? false
+                                  ? 'Upgrade ready!'
+                                  : '+1 upgrade',
                               style: TextStyle(
                                 color: outcome.isNew ? outcome.card.rarity.color : Colors.white60,
                                 fontSize: 12,
