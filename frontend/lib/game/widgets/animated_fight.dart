@@ -309,13 +309,21 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
                     tween: Tween(end: hp / FightScript.maxHp),
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
-                    builder: (context, value, _) => ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: value,
-                        minHeight: 7,
-                        color: Color.lerp(AppPalette.hpLow, AppPalette.hpHigh, value),
-                        backgroundColor: Colors.black26,
+                    // Outlined, so the bar stands out on every scenery.
+                    builder: (context, value, _) => DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 3, offset: Offset(0, 1))],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: value,
+                          minHeight: 7,
+                          color: Color.lerp(AppPalette.hpLow, AppPalette.hpHigh, value),
+                          backgroundColor: Colors.black38,
+                        ),
                       ),
                     ),
                   ),

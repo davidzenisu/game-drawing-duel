@@ -187,4 +187,70 @@ void main() {
     expect(find.byType(SketchView), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('while the title is typed, a tap on the canvas only hides the keyboard', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingScreen(subject: 'Sam', prompt: 'Basic', hint: 'Them by day', rarity: Rarity.basic),
+      ),
+    );
+    final pad = tester.widget<SketchPad>(find.byType(SketchPad)).controller;
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    final canvas = tester.getRect(find.byType(SketchPad));
+    await tester.dragFrom(canvas.center, const Offset(60, 30));
+    await tester.pump();
+    expect(pad.isEmpty, isTrue, reason: 'no stroke by mistake');
+    expect(tester.testTextInput.isVisible, isFalse, reason: 'the keyboard is hidden');
+
+    // With the keyboard gone, the canvas draws again.
+    await tester.dragFrom(tester.getRect(find.byType(SketchPad)).center, const Offset(60, 30));
+    await tester.pump();
+    expect(pad.isEmpty, isFalse);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("a prompt's title shows at the top only, and the tools say which width is on", (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingScreen(
+          subject: 'Sam',
+          prompt: '"Sauna Lord"',
+          hint: 'A challenger prompt',
+          rarity: Rarity.hero,
+          initialTitle: 'Sauna Lord',
+          titleLocked: true,
+        ),
+      ),
+    );
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('"Sauna Lord"'), findsOneWidget);
+
+    BoxBorder? ringOf(int i) =>
+        (tester
+                    .widget<AnimatedContainer>(
+                      find
+                          .ancestor(of: find.byIcon(Icons.circle).at(i), matching: find.byType(AnimatedContainer))
+                          .first,
+                    )
+                    .decoration!
+                as BoxDecoration)
+            .border;
+    final selected = brushWidths.indexOf(tester.widget<SketchPad>(find.byType(SketchPad)).controller.width);
+    expect(ringOf(selected), isA<Border>().having((b) => b.top.color, 'color', isNot(Colors.transparent)));
+    expect(
+      ringOf((selected + 1) % brushWidths.length),
+      isA<Border>().having((b) => b.top.color, 'color', Colors.transparent),
+    );
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.pumpWidget(const SizedBox());
+  });
 }

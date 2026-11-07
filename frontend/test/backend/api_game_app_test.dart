@@ -96,7 +96,7 @@ void main() {
     await tester.tap(find.text("Let's go"));
     await tester.pumpAndSettle();
 
-    expect(find.text('Day 1 · Enchanted Forest'), findsOneWidget);
+    expect((find.text('Day 1').evaluate().length, find.text('Enchanted Forest').evaluate().length), (1, 1));
     expect(find.text('Nobody ended the day yet'), findsOneWidget);
     expect(find.byTooltip('Start the next day for everyone'), findsOneWidget);
 
@@ -109,7 +109,7 @@ void main() {
 
     // Alone, ending the day starts the next one.
     expect(session.day, 2);
-    expect(find.text('Day 2 · Hot Sandy Beaches'), findsOneWidget);
+    expect((find.text('Day 2').evaluate().length, find.text('Hot Sandy Beaches').evaluate().length), (1, 1));
 
     await tester.pumpWidget(const SizedBox());
   });

@@ -67,9 +67,11 @@ class _WinRatesScreenState extends State<WinRatesScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   sliver: SliverToBoxAdapter(
                     child: Text(
-                      'From the fights of days ${rates.fromDay} to ${rates.toDay}. Characters count for the player '
-                      'they show. Win more than half of at least ${WinRates.minFights} fights against a player for '
-                      '+1 ★ against them this week, more than three quarters for +2 ★.',
+                      // The first week has no week before it to count.
+                      '${rates.fromDay < 1 ? 'No win rates yet: they start once the first week is over.' : 'From the fights of days ${rates.fromDay} to ${rates.toDay}.'} '
+                      'Characters count for the player they show. Win more than half of at least '
+                      '${WinRates.minFights} fights against a player for +1 ★ against them the next week, more than '
+                      'three quarters for +2 ★.',
                       style: textTheme.bodyMedium,
                     ),
                   ),
@@ -158,7 +160,14 @@ class _PlayerCard extends StatelessWidget {
               const SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.tonal(onPressed: onShow, child: const Text('Show win rates')),
+                child: FilledButton.tonal(
+                  onPressed: onShow,
+                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Win rates', maxLines: 1, softWrap: false, textAlign: TextAlign.center),
+                  ),
+                ),
               ),
             ],
           ),
@@ -260,13 +269,25 @@ class _MatchupSide extends StatelessWidget {
             _Preview(drawing: drawing, width: 80),
             const SizedBox(height: 6),
             Text(_name(player), maxLines: 1, overflow: TextOverflow.ellipsis, style: textTheme.titleSmall),
-            if (rate != null && rate.extraStars > 0)
-              Text(
-                '+${rate.extraStars} ★',
+            // Both lines keep their room on both sides, so the two cards are
+            // the same size and line up whichever side has the extra stars.
+            Visibility(
+              visible: rate != null && rate.extraStars > 0,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: Text(
+                '+${rate?.extraStars ?? 0} ★',
                 style: textTheme.titleMedium?.copyWith(color: AppPalette.rarityLegend, fontWeight: FontWeight.w900),
               ),
-            if (rate != null && rate.wins > 0)
-              Text('won ${rate.wins}/${rate.fights} fights', style: textTheme.bodySmall),
+            ),
+            Visibility(
+              visible: rate != null && rate.wins > 0,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: Text('won ${rate?.wins ?? 0}/${rate?.fights ?? 0} fights', style: textTheme.bodySmall),
+            ),
           ],
         ),
       ),
