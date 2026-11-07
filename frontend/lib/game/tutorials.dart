@@ -93,8 +93,7 @@ enum Tutorial {
         title: 'Watch out for hurries',
         text:
             'Once a day every player can send a free hurry. When it hits, it takes '
-            '${(Hurries.cutFraction * 100).round()}% of the time left (at least ${Hurries.minCut.inSeconds}s), '
-            'somewhere between ${Hurries.firstLeft.inSeconds}s and ${Hurries.lastLeft.inSeconds}s before the end. '
+            '${Hurries.cut.inSeconds}s of the time left, somewhere between ${Hurries.firstLeft.inSeconds}s and ${Hurries.lastLeft.inSeconds}s before the end. '
             'You only find out while drawing. '
             'Send yours from the hub.',
       ),

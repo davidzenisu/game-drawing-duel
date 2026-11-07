@@ -327,34 +327,27 @@ def win_rate_extra_stars(wins: int, fights: int) -> int:
 # The time limit for drawing a challenger.
 CHALLENGER_DRAW_SECONDS = 60
 
-# A free daily hurry takes away this share of the drawing time left when it
-# hits, and at least the minimum. Every hurry a player receives counts: they
-# hit with between the first and the last seconds left, spread out.
-HURRY_CUT_FRACTION = 0.1
-HURRY_MIN_CUT_SECONDS = 2.0
+# A free daily hurry takes away these seconds of drawing time when it hits.
+# Every hurry a player receives counts: they hit with between the first and
+# the last seconds left, spread out.
+HURRY_CUT_SECONDS = 5.0
 HURRY_FIRST_LEFT_SECONDS = 55.0
 HURRY_LAST_LEFT_SECONDS = 15.0
-
-
-def hurry_cut(left: float) -> float:
-    """The seconds a hurry takes away when it hits with `left` seconds left."""
-    return min(left, max(HURRY_MIN_CUT_SECONDS, HURRY_CUT_FRACTION * left))
 
 
 def hurry_hits(jitters: list[float]) -> list[float]:
     """The seconds left at which each of a day's hurries hits, in the order
     they were sent, from a random share in [0, 1) each (its jitter).
 
-    They're spread over the window: each one hits within the first stretch of
-    the time still free once the cuts of those after it are set aside, so
-    together they never run past the last moment."""
-    hits: list[float] = []
-    start = HURRY_FIRST_LEFT_SECONDS
-    for i, jitter in enumerate(jitters):
-        after = len(jitters) - i - 1
-        start = max(HURRY_LAST_LEFT_SECONDS, start)
-        room = max(0.0, start - HURRY_LAST_LEFT_SECONDS - after * hurry_cut(start))
-        left = start - room / (after + 1) * jitter
-        hits.append(left)
-        start = left - hurry_cut(left)
-    return hits
+    They're spread evenly: the window's time not taken by the cuts of the
+    hurries before is split into one stretch per hurry, and each hits
+    somewhere in its own, so together they never run past the last moment."""
+    n = len(jitters)
+    room = max(
+        0.0,
+        HURRY_FIRST_LEFT_SECONDS - HURRY_LAST_LEFT_SECONDS - (n - 1) * HURRY_CUT_SECONDS,
+    )
+    return [
+        HURRY_FIRST_LEFT_SECONDS - i * HURRY_CUT_SECONDS - room / n * (i + jitter)
+        for i, jitter in enumerate(jitters)
+    ]

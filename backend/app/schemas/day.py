@@ -111,7 +111,7 @@ class FightStep(BaseModel):
 
 class IncomingHurry(BaseModel):
     """Someone cut your challenger drawing time today: by
-    `rules.hurry_cut` of the time left when it hits."""
+    `rules.HURRY_CUT_SECONDS` when it hits."""
 
     by_position: int
     # When it hits: the drawing time left then, in seconds.

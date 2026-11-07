@@ -51,7 +51,7 @@ class DrawingRecapScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Nameplate(name: subject, title: result.title, rarity: rarity, nameFirst: true),
                 const SizedBox(height: 12),
-                _Hurries(hurries: result.hurries),
+                _Hurries(by: result.hurriedBy),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
@@ -70,17 +70,15 @@ class DrawingRecapScreen extends StatelessWidget {
   }
 }
 
-/// Every hurry sent against the drawing, with the time it took away.
+/// Who sent a hurry against the drawing.
 class _Hurries extends StatelessWidget {
-  const _Hurries({required this.hurries});
+  const _Hurries({required this.by});
 
-  final List<HurryOutcome> hurries;
+  final List<String> by;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final hit = hurries.where((h) => h.hit).toList();
-    final lost = hit.fold(Duration.zero, (sum, h) => sum + h.cut!);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -93,30 +91,25 @@ class _Hurries extends StatelessWidget {
                 const Icon(Icons.bolt_rounded, color: AppPalette.hurry),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(switch (hurries.length) {
+                  child: Text(switch (by.length) {
                     0 => 'Nobody hurried you today',
                     1 => '1 hurry',
                     final n => '$n hurries',
                   }, style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
                 ),
-                if (hit.isNotEmpty)
-                  Text(
-                    '-${lost.inSeconds}s in all',
-                    style: textTheme.titleSmall?.copyWith(color: AppPalette.hurry, fontWeight: FontWeight.w800),
-                  ),
               ],
             ),
-            if (hurries.isNotEmpty) ...[
+            if (by.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final hurry in hurries)
+                  for (final name in by)
                     Chip(
                       visualDensity: VisualDensity.compact,
-                      avatar: CircleAvatar(child: Text(hurry.by.characters.first)),
-                      label: Text(hurry.hit ? '${hurry.by} -${hurry.cut!.inSeconds}s' : '${hurry.by} · too late'),
+                      avatar: CircleAvatar(child: Text(name.characters.first)),
+                      label: Text(name),
                     ),
                 ],
               ),

@@ -96,40 +96,25 @@ const challengerDrawTime = Duration(seconds: 60);
 /// Free daily hurries: what one takes away when it hits, and when the
 /// hurries a player receives hit. Every one counts.
 abstract final class Hurries {
-  /// A hurry takes away this share of the drawing time left, and at least
-  /// [minCut].
-  static const cutFraction = 0.1;
-  static const minCut = Duration(seconds: 2);
+  /// The drawing time a hurry takes away when it hits.
+  static const cut = Duration(seconds: 5);
 
   /// Hurries hit with between these times left, spread out.
   static const firstLeft = Duration(seconds: 55);
   static const lastLeft = Duration(seconds: 15);
 
-  /// What a hurry takes away when it hits with [left] to go.
-  static Duration cut(Duration left) => _duration(_cut(_seconds(left)));
-
   /// The time left at which each of a day's hurries hits, in the order they
   /// were sent, from a random share in [0, 1) each (its jitter).
   ///
-  /// They're spread over the window: each one hits within the first stretch
-  /// of the time still free once the cuts of those after it are set aside,
-  /// so together they never run past [lastLeft].
+  /// They're spread evenly: the window's time not taken by the cuts of the
+  /// hurries before is split into one stretch per hurry, and each hits
+  /// somewhere in its own, so together they never run past [lastLeft].
   static List<Duration> hits(List<double> jitters) {
-    final first = _seconds(firstLeft), last = _seconds(lastLeft);
-    final hits = <Duration>[];
-    var start = first;
-    for (final (i, jitter) in jitters.indexed) {
-      final after = jitters.length - i - 1;
-      start = max(last, start);
-      final room = max(0.0, start - last - after * _cut(start));
-      final left = start - room / (after + 1) * jitter;
-      hits.add(_duration(left));
-      start = left - _cut(left);
-    }
-    return hits;
+    final first = _seconds(firstLeft), last = _seconds(lastLeft), cut = _seconds(Hurries.cut);
+    final n = jitters.length;
+    final room = max(0.0, first - last - (n - 1) * cut);
+    return [for (final (i, jitter) in jitters.indexed) _duration(first - i * cut - room / n * (i + jitter))];
   }
-
-  static double _cut(double left) => min(left, max(_seconds(minCut), cutFraction * left));
 
   static double _seconds(Duration d) => d.inMicroseconds / Duration.microsecondsPerSecond;
 

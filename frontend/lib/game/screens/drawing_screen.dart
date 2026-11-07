@@ -15,25 +15,13 @@ import '../widgets/themed_background.dart';
 import '../../platform/leave_guard.dart';
 
 class DrawingResult {
-  const DrawingResult(this.sketch, this.title, {this.hurries = const []});
+  const DrawingResult(this.sketch, this.title, {this.hurriedBy = const []});
 
   final Sketch sketch;
   final String title;
 
-  /// Every hurry sent against this drawing, in the order they hit or would
-  /// have.
-  final List<HurryOutcome> hurries;
-}
-
-/// A hurry sent against a drawing, and the time it took away: none when the
-/// drawing was done before it hit.
-class HurryOutcome {
-  const HurryOutcome({required this.by, this.cut});
-
-  final String by;
-  final Duration? cut;
-
-  bool get hit => cut != null;
+  /// Who sent a hurry against this drawing, in the order they hit.
+  final List<String> hurriedBy;
 }
 
 /// Timed drawing of a single character. Pops with a [DrawingResult].
@@ -103,19 +91,18 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   bool _done = false;
   final _leaveGuard = LeaveGuard();
 
-  /// What each hurry took away, by its index, once it hit.
-  final List<Duration> _cuts = [];
-
   /// Whether leaving now would let the drawing be started over.
   bool get _locked => widget.noBackingOut && _limit != null && !_done && !(_timeUp && _pad.isEmpty);
 
   /// How many of the hurries hit so far, and the time they took away.
   int _hits = 0;
   Duration _cut = Duration.zero;
-  Duration _lastCut = Duration.zero;
 
   /// When the last hurry hit; its banner shows for [_bannerTime].
   Duration? _hitAt;
+
+  /// The first of the hurries that hit at [_hitAt].
+  int _bannerFrom = 0;
   static const _bannerTime = Duration(seconds: 3);
 
   bool get _hurried => _hits > 0;
@@ -147,12 +134,15 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   void _rebuild() => setState(() {});
 
   void _tick() {
-    // Each hurry takes away a share of the time left when it hits.
+    // Each hurry takes away the same time when it hits; with many, several
+    // can hit at once.
+    final before = _hits;
     while (_hits < widget.hurries.length && _remaining <= widget.hurries[_hits].left) {
-      _lastCut = Hurries.cut(_remaining);
-      _cuts.add(_lastCut);
-      _cut += _lastCut;
+      _cut += Hurries.cut;
       _hits++;
+    }
+    if (_hits > before) {
+      _bannerFrom = before;
       _hitAt = _stopwatch.elapsed;
       _shake.forward(from: 0);
     }
@@ -184,14 +174,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _done = true;
     _leaveGuard.disable();
     Navigator.of(context).pop(
-      DrawingResult(
-        _pad.toSketch(),
-        _title.text.trim(),
-        hurries: [
-          for (final (i, hurry) in widget.hurries.indexed)
-            HurryOutcome(by: hurry.by, cut: i < _cuts.length ? _cuts[i] : null),
-        ],
-      ),
+      DrawingResult(_pad.toSketch(), _title.text.trim(), hurriedBy: [for (final hurry in widget.hurries) hurry.by]),
     );
   }
 
@@ -342,6 +325,18 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
+  /// E.g. "Alex sent a hurry! -5s" or "Alex, Sam and 2 more sent hurries! -20s".
+  static String _hurryText(List<String> by) {
+    final cut = '-${(Hurries.cut * by.length).inSeconds}s';
+    return switch (by) {
+      [final one] => '$one sent a hurry! $cut',
+      [final a, final b] => '$a and $b sent hurries! $cut',
+      [final a, final b, final c] => '$a, $b and $c sent hurries! $cut',
+      [final a, final b, ...final rest] => '$a, $b and ${rest.length} more sent hurries! $cut',
+      _ => '',
+    };
+  }
+
   Widget _hurryMessage() {
     return Material(
       elevation: 4,
@@ -355,7 +350,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${widget.hurries[_hits - 1].by} sent a hurry! -${_lastCut.inSeconds}s',
+                _hurryText([for (final h in widget.hurries.sublist(_bannerFrom, _hits)) h.by]),
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),

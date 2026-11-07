@@ -136,20 +136,12 @@ void main() {
   test('hurry', () {
     final hurry = rules['hurry'] as Map<String, dynamic>;
     double seconds(Duration d) => d.inMicroseconds / Duration.microsecondsPerSecond;
-    expect(Hurries.cutFraction, hurry['cut_fraction']);
-    expect(seconds(Hurries.minCut), hurry['min_cut_seconds']);
+    expect(seconds(Hurries.cut), hurry['cut_seconds']);
     expect(challengerDrawTime.inSeconds, rules['challenger_draw_seconds']);
     expect(
       (seconds(Hurries.firstLeft), seconds(Hurries.lastLeft)),
       (hurry['first_left_seconds'], hurry['last_left_seconds']),
     );
-    for (final [num left, num cut] in hurry['cuts'] as List) {
-      expect(
-        seconds(Hurries.cut(Duration(microseconds: (left * Duration.microsecondsPerSecond).round()))),
-        closeTo(cut, 1e-6),
-        reason: '$left',
-      );
-    }
     for (final [List jitters, List hits] in hurry['cases'] as List) {
       final got = Hurries.hits([for (final j in jitters) (j as num).toDouble()]);
       expect(got.length, hits.length);
