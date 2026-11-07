@@ -224,18 +224,20 @@ class HurryTests(TodayTestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["hurry_sent_to"], 1)
         self.assertEqual(response.json()["incoming_hurries"], [])
-
-        [incoming] = self.today(SAM)["incoming_hurries"]
-        self.assertEqual(incoming["by_position"], 0)
-        self.assertTrue(0.25 <= incoming["at_fraction"] <= 0.6)
+        self.assertEqual(self.today(SAM)["incoming_hurries"], [], "it hits tomorrow")
 
         again = self.post("today/hurry", json={"target_position": 1})
         self.assertEqual(again.status_code, 409)
         self.assertEqual(again.json()["detail"], "You sent today's hurry already")
 
+        # Day 2: it hits Sam's drawing; a new day, a new hurry.
         self.post("days/next")
-        self.assertIsNone(self.today()["hurry_sent_to"], "a new day, a new hurry")
-        self.assertEqual(self.today(SAM)["incoming_hurries"], [])
+        [incoming] = self.today(SAM)["incoming_hurries"]
+        self.assertEqual(incoming["by_position"], 0)
+        self.assertTrue(0.25 <= incoming["at_fraction"] <= 0.6)
+        self.assertIsNone(self.today()["hurry_sent_to"])
+        self.post("days/next")
+        self.assertEqual(self.today(SAM)["incoming_hurries"], [], "a day only")
 
     def test_only_other_players_who_joined(self) -> None:
         self.assertEqual(

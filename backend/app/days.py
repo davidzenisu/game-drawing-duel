@@ -197,6 +197,11 @@ def prompts_on(server: Server, day: int) -> bool:
     return not speed.is_speed(server) or day <= SPEED_LAST_PROMPT_DAY
 
 
+def draws_on(server: Server, day: int) -> bool:
+    """Whether challengers are drawn on `day`: the day after a prompt day."""
+    return day >= 2 and prompts_on(server, day - 1)
+
+
 def prompt_hint(
     session: Session, server: Server, day: int, author: ServerSeat
 ) -> str | None:

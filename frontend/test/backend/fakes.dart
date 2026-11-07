@@ -139,7 +139,8 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
-  /// Hurries by server code, day and sender seat: the target seat.
+  /// Hurries by server code, the day they hit (the day after they were
+  /// sent) and sender seat: the target seat.
   final Map<(String, int, int), int> hurries = {};
 
   /// Seats that ended a day, by server code and day.
@@ -619,8 +620,10 @@ class FakeBackend {
         }
         boosts[(code, day, yours)] = given;
       case ('POST', ['today', 'hurry']):
-        if (hurries.containsKey((code, day, yours))) return _json(409, {'detail': "You sent today's hurry already"});
-        hurries[(code, day, yours)] = body!['target_position'] as int;
+        if (hurries.containsKey((code, day + 1, yours))) {
+          return _json(409, {'detail': "You sent today's hurry already"});
+        }
+        hurries[(code, day + 1, yours)] = body!['target_position'] as int;
       case ('POST', ['today', 'end']):
         final ended = dayEnded.putIfAbsent((code, day), () => {})..add(yours);
         if (joined.every(ended.contains)) days[code] = day + 1;
@@ -691,7 +694,7 @@ class FakeBackend {
         for (final f in fights[code] ?? const [])
           if (f.day == today - 1 && (f.owner == yours || f.challenger['artist_position'] == yours)) fightJson(f),
       ],
-      'hurry_sent_to': hurries[(code, today, yours)],
+      'hurry_sent_to': hurries[(code, today + 1, yours)],
       'incoming_hurries': [
         for (final MapEntry(:key, :value) in hurries.entries)
           if (key.$1 == code && key.$2 == today && value == yours) {'by_position': key.$3, 'at_fraction': 0.4},

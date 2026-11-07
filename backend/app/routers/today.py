@@ -186,9 +186,10 @@ def _weekly_hero(session: Session, server: Server) -> WeeklyHeroResponse | None:
 def _hurry_sent_to(
     session: Session, server: Server, seat: ServerSeat, day: int
 ) -> int | None:
+    """Who `seat` sent `day`'s hurry to: it hits the day after."""
     target = session.scalar(
         select(Hurry.target_seat_id).where(
-            Hurry.sender_seat_id == seat.id, Hurry.day == day
+            Hurry.sender_seat_id == seat.id, Hurry.day == day + 1
         )
     )
     return next((s.position for s in server.seats if s.id == target), None)
@@ -409,8 +410,16 @@ def send_hurry(
     code: Code, body: HurrySubmit, player: CurrentPlayer, session: DbSession
 ) -> TodayResponse:
     """Sends today's free hurry: it cuts the target's challenger drawing time
-    at a random moment, which they find out while drawing. Once a day."""
+    tomorrow at a random moment, which they find out while drawing. Once a
+    day, on the days before a drawing day."""
     server, seat = running_game(session, code, player.id)
+    hits_on = days.current_day(server) + 1
+    if not days.draws_on(server, hits_on) or (
+        speed.is_speed(server) and speed.clock(server).over
+    ):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Nobody draws a challenger tomorrow"
+        )
     target = next(
         (s for s in days.active_seats(server) if s.position == body.target_position),
         None,
@@ -425,7 +434,7 @@ def send_hurry(
         Hurry(
             sender_seat_id=seat.id,
             target_seat_id=target.id,
-            day=days.current_day(server),
+            day=hits_on,
             at_fraction=random.uniform(HURRY_EARLIEST, HURRY_LATEST),
         )
     )

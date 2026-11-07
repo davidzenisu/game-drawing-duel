@@ -161,10 +161,11 @@ class TodayResponse(BaseModel):
     # Yesterday's fights you picked the fighters for (or chance did), or
     # drew the challenger of.
     results: list[FightResponse]
-    # The seat you sent today's free hurry to.
+    # The seat you sent today's free hurry to; it hits their drawing
+    # tomorrow.
     hurry_sent_to: int | None
-    # Every hurry sent to you today, for your challenger drawing, in the
-    # order they hit.
+    # Every hurry sent to you yesterday, for today's challenger drawing, in
+    # the order they hit.
     incoming_hurries: list[IncomingHurry]
     # Test sessions: the seats that ended the day. Empty on regular servers.
     day_ended: list[int]

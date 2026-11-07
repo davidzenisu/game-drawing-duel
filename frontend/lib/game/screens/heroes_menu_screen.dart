@@ -36,7 +36,6 @@ class HeroesMenuScreen extends StatelessWidget {
       builder: (context, _) {
         final c = controller;
         final fight = c.yourFight;
-        final canHurry = c.promptToDraw != null && !c.sessionOver && c.hurrySentTo == null;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Heroes'),
@@ -96,8 +95,8 @@ class HeroesMenuScreen extends StatelessWidget {
                             icon: Icons.bolt_rounded,
                             title: c.hurrySentTo == null ? 'Send a hurry' : 'Hurry sent',
                             done: c.hurrySentTo != null,
-                            // Hurries cut someone's drawing time: on drawing days, once.
-                            onTap: canHurry ? () => _sendHurry(context) : null,
+                            // Hurries cut someone's drawing time tomorrow, once a day.
+                            onTap: c.canSendHurry ? () => _sendHurry(context) : null,
                           ),
                         ],
                       ),
@@ -122,7 +121,9 @@ class HeroesMenuScreen extends StatelessWidget {
           children: [
             const ListTile(
               title: Text('Send a hurry'),
-              subtitle: Text('Free once a day. Their next drawing gets shorter, and they only find out while drawing.'),
+              subtitle: Text(
+                "Free once a day. Their drawing tomorrow gets shorter, and they only find out while drawing.",
+              ),
             ),
             for (final player in controller.otherPlayers)
               ListTile(

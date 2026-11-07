@@ -205,12 +205,17 @@ abstract class GameSession extends ChangeNotifier {
   /// fought against or boosted. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
 
-  /// The hurries sent against your challenger drawing today, in the order
+  /// The hurries sent yesterday against your challenger drawing today, in the order
   /// they hit.
   List<HurryPlan> get incomingHurries;
 
-  /// The player you sent today's free hurry to.
+  /// The player you sent today's free hurry to: it hits their drawing
+  /// tomorrow.
   Player? get hurrySentTo;
+
+  /// Whether you can still send today's free hurry: once a day, when
+  /// there's a drawing tomorrow, i.e. on prompt days.
+  bool get canSendHurry => !sessionOver && promptsToday && hurrySentTo == null;
 
   /// The latest finale's winner, now in the gacha [pool].
   WeeklyHero? get weeklyHero;
@@ -357,7 +362,8 @@ abstract class GameSession extends ChangeNotifier {
   /// be stored, the intro just shows again another time.
   Future<void> markTutorialSeen(String key);
 
-  /// Sends today's free hurry. Completes with false if it was already used.
+  /// Sends today's free hurry, against [target]'s drawing tomorrow.
+  /// Completes with false if it was already used.
   Future<bool> sendHurry(Player target);
 
   /// The hints of [theme] in use, see [canEditContent].
