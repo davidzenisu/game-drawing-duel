@@ -55,9 +55,15 @@ class HubTile extends StatelessWidget {
       child: Card(
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
-        // Opaque, so greyed out tiles don't let the scenery through.
-        color: muted ? colors.surfaceContainerHighest : colors.surface,
+        // Opaque, so greyed out tiles don't let the scenery through. A shade
+        // off the page and outlined, so tiles stand out on a plain page too
+        // (the heroes menu), where a shadow hardly shows in dark mode.
+        color: muted ? colors.surfaceContainerHighest : colors.surfaceContainerHigh,
         elevation: muted ? 0 : 1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: muted ? BorderSide.none : BorderSide(color: colors.outlineVariant),
+        ),
         child: InkWell(
           onTap: onTap,
           child: SizedBox(
