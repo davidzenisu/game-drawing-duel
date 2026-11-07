@@ -35,7 +35,9 @@ A day ends early once every player has done everything there is to do that day, 
 ### Days
 - Challenger titles are only written on days 1 to 3, so the last days finish the loop: drawing on days 2 to 4, boosting on days 3 to 5, fighting on days 4 to 6.
 - For each win: get one pull for each star that the challenger has (speed mode only), plus the challenger's stars as victory stars.
-- There is no weekly finale.
+- There is no weekly finale, no week ranking and no win rates.
+- Hurries can be sent on days 1 to 3: a hurry hits the target's drawing the next day, and the last drawings are on day 4.
+- The daily hub greys out the steps a day has nothing for (e.g. choosing a challenger after day 3); tapping one tells why.
 
 Total drawings: 5 per player (25-50 drawings)
 
