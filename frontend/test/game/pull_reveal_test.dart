@@ -179,7 +179,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a duplicate shows its upgrades, and whether the next one is ready', (tester) async {
+  testWidgets('a duplicate shows plain, and tells whether its next upgrade is ready', (tester) async {
     final kim = _outcome('Kim', Rarity.basic, isNew: false);
     final sam = _outcome('Sam', Rarity.basic, isNew: false);
     final upgraded = OwnedCard(kim.card)
@@ -189,7 +189,7 @@ void main() {
     await _open(tester, [kim], owned: {'Kim': upgraded, 'Sam': ready});
     await tester.tap(find.text('Tap to skip'));
     await tester.pump();
-    expect(tester.widget<Standee>(find.byType(Standee)).effects, [UpgradeEffect.shadow]);
+    expect(tester.widget<Standee>(find.byType(Standee)).effects, isEmpty, reason: 'the drawing stays the focus');
     expect(find.text('Upgrade ready!'), findsNothing, reason: 'its next upgrade costs more');
     await tester.pumpWidget(const SizedBox());
 
@@ -202,13 +202,9 @@ void main() {
     await tester.tap(find.text('Skip'));
     await tester.pump();
     await tester.pump();
-    final kimStandee = tester.widget<Standee>(
-      find.descendant(
-        of: find.ancestor(of: find.text('Kim'), matching: find.byType(Column)).first,
-        matching: find.byType(Standee),
-      ),
-    );
-    expect(kimStandee.effects, [UpgradeEffect.shadow]);
+    for (final standee in tester.widgetList<Standee>(find.byType(Standee))) {
+      expect(standee.effects, isEmpty, reason: standee.card.subject);
+    }
     expect(find.text('Upgrade ready!'), findsOneWidget, reason: "Sam's next upgrade is paid for");
     await tester.pumpWidget(const SizedBox());
   });

@@ -35,8 +35,9 @@ class PullRevealScreen extends StatefulWidget {
 
   final List<PullOutcome> outcomes;
 
-  /// Your characters after the pulls, by card id: a duplicate shows the
-  /// effects and element it has, and whether its next upgrade is ready.
+  /// Your characters after the pulls, by card id: a duplicate tells
+  /// whether its next upgrade is ready. Characters show plain here, so the
+  /// drawing stays the focus.
   final Map<String, OwnedCard> owned;
 
   @override
@@ -132,7 +133,7 @@ class _SingleReveal extends StatefulWidget {
 
   final PullOutcome outcome;
 
-  /// The pulled character as you own it now, with its upgrades.
+  /// The pulled character as you own it now, for its upgrade points.
   final OwnedCard? owned;
   final bool buildUp;
   final VoidCallback onDone;
@@ -303,7 +304,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
         children: [
           Transform.scale(
             scale: 1 + 0.08 * Curves.elasticOut.transform(burst),
-            child: Standee(card: card, width: 200, effects: _effectsOf(widget.owned), element: widget.owned?.element),
+            child: Standee(card: card, width: 200),
           ),
           const SizedBox(height: 12),
           _PoppingStars(rarity: card.rarity, progress: const Interval(0.15, 0.7).transform(burst)),
@@ -604,12 +605,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Standee(
-                              card: outcome.card,
-                              width: width,
-                              effects: _effectsOf(widget.owned[outcome.card.id]),
-                              element: widget.owned[outcome.card.id]?.element,
-                            ),
+                            Standee(card: outcome.card, width: width),
                             StarRow(rarity: outcome.card.rarity, size: 14),
                             Text(
                               outcome.card.subject,
@@ -689,6 +685,3 @@ class _GlowPainter extends CustomPainter {
       oldDelegate.burst != burst ||
       oldDelegate.sparkle != sparkle;
 }
-
-/// The upgrade effects [owned] shows, none for a character you don't own.
-List<UpgradeEffect> _effectsOf(OwnedCard? owned) => owned?.shown ?? const [];
