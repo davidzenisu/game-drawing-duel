@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/pull_reveal_screen.dart';
+import 'package:frontend/game/widgets/card_art.dart';
 
 import '../helpers.dart';
 
@@ -36,7 +38,11 @@ Future<void> _until(WidgetTester tester, Finder finder) async {
 }
 
 /// Opens the reveal from a button, and tells whether it closed again.
-Future<ValueNotifier<bool>> _open(WidgetTester tester, List<PullOutcome> outcomes) async {
+Future<ValueNotifier<bool>> _open(
+  WidgetTester tester,
+  List<PullOutcome> outcomes, {
+  Map<String, OwnedCard> owned = const {},
+}) async {
   tester.view.physicalSize = const Size(400, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -46,9 +52,11 @@ Future<ValueNotifier<bool>> _open(WidgetTester tester, List<PullOutcome> outcome
       home: Builder(
         builder: (context) => TextButton(
           onPressed: () async {
-            await Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => PullRevealScreen(outcomes: outcomes)));
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PullRevealScreen(outcomes: outcomes, owned: owned),
+              ),
+            );
             closed.value = true;
           },
           child: const Text('Open'),
@@ -168,6 +176,40 @@ void main() {
     expect(find.text('Hero'), findsOneWidget);
     expect(find.text('Tap to continue'), findsNothing);
     expect(find.text('Done'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a duplicate shows its upgrades, and whether the next one is ready', (tester) async {
+    final kim = _outcome('Kim', Rarity.basic, isNew: false);
+    final sam = _outcome('Sam', Rarity.basic, isNew: false);
+    final upgraded = OwnedCard(kim.card)
+      ..copies = 2
+      ..unlocked.add(UpgradeEffect.shadow);
+    final ready = OwnedCard(sam.card)..copies = 10;
+    await _open(tester, [kim], owned: {'Kim': upgraded, 'Sam': ready});
+    await tester.tap(find.text('Tap to skip'));
+    await tester.pump();
+    expect(tester.widget<Standee>(find.byType(Standee)).effects, [UpgradeEffect.shadow]);
+    expect(find.text('Upgrade ready!'), findsNothing, reason: 'its next upgrade costs more');
+    await tester.pumpWidget(const SizedBox());
+
+    // In the overview of several pulls too.
+    await _open(
+      tester,
+      [for (var i = 0; i < 8; i++) _outcome('Basic $i', Rarity.basic), kim, sam],
+      owned: {'Kim': upgraded, 'Sam': ready},
+    );
+    await tester.tap(find.text('Skip'));
+    await tester.pump();
+    await tester.pump();
+    final kimStandee = tester.widget<Standee>(
+      find.descendant(
+        of: find.ancestor(of: find.text('Kim'), matching: find.byType(Column)).first,
+        matching: find.byType(Standee),
+      ),
+    );
+    expect(kimStandee.effects, [UpgradeEffect.shadow]);
+    expect(find.text('Upgrade ready!'), findsOneWidget, reason: "Sam's next upgrade is paid for");
     await tester.pumpWidget(const SizedBox());
   });
 }

@@ -17,6 +17,9 @@ void main() {
     final pool = controller.pool;
     final rates = GachaMachine.tierRates({for (final card in pool) card.rarity});
     final owned = {for (final o in controller.collection) o.card.id};
+    // One of yours is upgraded: the pool shows it with its upgrade.
+    final upgraded = controller.collection.first;
+    await controller.unlockNextUpgrade(upgraded);
 
     await tester.pumpWidget(MaterialApp(home: GachaScreen(controller: controller)));
     await tester.pump();
@@ -53,7 +56,9 @@ void main() {
     expect(standees, hasLength(pool.length));
     for (final standee in standees) {
       expect(standee.hidden, !owned.contains(standee.card.id), reason: standee.card.subject);
+      expect(standee.effects, standee.card.id == upgraded.card.id ? upgraded.shown : isEmpty);
     }
+    expect(upgraded.shown, isNotEmpty);
     // Everyone's name shows, summoned or not.
     for (final card in pool) {
       expect(find.text(card.title), findsWidgets, reason: card.subject);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../game_session.dart';
 import '../rules/gacha.dart';
 import '../rules/models.dart';
+import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 
 /// Formats a chance in percent: whole numbers as they are, small ones with
@@ -29,7 +30,7 @@ class PoolScreen extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final pool = banner.poolOf(controller.pool);
-        final owned = {for (final o in controller.collection) o.card.id};
+        final owned = {for (final o in controller.collection) o.card.id: o};
         final byRarity = {
           for (final rarity in Rarity.values)
             rarity: [
@@ -117,13 +118,15 @@ class _RaritySection extends StatelessWidget {
   final int rate;
   final Map<String, double> chances;
   final Set<String> rateUp;
-  final Set<String> owned;
+
+  /// Your characters, with their upgrades, by card id.
+  final Map<String, OwnedCard> owned;
   final String? weeklyHeroId;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final summoned = cards.where((card) => owned.contains(card.id)).length;
+    final summoned = cards.where((card) => owned.containsKey(card.id)).length;
     final featured = [
       for (final card in cards)
         if (rateUp.contains(card.id)) card,
@@ -165,7 +168,7 @@ class _RaritySection extends StatelessWidget {
                 for (final card in cards)
                   _PoolTile(
                     card: card,
-                    summoned: owned.contains(card.id),
+                    owned: owned[card.id],
                     weeklyHero: card.id == weeklyHeroId,
                     rateUp: rateUp.contains(card.id),
                   ),
@@ -179,10 +182,12 @@ class _RaritySection extends StatelessWidget {
 }
 
 class _PoolTile extends StatelessWidget {
-  const _PoolTile({required this.card, required this.summoned, required this.weeklyHero, required this.rateUp});
+  const _PoolTile({required this.card, required this.owned, required this.weeklyHero, required this.rateUp});
 
   final CharacterCard card;
-  final bool summoned;
+
+  /// The character as you own it, with its upgrades; null until summoned.
+  final OwnedCard? owned;
   final bool weeklyHero;
   final bool rateUp;
 
@@ -193,7 +198,13 @@ class _PoolTile extends StatelessWidget {
       width: 88,
       child: Column(
         children: [
-          Standee(card: card, width: 76, hidden: !summoned),
+          Standee(
+            card: card,
+            width: 76,
+            hidden: owned == null,
+            effects: owned?.shown ?? const [],
+            element: owned?.element,
+          ),
           const SizedBox(height: 4),
           Text(card.subject, style: textTheme.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
           Text(

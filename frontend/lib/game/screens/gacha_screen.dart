@@ -93,7 +93,8 @@ class _GachaScreenState extends State<GachaScreen> {
       PageRouteBuilder<void>(
         opaque: false,
         transitionDuration: const Duration(milliseconds: 400),
-        pageBuilder: (_, _, _) => PullRevealScreen(outcomes: outcomes),
+        pageBuilder: (_, _, _) =>
+            PullRevealScreen(outcomes: outcomes, owned: {for (final o in controller.collection) o.card.id: o}),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
       ),
     );

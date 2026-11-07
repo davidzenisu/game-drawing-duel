@@ -15,4 +15,5 @@ category: concept
 	- Any duplicates provide "upgrades" for special effects. These includes shadows and light effects (different elements?)
 	- Should be done via a skill tree
 	- Different rarities should have different trees.
+	- A character's upgrades show wherever one of your own characters appears: the collection, the fighter picker, fights, the summon reveal (where a duplicate that pays for the next upgrade says "Upgrade ready!") and the pool of what you can pull. Challengers show plain.
 	- General idea: Different "classes" for different roles?
