@@ -561,7 +561,7 @@ void main() {
       await sam.refreshDay();
       expect(admin.hurrySentTo, isNull, reason: 'a new day, a new hurry');
       expect(sam.incomingHurries.single.by, 'Alex');
-      expect(sam.incomingHurries.single.atFraction, 0.4);
+      expect(sam.incomingHurries.single.left, const Duration(seconds: 39));
       expect(admin.incomingHurries, isEmpty);
     });
 

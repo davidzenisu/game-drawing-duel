@@ -467,8 +467,10 @@ class StackedHurryTests(FightTestCase):
         self.next_day()
         hurries = self.today(ROBIN)["incoming_hurries"]
         self.assertEqual({h["by_position"] for h in hurries}, {0, 1})
-        fractions = [h["at_fraction"] for h in hurries]
-        self.assertEqual(fractions, sorted(fractions), "in the order they hit")
+        self.assertEqual([h["by_position"] for h in hurries], [0, 1], "as sent")
+        left = [h["left_seconds"] for h in hurries]
+        self.assertEqual(left, sorted(left, reverse=True), "in the order they hit")
+        self.assertTrue(all(15 <= s <= 55 for s in left))
 
 
 class FightPairingTests(FightTestCase):

@@ -697,7 +697,7 @@ class FakeBackend {
       'hurry_sent_to': hurries[(code, today + 1, yours)],
       'incoming_hurries': [
         for (final MapEntry(:key, :value) in hurries.entries)
-          if (key.$1 == code && key.$2 == today && value == yours) {'by_position': key.$3, 'at_fraction': 0.4},
+          if (key.$1 == code && key.$2 == today && value == yours) {'by_position': key.$3, 'left_seconds': 39.0},
       ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
       'weekly_hero': weeklyHeroes[code],

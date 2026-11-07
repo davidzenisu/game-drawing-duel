@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../game_session.dart';
+import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../rules/themes.dart';
 import '../widgets/card_art.dart';
@@ -147,8 +148,8 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
 
   void _tick() {
     // Each hurry takes away a share of the time left when it hits.
-    while (_hits < widget.hurries.length && _stopwatch.elapsed >= _limit! * widget.hurries[_hits].atFraction) {
-      _lastCut = _remaining * HurryPlan.cutFraction;
+    while (_hits < widget.hurries.length && _remaining <= widget.hurries[_hits].left) {
+      _lastCut = Hurries.cut(_remaining);
       _cuts.add(_lastCut);
       _cut += _lastCut;
       _hits++;

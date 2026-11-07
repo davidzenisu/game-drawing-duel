@@ -584,8 +584,11 @@ class ApiGameSession extends GameSession {
       };
       _incomingHurries = [
         for (final hurry in json['incoming_hurries'] as List? ?? const [])
-          if (hurry case {'by_position': int by, 'at_fraction': num at})
-            HurryPlan(by: _seat(server, by).name, atFraction: at.toDouble())
+          if (hurry case {'by_position': int by, 'left_seconds': num left})
+            HurryPlan(
+              by: _seat(server, by).name,
+              left: Duration(microseconds: (left * Duration.microsecondsPerSecond).round()),
+            )
           else
             throw const FormatException('Unexpected hurry.'),
       ];

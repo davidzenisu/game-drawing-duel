@@ -31,8 +31,9 @@ class Hurry(Base):
     )
     # The day it hits: the day after it was sent. One a sender and day.
     day: Mapped[int] = mapped_column(Integer, nullable=False)
-    # When it hits, as a fraction of the time limit. It takes away
-    # `rules.HURRY_CUT_FRACTION` of the time left then.
+    # A random share in [0, 1) that places it within its stretch of the
+    # day's hurries (`rules.hurry_hits`). Named for when it was the share of
+    # the time limit it hit at.
     at_fraction: Mapped[float] = mapped_column(Float, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

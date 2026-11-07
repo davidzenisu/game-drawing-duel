@@ -26,11 +26,10 @@ from app.responses import character_response
 from app.rules import (
     BOOST_MAX_PER_CHALLENGER,
     BOOST_STARS,
-    HURRY_EARLIEST,
-    HURRY_LATEST,
     SPEED_DAYS,
     WIN_RATE_MIN_FIGHTS,
     Rarity,
+    hurry_hits,
 )
 from app.schemas import (
     BoostStep,
@@ -198,17 +197,18 @@ def _hurry_sent_to(
 def _incoming_hurries(
     session: Session, server: Server, seat: ServerSeat, day: int
 ) -> list[IncomingHurry]:
+    """The hurries hitting `seat`'s drawing on `day`, spread out in the
+    order they were sent."""
     positions = {s.id: s.position for s in server.seats}
+    hurries = session.scalars(
+        select(Hurry)
+        .where(Hurry.target_seat_id == seat.id, Hurry.day == day)
+        .order_by(Hurry.sent_at, Hurry.id)
+    ).all()
+    hits = hurry_hits([hurry.at_fraction for hurry in hurries])
     return [
-        IncomingHurry(
-            by_position=positions[hurry.sender_seat_id],
-            at_fraction=hurry.at_fraction,
-        )
-        for hurry in session.scalars(
-            select(Hurry)
-            .where(Hurry.target_seat_id == seat.id, Hurry.day == day)
-            .order_by(Hurry.at_fraction)
-        )
+        IncomingHurry(by_position=positions[hurry.sender_seat_id], left_seconds=left)
+        for hurry, left in zip(hurries, hits, strict=True)
     ]
 
 
@@ -435,7 +435,7 @@ def send_hurry(
             sender_seat_id=seat.id,
             target_seat_id=target.id,
             day=hits_on,
-            at_fraction=random.uniform(HURRY_EARLIEST, HURRY_LATEST),
+            at_fraction=random.random(),
         )
     )
     try:

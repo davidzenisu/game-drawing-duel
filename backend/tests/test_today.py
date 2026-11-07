@@ -234,7 +234,7 @@ class HurryTests(TodayTestCase):
         self.post("days/next")
         [incoming] = self.today(SAM)["incoming_hurries"]
         self.assertEqual(incoming["by_position"], 0)
-        self.assertTrue(0.25 <= incoming["at_fraction"] <= 0.6)
+        self.assertTrue(15 <= incoming["left_seconds"] <= 55)
         self.assertIsNone(self.today()["hurry_sent_to"])
         self.post("days/next")
         self.assertEqual(self.today(SAM)["incoming_hurries"], [], "a day only")

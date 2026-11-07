@@ -8,7 +8,7 @@ import 'package:frontend/game/screens/drawing_screen.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 
 void main() {
-  testWidgets('every hurry takes 10% of the time left when it hits', (tester) async {
+  testWidgets('every hurry takes 10% of the time left when it hits, at its time left', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -21,8 +21,8 @@ void main() {
           rarity: Rarity.hero,
           timeLimit: challengerDrawTime,
           hurries: [
-            HurryPlan(by: 'Alex', atFraction: 0.25),
-            HurryPlan(by: 'Robin', atFraction: 0.5),
+            HurryPlan(by: 'Alex', left: Duration(seconds: 45)),
+            HurryPlan(by: 'Robin', left: Duration(seconds: 26)),
           ],
         ),
       ),
@@ -30,7 +30,7 @@ void main() {
     expect(find.text('1:00'), findsOneWidget);
     final canvas = tester.getRect(find.byType(SketchPad));
 
-    // 15s in, Alex's hurry takes 10% of the 45s left.
+    // 15s in, with 45s left, Alex's hurry takes 10% of them.
     await tester.pump(const Duration(milliseconds: 15200));
     expect(find.text('Alex sent a hurry! -4s'), findsOneWidget);
     // Once the banner is in, the canvas is as big as before.
@@ -46,14 +46,84 @@ void main() {
           .opacity,
       0,
     );
-    // 30s in, Robin's takes 10% of the 25.5s then left.
+    // 29.6s in, with under 26s left, Robin's takes 10% of the 25.9s left.
     await tester.pump(const Duration(milliseconds: 10600));
     expect(find.text('Robin sent a hurry! -2s'), findsOneWidget);
     expect(tester.getRect(find.byType(SketchPad)), canvas);
-    // 60s - 30.2s - 7.05s of hurries.
+    // 60s - 30.2s - 7.09s of hurries.
     expect(find.text('0:22'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a full day of hurries all hit before the last 15s, each taking 2s at least', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    DrawingResult? result;
+    final senders = ['Alex', 'Sam', 'Robin', 'Kim', 'Jo', 'Lee', 'Max', 'Ana', 'Tom'];
+    final hits = Hurries.hits([for (final _ in senders) 0.9]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async => result = await Navigator.of(context).push<DrawingResult>(
+              MaterialPageRoute(
+                builder: (_) => DrawingScreen(
+                  subject: 'Sam',
+                  prompt: '"Sauna Lord"',
+                  hint: 'A challenger prompt',
+                  rarity: Rarity.hero,
+                  initialTitle: 'Sauna Lord',
+                  titleLocked: true,
+                  timeLimit: challengerDrawTime,
+                  hurries: [for (final (i, by) in senders.indexed) HurryPlan(by: by, left: hits[i])],
+                ),
+              ),
+            ),
+            child: const Text('Draw'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Draw'));
+    await tester.pumpAndSettle();
+    final pad = tester.getRect(find.byType(SketchPad));
+    await tester.dragFrom(pad.center, const Offset(80, 40));
+    // Draw until under 15s are left (the last cut can jump past 0:14):
+    // every hurry hit by then.
+    for (var i = 0; i < 300 && find.textContaining(RegExp(r'^0:1[0-4]$')).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(find.textContaining(RegExp(r'^0:1[0-4]$')), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    final cuts = [for (final h in result!.hurries) h.cut];
+    expect(cuts, everyElement(isNotNull), reason: 'none too late');
+    expect(cuts, everyElement(greaterThanOrEqualTo(Hurries.minCut)));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  test('hurries are spread between 55s and 15s left', () {
+    for (final n in [1, 2, 4, 9]) {
+      for (final jitter in [0.0, 0.5, 0.999]) {
+        final hits = Hurries.hits(List.filled(n, jitter));
+        expect(
+          hits,
+          everyElement(predicate<Duration>((d) => d >= Hurries.lastLeft && d <= Hurries.firstLeft)),
+          reason: '$n × $jitter',
+        );
+        for (var i = 1; i < n; i++) {
+          // The next one only hits once the time the one before took is gone.
+          expect(
+            hits[i],
+            lessThanOrEqualTo(hits[i - 1] - Hurries.cut(hits[i - 1]) + const Duration(microseconds: 1)),
+            reason: '$n × $jitter',
+          );
+        }
+      }
+    }
+    expect(Hurries.cut(const Duration(seconds: 15)), Hurries.minCut);
   });
 
   testWidgets('once the clock runs there is no backing out, and the result lists every hurry', (tester) async {
@@ -77,8 +147,8 @@ void main() {
                   timeLimit: challengerDrawTime,
                   noBackingOut: true,
                   hurries: [
-                    HurryPlan(by: 'Alex', atFraction: 0.25),
-                    HurryPlan(by: 'Robin', atFraction: 0.5),
+                    HurryPlan(by: 'Alex', left: Duration(seconds: 45)),
+                    HurryPlan(by: 'Robin', left: Duration(seconds: 26)),
                   ],
                 ),
               ),
