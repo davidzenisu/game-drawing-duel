@@ -32,7 +32,7 @@ abstract final class Unavailable {
   static String? boost(GameSession c) =>
       _notYet(c, LoopStep.boost, 'Boosting') ??
       (c.boostForfeited
-          ? "You didn't draw yesterday's challenger, so you can't boost today."
+          ? "You didn't draw yesterday's challenger, so you can't boost today: chance spreads your stars."
           : 'No challengers were drawn yesterday to boost.');
 
   static String? fight(GameSession c) {

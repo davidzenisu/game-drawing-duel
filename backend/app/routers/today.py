@@ -159,6 +159,8 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
 def _boost_step(
     session: Session, server: Server, day: int, seat: ServerSeat
 ) -> BoostStep | None:
+    if fights.missed_drawing(session, server, day, seat):
+        return None
     targets = fights.boost_targets(session, server, day, seat)
     if not targets:
         return None

@@ -42,7 +42,8 @@ def seat_done(session: Session, server: Server, day: int, seat: ServerSeat) -> b
     ):
         return False
     if (
-        fights.boost_targets(session, server, day, seat)
+        not fights.missed_drawing(session, server, day, seat)
+        and fights.boost_targets(session, server, day, seat)
         and sum(fights.given_boosts(session, seat, day).values()) < BOOST_STARS
     ):
         return False

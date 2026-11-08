@@ -570,7 +570,7 @@ class FightPairingTests(FightTestCase):
             self.assertNotIn(2, positions)
             boosted[subject] = {t["challenger"]["id"] for t in targets}
         self.next_day()
-        # Chance spread everyone's boost stars but Robin's.
+        # Chance spread Robin's boost stars too, all of them.
         with self.session_factory() as session:
             boosters = set(
                 session.scalars(
@@ -579,7 +579,15 @@ class FightPairingTests(FightTestCase):
                     .where(Boost.day == 3)
                 )
             )
-        self.assertEqual(boosters, set(range(len(self.players))) - {2})
+        self.assertEqual(boosters, set(range(len(self.players))))
+        with self.session_factory() as session:
+            robins = session.scalars(
+                select(Boost)
+                .join(ServerSeat, Boost.booster_seat_id == ServerSeat.id)
+                .where(Boost.day == 3, ServerSeat.position == 2)
+            ).all()
+        self.assertTrue(all(b.by_chance for b in robins))
+        self.assertEqual(sum(b.stars for b in robins), 3)
         # Day 4: still a challenger for everyone, never their own or Robin's.
         for i, subject in enumerate(self.players):
             challenger = self.today(subject)["fight"]["challenger"]
