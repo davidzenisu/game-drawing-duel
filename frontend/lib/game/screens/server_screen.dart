@@ -7,6 +7,7 @@ import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
+import '../widgets/mockup_button.dart';
 import '../widgets/sign_out_button.dart';
 
 /// Create a server with a prepopulated roster or join one with a code.
@@ -24,6 +25,7 @@ class ServerScreen extends StatelessWidget {
           title: Text('Hi ${controller.you.name}!'),
           actions: [
             ContentEditorButton(session: controller),
+            MockupButton(session: controller),
             SignOutButton(session: controller),
           ],
           bottom: const TabBar(

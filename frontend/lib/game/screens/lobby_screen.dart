@@ -8,6 +8,7 @@ import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
 import '../widgets/content_editor_button.dart';
+import '../widgets/mockup_button.dart';
 import '../widgets/sign_out_button.dart';
 import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
@@ -58,6 +59,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
         actions: [
           CancelServerButton(session: controller),
           ContentEditorButton(session: controller),
+          MockupButton(session: controller),
           SignOutButton(session: controller),
         ],
       ),
