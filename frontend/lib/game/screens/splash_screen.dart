@@ -175,11 +175,19 @@ class _FloatingStandeesState extends State<_FloatingStandees> with SingleTickerP
     (left: false, top: 0.66, width: 110.0, phase: 0.85),
   ];
 
+  /// Each one's upgrades. Light and aura glow in the rarity's colour:
+  /// yellow for legends, green for adventurers.
+  static const _looks = [
+    (rarity: Rarity.legend, effects: [UpgradeEffect.light, UpgradeEffect.aura], element: null),
+    (rarity: Rarity.hero, effects: [UpgradeEffect.shadow], element: null),
+    (rarity: Rarity.adventurer, effects: [UpgradeEffect.light], element: null),
+    (rarity: Rarity.hero, effects: [UpgradeEffect.element], element: ElementKind.fire),
+  ];
+
   static final List<CharacterCard> _cards = () {
     final bots = BotArtist(7);
-    const rarities = [Rarity.legend, Rarity.hero, Rarity.adventurer, Rarity.hero];
     return [
-      for (final (i, rarity) in rarities.indexed)
+      for (final (i, (:rarity, effects: _, element: _)) in _looks.indexed)
         CharacterCard(
           id: 'splash-$i',
           subject: '',
@@ -236,7 +244,8 @@ class _FloatingStandeesState extends State<_FloatingStandees> with SingleTickerP
                         child: Standee(
                           card: _cards[i],
                           width: spot.width,
-                          effects: const [UpgradeEffect.shadow, UpgradeEffect.outline],
+                          effects: _looks[i].effects,
+                          element: _looks[i].element,
                         ),
                       ),
                     );
