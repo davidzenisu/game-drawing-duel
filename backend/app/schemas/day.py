@@ -158,6 +158,8 @@ class TodayResponse(BaseModel):
     to_draw: PromptToDrawResponse | None
     fight: FightStep | None
     boost: BoostStep | None
+    # You skipped yesterday's drawing, so you can't boost today.
+    boost_forfeited: bool = False
     # Yesterday's fights you picked the fighters for (or chance did), or
     # drew the challenger of.
     results: list[FightResponse]

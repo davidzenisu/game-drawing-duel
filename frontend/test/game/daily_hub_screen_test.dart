@@ -48,14 +48,26 @@ void main() {
     _phone(tester);
     expect(await _open(tester, await launchedGame(launchDate: firstMonday)), ['Choose a challenger']);
     expect(await _open(tester, await launchedGame(launchDate: firstMonday, day: 2)), _steps.take(2));
-    expect(await _open(tester, await launchedGame(launchDate: firstMonday, day: 4)), _steps);
+    expect(await _open(tester, await launchedGame(launchDate: firstMonday, day: 4, drawing: true)), _steps);
+    // Without yesterday's drawing, no boosts.
+    expect(await _open(tester, await launchedGame(launchDate: firstMonday, day: 4)), [
+      'Choose a challenger',
+      'Draw a challenger',
+      'Pick your fighters',
+    ]);
   });
 
   testWidgets('speed mode greys out the steps its last days have no use for', (tester) async {
     _phone(tester);
     Future<List<String>> onDay(int day) async => _open(
       tester,
-      await launchedGame(others: ['Alex', 'Sam', 'Robin', 'Kim'], launchDate: firstMonday, speed: true, day: day),
+      await launchedGame(
+        others: ['Alex', 'Sam', 'Robin', 'Kim'],
+        launchDate: firstMonday,
+        speed: true,
+        day: day,
+        drawing: true,
+      ),
     );
 
     // Prompts on days 1 to 3, drawn on 2 to 4, boosted on 3 to 5, fought on 4 to 6.

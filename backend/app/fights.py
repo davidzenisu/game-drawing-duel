@@ -79,6 +79,18 @@ def fight_challenger(
     return None
 
 
+def missed_drawing(
+    session: Session, server: Server, day: int, seat: ServerSeat
+) -> bool:
+    """Whether `seat` skipped yesterday's challenger drawing, which costs
+    them today's boosts."""
+    return (
+        day >= FIRST_BOOST_DAY
+        and days.prompt_to_draw(session, server, day - 1, seat) is not None
+        and days.drawn_challenger(session, seat, day - 1) is None
+    )
+
+
 def boost_targets(
     session: Session, server: Server, day: int, seat: ServerSeat
 ) -> list[Character]:
@@ -88,11 +100,14 @@ def boost_targets(
     players the same offsets on in the roster, offsets picked per server and
     day, so when everyone drew one, every challenger is boosted by the same
     number of players and comes first for one of them. Drawers who drew
-    none are made up for by the next offsets."""
+    none are made up for by the next offsets. A seat that skipped
+    yesterday's drawing boosts none (`missed_drawing`)."""
     if day < FIRST_BOOST_DAY:
         return []
     seats = days.active_seats(server)
     if len(seats) < 2 or seat not in seats:
+        return []
+    if missed_drawing(session, server, day, seat):
         return []
     drawn = _drawn(session, server, day - 1)
     fight_offset = _fight_offset(server, day + 1, len(seats))
@@ -143,6 +158,8 @@ def set_boosts(
 ) -> None:
     """Replaces the boost stars `seat` gives on `day` with `stars`, by
     challenger. Commits."""
+    if missed_drawing(session, server, day, seat):
+        raise InvalidBoost("You didn't draw yesterday, so you can't boost today")
     targets = {c.id for c in boost_targets(session, server, day, seat)}
     if not targets:
         raise InvalidBoost("No challengers to boost today")
@@ -171,7 +188,8 @@ def set_boosts(
 
 def complete_boosts(session: Session, server: Server, day: int) -> None:
     """Once `day` is over, spreads the boost stars everyone left that day
-    across their challengers by chance. Commits."""
+    across their challengers by chance; those who skipped the drawing the
+    day before have none. Commits."""
     if day < FIRST_BOOST_DAY:
         return
     for seat in days.active_seats(server):

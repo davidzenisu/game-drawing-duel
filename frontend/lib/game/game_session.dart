@@ -195,6 +195,9 @@ abstract class GameSession extends ChangeNotifier {
   /// you fight tomorrow.
   List<BoostTarget> get boostTargets;
 
+  /// You skipped yesterday's challenger drawing, so you can't boost today.
+  bool get boostForfeited;
+
   /// The challengers you encountered, newest first: the ones you drew,
   /// fought against or boosted. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;

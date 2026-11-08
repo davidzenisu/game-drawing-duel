@@ -34,6 +34,7 @@ A day ends early once every player has done everything there is to do that day, 
 
 ### Days
 - Challenger titles are only written on days 1 to 3, so the last days finish the loop: drawing on days 2 to 4, boosting on days 3 to 5, fighting on days 4 to 6.
+- A player who didn't draw on a day can't boost on the next (drawings on days 2 to 4, so boosts on days 3 to 5), and chance doesn't spread their stars either: only the players who drew boost, so a few missed drawings in a short session don't pile everyone's boosts onto the challengers that are left (see [Skipped Days](./skipped-days.md)). With nothing to boost, that player's day can still end early once they've done the rest.
 - For each win: get one pull for each star that the challenger has (speed mode only), plus the challenger's stars as victory stars.
 - There is no weekly finale, no week ranking and no win rates.
 - Hurries can be sent on days 1 to 3: a hurry hits the target's drawing the next day, and the last drawings are on day 4.

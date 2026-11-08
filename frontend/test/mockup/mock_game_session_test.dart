@@ -561,6 +561,7 @@ void main() {
     final game = await launchedGame();
     var boosted = <String>{};
     for (var day = 1; day < 9; day++) {
+      expect(game.boostForfeited, isFalse, reason: 'day $day: you drew yesterday');
       expect(game.boostTargets, hasLength(day >= LoopStep.boost ? Boost.challengers : 0), reason: 'day $day');
       expect(game.fightChallenger == null, day < LoopStep.fight, reason: 'day $day');
       if (game.fightChallenger case final challenger?) {
@@ -568,7 +569,22 @@ void main() {
         expect(boosted, isNot(contains(challenger.id)), reason: 'day $day: not one you boosted');
       }
       boosted = {for (final t in game.boostTargets) t.challenger.id};
+      if (game.promptToDraw != null) await game.submitChallenger(doodle);
       await game.advanceDay();
     }
+  });
+
+  test('skipping the drawing costs the next day\'s boosts', () async {
+    final game = await launchedGame(day: 2);
+    await game.advanceDay();
+    expect(game.boostForfeited, isTrue);
+    expect(game.boostTargets, isEmpty);
+    expect(game.canBoost, isFalse);
+    expect(() => game.setBoosts({}), throwsStateError);
+    // Drawing today brings them back tomorrow.
+    await game.submitChallenger(doodle);
+    await game.advanceDay();
+    expect(game.boostForfeited, isFalse);
+    expect(game.boostTargets, hasLength(Boost.challengers));
   });
 }
