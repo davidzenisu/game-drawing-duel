@@ -45,7 +45,7 @@ Vault secret `database-url`.
 ### API authentication
 
 Every API route except `/health` and the API docs (`/docs`, `/redoc`,
-`/openapi.json`) requires an Auth0 access token for the API configured in
+`/openapi.json`, and the logo `/docs` shows as its icon, `/favicon.png`) requires an Auth0 access token for the API configured in
 `AUTH0_AUDIENCE` that carries the `read:api` permission. Players get it through
 the `user` role; the Auth0 API needs **Enable RBAC** and **Add Permissions in the
 Access Token** turned on so it appears in the token's `permissions` claim.
