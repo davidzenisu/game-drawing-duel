@@ -376,6 +376,28 @@ class FakeBackend {
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
         return _json(200, rankings[code]);
       }
+      // Day 1 is a Monday in the fake: 2026-10-05.
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'fights') {
+        final today = days[code] ?? 1;
+        final fought = {
+          for (final f in fights[code] ?? const <FakeFight>[])
+            if (f.day < today) f.day,
+        }.toList()..sort((a, b) => b.compareTo(a));
+        return _json(200, [
+          for (final day in fought)
+            {'day': day, 'date': DateTime.utc(2026, 10, 4 + day).toIso8601String().substring(0, 10)},
+        ]);
+      }
+      if (request.method == 'GET' && path.length == 4 && path[2] == 'fights') {
+        final day = int.parse(path[3]);
+        if (day >= (days[code] ?? 1)) return _json(409, {'detail': 'Only the fights of past days replay'});
+        return _json(200, [
+          for (final f
+              in (fights[code] ?? const <FakeFight>[]).where((f) => f.day == day).toList()
+                ..sort((a, b) => a.owner.compareTo(b.owner)))
+            _fightJson(f),
+        ]);
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'challengers') {
         return _json(200, _challengers(code, myId));
       }
@@ -513,6 +535,24 @@ class FakeBackend {
       if (f.owner == seat && _outcome(f)['fighters_win'] == true) f,
   ];
 
+  Map<String, Object?> _fightJson(FakeFight f) => {
+    'id': f.id,
+    'day': f.day,
+    'owner_position': f.owner,
+    'challenger': f.challenger,
+    'fighters': [
+      for (final (i, c) in f.fighters.indexed)
+        {
+          'character': c,
+          'upgrades': const <String>[],
+          'element': null,
+          'extra_stars': extraStars[f.id]?.fighters[i] ?? 0,
+        },
+    ],
+    'by_chance': false,
+    'outcome': _outcome(f),
+  };
+
   static const themes = ['forest', 'beach', 'volcano', 'snow', 'jungle', 'space', 'castle'];
 
   /// The daily loop, simplified: you write a prompt for the player two seats
@@ -535,25 +575,6 @@ class FakeBackend {
         ? null
         : _characters(code).where((c) => c['day'] == day - 2 && c['artist_position'] != yours).firstOrNull;
     Map<String, Object?>? fightChallenger() => fightChallengerOn(days[code]!);
-    Map<String, Object?> fightJson(FakeFight f) {
-      return {
-        'id': f.id,
-        'day': f.day,
-        'owner_position': f.owner,
-        'challenger': f.challenger,
-        'fighters': [
-          for (final (i, c) in f.fighters.indexed)
-            {
-              'character': c,
-              'upgrades': const <String>[],
-              'element': null,
-              'extra_stars': extraStars[f.id]?.fighters[i] ?? 0,
-            },
-        ],
-        'by_chance': false,
-        'outcome': _outcome(f),
-      };
-    }
 
     /// Up to three of the challengers drawn the day before [day] you may
     /// boost: not the one you drew or the one you fight the day after.
@@ -669,7 +690,7 @@ class FakeBackend {
           'challenger': challenger,
           'yours': [
             for (final f in fights[code] ?? const [])
-              if (f.owner == yours && f.day == today) fightJson(f),
+              if (f.owner == yours && f.day == today) _fightJson(f),
           ].firstOrNull,
           // Day 1 is a Monday in the fake, so weeks start on days 1, 8, ...
           'resting': {
@@ -692,7 +713,7 @@ class FakeBackend {
       },
       'results': [
         for (final f in fights[code] ?? const [])
-          if (f.day == today - 1 && (f.owner == yours || f.challenger['artist_position'] == yours)) fightJson(f),
+          if (f.day == today - 1 && (f.owner == yours || f.challenger['artist_position'] == yours)) _fightJson(f),
       ],
       'hurry_sent_to': hurries[(code, today + 1, yours)],
       'incoming_hurries': [

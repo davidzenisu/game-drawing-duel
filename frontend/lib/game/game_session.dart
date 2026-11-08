@@ -199,6 +199,13 @@ abstract class GameSession extends ChangeNotifier {
   /// fought against or boosted. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
 
+  /// The days before today with fights to replay, newest first.
+  Future<List<FightDay>> fightDays();
+
+  /// Every fight of [day], a day before today, to replay: one per
+  /// challenger fought that day.
+  Future<List<FightSetup>> fightsOn(int day);
+
   /// The hurries sent yesterday against your challenger drawing today, in the order
   /// they hit.
   List<HurryPlan> get incomingHurries;

@@ -49,7 +49,10 @@ class DemoDays {
   /// The challengers created so far, so each keeps its drawing.
   final Map<String, CharacterCard> _cards = {};
 
-  DailyTheme themeOf(int day) => DailyTheme.ofDate(launchedOn.add(Duration(days: day - 1)));
+  /// The calendar day [day] falls on.
+  DateTime dateOf(int day) => launchedOn.add(Duration(days: day - 1));
+
+  DailyTheme themeOf(int day) => DailyTheme.ofDate(dateOf(day));
 
   /// The first day of [day]'s week, which starts on Monday.
   int weekStart(int day) => day - (launchedOn.add(Duration(days: day - 1)).weekday - DateTime.monday);

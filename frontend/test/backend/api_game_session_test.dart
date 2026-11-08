@@ -653,6 +653,16 @@ void main() {
       expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
       final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);
       expect((record.fights, record.wins), (1, fight.fightersWin ? 0 : 1));
+
+      // Day 4's fights replay for everyone, on the day's calendar date.
+      final days = await sam.fightDays();
+      expect(backend.requests.last.url.path, '/servers/123456/fights');
+      expect([for (final d in days) (d.day, d.date)], [(4, DateTime.utc(2026, 10, 8))]);
+      final replays = await sam.fightsOn(4);
+      expect(backend.requests.last.url.path, '/servers/123456/fights/4');
+      expect(replays.single.id, fight.id);
+      expect(replays.single.owner.name, 'Alex');
+      expect(replays.single.fightersWin, fight.fightersWin);
     });
 
     test('the finale: the weekly hero and the week ranking', () async {

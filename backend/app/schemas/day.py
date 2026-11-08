@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -223,3 +223,11 @@ class WinRatesResponse(BaseModel):
     min_fights: int
     # Every pair of players whose characters met, both ways.
     win_rates: list[WinRate]
+
+
+class FightDay(BaseModel):
+    """A past day with fights to replay."""
+
+    day: int
+    # The calendar day (UTC) it fell on.
+    date: date

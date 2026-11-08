@@ -962,6 +962,27 @@ class ApiGameSession extends GameSession {
   }
 
   @override
+  Future<List<FightDay>> fightDays() async => switch (await _get('/servers/${server.code}/fights')) {
+    List days => [
+      for (final day in days)
+        if (day case {'day': int number, 'date': String date})
+          FightDay(day: number, date: DateTime.parse('${date}T00:00:00Z'))
+        else
+          throw const FormatException('Unexpected fight day.'),
+    ],
+    _ => throw const FormatException('Unexpected fight days.'),
+  };
+
+  @override
+  Future<List<FightSetup>> fightsOn(int day) async {
+    final server = this.server;
+    return switch (await _get('/servers/${server.code}/fights/$day')) {
+      List fights => [for (final fight in fights) await _parseFight(server, fight)],
+      _ => throw const FormatException('Unexpected fights.'),
+    };
+  }
+
+  @override
   Future<bool> sendHurry(Player target) async {
     final Object? json;
     try {

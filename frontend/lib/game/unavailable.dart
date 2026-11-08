@@ -42,7 +42,10 @@ abstract final class Unavailable {
 
   static String? winRates(GameSession c) => c.server.isSpeed ? 'Speed mode has no win rates.' : null;
 
-  static String? fightReplay(GameSession c) => 'Pick your fighters today to watch the fight.';
+  /// Replays are of the days before today, from the first fights on.
+  static String? fightReplay(GameSession c) => c.day > LoopStep.fight
+      ? null
+      : 'The first fights are on day ${LoopStep.fight}: replay them from day ${LoopStep.fight + 1} on.';
 
   static String? weekRanking(GameSession c) => c.server.isSpeed
       ? 'Speed mode ranks all of its challengers at the end instead.'

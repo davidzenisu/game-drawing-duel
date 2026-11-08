@@ -667,6 +667,72 @@ class MockGameSession extends GameSession {
 
   int _slotOf(String challengerId) => int.parse(challengerId.split('-').last);
 
+  /// Like online, the days before today with fights: two days after
+  /// friends drew challengers. A speed session plays them all on its
+  /// launch date.
+  @override
+  Future<List<FightDay>> fightDays() async => [
+    for (var day = _day - 1; day >= LoopStep.fight; day--)
+      if (_drawnOn(day - 2)) FightDay(day: day, date: server.isSpeed ? _days.dateOf(1) : _days.dateOf(day)),
+  ];
+
+  /// The fights of [day], against the challengers drawn two days before.
+  /// Like online, everyone who draws fights, whether they drew that day or
+  /// not: you (or chance for you) against the fourth friend's challenger,
+  /// and each friend who drew against the next challenger that isn't their
+  /// own and nobody fights yet. Without yours, one is fought twice. Like in
+  /// the ranking, the challengers drawn on even days won theirs.
+  @override
+  Future<List<FightSetup>> fightsOn(int day) async {
+    if (day >= _day || !_drawnOn(day - 2)) return const [];
+    final drawn = day - 2;
+    final friendsDrawn = [for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(drawn, slot)];
+    final yours = friendsDrawn.last;
+    final others = [...friendsDrawn.take(DemoDays.slots - 1), ?_yourChallengers[drawn]];
+    final fought = <String>{};
+    final fights = [_yourFights[day] ?? _cannedFight(day, yours, you)];
+    for (final (i, drew) in friendsDrawn.indexed) {
+      final friend = _days.friends.firstWhere((p) => p.name == drew.artist);
+      final candidates = [
+        for (var k = 0; k < others.length; k++) others[(i + k) % others.length],
+      ].where((c) => c.artist != friend.name);
+      final challenger = candidates.firstWhere((c) => !fought.contains(c.id), orElse: () => candidates.first);
+      fought.add(challenger.id);
+      fights.add(_cannedFight(day, challenger, friend));
+    }
+    return fights;
+  }
+
+  /// A friend's (or chance's) fighters from the pool against [challenger]:
+  /// strong enough to beat it if it was drawn on an odd day, too weak if not.
+  FightSetup _cannedFight(int day, CharacterCard challenger, Player owner) {
+    final challengerStars = Stars.ofChallenger(_boostStars(challenger));
+    final win = challenger.day.isOdd;
+    final shuffled = [..._pool]..shuffle(Random('${challenger.id}-${owner.id}'.hashCode));
+    final order = {for (final (i, c) in shuffled.indexed) c.id: i};
+    // Strongest first to win, weakest first to lose.
+    final cards = shuffled
+      ..sort((a, b) {
+        final byStars = win ? b.rarity.stars.compareTo(a.rarity.stars) : a.rarity.stars.compareTo(b.rarity.stars);
+        return byStars != 0 ? byStars : order[a.id]!.compareTo(order[b.id]!);
+      });
+    final team = <CharacterCard>[];
+    for (final card in cards) {
+      if (team.length == FightSetup.maxFighters) break;
+      final stars = Stars.ofTeam(team.map((c) => c.rarity));
+      if (win ? stars > challengerStars : team.isNotEmpty && stars + card.rarity.stars > challengerStars) break;
+      team.add(card);
+    }
+    return FightSetup(
+      id: 'demo-fight-$day-${owner.id}',
+      owner: owner,
+      challenger: challenger,
+      fighters: [for (final card in team) FighterEntry(card: card)],
+      day: day,
+      boostStars: _boostStars(challenger),
+    );
+  }
+
   @override
   bool get canAdvanceDay => !sessionOver;
 

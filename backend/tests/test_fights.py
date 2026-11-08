@@ -1,6 +1,6 @@
 import uuid
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from sqlalchemy import select
@@ -561,3 +561,28 @@ class FightPairingTests(FightTestCase):
             challenger = self.today(subject)["fight"]["challenger"]
             self.assertNotIn(challenger["artist_position"], (i, 2), subject)
             self.assertNotIn(challenger["id"], boosted[subject])
+
+
+class FightReplayTests(FightTestCase):
+    def test_every_fight_of_a_past_day_replays(self) -> None:
+        # Day 4: Alex picks fighters, the others leave it to chance.
+        self.next_day()
+        picked = self.pick(self.owned()[:1])
+        self.assertEqual(picked.status_code, 200, picked.text)
+        fights_url = f"/servers/{self.code}/fights"
+        self.assertEqual(self.get(fights_url).json(), [], "only past days")
+        self.assertEqual(self.get(f"{fights_url}/4").status_code, 409)
+
+        self.next_day()
+        launched = datetime.now(UTC).date()
+        self.assertEqual(
+            self.get(fights_url, SAM).json(),
+            [{"day": 4, "date": (launched + timedelta(days=3)).isoformat()}],
+        )
+        fights = self.get(f"{fights_url}/4", SAM).json()
+        self.assertEqual([f["owner_position"] for f in fights], [0, 1, 2])
+        self.assertEqual([f["by_chance"] for f in fights], [False, True, True])
+        challengers = {f["challenger"]["id"] for f in fights}
+        self.assertEqual(len(challengers), 3, "every challenger has its fight")
+        alex = fights[0]
+        self.assertEqual(alex["id"], picked.json()["fight"]["yours"]["id"])
