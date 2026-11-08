@@ -15,7 +15,7 @@ If a player writes no challenger title, a premade one stands in: the premade tit
 # 2. Drawing
 The drawing has no stand-in. Its prompt can only be drawn on its own day; once the day is over, that challenger is never drawn.
 - The player misses the pull a drawing earns, and has no challenger in that week's ranking (or the race to become the weekly hero).
-- The player can't boost the next day: the boost step is greyed out, saying why, and chance spreads all their boost stars instead.
+- The player can't boost the next day: the boost step is greyed out, saying why, and chance doesn't spread their stars either.
 - The next day, the boosts skip the missing challenger: everyone who would have seen it gets the next player's instead, so some challengers are boosted by more players than others.
 - The day after, the player who would have fought it fights the next player's challenger instead, so that one gets two fights.
 - Hurries sent against that drawing do nothing.
@@ -24,7 +24,7 @@ The drawing has no stand-in. Its prompt can only be drawn on its own day; once t
 This makes the drawing the only step whose skipping costs the others something: the prompt someone wrote goes undrawn, and boosts and fights are spread unevenly.
 
 # 3. Boosts
-Once the day is over, the boost stars a player didn't give are spread by chance across their challengers to boost. A player who skipped the drawing the day before can't choose: chance spreads all of their stars (see above), so the challengers they would have boosted still get their share.
+Once the day is over, the boost stars a player didn't give are spread by chance across their challengers to boost. A player who skipped the drawing the day before has no boosts to give, by hand or by chance (see above). That's for balance: only the players who drew boost, so however many skip, there are as many boosters as challengers, and challengers get about the same boost stars as on a day everyone drew instead of a few challengers sharing everyone's stars.
 
 # 4. Fight
 Once the day is over, chance picks fighters for a player who didn't: 1 to 4 of their characters that didn't fight yet that week, sent against their challenger. The fight is decided by the stars as usual and counts for the challenger's record, the ranking and next week's win rates (see [Win Rates](./win-rates.md)). A win by chance earns no pull and no victory stars, though: only fights a player picks themselves pay out. The characters chance sent count as having fought that week.

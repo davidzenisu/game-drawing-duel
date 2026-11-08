@@ -17,10 +17,7 @@ void main() {
     expect(Unavailable.draw(game), 'Drawing starts on day 2.');
     expect(Unavailable.boost(game), 'Boosting starts on day 3.');
     final day3 = await launchedGame(launchDate: firstMonday, day: 3);
-    expect(
-      Unavailable.boost(day3),
-      "You didn't draw yesterday's challenger, so you can't boost today: chance spreads your stars.",
-    );
+    expect(Unavailable.boost(day3), "You didn't draw yesterday's challenger, so you can't boost today.");
     expect(Unavailable.fight(game), 'Fighting starts on day 4.');
     expect(Unavailable.weekRanking(game), contains('once the first week is over'));
     expect(Unavailable.fightReplay(game), 'The first fights are on day 4: replay them from day 5 on.');

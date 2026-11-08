@@ -3,7 +3,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app import rules
 from app.models import Boost, Fight, Fighter, Server, ServerSeat
@@ -570,7 +570,7 @@ class FightPairingTests(FightTestCase):
             self.assertNotIn(2, positions)
             boosted[subject] = {t["challenger"]["id"] for t in targets}
         self.next_day()
-        # Chance spread Robin's boost stars too, all of them.
+        # Chance spread everyone's boost stars but Robin's.
         with self.session_factory() as session:
             boosters = set(
                 session.scalars(
@@ -579,15 +579,13 @@ class FightPairingTests(FightTestCase):
                     .where(Boost.day == 3)
                 )
             )
-        self.assertEqual(boosters, set(range(len(self.players))))
+        self.assertEqual(boosters, set(range(len(self.players))) - {2})
+        # So the challengers share as many stars as on a day everyone drew:
+        # 3 per challenger, from as many boosters as challengers.
         with self.session_factory() as session:
-            robins = session.scalars(
-                select(Boost)
-                .join(ServerSeat, Boost.booster_seat_id == ServerSeat.id)
-                .where(Boost.day == 3, ServerSeat.position == 2)
-            ).all()
-        self.assertTrue(all(b.by_chance for b in robins))
-        self.assertEqual(sum(b.stars for b in robins), 3)
+            total = session.scalar(select(func.sum(Boost.stars)).where(Boost.day == 3))
+        drawn = len(self.players) - 1
+        self.assertEqual(total, rules.BOOST_STARS * drawn)
         # Day 4: still a challenger for everyone, never their own or Robin's.
         for i, subject in enumerate(self.players):
             challenger = self.today(subject)["fight"]["challenger"]

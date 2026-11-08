@@ -83,8 +83,7 @@ def missed_drawing(
     session: Session, server: Server, day: int, seat: ServerSeat
 ) -> bool:
     """Whether `seat` skipped yesterday's challenger drawing, which costs
-    them today's say in their boosts: chance spreads all their stars
-    (`complete_boosts`)."""
+    them today's boosts."""
     return (
         day >= FIRST_BOOST_DAY
         and days.prompt_to_draw(session, server, day - 1, seat) is not None
@@ -102,11 +101,13 @@ def boost_targets(
     day, so when everyone drew one, every challenger is boosted by the same
     number of players and comes first for one of them. Drawers who drew
     none are made up for by the next offsets. A seat that skipped
-    yesterday's drawing can't boost them itself (`missed_drawing`)."""
+    yesterday's drawing boosts none (`missed_drawing`)."""
     if day < FIRST_BOOST_DAY:
         return []
     seats = days.active_seats(server)
     if len(seats) < 2 or seat not in seats:
+        return []
+    if missed_drawing(session, server, day, seat):
         return []
     drawn = _drawn(session, server, day - 1)
     fight_offset = _fight_offset(server, day + 1, len(seats))
@@ -187,8 +188,8 @@ def set_boosts(
 
 def complete_boosts(session: Session, server: Server, day: int) -> None:
     """Once `day` is over, spreads the boost stars everyone left that day
-    across their challengers by chance: all of them for those who skipped
-    the drawing the day before. Commits."""
+    across their challengers by chance; those who skipped the drawing the
+    day before have none. Commits."""
     if day < FIRST_BOOST_DAY:
         return
     for seat in days.active_seats(server):
