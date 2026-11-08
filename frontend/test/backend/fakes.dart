@@ -164,6 +164,9 @@ class FakeBackend {
   /// Tokens with the content permission.
   final Set<String> contentEditors = {};
 
+  /// Tokens with the permission to manage servers.
+  final Set<String> serverManagers = {};
+
   /// The prompt hints, each with its premade title.
   final List<Map<String, Object?>> hints = [];
 
@@ -188,6 +191,7 @@ class FakeBackend {
       ...players[token]!,
       'created_at': '2026-10-09T10:00:00Z',
       'can_edit_content': canEditContent,
+      'can_manage_servers': serverManagers.contains(token),
       'tutorials_seen': [...?tutorialsSeen[token]],
     };
     if (request.url.path == '/me') {

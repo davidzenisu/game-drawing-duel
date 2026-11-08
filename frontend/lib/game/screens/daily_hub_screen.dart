@@ -12,6 +12,7 @@ import '../unavailable.dart';
 import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
+import '../widgets/mockup_button.dart';
 import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
@@ -272,6 +273,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               TicketChip(tickets: _controller.tickets),
               CancelServerButton(session: _controller),
               ContentEditorButton(session: _controller),
+              MockupButton(session: _controller),
               SignOutButton(session: _controller),
               const SizedBox(width: 12),
             ],

@@ -9,6 +9,7 @@ import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
 import '../widgets/content_editor_button.dart';
+import '../widgets/mockup_button.dart';
 import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/sketch_canvas.dart';
@@ -100,6 +101,7 @@ class _SetupScreenState extends State<SetupScreen> {
             actions: [
               CancelServerButton(session: controller),
               ContentEditorButton(session: controller),
+              MockupButton(session: controller),
               SignOutButton(session: controller),
             ],
           ),

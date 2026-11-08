@@ -240,6 +240,10 @@ abstract class GameSession extends ChangeNotifier {
   /// premade title: online, with the content permission.
   bool get canEditContent => false;
 
+  /// Whether you may manage servers, which also lets you try the offline
+  /// mockup from the app (`MockupButton`).
+  bool get canManageServers => false;
+
   /// Whether this is the offline mockup: the other players are simulated,
   /// the day can be ended early and upgrades can be unlocked on credit.
   bool get isMockup;

@@ -67,6 +67,7 @@ class ApiGameSession extends GameSession {
     _freshSignInNeeded = true;
     _account = null;
     _canEditContent = false;
+    _canManageServers = false;
     _tutorialsSeen = {};
     _server = null;
     _assignments = const [];
@@ -118,6 +119,7 @@ class ApiGameSession extends GameSession {
     }
     _account = Player(id: 'player-${json['id']}', name: json['first_name'] as String, isYou: true);
     _canEditContent = json['can_edit_content'] == true;
+    _canManageServers = json['can_manage_servers'] == true;
     _tutorialsSeen = {for (final key in json['tutorials_seen'] as List? ?? const []) key as String};
   }
 
@@ -143,6 +145,10 @@ class ApiGameSession extends GameSession {
 
   @override
   bool get canEditContent => _canEditContent;
+
+  bool _canManageServers = false;
+  @override
+  bool get canManageServers => _canManageServers;
 
   ContentEntry _contentEntry(Object? json) {
     if (json case {
@@ -731,6 +737,7 @@ class ApiGameSession extends GameSession {
     await _auth.signOut();
     _account = null;
     _canEditContent = false;
+    _canManageServers = false;
     _server = null;
     _assignments = const [];
     _setupDrawings = {};

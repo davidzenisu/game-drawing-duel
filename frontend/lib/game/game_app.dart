@@ -23,18 +23,31 @@ class GameApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      home: ListenableBuilder(
-        listenable: session,
-        builder: (context, _) => AnimatedSwitcher(
-          duration: const Duration(milliseconds: 500),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: ScaleTransition(scale: Tween(begin: 0.96, end: 1.0).animate(animation), child: child),
-          ),
-          child: KeyedSubtree(key: ValueKey(session.phase), child: _screenFor(session.phase)),
+      home: GameRoot(session: session),
+    );
+  }
+}
+
+/// The screen for [session]'s phase, switched with a fade as it changes.
+/// The mockup also runs in one inside the real app (`MockupShell`).
+class GameRoot extends StatelessWidget {
+  const GameRoot({super.key, required this.session});
+
+  final GameSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: Tween(begin: 0.96, end: 1.0).animate(animation), child: child),
         ),
+        child: KeyedSubtree(key: ValueKey(session.phase), child: _screenFor(session.phase)),
       ),
     );
   }

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth import CONTENT_PERMISSION, Auth0Subject, TokenClaims
+from app.auth import ADMIN_PERMISSION, CONTENT_PERMISSION, Auth0Subject, TokenClaims
 from app.database import get_db
 from app.models import Player, TutorialSeen
 from app.schemas import MeResponse, PlayerUpdate
@@ -23,6 +23,7 @@ def _me(session: Session, player: Player, claims: dict) -> MeResponse:
         first_name=player.first_name,
         created_at=player.created_at,
         can_edit_content=CONTENT_PERMISSION in claims["permissions"],
+        can_manage_servers=ADMIN_PERMISSION in claims["permissions"],
         tutorials_seen=list(
             session.scalars(
                 select(TutorialSeen.key)

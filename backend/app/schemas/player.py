@@ -27,5 +27,8 @@ class MeResponse(PlayerResponse):
     # Whether they may manage the prompt hints and premade titles
     # (`auth.CONTENT_PERMISSION`).
     can_edit_content: bool
+    # Whether they may manage servers (`auth.ADMIN_PERMISSION`), which also
+    # opens the offline mockup in the app.
+    can_manage_servers: bool = False
     # The tutorials they saw, by key, oldest first; see `PUT /me/tutorials`.
     tutorials_seen: list[str]

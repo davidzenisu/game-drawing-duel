@@ -15,9 +15,17 @@ class SignupTests(ApiTestCase):
         self.assertEqual(created["first_name"], "Alex")
         self.assertEqual(
             set(created),
-            {"id", "first_name", "created_at", "can_edit_content", "tutorials_seen"},
+            {
+                "id",
+                "first_name",
+                "created_at",
+                "can_edit_content",
+                "can_manage_servers",
+                "tutorials_seen",
+            },
         )
         self.assertFalse(created["can_edit_content"])
+        self.assertFalse(created["can_manage_servers"])
         self.assertEqual(created["tutorials_seen"], [])
 
         with self.session_factory() as session:
@@ -42,6 +50,13 @@ class SignupTests(ApiTestCase):
         editor = make_token(permissions=["read:api", "edit:content"])
         response = self.client.get("/me", headers=bearer(editor))
         self.assertTrue(response.json()["can_edit_content"])
+
+    def test_server_managers_are_told_so(self) -> None:
+        self.sign_up()
+        admin = make_token(permissions=["read:api", "manage:servers"])
+        me = self.client.get("/me", headers=bearer(admin)).json()
+        self.assertTrue(me["can_manage_servers"])
+        self.assertFalse(me["can_edit_content"])
 
     def test_players_are_separated_by_auth0_account(self) -> None:
         alex = self.sign_up("auth0|alex", "Alex")
