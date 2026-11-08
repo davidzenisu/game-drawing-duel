@@ -20,7 +20,7 @@ void main() {
     addTearDown(tester.view.reset);
     final controller = await launchedGame(others: ['Alex', 'Sam', 'Robin', 'Kim']);
 
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.pumpAndSettle();
     // The welcome first: next through its pages, then the launch bonus.
     expect(find.text('Welcome'), findsOneWidget);

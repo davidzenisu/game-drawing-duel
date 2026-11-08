@@ -21,7 +21,7 @@ void main() {
         httpClient: backend.client,
       ),
     );
-    await tester.pumpWidget(GameApp(session: session));
+    await tester.pumpWidget(GameApp(session: session, splash: false));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
     await tester.runAsync(session.start);
@@ -85,7 +85,7 @@ void main() {
       }
       await session.launch();
     });
-    await tester.pumpWidget(GameApp(session: session));
+    await tester.pumpWidget(GameApp(session: session, splash: false));
     await tester.pumpAndSettle();
     // The welcome intro first, stored with the account, then the launch dialog.
     expect(find.text('A few minutes a day'), findsOneWidget);
