@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import 'backend/api_client.dart';
 import 'backend/api_game_session.dart';
@@ -15,6 +17,9 @@ const _apiUrl = String.fromEnvironment('API_URL');
 
 void main() {
   runApp(GameApp(session: FeatureFlags.mockupGameplay ? MockGameSession() : _backendSession()));
+  // On the web, Flutter paints text as pixels; with semantics on, it's also
+  // in the page, so the browser's find-in-page (and screen readers) see it.
+  if (kIsWeb) SemanticsBinding.instance.ensureSemantics();
 }
 
 GameSession _backendSession() {
