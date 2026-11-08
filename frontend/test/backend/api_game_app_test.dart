@@ -39,6 +39,9 @@ void main() {
     expect(find.text('Hi Patricia!'), findsOneWidget);
     expect(find.byTooltip('Sign out'), findsOneWidget);
 
+    // Joining comes first.
+    await tester.tap(find.widgetWithText(Tab, 'Create server'));
+    await tester.pumpAndSettle();
     // No suggested names against the API: enter the other players.
     for (final name in ['Sam', 'Robin', 'Kim', 'Jo']) {
       await tester.enterText(find.widgetWithText(TextField, 'Add a player'), name);

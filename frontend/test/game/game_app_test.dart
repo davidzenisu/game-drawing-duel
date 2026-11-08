@@ -34,6 +34,9 @@ void main() {
     expect(find.text('Hi Pat!'), findsOneWidget);
     // The mockup has no account to sign out of.
     expect(find.byTooltip('Sign out'), findsNothing);
+    // Joining comes first.
+    await tester.tap(find.widgetWithText(Tab, 'Create server'));
+    await tester.pumpAndSettle();
     final create = find.widgetWithText(FilledButton, 'Create server');
     await tester.ensureVisible(create);
     await tester.tap(create);
@@ -141,6 +144,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Test session'), findsNothing);
+    // Joining comes first.
+    await tester.tap(find.widgetWithText(Tab, 'Create server'));
+    await tester.pumpAndSettle();
     final create = find.widgetWithText(FilledButton, 'Create server');
     await tester.ensureVisible(create);
     await tester.tap(create);
@@ -171,6 +177,9 @@ void main() {
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
     await tester.tap(find.text('Finish account'));
+    await tester.pumpAndSettle();
+    // Joining comes first.
+    await tester.tap(find.widgetWithText(Tab, 'Create server'));
     await tester.pumpAndSettle();
     final create = find.widgetWithText(FilledButton, 'Create server');
     await tester.ensureVisible(create);
@@ -204,6 +213,8 @@ void main() {
     expect(find.text('Create server'), findsWidgets);
 
     // Also from the setup, while the other players are drawing.
+    await tester.tap(find.widgetWithText(Tab, 'Create server'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(create);
     await tester.tap(create);
     await tester.pumpAndSettle();
