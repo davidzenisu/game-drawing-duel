@@ -10,11 +10,15 @@ import '../widgets/content_editor_button.dart';
 import '../widgets/mockup_button.dart';
 import '../widgets/sign_out_button.dart';
 
-/// Create a server with a prepopulated roster or join one with a code.
+/// Join a server with a code (first: most players join one) or create one
+/// with a prepopulated roster. New players get a short note on the game.
 class ServerScreen extends StatelessWidget {
   const ServerScreen({super.key, required this.controller});
 
   final GameSession controller;
+
+  /// The intro note's key among the tutorials seen, once dismissed.
+  static const introKey = 'servers-intro';
 
   @override
   Widget build(BuildContext context) {
@@ -30,8 +34,8 @@ class ServerScreen extends StatelessWidget {
           ],
           bottom: const TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.add_circle_outline_rounded), text: 'Create server'),
               Tab(icon: Icon(Icons.login_rounded), text: 'Join server'),
+              Tab(icon: Icon(Icons.add_circle_outline_rounded), text: 'Create server'),
             ],
           ),
         ),
@@ -42,12 +46,70 @@ class ServerScreen extends StatelessWidget {
                 color: Theme.of(context).colorScheme.secondaryContainer,
                 child: ListTile(leading: const Icon(Icons.info_outline_rounded), title: Text(notice)),
               ),
+            if (!controller.tutorialsSeen.contains(ServerScreen.introKey)) _IntroNote(controller: controller),
             Expanded(
               child: TabBarView(
                 children: [
-                  _CreateServer(controller: controller),
                   _JoinServer(controller: controller),
+                  _CreateServer(controller: controller),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What the game is about, in a sentence, for players who haven't joined or
+/// created a server yet; gone for good once dismissed.
+class _IntroNote extends StatelessWidget {
+  const _IntroNote({required this.controller});
+
+  final GameSession controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Material(
+      color: colors.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.waving_hand_rounded, color: colors.onPrimaryContainer),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        const TextSpan(
+                          text:
+                              'In Drawing Duel, you and your friends draw each other as heroes and challengers, '
+                              'collect the drawings and send them into fights. ',
+                        ),
+                        TextSpan(
+                          text: 'Everything is explained step by step once you join or create a server.',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    style: textTheme.bodyMedium?.copyWith(color: colors.onPrimaryContainer),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => controller.markTutorialSeen(ServerScreen.introKey),
+                child: const Text('Got it'),
               ),
             ),
           ],

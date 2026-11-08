@@ -10,6 +10,8 @@ When a server is created, the creator can prepopulate their own and all other pl
 
 They can then share a generated server code with friends to join.
 
+After signing up, a player picks between joining a server and creating one. Joining comes first, since most players join a friend's server with its code. Until they dismiss it, new players also see a short note there: the game in one sentence (you and your friends draw each other as heroes and challengers, collect the drawings and send them into fights), and that everything is explained step by step once they join or create a server.
+
 Any player who joins needs to do 3-6 drawings and titles for other players. 
 
 The following prompts should be the default prompts:
