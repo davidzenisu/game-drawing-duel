@@ -38,6 +38,18 @@ void main() {
     expect(await game.fightsOn(8), isEmpty, reason: "not today's");
   });
 
+  test('without your drawing, everyone still fights: one challenger twice', () async {
+    final game = await launchedGame(launchDate: firstMonday, day: 8);
+    final fights = await game.fightsOn(7);
+    final challengers = {for (final f in fights) f.challenger.id};
+    expect((fights.length, challengers.length), (5, 4), reason: '4 friends drew; they and you fight');
+    expect({for (final f in fights) f.owner.id}.length, 5, reason: 'one fight each');
+    expect(fights.where((f) => f.challenger.artist == game.you.name), isEmpty);
+    for (final f in fights) {
+      expect(f.owner.name, isNot(f.challenger.artist), reason: 'nobody fights their own');
+    }
+  });
+
   testWidgets('pick a day, then a challenger to replay its fight', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;

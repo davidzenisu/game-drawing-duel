@@ -676,32 +676,31 @@ class MockGameSession extends GameSession {
       if (_drawnOn(day - 2)) FightDay(day: day, date: server.isSpeed ? _days.dateOf(1) : _days.dateOf(day)),
   ];
 
-  /// The fights against the challengers drawn two days before [day]: yours
-  /// (or one chance picked for you) against the fourth friend's, and canned
-  /// ones by friends against the others. Like in the ranking, the ones drawn
-  /// on even days won theirs.
+  /// The fights of [day], against the challengers drawn two days before.
+  /// Like online, everyone who draws fights, whether they drew that day or
+  /// not: you (or chance for you) against the fourth friend's challenger,
+  /// and each friend who drew against the next challenger that isn't their
+  /// own and nobody fights yet. Without yours, one is fought twice. Like in
+  /// the ranking, the challengers drawn on even days won theirs.
   @override
   Future<List<FightSetup>> fightsOn(int day) async {
     if (day >= _day || !_drawnOn(day - 2)) return const [];
     final drawn = day - 2;
-    final challengers = [
-      for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(drawn, slot),
-      ?_yourChallengers[drawn],
-    ];
-    final friends = _days.friends;
-    return [
-      for (final (i, challenger) in challengers.indexed)
-        if (challenger.id == _challenger(drawn, DemoDays.slots - 1).id)
-          _yourFights[day] ?? _cannedFight(day, challenger, you)
-        else
-          _cannedFight(
-            day,
-            challenger,
-            [
-              for (var k = 0; k < friends.length; k++) friends[(day + i + k) % friends.length],
-            ].firstWhere((p) => p.name != challenger.artist),
-          ),
-    ];
+    final friendsDrawn = [for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(drawn, slot)];
+    final yours = friendsDrawn.last;
+    final others = [...friendsDrawn.take(DemoDays.slots - 1), ?_yourChallengers[drawn]];
+    final fought = <String>{};
+    final fights = [_yourFights[day] ?? _cannedFight(day, yours, you)];
+    for (final (i, drew) in friendsDrawn.indexed) {
+      final friend = _days.friends.firstWhere((p) => p.name == drew.artist);
+      final candidates = [
+        for (var k = 0; k < others.length; k++) others[(i + k) % others.length],
+      ].where((c) => c.artist != friend.name);
+      final challenger = candidates.firstWhere((c) => !fought.contains(c.id), orElse: () => candidates.first);
+      fought.add(challenger.id);
+      fights.add(_cannedFight(day, challenger, friend));
+    }
+    return fights;
   }
 
   /// A friend's (or chance's) fighters from the pool against [challenger]:
@@ -709,7 +708,7 @@ class MockGameSession extends GameSession {
   FightSetup _cannedFight(int day, CharacterCard challenger, Player owner) {
     final challengerStars = Stars.ofChallenger(_boostStars(challenger));
     final win = challenger.day.isOdd;
-    final shuffled = [..._pool]..shuffle(Random(challenger.id.hashCode));
+    final shuffled = [..._pool]..shuffle(Random('${challenger.id}-${owner.id}'.hashCode));
     final order = {for (final (i, c) in shuffled.indexed) c.id: i};
     // Strongest first to win, weakest first to lose.
     final cards = shuffled
@@ -725,7 +724,7 @@ class MockGameSession extends GameSession {
       team.add(card);
     }
     return FightSetup(
-      id: 'demo-fight-$day-${challenger.id}',
+      id: 'demo-fight-$day-${owner.id}',
       owner: owner,
       challenger: challenger,
       fighters: [for (final card in team) FighterEntry(card: card)],
