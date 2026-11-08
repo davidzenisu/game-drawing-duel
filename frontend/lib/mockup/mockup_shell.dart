@@ -28,6 +28,9 @@ class _MockupShellState extends State<MockupShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // The mockup's own screens make room for the keyboard; shrinking here
+      // too would take its height away twice and leave them no room.
+      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           Material(

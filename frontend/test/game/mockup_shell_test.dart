@@ -74,6 +74,20 @@ void main() {
     expect(find.byType(ContentScreen), findsNothing);
     expect(find.byType(MockupShell), findsOneWidget);
 
+    // With the keyboard open, the screen still has room for what's typed.
+    await tester.tap(find.byTooltip('Game content'));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 400);
+    await tester.pump();
+    // The content screen's body (a Center) gets the room the keyboard leaves.
+    final body = find.descendant(of: find.byType(ContentScreen), matching: find.byType(Center)).first;
+    final keyboardTop = 900.0 - 400;
+    expect(tester.getBottomLeft(body).dy, closeTo(keyboardTop, 1), reason: 'it reaches down to the keyboard');
+    expect(tester.getSize(body).height, greaterThan(250), reason: 'the keyboard taken away once, not twice');
+    tester.view.resetViewInsets();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Exit'));
     await tester.pumpAndSettle();
     expect(find.byType(MockupShell), findsNothing);
