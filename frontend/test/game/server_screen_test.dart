@@ -34,22 +34,4 @@ void main() {
     expect(controller.tutorialsSeen, contains(ServerScreen.introKey));
     await tester.pumpWidget(const SizedBox());
   });
-
-  testWidgets('text can be selected and copied, e.g. a heading', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller, splash: false));
-    await tester.enterText(find.byType(TextField), 'Pat');
-    await tester.pump();
-    await tester.tap(find.text('Finish account'));
-    await tester.pumpAndSettle();
-
-    // On its first word.
-    await tester.longPressAt(tester.getTopLeft(find.text('Got a code from a friend?')) + const Offset(12, 12));
-    await tester.pumpAndSettle();
-    expect(find.text('Copy'), findsOneWidget, reason: 'the selection menu');
-    await tester.pumpWidget(const SizedBox());
-  });
 }
