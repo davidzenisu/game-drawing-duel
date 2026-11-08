@@ -175,10 +175,10 @@ class _FloatingStandeesState extends State<_FloatingStandees> with SingleTickerP
     (left: false, top: 0.66, width: 110.0, phase: 0.85),
   ];
 
-  /// Each one's upgrades. Light and aura glow in the rarity's colour:
+  /// Each one's upgrades. The light glows in the rarity's colour:
   /// yellow for legends, green for adventurers.
   static const _looks = [
-    (rarity: Rarity.legend, effects: [UpgradeEffect.light, UpgradeEffect.aura], element: null),
+    (rarity: Rarity.legend, effects: [UpgradeEffect.light, UpgradeEffect.alive], element: null),
     (rarity: Rarity.hero, effects: [UpgradeEffect.shadow], element: null),
     (rarity: Rarity.adventurer, effects: [UpgradeEffect.light], element: null),
     (rarity: Rarity.hero, effects: [UpgradeEffect.element], element: ElementKind.fire),
