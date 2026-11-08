@@ -68,14 +68,6 @@ next to the game content one. It opens a fresh mockup game over the real app,
 under a bar with an Exit button; nothing of it is kept once they leave
 (`lib/mockup/mockup_shell.dart`).
 
-### Selectable and searchable text
-
-All text in the app can be selected and copied (a `SelectionArea` around every
-screen, see `GameApp`); the drawing canvas opts out, so a long press or a quick
-tap-then-drag there always draws. On the web, `main.dart` turns on Flutter's
-semantics: text is then also in the page (hidden), so the browser's
-find-in-page and screen readers see it, not just the pixels Flutter paints.
-
 ### Code layout
 
 - `lib/game/`: everything the game needs regardless of where it is played.

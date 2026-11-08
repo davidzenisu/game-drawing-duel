@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -111,24 +110,10 @@ class SketchPadController extends ChangeNotifier {
 }
 
 /// Editable drawing surface. Points are stored normalised to its size.
-///
-/// A touch that lands on it is its own at once, so nothing else claims the
-/// gesture: e.g. the app-wide text selection would otherwise take a quick
-/// tap (on a brush) then drag (on the canvas) for selecting text.
-class SketchPad extends StatefulWidget {
+class SketchPad extends StatelessWidget {
   const SketchPad({super.key, required this.controller});
 
   final SketchPadController controller;
-
-  @override
-  State<SketchPad> createState() => _SketchPadState();
-}
-
-class _SketchPadState extends State<SketchPad> {
-  /// The pointer drawing, and where it went down until it first moves; one
-  /// finger draws at a time.
-  int? _pointer;
-  Offset? _down;
 
   @override
   Widget build(BuildContext context) {
@@ -137,47 +122,16 @@ class _SketchPadState extends State<SketchPad> {
         final size = constraints.biggest;
         Offset normalise(Offset local) =>
             Offset((local.dx / size.width).clamp(0.0, 1.0), (local.dy / size.height).clamp(0.0, 1.0));
-        return SelectionContainer.disabled(
-          child: RawGestureDetector(
-            behavior: HitTestBehavior.opaque,
-            gestures: {
-              EagerGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
-                EagerGestureRecognizer.new,
-                (_) {},
-              ),
-            },
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (event) {
-                if (_pointer != null) return;
-                _pointer = event.pointer;
-                _down = event.localPosition;
-              },
-              onPointerMove: (event) {
-                if (event.pointer != _pointer) return;
-                // A stroke starts where the finger went down, once it moves.
-                if (_down case final down?) {
-                  widget.controller._begin(normalise(down));
-                  _down = null;
-                }
-                widget.controller._extend(normalise(event.localPosition));
-              },
-              onPointerUp: (event) => _release(event.pointer),
-              onPointerCancel: (event) => _release(event.pointer),
-              child: CustomPaint(
-                painter: SketchPainter(widget.controller.strokes, repaint: widget.controller),
-                size: size,
-              ),
-            ),
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: (details) => controller._begin(normalise(details.localPosition)),
+          onPanUpdate: (details) => controller._extend(normalise(details.localPosition)),
+          child: CustomPaint(
+            painter: SketchPainter(controller.strokes, repaint: controller),
+            size: size,
           ),
         );
       },
     );
-  }
-
-  void _release(int pointer) {
-    if (pointer != _pointer) return;
-    _pointer = null;
-    _down = null;
   }
 }

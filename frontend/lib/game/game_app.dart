@@ -27,10 +27,6 @@ class GameApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      // All text can be selected and copied, e.g. a server code or a title;
-      // the drawing canvas opts out (`SketchPad`).
-      // Its handles and menu need an overlay above the navigator's.
-      builder: (context, child) => Overlay.wrap(child: SelectionArea(child: child!)),
       home: GameRoot(session: session, splash: splash),
     );
   }
