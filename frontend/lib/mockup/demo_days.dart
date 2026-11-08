@@ -96,10 +96,16 @@ class DemoDays {
     return (challenger.day + slot) % 5;
   }
 
-  /// Hurries a friend sends you on even days you have something to draw.
-  List<HurryPlan> hurries(int day) => [
-    if (day.isEven) HurryPlan(by: friends[(day + 1) % friends.length].name, atFraction: 0.4),
-  ];
+  /// Hurries friends send you on days you have something to draw: one on
+  /// even days, two on days 3, 9, 15…
+  List<HurryPlan> hurries(int day) {
+    final by = [
+      if (day.isEven) friends[(day + 1) % friends.length],
+      if (day % 6 == 3) ...[friends[day % friends.length], friends[(day + 2) % friends.length]],
+    ];
+    final hits = Hurries.hits([for (final (i, _) in by.indexed) (0.3 + 0.4 * i) % 1]);
+    return [for (final (i, p) in by.indexed) HurryPlan(by: p.name, left: hits[i])];
+  }
 
   /// This week's win rates on [day], from last week: none in the first
   /// week, then the same sample table, with you in it.

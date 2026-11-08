@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
@@ -136,9 +135,20 @@ void main() {
 
   test('hurry', () {
     final hurry = rules['hurry'] as Map<String, dynamic>;
-    expect(HurryPlan.cutFraction, hurry['cut_fraction']);
+    double seconds(Duration d) => d.inMicroseconds / Duration.microsecondsPerSecond;
+    expect(seconds(Hurries.cut), hurry['cut_seconds']);
     expect(challengerDrawTime.inSeconds, rules['challenger_draw_seconds']);
-    expect((HurryPlan.earliest, HurryPlan.latest), (hurry['earliest'], hurry['latest']));
+    expect(
+      (seconds(Hurries.firstLeft), seconds(Hurries.lastLeft)),
+      (hurry['first_left_seconds'], hurry['last_left_seconds']),
+    );
+    for (final [List jitters, List hits] in hurry['cases'] as List) {
+      final got = Hurries.hits([for (final j in jitters) (j as num).toDouble()]);
+      expect(got.length, hits.length);
+      for (final (i, hit) in got.indexed) {
+        expect(seconds(hit), closeTo(hits[i] as num, 1e-5), reason: '$jitters');
+      }
+    }
   });
 
   test('themes', () {

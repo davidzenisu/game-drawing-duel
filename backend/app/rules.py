@@ -327,9 +327,27 @@ def win_rate_extra_stars(wins: int, fights: int) -> int:
 # The time limit for drawing a challenger.
 CHALLENGER_DRAW_SECONDS = 60
 
-# A free daily hurry takes away this share of the drawing time left when it
-# hits, somewhere between these fractions of the time limit. Every hurry a
-# player receives counts.
-HURRY_CUT_FRACTION = 0.1
-HURRY_EARLIEST = 0.25
-HURRY_LATEST = 0.6
+# A free daily hurry takes away these seconds of drawing time when it hits.
+# Every hurry a player receives counts: they hit with between the first and
+# the last seconds left, spread out.
+HURRY_CUT_SECONDS = 5.0
+HURRY_FIRST_LEFT_SECONDS = 55.0
+HURRY_LAST_LEFT_SECONDS = 15.0
+
+
+def hurry_hits(jitters: list[float]) -> list[float]:
+    """The seconds left at which each of a day's hurries hits, in the order
+    they were sent, from a random share in [0, 1) each (its jitter).
+
+    They're spread evenly: the window's time not taken by the cuts of the
+    hurries before is split into one stretch per hurry, and each hits
+    somewhere in its own, so together they never run past the last moment."""
+    n = len(jitters)
+    room = max(
+        0.0,
+        HURRY_FIRST_LEFT_SECONDS - HURRY_LAST_LEFT_SECONDS - (n - 1) * HURRY_CUT_SECONDS,
+    )
+    return [
+        HURRY_FIRST_LEFT_SECONDS - i * HURRY_CUT_SECONDS - room / n * (i + jitter)
+        for i, jitter in enumerate(jitters)
+    ]

@@ -69,20 +69,14 @@ class ServerSession {
 
 /// Another player secretly sent a hurry against your next challenger
 /// drawing. Every hurry you receive counts.
+/// It takes away `Hurries.cut` of the time left when it hits.
 class HurryPlan {
-  const HurryPlan({required this.by, required this.atFraction});
-
-  /// The share of the drawing time left that a hurry takes away when it hits.
-  static const cutFraction = 0.1;
-
-  /// A hurry hits between these fractions of the time limit.
-  static const earliest = 0.25;
-  static const latest = 0.6;
+  const HurryPlan({required this.by, required this.left});
 
   final String by;
 
-  /// When the hurry hits, as a fraction of the original time limit.
-  final double atFraction;
+  /// When the hurry hits: the drawing time left then (see `Hurries.hits`).
+  final Duration left;
 }
 
 class PullOutcome {

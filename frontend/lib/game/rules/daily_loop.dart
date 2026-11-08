@@ -93,6 +93,35 @@ abstract final class WinRates {
 /// The time limit for drawing a challenger.
 const challengerDrawTime = Duration(seconds: 60);
 
+/// Free daily hurries: what one takes away when it hits, and when the
+/// hurries a player receives hit. Every one counts.
+abstract final class Hurries {
+  /// The drawing time a hurry takes away when it hits.
+  static const cut = Duration(seconds: 5);
+
+  /// Hurries hit with between these times left, spread out.
+  static const firstLeft = Duration(seconds: 55);
+  static const lastLeft = Duration(seconds: 15);
+
+  /// The time left at which each of a day's hurries hits, in the order they
+  /// were sent, from a random share in [0, 1) each (its jitter).
+  ///
+  /// They're spread evenly: the window's time not taken by the cuts of the
+  /// hurries before is split into one stretch per hurry, and each hits
+  /// somewhere in its own, so together they never run past [lastLeft].
+  static List<Duration> hits(List<double> jitters) {
+    final first = _seconds(firstLeft), last = _seconds(lastLeft), cut = _seconds(Hurries.cut);
+    final n = jitters.length;
+    final room = max(0.0, first - last - (n - 1) * cut);
+    return [for (final (i, jitter) in jitters.indexed) _duration(first - i * cut - room / n * (i + jitter))];
+  }
+
+  static double _seconds(Duration d) => d.inMicroseconds / Duration.microsecondsPerSecond;
+
+  static Duration _duration(double seconds) =>
+      Duration(microseconds: (seconds * Duration.microsecondsPerSecond).round());
+}
+
 /// Step 1 of the daily loop: a title prompt for a challenger, written for a
 /// theme and a character. Another player draws it the next day.
 class ChallengerPrompt {

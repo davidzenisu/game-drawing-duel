@@ -167,9 +167,12 @@ class SharedRulesTest(unittest.TestCase):
 
     def test_hurry(self):
         hurry = SHARED["hurry"]
-        self.assertEqual(rules.HURRY_CUT_FRACTION, hurry["cut_fraction"])
+        self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])
         self.assertEqual(rules.CHALLENGER_DRAW_SECONDS, SHARED["challenger_draw_seconds"])
         self.assertEqual(
-            (rules.HURRY_EARLIEST, rules.HURRY_LATEST),
-            (hurry["earliest"], hurry["latest"]),
+            (rules.HURRY_FIRST_LEFT_SECONDS, rules.HURRY_LAST_LEFT_SECONDS),
+            (hurry["first_left_seconds"], hurry["last_left_seconds"]),
         )
+        for jitters, hits in hurry["cases"]:
+            for got, expected in zip(rules.hurry_hits(jitters), hits, strict=True):
+                self.assertAlmostEqual(got, expected, places=6, msg=jitters)
