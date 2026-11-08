@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 from app.auth import get_auth0_subject
 from app.database import get_db
 from app.docs_login import configure_docs_login
+from app.docs_page import configure_docs_page
 from app.routers import admin, characters, content, me, pool, servers, setup, today
 
-app = FastAPI(title="Game Drawing Duel API", version="0.1.0")
+# The docs page is served by `configure_docs_page`, with the game's logo.
+app = FastAPI(title="Game Drawing Duel API", version="0.1.0", docs_url=None)
 
 # The backend deployment writes the commit it deploys into this file; local
 # runs and tests have none.
@@ -60,7 +62,8 @@ def health_check(
     return JSONResponse(content={"status": "ok", "database": "ok", "version": version})
 
 
-# Everything except the health check and the API docs requires a signed-in user.
+# Everything except the health check and the API docs (with their logo)
+# requires a signed-in user.
 _authenticated = [Depends(get_auth0_subject)]
 app.include_router(me.router, dependencies=_authenticated)
 app.include_router(servers.router, dependencies=_authenticated)
@@ -72,4 +75,5 @@ app.include_router(today.router, dependencies=_authenticated)
 app.include_router(content.router, dependencies=_authenticated)
 app.include_router(admin.router, dependencies=_authenticated)
 
+configure_docs_page(app)
 configure_docs_login(app)
