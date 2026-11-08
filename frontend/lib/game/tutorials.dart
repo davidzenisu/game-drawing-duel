@@ -86,7 +86,7 @@ enum Tutorial {
             '${challengerDrawTime.inMinutes}:${(challengerDrawTime.inSeconds % 60).toString().padLeft(2, '0')} to draw',
         text:
             'Draw the title someone wrote for you yesterday. It becomes a ${_stars(Stars.challengerBase)} '
-            'challenger for the others to fight, and earns you a pull.',
+            'challenger for the others to fight, and earns you a pull. Skip it, and you can\'t boost tomorrow.',
       ),
       TutorialPage(
         icon: Icons.bolt_rounded,

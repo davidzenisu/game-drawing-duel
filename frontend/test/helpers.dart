@@ -14,8 +14,9 @@ final firstMonday = DateTime.utc(2026, 10, 5, 12);
 
 /// A mockup game you (Pat) created with [others], with everyone joined, your
 /// setup drawings done, launched and moved on to [day]: its canned demo day,
-/// with nothing done on the days before. Your drawings are titled "Title",
-/// or "Drawing 0", "Drawing 1"… with [numberedTitles].
+/// with nothing done on the days before, or only your challenger drawn each
+/// day with [drawing]. Your drawings are titled "Title", or "Drawing 0",
+/// "Drawing 1"… with [numberedTitles].
 Future<MockGameSession> launchedGame({
   List<String> others = const ['Alex', 'Sam', 'Robin', 'Kim', 'Jo'],
   int seed = 1,
@@ -23,6 +24,7 @@ Future<MockGameSession> launchedGame({
   bool speed = false,
   bool numberedTitles = false,
   int day = 1,
+  bool drawing = false,
 }) async {
   final game = MockGameSession(seed: seed, launchDate: launchDate);
   await game.signUp('Pat');
@@ -36,6 +38,7 @@ Future<MockGameSession> launchedGame({
   }
   await game.launch();
   while (game.day < day) {
+    if (drawing && game.promptToDraw != null) await game.submitChallenger(doodle);
     await game.advanceDay();
   }
   return game;

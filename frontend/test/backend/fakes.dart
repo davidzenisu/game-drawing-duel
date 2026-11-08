@@ -578,8 +578,11 @@ class FakeBackend {
 
     /// Up to three of the challengers drawn the day before [day] you may
     /// boost: not the one you drew or the one you fight the day after.
+    // Skipping yesterday's drawing costs today's boosts.
+    bool missedDrawing(int day) =>
+        day >= 3 && !_characters(code).any((c) => c['day'] == day - 1 && c['artist_position'] == yours);
     List<Map<String, Object?>> boostTargets(int day) {
-      if (day < 3) return const [];
+      if (day < 3 || missedDrawing(day)) return const [];
       final fought = fightChallengerOn(day + 1)?['id'];
       return _characters(
         code,
@@ -711,6 +714,7 @@ class FakeBackend {
           'max_per_challenger': 3,
         },
       },
+      'boost_forfeited': missedDrawing(today),
       'results': [
         for (final f in fights[code] ?? const [])
           if (f.day == today - 1 && (f.owner == yours || f.challenger['artist_position'] == yours)) _fightJson(f),

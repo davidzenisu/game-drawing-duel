@@ -190,6 +190,8 @@ class MockGameSession extends GameSession {
     _dayEightLaunch = DateTime.utc(now.year, now.month, now.day - (now.weekday - DateTime.monday) - 7, 12);
     await launch();
     while (day < 8) {
+      // Yesterday's challenger is drawn, so today's boosts are on.
+      if (day == 7) await submitChallenger(_bots.doodle('challenger'));
       await advanceDay();
     }
   }
@@ -540,10 +542,11 @@ class MockGameSession extends GameSession {
     _setupContent.removeWhere((h) => h.id == entry.id);
   }
 
-  /// The first three of yesterday's challengers.
+  /// The first three of yesterday's challengers, unless you skipped
+  /// yesterday's drawing.
   @override
   List<BoostTarget> get boostTargets => [
-    if (_drawnOn(_day - 1) && !sessionOver)
+    if (_drawnOn(_day - 1) && !sessionOver && !boostForfeited)
       for (var slot = 0; slot < Boost.challengers; slot++)
         BoostTarget(
           challenger: _challenger(_day - 1, slot),
@@ -551,10 +554,15 @@ class MockGameSession extends GameSession {
         ),
   ];
 
+  /// Like online: skipping yesterday's drawing costs today's boosts.
+  @override
+  bool get boostForfeited => _drawnOn(_day - 1) && !sessionOver && _yourChallengers[_day - 1] == null;
+
   /// Step 3: gives today's challengers to boost these stars, replacing the
   /// ones you gave today.
   @override
   Future<void> setBoosts(Map<String, int> stars) async {
+    if (boostForfeited) throw StateError("You didn't draw yesterday, so you can't boost today.");
     final targets = {for (final t in boostTargets) t.challenger.id};
     if (targets.isEmpty) throw StateError('No challengers to boost today.');
     if (!targets.containsAll(stars.keys)) throw ArgumentError("You can't boost that challenger today.");

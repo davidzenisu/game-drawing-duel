@@ -544,10 +544,24 @@ class FightPairingTests(FightTestCase):
                     headers=bearer(make_token(subject)),
                 )
         self.next_day()
-        # Day 3: still three to boost for everyone, never Robin's.
+        # Day 3: still three to boost for everyone, never Robin's. Robin
+        # skipped the drawing, so Robin can't boost.
+        robin = self.today(self.players[2])
+        self.assertIsNone(robin["boost"])
+        self.assertTrue(robin["boost_forfeited"])
+        refused = self.boost({}, self.players[2])
+        self.assertEqual(refused.status_code, 409, refused.text)
+        self.assertEqual(
+            refused.json()["detail"], "You didn't draw yesterday, so you can't boost today"
+        )
         boosted = {}
         for i, subject in enumerate(self.players):
-            targets = self.today(subject)["boost"]["targets"]
+            if i == 2:
+                boosted[subject] = set()
+                continue
+            today = self.today(subject)
+            self.assertFalse(today["boost_forfeited"])
+            targets = today["boost"]["targets"]
             positions = [t["challenger"]["artist_position"] for t in targets]
             self.assertEqual(len(set(positions)), len(positions))
             self.assertLessEqual(len(positions), 3)
@@ -556,6 +570,16 @@ class FightPairingTests(FightTestCase):
             self.assertNotIn(2, positions)
             boosted[subject] = {t["challenger"]["id"] for t in targets}
         self.next_day()
+        # Chance spread everyone's boost stars but Robin's.
+        with self.session_factory() as session:
+            boosters = set(
+                session.scalars(
+                    select(ServerSeat.position)
+                    .join(Boost, Boost.booster_seat_id == ServerSeat.id)
+                    .where(Boost.day == 3)
+                )
+            )
+        self.assertEqual(boosters, set(range(len(self.players))) - {2})
         # Day 4: still a challenger for everyone, never their own or Robin's.
         for i, subject in enumerate(self.players):
             challenger = self.today(subject)["fight"]["challenger"]

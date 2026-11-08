@@ -423,6 +423,7 @@ class ApiGameSession extends GameSession {
   FightSetup? _yourFight;
   Set<String> _resting = const {};
   List<BoostTarget> _boostTargets = const [];
+  bool _boostForfeited = false;
   WeeklyHero? _weeklyHero;
   List<ChallengerRecord> _challengers = const [];
 
@@ -567,6 +568,7 @@ class ApiGameSession extends GameSession {
         _yourFight = yours == null ? null : await _parseFight(server, yours);
         _resting = {for (final id in resting) id as String};
       }
+      _boostForfeited = json['boost_forfeited'] == true;
       _boostTargets = switch (json['boost']) {
         null => const [],
         {'targets': List targets} => [
@@ -861,6 +863,9 @@ class ApiGameSession extends GameSession {
 
   @override
   List<BoostTarget> get boostTargets => _boostTargets;
+
+  @override
+  bool get boostForfeited => _boostForfeited;
 
   @override
   List<HurryPlan> get incomingHurries => _incomingHurries;

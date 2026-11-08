@@ -143,6 +143,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         ),
         fight=_fight_step(session, server, day, seat),
         boost=_boost_step(session, server, day, seat),
+        boost_forfeited=fights.missed_drawing(session, server, day, seat),
         results=[
             _fight_response(session, server, f)
             for f in fights.fights_on(session, server, day - 1)
