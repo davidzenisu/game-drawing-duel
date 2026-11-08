@@ -23,7 +23,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
 
     expect(find.text('Drawing Duel'), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Pat');
@@ -64,7 +64,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
 
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
@@ -86,7 +86,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
     await tester.tap(find.text('Finish account'));
@@ -134,7 +134,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
     await tester.tap(find.text('Finish account'));
@@ -167,7 +167,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
     await tester.tap(find.text('Finish account'));
@@ -224,7 +224,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = MockGameSession(seed: 1);
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
     await tester.tap(find.text('Finish account'));
@@ -271,7 +271,7 @@ void main() {
     for (final tutorial in Tutorial.values) {
       await controller.markTutorialSeen(tutorial.key);
     }
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.pumpAndSettle();
     if (find.text("Let's go").evaluate().isNotEmpty) {
       await tester.tap(find.text("Let's go"));
@@ -358,7 +358,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = _SlowSession();
-    await tester.pumpWidget(GameApp(session: controller));
+    await tester.pumpWidget(GameApp(session: controller, splash: false));
     await tester.enterText(find.byType(TextField), 'Pat');
     await tester.pump();
     await tester.tap(find.text('Finish account'));
