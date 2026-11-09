@@ -397,6 +397,46 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
+  /// The mockup has no accounts, so you can try the gift form: it lists
+  /// this server, and a gift that reaches you lands on your board.
+  @override
+  bool get canManageServers => true;
+
+  @override
+  Future<List<GiftServer>> giftServers() async => [
+    if (_server case final server?)
+      GiftServer(
+        code: server.code,
+        speed: server.isSpeed,
+        launched: phase == GamePhase.daily,
+        players: [
+          for (final (i, p) in server.players.indexed)
+            (position: i, name: p.name, joined: server.joined.contains(p.id)),
+        ],
+      ),
+  ];
+
+  @override
+  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) async {
+    final server = _server;
+    if (server == null) throw StateError('No server to send it to.');
+    if (serverCode != null && serverCode != server.code) throw ArgumentError('No server with this code.');
+    final recipients = positions ?? [for (var i = 0; i < server.players.length; i++) i];
+    if (recipients.isEmpty) throw ArgumentError('Pick at least one player.');
+    if (recipients.contains(server.players.indexWhere((p) => p.isYou))) {
+      _gifts.add(
+        Gift(
+          id: 'gift-${_gifts.length}-${DateTime.now().microsecondsSinceEpoch}',
+          message: message,
+          pulls: pulls,
+          sentAt: DateTime.now(),
+        ),
+      );
+      notifyListeners();
+    }
+    return recipients.length;
+  }
+
   // Daily routine ---------------------------------------------------------------
 
   /// What you did, by day: your prompts, challengers, boosts and fights.

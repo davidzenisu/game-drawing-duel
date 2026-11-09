@@ -5,9 +5,8 @@ import '../game_session.dart';
 import '../rules/models.dart';
 import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
+import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
-import '../widgets/content_editor_button.dart';
-import '../widgets/mockup_button.dart';
 import '../widgets/sign_out_button.dart';
 
 /// Join a server with a code (first: most players join one) or create one
@@ -28,8 +27,7 @@ class ServerScreen extends StatelessWidget {
         appBar: AppBar(
           title: Text('Hi ${controller.you.name}!'),
           actions: [
-            ContentEditorButton(session: controller),
-            MockupButton(session: controller),
+            AdminMenu(session: controller),
             SignOutButton(session: controller),
           ],
           bottom: const TabBar(

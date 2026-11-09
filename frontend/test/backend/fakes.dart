@@ -262,6 +262,41 @@ class FakeBackend {
           return http.Response('', 204);
       }
     }
+    if (request.url.pathSegments.firstOrNull == 'manage') {
+      if (!serverManagers.contains(token)) return _json(403, {'detail': 'Missing permission manage:servers'});
+      if (request.method == 'GET' && request.url.path == '/manage/servers') {
+        return _json(200, [
+          for (final MapEntry(key: code, value: server) in servers.entries)
+            if (!cancelled.containsKey(code))
+              {
+                'code': code,
+                'speed': speedServers.contains(code),
+                'launched': launched.contains(code),
+                'players': [
+                  for (final (i, s) in server.seats.indexed)
+                    {'position': i, 'name': s['name'], 'joined': s['player'] != null},
+                ],
+              },
+        ]);
+      }
+      if (request.method == 'POST' && request.url.path == '/manage/gifts') {
+        final code = body!['server_code'] as String?;
+        final positions = (body['positions'] as List?)?.cast<int>();
+        if (code != null && !servers.containsKey(code)) return _json(404, {'detail': 'No server with this code'});
+        final recipients = code == null
+            ? servers.values.fold(0, (sum, s) => sum + s.seats.length)
+            : positions?.length ?? servers[code]!.seats.length;
+        final id = 'gift-${gifts.length + 1}';
+        gifts.add((
+          id: id,
+          message: body['message'] as String,
+          pulls: body['pulls'] as int,
+          serverCode: code,
+          positions: positions,
+        ));
+        return _json(201, {'id': id, 'recipients': recipients});
+      }
+    }
     if (me == null) return _json(403, {'detail': 'Finish signing up first'});
     final myId = me['id'] as String;
 
