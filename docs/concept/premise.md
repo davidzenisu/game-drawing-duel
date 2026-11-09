@@ -35,6 +35,8 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 
 In the top right of the hub and the heroes menu, a **notification board** button has a badge counting what's new. For now that's **gifts**: pulls an admin gives players outside the regular rewards, each with a message. A gift's pulls only count once it's accepted on the board ("Accept", or "Accept all"); gifts don't expire. The board is loaded with the app and the day, without live updates; later it may carry other news too, like the weekly hero or patch notes.
 
+Next to it, the **pulls** chip shows the pulls you have. New pulls, from a gift, a drawing or a win, are celebrated: the screen darkens, a big glowing ticket with "+N pulls" pops up in the middle, then flies into the chip, whose count goes up as it lands. Pulls earned on another screen (like the pull a drawing earns) are celebrated once you're back on a screen with the chip.
+
 Players with admin permissions get an **Admin** menu in the app bar instead of several buttons: the game content (for content editors), and for players who manage servers, trying the mockup and **sending a gift**. The gift form sends pulls with a message to all servers (and all players), or to one server picked from a list, to all of its players or to players picked from its roster.
 
 A button that isn't available (yet) is greyed out instead of hidden, e.g. everything but step 1 on day 1. Tapping a greyed out button shows why, e.g. "Boosting starts on day 3." or "Speed mode has no win rates.".
