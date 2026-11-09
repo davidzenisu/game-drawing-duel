@@ -13,7 +13,17 @@ from app.auth import get_auth0_subject
 from app.database import get_db
 from app.docs_login import configure_docs_login
 from app.docs_page import configure_docs_page
-from app.routers import admin, characters, content, me, pool, servers, setup, today
+from app.routers import (
+    admin,
+    characters,
+    content,
+    gifts,
+    me,
+    pool,
+    servers,
+    setup,
+    today,
+)
 
 # The docs page is served by `configure_docs_page`, with the game's logo.
 app = FastAPI(title="Game Drawing Duel API", version="0.1.0", docs_url=None)
@@ -71,6 +81,7 @@ app.include_router(setup.router, dependencies=_authenticated)
 app.include_router(characters.router, dependencies=_authenticated)
 app.include_router(pool.router, dependencies=_authenticated)
 app.include_router(today.router, dependencies=_authenticated)
+app.include_router(gifts.router, dependencies=_authenticated)
 # Also needs the content permission.
 app.include_router(content.router, dependencies=_authenticated)
 app.include_router(admin.router, dependencies=_authenticated)

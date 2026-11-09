@@ -3,6 +3,7 @@ from app.models.day import ChallengerPrompt, DayEnd, HintAssignment
 from app.models.fight import Boost, Fight, Fighter
 from app.models.finale import WeeklyHero
 from app.models.gacha import Pull, PullGrant
+from app.models.gift import Gift, GiftDelivery
 from app.models.hurry import Hurry
 from app.models.player import Player, TutorialSeen
 from app.models.server import Server, ServerSeat
@@ -17,6 +18,8 @@ __all__ = [
     "DayEnd",
     "Fight",
     "Fighter",
+    "Gift",
+    "GiftDelivery",
     "HintAssignment",
     "Hurry",
     "Player",
