@@ -136,6 +136,18 @@ class MockGameSession extends GameSession {
   @override
   Player get you => _you!;
 
+  String? _accountName;
+  @override
+  String get accountName => _accountName!;
+
+  @override
+  Future<void> rename(String firstName) async {
+    _accountName = firstName.trim();
+    // Not on a server yet: you go by your account's name.
+    if (_server == null) _you = Player(id: 'you', name: _accountName!, isYou: true);
+    notifyListeners();
+  }
+
   ServerSession? _server;
   @override
   ServerSession get server => _server!;
@@ -170,7 +182,8 @@ class MockGameSession extends GameSession {
 
   @override
   Future<void> signUp(String firstName) async {
-    _you = Player(id: 'you', name: firstName.trim(), isYou: true);
+    _accountName = firstName.trim();
+    _you = Player(id: 'you', name: _accountName!, isYou: true);
     _setPhase(GamePhase.server);
   }
 
@@ -200,7 +213,14 @@ class MockGameSession extends GameSession {
 
   /// Creates a server with a prepopulated roster; the creator is the admin.
   @override
-  Future<void> createServer(List<String> otherNames, {bool isTest = false, bool speed = false}) async {
+  Future<void> createServer(
+    List<String> otherNames, {
+    String? yourName,
+    bool isTest = false,
+    bool speed = false,
+  }) async {
+    final name = yourName?.trim() ?? '';
+    _you = Player(id: 'you', name: name.isEmpty ? accountName : name, isYou: true);
     final players = [you, for (final (i, name) in otherNames.indexed) Player(id: 'p$i', name: name.trim())];
     _server = ServerSession(
       code: _newCode(),
@@ -223,7 +243,7 @@ class MockGameSession extends GameSession {
     final roster = [for (var i = 0; i < count; i++) Player(id: 'p$i', name: names[i])];
     // The admin usually knows your name already.
     final seat = 1 + rng.nextInt(count - 1);
-    roster[seat] = Player(id: 'p$seat', name: you.name);
+    roster[seat] = Player(id: 'p$seat', name: accountName);
     // Everyone listed before your seat is assumed to have joined already.
     final joined = {for (final p in roster.take(seat)) p.id};
     return ServerSession(code: code, players: roster, isAdmin: false, joined: joined);

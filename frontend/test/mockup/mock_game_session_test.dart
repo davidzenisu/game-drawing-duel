@@ -37,6 +37,19 @@ void main() {
     expect(game.yourFight, isNull);
   });
 
+  test('you can go by another name on a server, and rename your account', () async {
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    await game.rename(' Patricia ');
+    expect((game.accountName, game.you.name), ('Patricia', 'Patricia'));
+    await game.createServer(['Sam', 'Robin', 'Kim', 'Jo'], yourName: 'Trish');
+    expect(game.server.players.first.name, 'Trish');
+    expect(game.you.name, 'Trish');
+    // Renaming the account leaves the server's name alone.
+    await game.rename('Pia');
+    expect((game.accountName, game.you.name), ('Pia', 'Trish'));
+  });
+
   test('creating a server generates a 6-digit code and an admin roster', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

@@ -5,18 +5,14 @@ import 'package:flutter/material.dart';
 import '../game_session.dart';
 import 'game_action.dart';
 
-/// App bar action to cancel the server at any point of the game, e.g. when a
-/// player drops out. Asks twice, as it ends the server for everyone: the
-/// second time only after a countdown.
-class CancelServerButton extends StatelessWidget {
-  const CancelServerButton({super.key, required this.session});
-
+/// Cancelling the server at any point of the game, e.g. when a player drops
+/// out, from the account menu. Asks twice, as it ends the server for
+/// everyone: the second time only after a countdown.
+abstract final class CancelServer {
   /// Seconds to wait before the final confirmation can be given.
   static const countdownSeconds = 10;
 
-  final GameSession session;
-
-  Future<void> _confirm(BuildContext context) async {
+  static Future<void> confirm(BuildContext context, GameSession session) async {
     final first = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -40,14 +36,10 @@ class CancelServerButton extends StatelessWidget {
     final second = await showDialog<bool>(context: context, builder: (context) => const _FinalConfirmation());
     if (second == true && context.mounted) await runGameAction(context, session.cancelServer);
   }
-
-  @override
-  Widget build(BuildContext context) =>
-      IconButton(onPressed: () => _confirm(context), tooltip: 'Cancel server', icon: const Icon(Icons.cancel_outlined));
 }
 
 /// The last chance to keep the server; confirming only unlocks after
-/// [CancelServerButton.countdownSeconds].
+/// [CancelServer.countdownSeconds].
 class _FinalConfirmation extends StatefulWidget {
   const _FinalConfirmation();
 
@@ -56,7 +48,7 @@ class _FinalConfirmation extends StatefulWidget {
 }
 
 class _FinalConfirmationState extends State<_FinalConfirmation> {
-  int _secondsLeft = CancelServerButton.countdownSeconds;
+  int _secondsLeft = CancelServer.countdownSeconds;
   late final Timer _timer;
 
   @override

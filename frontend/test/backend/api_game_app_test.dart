@@ -37,11 +37,31 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
     expect(find.text('Hi Patricia!'), findsOneWidget);
-    expect(find.byTooltip('Sign out'), findsOneWidget);
+
+    // Renamed from the account menu.
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Patricia'), findsOneWidget);
+    await tester.tap(find.text('Change name'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Patricia'), ' Trish ');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+    expect(find.text('Hi Trish!'), findsOneWidget);
+    expect(backend.players.values.single['first_name'], 'Trish');
 
     // Joining comes first.
     await tester.tap(find.widgetWithText(Tab, 'Create server'));
     await tester.pumpAndSettle();
+    // Another name on this server only.
+    await tester.tap(find.text('Trish (you, admin)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Your name on this server'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Trish'), 'Pat');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pat (you, admin)'), findsOneWidget);
     // No suggested names against the API: enter the other players.
     for (final name in ['Sam', 'Robin', 'Kim', 'Jo']) {
       await tester.enterText(find.widgetWithText(TextField, 'Add a player'), name);
@@ -56,8 +76,12 @@ void main() {
     expect(find.text('Lobby'), findsOneWidget);
     expect(find.text('123456'), findsOneWidget);
     expect(find.text('Players 1/5'), findsOneWidget);
+    expect(backend.servers['123456']!.seats.first['name'], 'Pat');
+    expect(backend.players.values.single['first_name'], 'Trish', reason: 'the account keeps its name');
 
-    await tester.tap(find.byTooltip('Sign out'));
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
     expect(find.text('Sign in to play with your friends.'), findsOneWidget);
   });

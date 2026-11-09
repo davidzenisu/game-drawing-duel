@@ -7,7 +7,7 @@ import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
-import '../widgets/sign_out_button.dart';
+import '../widgets/account_menu.dart';
 
 /// Join a server with a code (first: most players join one) or create one
 /// with a prepopulated roster. New players get a short note on the game.
@@ -28,7 +28,7 @@ class ServerScreen extends StatelessWidget {
           title: Text('Hi ${controller.you.name}!'),
           actions: [
             AdminMenu(session: controller),
-            SignOutButton(session: controller),
+            AccountMenu(session: controller),
           ],
           bottom: const TabBar(
             tabs: [
@@ -128,6 +128,9 @@ class _CreateServer extends StatefulWidget {
 
 class _CreateServerState extends State<_CreateServer> {
   bool _speed = false;
+
+  /// Your name on this server, when it isn't your account's.
+  String? _yourName;
   final _newName = TextEditingController();
   late final List<String> _names = widget.controller.suggestedPlayerNames
       .where((name) => name != widget.controller.you.name)
@@ -141,6 +144,18 @@ class _CreateServerState extends State<_CreateServer> {
   }
 
   int get _playerCount => _names.length + 1;
+
+  Future<void> _renameYourself() async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => RenameDialog(
+        current: _yourName ?? widget.controller.accountName,
+        title: 'Your name on this server',
+        note: 'How the others see you on this server. Your account keeps its name.',
+      ),
+    );
+    if (name != null && mounted) setState(() => _yourName = name);
+  }
 
   void _add() {
     final name = _newName.text.trim();
@@ -161,7 +176,7 @@ class _CreateServerState extends State<_CreateServer> {
         const SizedBox(height: 4),
         Text(
           'Prepopulate the full list of players (${SetupPlan.minPlayers}-${SetupPlan.maxPlayers}). '
-          'Everyone will draw characters of the others.',
+          'Everyone will draw characters of the others. Tap your name to go by another one here.',
           style: textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
@@ -169,9 +184,18 @@ class _CreateServerState extends State<_CreateServer> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            Chip(
+            ActionChip(
               avatar: const Icon(Icons.star_rounded, size: 18),
-              label: Text('${widget.controller.you.name} (you, admin)'),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_yourName ?? widget.controller.accountName} (you, admin)'),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.edit_rounded, size: 16),
+                ],
+              ),
+              tooltip: 'Change your name on this server',
+              onPressed: _renameYourself,
             ),
             for (final (i, name) in _names.indexed)
               InputChip(label: Text(name), onDeleted: () => setState(() => _names.removeAt(i))),
@@ -223,7 +247,10 @@ class _CreateServerState extends State<_CreateServer> {
         const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: valid
-              ? () => runGameAction(context, () => widget.controller.createServer(_names, speed: _speed))
+              ? () => runGameAction(
+                  context,
+                  () => widget.controller.createServer(_names, yourName: _yourName, speed: _speed),
+                )
               : null,
           icon: const Icon(Icons.rocket_launch_rounded),
           label: const Text('Create server'),
