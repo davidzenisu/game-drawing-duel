@@ -11,6 +11,8 @@ TODO: What's the currency?
 
 Additionally, there should be the change to win additional pulls (having the best challenger in a week?)
 
+Admins can also gift pulls outside the regular rewards, with a message: to everyone on every server, everyone on one server, or chosen players of one. Players accept them on the notification board, and the pulls only count once accepted (see [Premise](./premise.md)).
+
 The gacha chances should be as follows:
 - 1 star (Basics/Starters)
 - 2 star (adventurers)

@@ -408,6 +408,30 @@ void main() {
       expect(admin.refreshInterval, const Duration(seconds: 5));
     });
 
+    test('gifts load with the day and their pulls count once accepted', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      expect(admin.gifts, isEmpty);
+
+      // An admin sends one; it shows with the next refresh, not before.
+      backend.gifts.add((id: 'gift-1', message: 'Sorry!', pulls: 3, serverCode: '123456', positions: null));
+      expect(admin.gifts, isEmpty);
+      await admin.refreshDay();
+      expect(backend.requests.any((r) => r.url.path == '/servers/123456/gifts'), isTrue);
+      expect([for (final g in admin.gifts) (g.message, g.pulls)], [('Sorry!', 3)]);
+      final before = admin.tickets;
+
+      await admin.acceptGift(admin.gifts.single);
+      expect(
+        backend.requests.any((r) => r.method == 'POST' && r.url.path == '/servers/123456/gifts/gift-1/accept'),
+        isTrue,
+      );
+      expect(admin.gifts, isEmpty);
+      expect(admin.tickets, before + 3);
+    });
+
     test('pulls spend tickets and add copies to the collection', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();

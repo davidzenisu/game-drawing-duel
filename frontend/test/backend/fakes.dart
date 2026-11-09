@@ -167,6 +167,22 @@ class FakeBackend {
   /// Tokens with the permission to manage servers.
   final Set<String> serverManagers = {};
 
+  /// Gifts sent, oldest first: to every seat of every server without a
+  /// server code, else to the seats at positions (or all) of that server.
+  final List<({String id, String message, int pulls, String? serverCode, List<int>? positions})> gifts = [];
+
+  /// Accepted gifts by server code and seat: their ids.
+  final Map<(String, int), Set<String>> acceptedGifts = {};
+
+  /// The gifts waiting for the seat at [position] of [code].
+  List<Map<String, Object?>> _giftsFor(String code, int position) => [
+    for (final g in gifts)
+      if ((g.serverCode == null || g.serverCode == code) &&
+          (g.positions == null || g.positions!.contains(position)) &&
+          !(acceptedGifts[(code, position)]?.contains(g.id) ?? false))
+        {'id': g.id, 'message': g.message, 'pulls': g.pulls, 'sent_at': '2026-11-09T10:00:00Z'},
+  ];
+
   /// The prompt hints, each with its premade title.
   final List<Map<String, Object?>> hints = [];
 
@@ -402,6 +418,17 @@ class FakeBackend {
             _fightJson(f),
         ]);
       }
+      if (path.length >= 3 && path[2] == 'gifts') {
+        final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);
+        if (request.method == 'POST' && path.length == 5 && path[4] == 'accept') {
+          if (!_giftsFor(code, yours).any((g) => g['id'] == path[3]) &&
+              !(acceptedGifts[(code, yours)]?.contains(path[3]) ?? false)) {
+            return _json(404, {'detail': 'No such gift for you'});
+          }
+          (acceptedGifts[(code, yours)] ??= {}).add(path[3]);
+        }
+        return _json(200, _giftsFor(code, yours));
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'challengers') {
         return _json(200, _challengers(code, myId));
       }
@@ -530,7 +557,11 @@ class FakeBackend {
     final challengers = _characters(
       code,
     ).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
-    return launchBonus + challengers + _wins(code, yours).length - (pulls[(code, playerId)]?.length ?? 0);
+    final gifted = [
+      for (final g in gifts)
+        if (acceptedGifts[(code, yours)]?.contains(g.id) ?? false) g.pulls,
+    ].fold(0, (a, b) => a + b);
+    return launchBonus + challengers + _wins(code, yours).length + gifted - (pulls[(code, playerId)]?.length ?? 0);
   }
 
   /// The fights [seat] won: each earns a pull and the challenger's stars.

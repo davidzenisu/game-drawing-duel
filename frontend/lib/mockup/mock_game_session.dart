@@ -371,8 +371,30 @@ class MockGameSession extends GameSession {
       if (!server.isSpeed || card.rarity == Rarity.basic) _owned[card.id] = OwnedCard(card);
     }
     _tickets += GachaMachine.launchBonus;
+    // A gift waits on the notification board, to try it.
+    _gifts.add(
+      Gift(
+        id: 'demo-gift-welcome',
+        message: 'Welcome to Drawing Duel! A few pulls on the house.',
+        pulls: 3,
+        sentAt: DateTime.now(),
+      ),
+    );
     _startDay();
     _setPhase(GamePhase.daily);
+  }
+
+  final List<Gift> _gifts = [];
+
+  @override
+  List<Gift> get gifts => List.unmodifiable(_gifts);
+
+  @override
+  Future<void> acceptGift(Gift gift) async {
+    if (!_gifts.any((g) => g.id == gift.id)) return;
+    _gifts.removeWhere((g) => g.id == gift.id);
+    _tickets += gift.pulls;
+    notifyListeners();
   }
 
   // Daily routine ---------------------------------------------------------------
