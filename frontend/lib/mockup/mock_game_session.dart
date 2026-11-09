@@ -371,8 +371,70 @@ class MockGameSession extends GameSession {
       if (!server.isSpeed || card.rarity == Rarity.basic) _owned[card.id] = OwnedCard(card);
     }
     _tickets += GachaMachine.launchBonus;
+    // A gift waits on the notification board, to try it.
+    _gifts.add(
+      Gift(
+        id: 'demo-gift-welcome',
+        message: 'Welcome to Drawing Duel! A few pulls on the house.',
+        pulls: 3,
+        sentAt: DateTime.now(),
+      ),
+    );
     _startDay();
     _setPhase(GamePhase.daily);
+  }
+
+  final List<Gift> _gifts = [];
+
+  @override
+  List<Gift> get gifts => List.unmodifiable(_gifts);
+
+  @override
+  Future<void> acceptGift(Gift gift) async {
+    if (!_gifts.any((g) => g.id == gift.id)) return;
+    _gifts.removeWhere((g) => g.id == gift.id);
+    _tickets += gift.pulls;
+    notifyListeners();
+  }
+
+  /// The mockup has no accounts, so you can try the gift form: it lists
+  /// this server, and a gift that reaches you lands on your board.
+  @override
+  bool get canManageServers => true;
+
+  @override
+  Future<List<GiftServer>> giftServers() async => [
+    if (_server case final server?)
+      GiftServer(
+        code: server.code,
+        speed: server.isSpeed,
+        launched: phase == GamePhase.daily,
+        players: [
+          for (final (i, p) in server.players.indexed)
+            (position: i, name: p.name, joined: server.joined.contains(p.id)),
+        ],
+      ),
+  ];
+
+  @override
+  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) async {
+    final server = _server;
+    if (server == null) throw StateError('No server to send it to.');
+    if (serverCode != null && serverCode != server.code) throw ArgumentError('No server with this code.');
+    final recipients = positions ?? [for (var i = 0; i < server.players.length; i++) i];
+    if (recipients.isEmpty) throw ArgumentError('Pick at least one player.');
+    if (recipients.contains(server.players.indexWhere((p) => p.isYou))) {
+      _gifts.add(
+        Gift(
+          id: 'gift-${_gifts.length}-${DateTime.now().microsecondsSinceEpoch}',
+          message: message,
+          pulls: pulls,
+          sentAt: DateTime.now(),
+        ),
+      );
+      notifyListeners();
+    }
+    return recipients.length;
   }
 
   // Daily routine ---------------------------------------------------------------

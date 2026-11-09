@@ -63,8 +63,9 @@ flutter run -d chrome --dart-define=MOCKUP_GAMEPLAY=true
 The flag defaults to `false`, so regular builds start the real app.
 
 In the real app, players with the `manage:servers` permission (`GET /me`
-reports `can_manage_servers`) get a "Try the mockup" button in the app bar,
-next to the game content one. It opens a fresh mockup game over the real app,
+reports `can_manage_servers`) get "Try the mockup" in the app bar's Admin menu
+(`lib/game/widgets/admin_menu.dart`), with the game content and sending gifts.
+It opens a fresh mockup game over the real app,
 under a bar with an Exit button; nothing of it is kept once they leave
 (`lib/mockup/mockup_shell.dart`).
 
