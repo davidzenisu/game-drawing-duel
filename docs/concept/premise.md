@@ -33,6 +33,8 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 
 **Fight replay** lists the days before today that had fights, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). Picking a day shows every fight of that day, one per player who fought, by its challenger (when someone skipped their drawing, the challenger standing in for theirs shows twice); the one you fought and the one you drew come first and are highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen.
 
+In the top right of the hub and the heroes menu, a **notification board** button has a badge counting what's new. For now that's **gifts**: pulls an admin gives players outside the regular rewards, each with a message. A gift's pulls only count once it's accepted on the board ("Accept", or "Accept all"); gifts don't expire. The board is loaded with the app and the day, without live updates; later it may carry other news too, like the weekly hero or patch notes.
+
 A button that isn't available (yet) is greyed out instead of hidden, e.g. everything but step 1 on day 1. Tapping a greyed out button shows why, e.g. "Boosting starts on day 3." or "Speed mode has no win rates.".
 
 # At the very end of the week:

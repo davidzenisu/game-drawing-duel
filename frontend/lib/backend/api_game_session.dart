@@ -76,6 +76,7 @@ class ApiGameSession extends GameSession {
     _collection = const [];
     _challengers = const [];
     _tickets = 0;
+    _gifts = const [];
     _setPhase(GamePhase.signIn);
   }
 
@@ -375,12 +376,13 @@ class ApiGameSession extends GameSession {
 
   /// The pool, your collection and today of a running game.
   Future<void> _loadPool(ServerSession server) async {
-    final (pool, collection, gacha, today, challengers) = await (
+    final (pool, collection, gacha, today, challengers, gifts) = await (
       _get('/servers/${server.code}/pool'),
       _get('/servers/${server.code}/collection'),
       _get('/servers/${server.code}/gacha'),
       _get('/servers/${server.code}/today'),
       _get('/servers/${server.code}/challengers'),
+      _get('/servers/${server.code}/gifts'),
     ).wait;
     if (pool is! List || collection is! List) throw const FormatException('Unexpected pool response.');
     _pool = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
@@ -395,6 +397,31 @@ class ApiGameSession extends GameSession {
     await _setChallengers(server, challengers);
     _setGacha(gacha);
     await _setToday(server, today);
+    _gifts = _parseGifts(gifts);
+  }
+
+  List<Gift> _gifts = const [];
+
+  @override
+  List<Gift> get gifts => _gifts;
+
+  static List<Gift> _parseGifts(Object? json) => switch (json) {
+    List gifts => [
+      for (final gift in gifts)
+        if (gift case {'id': String id, 'message': String message, 'pulls': int pulls, 'sent_at': String sentAt})
+          Gift(id: id, message: message, pulls: pulls, sentAt: DateTime.parse(sentAt))
+        else
+          throw const FormatException('Unexpected gift.'),
+    ],
+    _ => throw const FormatException('Unexpected gifts.'),
+  };
+
+  @override
+  Future<void> acceptGift(Gift gift) async {
+    final server = this.server;
+    _gifts = _parseGifts(await _post('/servers/${server.code}/gifts/${gift.id}/accept'));
+    _setGacha(await _get('/servers/${server.code}/gacha'));
+    notifyListeners();
   }
 
   int _day = 0;
@@ -745,6 +772,7 @@ class ApiGameSession extends GameSession {
     _collection = const [];
     _challengers = const [];
     _tickets = 0;
+    _gifts = const [];
     _suggestedFirstName = '';
     _setPhase(GamePhase.signIn);
   }
@@ -794,6 +822,7 @@ class ApiGameSession extends GameSession {
     _collection = const [];
     _challengers = const [];
     _tickets = 0;
+    _gifts = const [];
     _serverNotice = notice;
     _setPhase(GamePhase.server);
   }

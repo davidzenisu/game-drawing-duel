@@ -13,6 +13,7 @@ import '../widgets/cancel_server_button.dart';
 import '../widgets/game_action.dart';
 import '../widgets/content_editor_button.dart';
 import '../widgets/mockup_button.dart';
+import '../widgets/notification_board.dart';
 import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
@@ -270,6 +271,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                 tooltip: 'How to play',
                 icon: const Icon(Icons.help_outline_rounded),
               ),
+              NotificationBoardButton(session: _controller),
               TicketChip(tickets: _controller.tickets),
               CancelServerButton(session: _controller),
               ContentEditorButton(session: _controller),
