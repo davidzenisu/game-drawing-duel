@@ -10,7 +10,8 @@ import '../../theme/palette.dart';
 /// New pulls are celebrated: a big ticket with the pulls received rises in
 /// the middle of a darkened screen, then flies into the chip, whose count
 /// only goes up once it lands. Pulls that arrive while the chip's screen is
-/// covered (e.g. the pull a drawing earns) are celebrated once you're back.
+/// covered (e.g. the pull a drawing earns) are celebrated once you're back
+/// and the page on top is gone. Landed, the count goes up one pull at a time.
 class TicketChip extends StatefulWidget {
   const TicketChip({super.key, required this.tickets});
 
@@ -20,7 +21,7 @@ class TicketChip extends StatefulWidget {
   State<TicketChip> createState() => _TicketChipState();
 }
 
-class _TicketChipState extends State<TicketChip> {
+class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateMixin {
   /// The count last celebrated by any chip, so a chip on a screen below
   /// doesn't celebrate the same pulls again once you go back to it.
   static int? _celebrated;
@@ -28,11 +29,16 @@ class _TicketChipState extends State<TicketChip> {
   late int _shown = widget.tickets;
   bool _playing = false;
   ValueListenable<TickerModeData>? _tickerMode;
+  Animation<double>? _covered;
+
+  /// Counts the chip up one pull at a time once the ticket lands.
+  late final AnimationController _count;
 
   @override
   void initState() {
     super.initState();
     _celebrated = widget.tickets;
+    _count = AnimationController(vsync: this);
   }
 
   @override
@@ -44,6 +50,18 @@ class _TicketChipState extends State<TicketChip> {
       _tickerMode?.removeListener(_celebrateLater);
       _tickerMode = mode..addListener(_celebrateLater);
     }
+    // A page on top (or one sliding away) moves this one: wait until it's
+    // gone, so the ticket lands where the chip ends up. Popups like the
+    // notification board don't move it.
+    final covered = ModalRoute.of(context)?.secondaryAnimation;
+    if (covered != _covered) {
+      _covered?.removeStatusListener(_onCovered);
+      _covered = covered?..addStatusListener(_onCovered);
+    }
+  }
+
+  void _onCovered(AnimationStatus status) {
+    if (status.isDismissed) _celebrateLater();
   }
 
   @override
@@ -64,7 +82,22 @@ class _TicketChipState extends State<TicketChip> {
   @override
   void dispose() {
     _tickerMode?.removeListener(_celebrateLater);
+    _covered?.removeStatusListener(_onCovered);
+    _count.dispose();
     super.dispose();
+  }
+
+  /// Whether the chip's screen is showing and still: not covered by another
+  /// page, nor moving as one comes or goes.
+  bool get _onScreen => TickerMode.valuesOf(context).enabled && (_covered?.isDismissed ?? true);
+
+  /// The chip's middle in [overlay]'s coordinates, while it's on screen.
+  Offset? _center(OverlayState overlay) {
+    if (!mounted) return null;
+    final chip = context.findRenderObject() as RenderBox?;
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (chip == null || overlayBox == null || !chip.attached || !chip.hasSize) return null;
+    return chip.localToGlobal(chip.size.center(Offset.zero), ancestor: overlayBox);
   }
 
   void _celebrate() {
@@ -78,35 +111,57 @@ class _TicketChipState extends State<TicketChip> {
       setState(() => _shown = target);
       return;
     }
-    if (!TickerMode.valuesOf(context).enabled) return;
+    if (!_onScreen) return;
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
-    final chip = context.findRenderObject() as RenderBox?;
-    final overlayBox = overlay?.context.findRenderObject() as RenderBox?;
-    if (overlay == null || chip == null || overlayBox == null || !chip.attached) {
+    var into = overlay == null ? null : _center(overlay);
+    if (overlay == null || into == null) {
       setState(() => _shown = target);
       return;
     }
     _celebrated = target;
     _playing = true;
-    final into = chip.localToGlobal(chip.size.center(Offset.zero), ancestor: overlayBox);
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => PullsReceived(
         pulls: gained,
-        into: into,
+        // Follows the chip, should the app bar change meanwhile.
+        into: () => into = _center(overlay) ?? into!,
         onDone: () {
           entry.remove();
-          if (!mounted) return;
-          setState(() {
-            _playing = false;
-            _shown = target;
-          });
-          // More may have come in meanwhile.
-          _celebrateLater();
+          _countUp(target);
         },
       ),
     );
     overlay.insert(entry);
+  }
+
+  /// Counts the chip up to [target] one pull at a time, slow enough to see
+  /// each one (and a bit faster past a dozen).
+  Future<void> _countUp(int target) async {
+    if (!mounted) return;
+    final from = _shown;
+    final steps = target - from;
+    void step() {
+      final n = from + (steps * _count.value).ceil();
+      if (n != _shown) setState(() => _shown = n);
+    }
+
+    _count
+      ..duration = PullsReceived.countStep * min(steps, 12)
+      ..addListener(step);
+    try {
+      await _count.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      // Disposed meanwhile.
+    }
+    _count.removeListener(step);
+    if (!mounted) return;
+    setState(() {
+      _playing = false;
+      _shown = max(_shown, target);
+    });
+    // More may have come in meanwhile.
+    _celebrateLater();
   }
 
   @override
@@ -114,7 +169,7 @@ class _TicketChipState extends State<TicketChip> {
     return Chip(
       avatar: const Icon(Icons.confirmation_number_rounded, color: AppPalette.ticket),
       label: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 300),
         transitionBuilder: (child, animation) => ScaleTransition(
           scale: CurvedAnimation(parent: animation, curve: Curves.elasticOut),
           child: child,
@@ -133,11 +188,15 @@ class PullsReceived extends StatefulWidget {
 
   final int pulls;
 
-  /// Where the ticket flies to, in the overlay's coordinates.
-  final Offset into;
+  /// Where the ticket flies to, in the overlay's coordinates: asked every
+  /// frame, so it follows the chip.
+  final Offset Function() into;
   final VoidCallback onDone;
 
   static const duration = Duration(milliseconds: 2000);
+
+  /// How long the chip takes per pull to count up once the ticket lands.
+  static const countStep = Duration(milliseconds: 250);
 
   @override
   State<PullsReceived> createState() => _PullsReceivedState();
@@ -185,7 +244,7 @@ class _PullsReceivedState extends State<PullsReceived> with SingleTickerProvider
           builder: (context, _) => LayoutBuilder(
             builder: (context, constraints) {
               final middle = constraints.biggest.center(Offset.zero);
-              final at = Offset.lerp(middle, widget.into, _fly.value)!;
+              final at = Offset.lerp(middle, widget.into(), _fly.value)!;
               final scale = _pop.value * (1 - 0.85 * _fly.value);
               return Stack(
                 children: [
