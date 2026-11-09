@@ -91,6 +91,18 @@ class Gift {
   final DateTime sentAt;
 }
 
+/// A server a gift can go to, with its players, for the admin's gift form.
+class GiftServer {
+  const GiftServer({required this.code, required this.speed, required this.launched, required this.players});
+
+  final String code;
+  final bool speed;
+  final bool launched;
+
+  /// Its seats in roster order: position, name, and whether someone joined.
+  final List<({int position, String name, bool joined})> players;
+}
+
 class PullOutcome {
   const PullOutcome({required this.card, required this.isNew, required this.copies});
 
@@ -388,6 +400,15 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Accepts [gift]: its pulls are yours now.
   Future<void> acceptGift(Gift gift);
+
+  /// The servers a gift can go to, see [canManageServers].
+  Future<List<GiftServer>> giftServers() => Future.error(UnsupportedError('Only server admins can send gifts.'));
+
+  /// Gives [pulls] with [message] to everyone on every server without
+  /// [serverCode], else to everyone on that server, or the players at
+  /// [positions]. Completes with how many players got it.
+  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) =>
+      Future.error(UnsupportedError('Only server admins can send gifts.'));
 
   /// Sends today's free hurry, against [target]'s drawing tomorrow.
   /// Completes with false if it was already used.

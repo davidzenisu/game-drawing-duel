@@ -424,6 +424,46 @@ class ApiGameSession extends GameSession {
     notifyListeners();
   }
 
+  @override
+  Future<List<GiftServer>> giftServers() async => switch (await _get('/manage/servers')) {
+    List servers => [
+      for (final server in servers)
+        if (server case {'code': String code, 'speed': bool speed, 'launched': bool launched, 'players': List players})
+          GiftServer(
+            code: code,
+            speed: speed,
+            launched: launched,
+            players: [
+              for (final player in players)
+                if (player case {'position': int position, 'name': String name, 'joined': bool joined})
+                  (position: position, name: name, joined: joined)
+                else
+                  throw const FormatException('Unexpected player.'),
+            ],
+          )
+        else
+          throw const FormatException('Unexpected server.'),
+    ],
+    _ => throw const FormatException('Unexpected servers.'),
+  };
+
+  @override
+  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) async {
+    final json = await _post('/manage/gifts', {
+      'message': message,
+      'pulls': pulls,
+      'server_code': ?serverCode,
+      'positions': ?positions,
+    });
+    final sent = switch (json) {
+      {'recipients': int recipients} => recipients,
+      _ => throw const FormatException('Unexpected gift response.'),
+    };
+    // You may be one of them.
+    if (_phase == GamePhase.daily) await refreshDay();
+    return sent;
+  }
+
   int _day = 0;
   bool _promptsToday = true;
   DateTime? _dayEndsAt;
