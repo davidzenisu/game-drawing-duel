@@ -3,16 +3,23 @@
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_, select
+from sqlalchemy.orm import selectinload
 
-from app import speed
-from app.auth import require_server_admin
+from app import gifts, speed
+from app.auth import Auth0Subject, require_server_admin
 from app.database import utc_now
-from app.deps import DbSession
+from app.deps import DbSession, load_server
 from app.game_data import delete_game_data
-from app.models import Server
-from app.schemas import CleanupResponse
+from app.models import Player, Server
+from app.schemas import (
+    AdminPlayer,
+    AdminServer,
+    CleanupResponse,
+    GiftSend,
+    GiftSent,
+)
 from app.storage import Files, delete_quietly
 
 router = APIRouter(
@@ -47,3 +54,55 @@ def clean_up_servers(session: DbSession, files: Files) -> CleanupResponse:
     for character_id in character_ids:
         delete_quietly(files, str(character_id))
     return CleanupResponse(deleted=sorted(codes))
+
+
+@router.get("/servers", response_model=list[AdminServer])
+def list_servers(session: DbSession) -> list[AdminServer]:
+    """Every server that wasn't cancelled, newest first, with its players:
+    what a gift can go to."""
+    servers = session.scalars(
+        select(Server)
+        .where(Server.cancelled_at.is_(None))
+        .order_by(Server.created_at.desc())
+        .options(selectinload(Server.seats))
+    )
+    return [
+        AdminServer(
+            code=server.code,
+            speed=speed.is_speed(server),
+            launched=server.launched_at is not None,
+            players=[
+                AdminPlayer(
+                    position=s.position, name=s.name, joined=s.player_id is not None
+                )
+                for s in sorted(server.seats, key=lambda s: s.position)
+            ],
+        )
+        for server in servers
+    ]
+
+
+@router.post("/gifts", response_model=GiftSent, status_code=status.HTTP_201_CREATED)
+def send_gift(body: GiftSend, subject: Auth0Subject, session: DbSession) -> GiftSent:
+    """Gives pulls outside the regular rewards, with a message: to everyone
+    on every server without `server_code`, else to everyone on that server,
+    or only the players at `positions`. They see it on the app's
+    notification board and get the pulls once they accept it."""
+    if body.server_code is None and body.positions is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Pick a server to send to chosen players",
+        )
+    server = (
+        None if body.server_code is None else load_server(session, body.server_code)
+    )
+    sender = session.scalar(select(Player.id).where(Player.auth0_id == subject))
+    try:
+        gift, count = gifts.send(
+            session, sender, body.message, body.pulls, server, body.positions
+        )
+    except gifts.GiftError as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from error
+    return GiftSent(id=gift.id, recipients=count)

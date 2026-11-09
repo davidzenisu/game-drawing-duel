@@ -46,6 +46,13 @@ from app.schemas.gacha import (
     PullsResponse,
     UpgradeRequest,
 )
+from app.schemas.gift import (
+    AdminPlayer,
+    AdminServer,
+    GiftResponse,
+    GiftSend,
+    GiftSent,
+)
 from app.schemas.player import MeResponse, PlayerResponse, PlayerUpdate
 from app.schemas.server import (
     AssignmentResponse,
@@ -56,6 +63,8 @@ from app.schemas.server import (
 )
 
 __all__ = [
+    "AdminPlayer",
+    "AdminServer",
     "AssignmentResponse",
     "BoostGiven",
     "BoostStep",
@@ -77,6 +86,9 @@ __all__ = [
     "FighterResponse",
     "FightersSubmit",
     "GachaResponse",
+    "GiftResponse",
+    "GiftSend",
+    "GiftSent",
     "HurrySubmit",
     "IncomingHurry",
     "MeResponse",
