@@ -6,7 +6,7 @@ repo:
 title: themes
 category: concept
 ---
-Every day has a fantasy theme, set by the real weekday in UTC. The game only shows the fantasy name and its background. The everyday side comes through the **prompts**: a description shown while writing a challenger title, each with a **premade title** used when the player writes none.
+Every day has a fantasy theme, set by the real weekday in UTC. The game only shows the fantasy name and its background. A challenger keeps the theme of the day it was drawn as its scenery: it's boosted and fought in front of that background. The everyday side comes through the **prompts**: a description shown while writing a challenger title, each with a **premade title** used when the player writes none.
 
 Hints don't stick to one real-life setting. Anything that fits the fantasy theme works: Volcano Lair covers saunas, burnt dinners, hot coffee and short tempers alike. They live in the database, so new ones can be added at any time, e.g. on the Game content screen.
 

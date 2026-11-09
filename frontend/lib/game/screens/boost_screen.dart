@@ -5,12 +5,14 @@ import '../rules/daily_loop.dart';
 import '../game_session.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/themed_background.dart';
 
 /// Step 3: spread your boost stars across a few of yesterday's challengers,
 /// swiping freely between them. Drag a star from the tray at the bottom onto
 /// the challenger in view, or down from a challenger to take it back; a tap
 /// does the same. Tomorrow they're fought; the stars you leave are spread by
-/// chance once the day is over.
+/// chance once the day is over. Behind each one, the scenery it'll be fought
+/// in.
 class BoostScreen extends StatefulWidget {
   const BoostScreen({super.key, required this.controller});
 
@@ -68,22 +70,25 @@ class _BoostScreenState extends State<BoostScreen> {
           body: Column(
             children: [
               Expanded(
-                child: PageView.builder(
-                  controller: _pages,
-                  itemCount: targets.length,
-                  onPageChanged: (page) => setState(() => _page = page),
-                  itemBuilder: (context, index) {
-                    final target = targets[index];
-                    return _ChallengerCard(
-                      key: ValueKey(target.challenger.id),
-                      target: target,
-                      inView: index == _page,
-                      canTake: !_saving,
-                      willAccept: (star) => star.from == null && index == _page && _canGive(target),
-                      onGive: () => _give(target.challenger.id, 1),
-                      onTakeBack: () => _give(target.challenger.id, -1),
-                    );
-                  },
+                child: ThemedBackground(
+                  theme: current.challenger.scenery,
+                  child: PageView.builder(
+                    controller: _pages,
+                    itemCount: targets.length,
+                    onPageChanged: (page) => setState(() => _page = page),
+                    itemBuilder: (context, index) {
+                      final target = targets[index];
+                      return _ChallengerCard(
+                        key: ValueKey(target.challenger.id),
+                        target: target,
+                        inView: index == _page,
+                        canTake: !_saving,
+                        willAccept: (star) => star.from == null && index == _page && _canGive(target),
+                        onGive: () => _give(target.challenger.id, 1),
+                        onTakeBack: () => _give(target.challenger.id, -1),
+                      );
+                    },
+                  ),
                 ),
               ),
               _StarTray(
@@ -132,70 +137,72 @@ class _ChallengerCard extends StatelessWidget {
       onAcceptWithDetails: (_) => onGive(),
       builder: (context, candidates, _) {
         final hovered = candidates.isNotEmpty;
+        // The whole page takes stars; the card wraps its content, so the
+        // scenery shows around it.
         return AnimatedScale(
           scale: inView ? 1 : 0.9,
           duration: const Duration(milliseconds: 250),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
-            decoration: BoxDecoration(
-              color: colors.surfaceContainer,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: hovered ? AppPalette.rarityHero : colors.outlineVariant,
-                width: hovered ? 3 : 1,
-              ),
-              boxShadow: [if (hovered) BoxShadow(color: AppPalette.rarityHero.withValues(alpha: 0.4), blurRadius: 24)],
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 6),
                 padding: const EdgeInsets.all(16),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Standee(card: challenger, width: 140),
-                      const SizedBox(height: 8),
-                      Text(challenger.subject, style: textTheme.titleLarge, textAlign: TextAlign.center),
-                      Text(challenger.title, style: textTheme.titleMedium, textAlign: TextAlign.center),
-                      Text('Drawn by ${challenger.artist}', style: textTheme.bodySmall),
-                      const SizedBox(height: 12),
-                      // The challenger's own stars, always there.
-                      Semantics(
-                        label: '${Stars.challengerBase} stars of its own',
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (var i = 0; i < Stars.challengerBase; i++) _star(color: AppPalette.rarityLegend),
-                          ],
-                        ),
-                      ),
-                      // The boost stars you gave it, below.
-                      SizedBox(
-                        height: _starSize,
-                        child: target.stars == 0
-                            ? Center(
-                                child: Text(
-                                  'Drop a boost star here',
-                                  style: textTheme.bodySmall?.copyWith(color: colors.outline),
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  for (var slot = 0; slot < target.stars; slot++)
-                                    _GivenStar(
-                                      key: ValueKey('${challenger.id}-$slot'),
-                                      from: challenger.id,
-                                      enabled: canTake && inView,
-                                      onTap: onTakeBack,
-                                    ),
-                                ],
-                              ),
-                      ),
-                    ],
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainer,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: hovered ? AppPalette.rarityHero : colors.outlineVariant,
+                    width: hovered ? 3 : 1,
                   ),
+                  boxShadow: [
+                    if (hovered) BoxShadow(color: AppPalette.rarityHero.withValues(alpha: 0.4), blurRadius: 24),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Standee(card: challenger, width: 140),
+                    const SizedBox(height: 8),
+                    Text(challenger.subject, style: textTheme.titleLarge, textAlign: TextAlign.center),
+                    Text(challenger.title, style: textTheme.titleMedium, textAlign: TextAlign.center),
+                    Text('Drawn by ${challenger.artist}', style: textTheme.bodySmall),
+                    const SizedBox(height: 12),
+                    // The challenger's own stars, always there.
+                    Semantics(
+                      label: '${Stars.challengerBase} stars of its own',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (var i = 0; i < Stars.challengerBase; i++) _star(color: AppPalette.rarityLegend),
+                        ],
+                      ),
+                    ),
+                    // The boost stars you gave it, below.
+                    SizedBox(
+                      height: _starSize,
+                      child: target.stars == 0
+                          ? Center(
+                              child: Text(
+                                'Drop a boost star here',
+                                style: textTheme.bodySmall?.copyWith(color: colors.outline),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                for (var slot = 0; slot < target.stars; slot++)
+                                  _GivenStar(
+                                    key: ValueKey('${challenger.id}-$slot'),
+                                    from: challenger.id,
+                                    enabled: canTake && inView,
+                                    onTap: onTakeBack,
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ],
                 ),
               ),
             ),
