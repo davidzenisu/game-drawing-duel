@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../game_session.dart';
-import '../widgets/cancel_server_button.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
@@ -56,9 +55,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
       appBar: AppBar(
         title: const Text('Lobby'),
         actions: [
-          CancelServerButton(session: controller),
           AdminMenu(session: controller),
-          AccountMenu(session: controller),
+          AccountMenu(session: controller, canCancelServer: true),
         ],
       ),
       body: PhaseBuilder(

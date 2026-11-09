@@ -9,7 +9,6 @@ import '../rules/models.dart';
 import '../rules/themes.dart';
 import '../tutorials.dart';
 import '../unavailable.dart';
-import '../widgets/cancel_server_button.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/notification_board.dart';
@@ -272,9 +271,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               ),
               NotificationBoardButton(session: _controller),
               TicketChip(tickets: _controller.tickets),
-              CancelServerButton(session: _controller),
               AdminMenu(session: _controller),
-              AccountMenu(session: _controller),
+              AccountMenu(session: _controller, canCancelServer: true),
               const SizedBox(width: 12),
             ],
           ),

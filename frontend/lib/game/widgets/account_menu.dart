@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../game_session.dart';
+import 'cancel_server.dart';
 import 'game_action.dart';
 
-enum _AccountAction { rename, signOut }
+enum _AccountAction { rename, signOut, cancelServer }
 
 /// App bar menu for your account: who you're signed in as, changing your
-/// name and signing out. Hidden in the mockup, which has no account.
+/// name and signing out (not in the mockup, which has no account to sign
+/// out of). On a server, also cancelling it ([canCancelServer]).
 class AccountMenu extends StatelessWidget {
-  const AccountMenu({super.key, required this.session});
+  const AccountMenu({super.key, required this.session, this.canCancelServer = false});
 
   final GameSession session;
+
+  /// Whether the menu offers to cancel the server you're on.
+  final bool canCancelServer;
 
   Future<void> _rename(BuildContext context) async {
     final name = await showDialog<String>(
@@ -23,13 +28,13 @@ class AccountMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (session.isMockup) return const SizedBox.shrink();
     return PopupMenuButton<_AccountAction>(
       tooltip: 'Account',
       icon: const Icon(Icons.account_circle_rounded),
       onSelected: (action) => switch (action) {
         _AccountAction.rename => _rename(context),
         _AccountAction.signOut => runGameAction(context, session.signOut),
+        _AccountAction.cancelServer => CancelServer.confirm(context, session),
       },
       itemBuilder: (_) => [
         PopupMenuItem(
@@ -49,14 +54,26 @@ class AccountMenu extends StatelessWidget {
             title: Text('Change name'),
           ),
         ),
-        const PopupMenuItem(
-          value: _AccountAction.signOut,
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.logout_rounded),
-            title: Text('Sign out'),
+        if (!session.isMockup)
+          const PopupMenuItem(
+            value: _AccountAction.signOut,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.logout_rounded),
+              title: Text('Sign out'),
+            ),
           ),
-        ),
+        if (canCancelServer) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: _AccountAction.cancelServer,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error),
+              title: const Text('Cancel server'),
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -12,7 +12,7 @@ They can then share a generated server code with friends to join.
 
 After signing up, a player picks between joining a server and creating one. Joining comes first, since most players join a friend's server with its code. Until they dismiss it, new players also see a short note there: the game in one sentence (you and your friends draw each other as heroes and challengers, collect the drawings and send them into fights), and that everything is explained step by step once they join or create a server.
 
-In the top right of the main screens (servers, lobby, setup and the daily hub), an **account** menu shows who you're signed in as, lets you change your account's first name and sign out. A new first name is your default name on servers you create from then on; servers you already joined keep the name you have there.
+In the top right of the main screens (servers, lobby, setup and the daily hub), an **account** menu shows who you're signed in as, lets you change your account's first name and sign out (the mockup has no account to sign out of). On a server, it also holds cancelling the server. A new first name is your default name on servers you create from then on; servers you already joined keep the name you have there.
 
 Any player who joins needs to do 3-6 drawings and titles for other players. 
 

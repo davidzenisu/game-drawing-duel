@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../game_session.dart';
 import '../rules/setup_plan.dart';
-import '../widgets/cancel_server_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
@@ -98,9 +97,8 @@ class _SetupScreenState extends State<SetupScreen> {
           appBar: AppBar(
             title: const Text('Initial drawings'),
             actions: [
-              CancelServerButton(session: controller),
               AdminMenu(session: controller),
-              AccountMenu(session: controller),
+              AccountMenu(session: controller, canCancelServer: true),
             ],
           ),
           body: ListView(

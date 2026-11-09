@@ -11,7 +11,7 @@ import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/screens/collection_screen.dart';
 import 'package:frontend/game/screens/prompt_screen.dart';
 import 'package:frontend/game/screens/setup_screen.dart';
-import 'package:frontend/game/widgets/cancel_server_button.dart';
+import 'package:frontend/game/widgets/cancel_server.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 import 'package:frontend/theme/palette.dart';
 
@@ -32,8 +32,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hi Pat!'), findsOneWidget);
-    // The mockup has no account to sign out of.
-    expect(find.byTooltip('Sign out'), findsNothing);
+    // The mockup has no account to sign out of, but you can change your name.
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out'), findsNothing);
+    await tester.tap(find.text('Change name'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Pat'), 'Patricia');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hi Patricia!'), findsOneWidget);
     // Joining comes first.
     await tester.tap(find.widgetWithText(Tab, 'Create server'));
     await tester.pumpAndSettle();
@@ -159,11 +167,13 @@ void main() {
 
   /// Cancels the server through both confirmations.
   Future<void> confirmCancel(WidgetTester tester) async {
-    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel server'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: CancelServerButton.countdownSeconds));
+    await tester.pump(const Duration(seconds: CancelServer.countdownSeconds));
     await tester.tap(find.widgetWithText(FilledButton, 'Cancel for everyone'));
     await tester.pumpAndSettle();
   }
@@ -187,7 +197,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.phase, GamePhase.lobby);
 
-    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel server'));
     await tester.pumpAndSettle();
     expect(find.text('Cancel the server?'), findsOneWidget);
     await tester.tap(find.text('Keep playing'));
@@ -195,7 +207,9 @@ void main() {
     expect(controller.phase, GamePhase.lobby);
 
     // The second confirmation unlocks after a countdown.
-    await tester.tap(find.byTooltip('Cancel server'));
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel server'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Cancel server'));
     await tester.pumpAndSettle();
