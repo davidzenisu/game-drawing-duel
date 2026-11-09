@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'dart:ui';
 
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
@@ -43,30 +42,4 @@ Future<MockGameSession> launchedGame({
     await game.advanceDay();
   }
   return game;
-}
-
-/// The items of the app bar's admin menu (`AdminMenu`), none without one.
-Future<List<String>> adminMenuItems(WidgetTester tester) async {
-  final menu = find.byTooltip('Admin');
-  if (menu.evaluate().isEmpty) return const [];
-  await tester.tap(menu);
-  await tester.pumpAndSettle();
-  final items = [
-    for (final item in tester.widgetList<ListTile>(
-      find.descendant(of: find.byWidgetPredicate((w) => w is PopupMenuItem), matching: find.byType(ListTile)),
-    ))
-      (item.title! as Text).data!,
-  ];
-  // Closes the menu.
-  await tester.tapAt(Offset.zero);
-  await tester.pumpAndSettle();
-  return items;
-}
-
-/// Opens [item] of the app bar's admin menu.
-Future<void> openAdminMenu(WidgetTester tester, String item) async {
-  await tester.tap(find.byTooltip('Admin'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(item));
-  await tester.pumpAndSettle();
 }

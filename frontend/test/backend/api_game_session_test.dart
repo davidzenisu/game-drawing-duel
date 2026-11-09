@@ -408,48 +408,6 @@ void main() {
       expect(admin.refreshInterval, const Duration(seconds: 5));
     });
 
-    test('gifts wait on the board and their pulls count once accepted', () async {
-      backend.serverManagers.add('alex');
-      // Signed in again, to learn the permission.
-      admin = await signedUpAgain('alex');
-      expect(admin.canManageServers, isTrue);
-      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
-      await admin.startSetup();
-      await drawAll(admin);
-      await admin.launch();
-      expect(admin.gifts, isEmpty);
-
-      final servers = await admin.giftServers();
-      expect(backend.requests.last.url.path, '/manage/servers');
-      expect(servers.single.code, '123456');
-      expect([for (final p in servers.single.players) (p.name, p.joined)].first, ('Alex', true));
-
-      final sent = await admin.sendGift(message: 'Sorry!', pulls: 3, serverCode: '123456', positions: [0]);
-      final post = backend.requests.firstWhere((r) => r.url.path == '/manage/gifts');
-      expect(jsonDecode(post.body), {
-        'message': 'Sorry!',
-        'pulls': 3,
-        'server_code': '123456',
-        'positions': [0],
-      });
-      expect(sent, 1);
-      // You were one of them: it waits on your board.
-      expect(admin.gifts.single.message, 'Sorry!');
-      final before = admin.tickets;
-
-      await admin.acceptGift(admin.gifts.single);
-      expect(backend.requests.any((r) => r.url.path.endsWith('/gifts/gift-1/accept')), isTrue);
-      expect(admin.gifts, isEmpty);
-      expect(admin.tickets, before + 3);
-
-      // To every server: no server code.
-      await admin.sendGift(message: 'For everyone', pulls: 1);
-      expect(jsonDecode(backend.requests.lastWhere((r) => r.url.path == '/manage/gifts').body), {
-        'message': 'For everyone',
-        'pulls': 1,
-      });
-    });
-
     test('pulls spend tickets and add copies to the collection', () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();

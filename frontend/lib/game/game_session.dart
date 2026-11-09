@@ -79,30 +79,6 @@ class HurryPlan {
   final Duration left;
 }
 
-/// Pulls an admin gave you outside the regular rewards, with a message.
-/// They count once you accept them ([GameSession.acceptGift]); gifts don't
-/// expire.
-class Gift {
-  const Gift({required this.id, required this.message, required this.pulls, required this.sentAt});
-
-  final String id;
-  final String message;
-  final int pulls;
-  final DateTime sentAt;
-}
-
-/// A server a gift can go to, with its players, for the admin's gift form.
-class GiftServer {
-  const GiftServer({required this.code, required this.speed, required this.launched, required this.players});
-
-  final String code;
-  final bool speed;
-  final bool launched;
-
-  /// Its seats in roster order: position, name, and whether someone joined.
-  final List<({int position, String name, bool joined})> players;
-}
-
 class PullOutcome {
   const PullOutcome({required this.card, required this.isNew, required this.copies});
 
@@ -393,22 +369,6 @@ abstract class GameSession extends ChangeNotifier {
   /// Remembers that you saw the intro with [key]. Never fails: if it can't
   /// be stored, the intro just shows again another time.
   Future<void> markTutorialSeen(String key);
-
-  /// The gifts waiting for you to accept, oldest first: on the
-  /// notification board. Loaded with the day, no live updates.
-  List<Gift> get gifts;
-
-  /// Accepts [gift]: its pulls are yours now.
-  Future<void> acceptGift(Gift gift);
-
-  /// The servers a gift can go to, see [canManageServers].
-  Future<List<GiftServer>> giftServers() => Future.error(UnsupportedError('Only server admins can send gifts.'));
-
-  /// Gives [pulls] with [message] to everyone on every server without
-  /// [serverCode], else to everyone on that server, or the players at
-  /// [positions]. Completes with how many players got it.
-  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) =>
-      Future.error(UnsupportedError('Only server admins can send gifts.'));
 
   /// Sends today's free hurry, against [target]'s drawing tomorrow.
   /// Completes with false if it was already used.

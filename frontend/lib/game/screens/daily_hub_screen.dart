@@ -10,9 +10,9 @@ import '../rules/themes.dart';
 import '../tutorials.dart';
 import '../unavailable.dart';
 import '../widgets/cancel_server_button.dart';
-import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
-import '../widgets/notification_board.dart';
+import '../widgets/content_editor_button.dart';
+import '../widgets/mockup_button.dart';
 import '../widgets/countdown.dart';
 import '../widgets/sign_out_button.dart';
 import '../widgets/themed_background.dart';
@@ -270,10 +270,10 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                 tooltip: 'How to play',
                 icon: const Icon(Icons.help_outline_rounded),
               ),
-              NotificationBoardButton(session: _controller),
               TicketChip(tickets: _controller.tickets),
               CancelServerButton(session: _controller),
-              AdminMenu(session: _controller),
+              ContentEditorButton(session: _controller),
+              MockupButton(session: _controller),
               SignOutButton(session: _controller),
               const SizedBox(width: 12),
             ],

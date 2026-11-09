@@ -4,11 +4,10 @@ import 'package:frontend/backend/api_client.dart';
 import 'package:frontend/backend/api_game_session.dart';
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/game/screens/content_screen.dart';
-import 'package:frontend/game/widgets/admin_menu.dart';
+import 'package:frontend/game/widgets/content_editor_button.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
 import '../backend/fakes.dart';
-import '../helpers.dart';
 
 void main() {
   testWidgets('content editors add and retire prompts, each with its premade title', (tester) async {
@@ -154,11 +153,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          appBar: AppBar(actions: [AdminMenu(session: MockGameSession(seed: 1))]),
+          appBar: AppBar(actions: [ContentEditorButton(session: MockGameSession(seed: 1))]),
         ),
       ),
     );
-    expect(await adminMenuItems(tester), contains('Game content'), reason: 'the mockup lets you try it');
+    expect(find.byTooltip('Game content'), findsOneWidget, reason: 'the mockup lets you try it');
 
     final backend = FakeBackend()..contentEditors.add('kim');
     final player = ApiGameSession(
@@ -175,11 +174,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          appBar: AppBar(actions: [AdminMenu(session: player)]),
+          appBar: AppBar(actions: [ContentEditorButton(session: player)]),
         ),
       ),
     );
-    expect(await adminMenuItems(tester), isNot(contains('Game content')), reason: 'players without the permission');
+    expect(find.byTooltip('Game content'), findsNothing, reason: 'players without the permission');
 
     final editor = ApiGameSession(
       api: ApiClient(
@@ -195,10 +194,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          appBar: AppBar(actions: [AdminMenu(session: editor)]),
+          appBar: AppBar(actions: [ContentEditorButton(session: editor)]),
         ),
       ),
     );
-    expect(await adminMenuItems(tester), ['Game content'], reason: 'only what the permission allows');
+    expect(find.byTooltip('Game content'), findsOneWidget);
   });
 }

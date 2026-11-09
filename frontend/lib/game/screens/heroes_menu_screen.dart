@@ -7,7 +7,6 @@ import '../tutorials.dart';
 import '../unavailable.dart';
 import '../widgets/game_action.dart';
 import '../widgets/hub_tile.dart';
-import '../widgets/notification_board.dart';
 import '../widgets/ticket_chip.dart';
 import '../widgets/tutorial_dialog.dart';
 import 'challengers_screen.dart';
@@ -41,7 +40,6 @@ class HeroesMenuScreen extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Heroes'),
             actions: [
-              NotificationBoardButton(session: c),
               TicketChip(tickets: c.tickets),
               const SizedBox(width: 12),
             ],

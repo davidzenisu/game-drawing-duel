@@ -8,7 +8,6 @@ import 'package:frontend/game/screens/server_screen.dart';
 import 'package:frontend/mockup/mockup_shell.dart';
 
 import '../backend/fakes.dart';
-import '../helpers.dart';
 
 void main() {
   Future<ApiGameSession> signedUp(WidgetTester tester, FakeBackend backend, String token, String name) async {
@@ -32,13 +31,13 @@ void main() {
     expect(player.canManageServers, isFalse);
     await tester.pumpWidget(MaterialApp(home: ServerScreen(controller: player)));
     await tester.pump();
-    expect(await adminMenuItems(tester), isNot(contains('Try the mockup')));
+    expect(find.byTooltip('Try the mockup'), findsNothing);
 
     final admin = await signedUp(tester, backend, 'alex', 'Alex');
     expect(admin.canManageServers, isTrue);
     await tester.pumpWidget(MaterialApp(home: ServerScreen(controller: admin)));
     await tester.pump();
-    expect(await adminMenuItems(tester), ['Try the mockup', 'Send a gift']);
+    expect(find.byTooltip('Try the mockup'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -51,7 +50,8 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: ServerScreen(controller: admin)));
     await tester.pump();
 
-    await openAdminMenu(tester, 'Try the mockup');
+    await tester.tap(find.byTooltip('Try the mockup'));
+    await tester.pumpAndSettle();
     expect(find.byType(MockupShell), findsOneWidget);
     expect(find.text('Mockup: sample data, nothing is saved'), findsOneWidget);
     expect(find.text('Start on day 8'), findsOneWidget, reason: "the mockup's own start");
@@ -62,10 +62,11 @@ void main() {
     await tester.tap(find.text('Finish account'));
     await tester.pumpAndSettle();
     expect(find.byType(ServerScreen), findsOneWidget, reason: "the mockup's, the real one is underneath");
-    expect(await adminMenuItems(tester), isNot(contains('Try the mockup')), reason: 'no mockup in the mockup');
+    expect(find.byTooltip('Try the mockup'), findsNothing, reason: 'no mockup in the mockup');
 
     // Its screens open under the bar, and back goes back within the mockup.
-    await openAdminMenu(tester, 'Game content');
+    await tester.tap(find.byTooltip('Game content'));
+    await tester.pumpAndSettle();
     expect(find.byType(ContentScreen), findsOneWidget);
     expect(find.text('Mockup: sample data, nothing is saved'), findsOneWidget);
     await tester.binding.handlePopRoute();
@@ -74,7 +75,8 @@ void main() {
     expect(find.byType(MockupShell), findsOneWidget);
 
     // With the keyboard open, the screen still has room for what's typed.
-    await openAdminMenu(tester, 'Game content');
+    await tester.tap(find.byTooltip('Game content'));
+    await tester.pumpAndSettle();
     tester.view.viewInsets = const FakeViewPadding(bottom: 400);
     await tester.pump();
     // The content screen's body (a Center) gets the room the keyboard leaves.
@@ -89,7 +91,7 @@ void main() {
     await tester.tap(find.text('Exit'));
     await tester.pumpAndSettle();
     expect(find.byType(MockupShell), findsNothing);
-    expect(await adminMenuItems(tester), contains('Try the mockup'), reason: 'back in the real app');
+    expect(find.byTooltip('Try the mockup'), findsOneWidget, reason: 'back in the real app');
     expect(admin.isMockup, isFalse);
     await tester.pumpWidget(const SizedBox());
   });

@@ -15,7 +15,7 @@ category: concept
 - Files: Blobs - CDN? 
 
 
-Mockup (PR preview sites): the app can run without a backend, with everything in memory. The other players are sample data on canned demo days, not a simulation, so the game rules live only in the backend and the shared rules. A "Start on day 8" option on the sign-up screen jumps straight to the Monday after a first week, with its ranking, weekly hero and win rates. In the shipped app, players with the `manage:servers` permission can try the mockup too: "Try the mockup" in the app bar's Admin menu opens a fresh demo game over the real one, under a bar to exit it; nothing of it is kept.
+Mockup (PR preview sites): the app can run without a backend, with everything in memory. The other players are sample data on canned demo days, not a simulation, so the game rules live only in the backend and the shared rules. A "Start on day 8" option on the sign-up screen jumps straight to the Monday after a first week, with its ranking, weekly hero and win rates. In the shipped app, players with the `manage:servers` permission can try the mockup too: a "Try the mockup" button in the app bar opens a fresh demo game over the real one, under a bar to exit it; nothing of it is kept.
 
 Development directories:
 - docs
