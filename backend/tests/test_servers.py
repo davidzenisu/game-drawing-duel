@@ -22,8 +22,11 @@ class ServerTestCase(ApiTestCase):
         *,
         is_test: bool | None = None,
         mode: str | None = None,
+        your_name: str | None = None,
     ):
         body: dict = {"other_names": FRIENDS if names is None else names}
+        if your_name is not None:
+            body["your_name"] = your_name
         permissions = None
         if is_test is not None:
             body["is_test"] = is_test
@@ -57,6 +60,16 @@ class ServerTests(ServerTestCase):
             [(s["position"], s["name"], s["joined"]) for s in server["seats"]],
             [(0, "Alex", True)] + [(i + 1, n, False) for i, n in enumerate(FRIENDS)],
         )
+
+    def test_the_admin_can_pick_another_name_for_the_server(self) -> None:
+        server = self.create(your_name="  Lexi ").json()
+        self.assertEqual(server["seats"][0]["name"], "Lexi")
+        # Only on that server: the account keeps its name.
+        me = self.client.get("/me", headers=bearer(make_token(ADMIN)))
+        self.assertEqual(me.json()["first_name"], "Alex")
+        clash = self.create(["Sam", "Lexi", "Kim", "Jo"], your_name="lexi")
+        self.assertEqual(clash.status_code, 422)
+        self.assertEqual(self.create(your_name=" ").status_code, 422)
 
     def test_servers_are_regular_unless_marked_as_test_sessions(self) -> None:
         self.assertFalse(self.create().json()["is_test"])

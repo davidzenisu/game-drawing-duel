@@ -307,7 +307,7 @@ class FakeBackend {
         admin: myId,
         isTest: body['is_test'] as bool? ?? false,
         seats: [
-          {'name': me['first_name'], 'player': myId},
+          {'name': body['your_name'] ?? me['first_name'], 'player': myId},
           for (final name in body['other_names'] as List) {'name': name, 'player': null},
         ],
       );

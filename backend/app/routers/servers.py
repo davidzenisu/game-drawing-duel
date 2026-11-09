@@ -31,8 +31,10 @@ def _new_code() -> str:
 def create_server(
     body: ServerCreate, player: CurrentPlayer, claims: TokenClaims, session: DbSession
 ) -> ServerResponse:
-    """Creates a server with the full list of players; you are its admin.
-    Test sessions are for accounts with the admin permission only."""
+    """Creates a server with the full list of players; you are its admin and
+    take the first seat, under your account's first name unless you pick
+    another one for this server. Test sessions are for accounts with the
+    admin permission only."""
     if body.is_test and ADMIN_PERMISSION not in claims["permissions"]:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail=f"Missing permission {ADMIN_PERMISSION}"
@@ -42,7 +44,7 @@ def create_server(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="A test session can't be in speed mode",
         )
-    names = [player.first_name, *body.other_names]
+    names = [body.your_name or player.first_name, *body.other_names]
     if len({name.casefold() for name in names}) != len(names):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

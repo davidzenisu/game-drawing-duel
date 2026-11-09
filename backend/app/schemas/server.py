@@ -16,6 +16,8 @@ class ServerCreate(BaseModel):
     """The other players; the admin takes the first seat themselves."""
 
     other_names: list[SeatName]
+    # Your name on this server; your account's first name when left out.
+    your_name: SeatName | None = None
     # "speed" for a one-off session of about 20 minutes on timers.
     mode: Literal["regular", "speed"] = "regular"
     # A test session; only accounts with the admin permission make them.

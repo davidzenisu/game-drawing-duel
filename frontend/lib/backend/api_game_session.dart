@@ -824,8 +824,27 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> createServer(List<String> otherNames, {bool isTest = false, bool speed = false}) async => _enterServer(
-    await _post('/servers', {'other_names': otherNames, 'is_test': isTest, 'mode': speed ? 'speed' : 'regular'}),
+  String get accountName => (_account ?? (throw StateError('Not signed up yet.'))).name;
+
+  @override
+  Future<void> rename(String firstName) async {
+    _setAccount(await _put('/me', {'first_name': firstName.trim()}));
+    notifyListeners();
+  }
+
+  @override
+  Future<void> createServer(
+    List<String> otherNames, {
+    String? yourName,
+    bool isTest = false,
+    bool speed = false,
+  }) async => _enterServer(
+    await _post('/servers', {
+      'other_names': otherNames,
+      if (yourName?.trim() case final name? when name.isNotEmpty) 'your_name': name,
+      'is_test': isTest,
+      'mode': speed ? 'speed' : 'regular',
+    }),
   );
 
   @override

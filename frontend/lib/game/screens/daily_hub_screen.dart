@@ -14,7 +14,7 @@ import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/notification_board.dart';
 import '../widgets/countdown.dart';
-import '../widgets/sign_out_button.dart';
+import '../widgets/account_menu.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/tutorial_dialog.dart';
 import '../widgets/ticket_chip.dart';
@@ -274,7 +274,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               TicketChip(tickets: _controller.tickets),
               CancelServerButton(session: _controller),
               AdminMenu(session: _controller),
-              SignOutButton(session: _controller),
+              AccountMenu(session: _controller),
               const SizedBox(width: 12),
             ],
           ),

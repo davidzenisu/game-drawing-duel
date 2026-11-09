@@ -10,7 +10,7 @@ import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
 import '../widgets/countdown.dart';
-import '../widgets/sign_out_button.dart';
+import '../widgets/account_menu.dart';
 import '../widgets/sketch_canvas.dart';
 import 'drawing_screen.dart';
 
@@ -100,7 +100,7 @@ class _SetupScreenState extends State<SetupScreen> {
             actions: [
               CancelServerButton(session: controller),
               AdminMenu(session: controller),
-              SignOutButton(session: controller),
+              AccountMenu(session: controller),
             ],
           ),
           body: ListView(

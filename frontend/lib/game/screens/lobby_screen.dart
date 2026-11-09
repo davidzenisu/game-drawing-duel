@@ -8,7 +8,7 @@ import '../widgets/cancel_server_button.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
-import '../widgets/sign_out_button.dart';
+import '../widgets/account_menu.dart';
 import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
 
@@ -58,7 +58,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
         actions: [
           CancelServerButton(session: controller),
           AdminMenu(session: controller),
-          SignOutButton(session: controller),
+          AccountMenu(session: controller),
         ],
       ),
       body: PhaseBuilder(

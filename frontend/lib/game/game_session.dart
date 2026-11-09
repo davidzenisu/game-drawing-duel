@@ -127,8 +127,13 @@ abstract class GameSession extends ChangeNotifier {
   /// First name to prefill on signup, e.g. from the social login.
   String get suggestedFirstName;
 
-  /// The signed-in player. Only available after signing up.
+  /// The signed-in player. Only available after signing up. On a server,
+  /// your seat there, under the name it has on that server.
   Player get you;
+
+  /// Your account's first name, the default for your name on new servers.
+  /// Only available after signing up.
+  String get accountName;
 
   /// The server you created or joined. Only available from the lobby on.
   ServerSession get server;
@@ -335,15 +340,20 @@ abstract class GameSession extends ChangeNotifier {
   /// Finishes the account by picking a first name.
   Future<void> signUp(String firstName);
 
+  /// Changes your account's first name. Your name on servers you already
+  /// joined stays as it is.
+  Future<void> rename(String firstName);
+
   /// Mockup only, see [isMockup]: signs up as [firstName] and plays a
   /// regular server through its first week, everyone taking every step, so
   /// the game starts on day 8 with a week ranking and win rates.
   Future<void> startOnDayEight(String firstName) => throw UnsupportedError('Only the mockup simulates a first week.');
 
-  /// Creates a server with a prepopulated roster; the creator is the admin.
-  /// A [speed] server is a one-off session on timers, see [SpeedMode]. Test
-  /// sessions ([isTest]) are for accounts with the admin permission.
-  Future<void> createServer(List<String> otherNames, {bool isTest = false, bool speed = false});
+  /// Creates a server with a prepopulated roster; the creator is the admin,
+  /// named [yourName] there (by default [accountName]). A [speed] server is
+  /// a one-off session on timers, see [SpeedMode]. Test sessions ([isTest])
+  /// are for accounts with the admin permission.
+  Future<void> createServer(List<String> otherNames, {String? yourName, bool isTest = false, bool speed = false});
 
   /// Looks up a server by its 6-digit code: its roster and who already
   /// joined, so the joining player can claim a free seat.
