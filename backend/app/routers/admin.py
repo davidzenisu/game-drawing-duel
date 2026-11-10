@@ -1,26 +1,29 @@
 """Housekeeping for the accounts with the admin permission
 (`auth.ADMIN_PERMISSION`)."""
 
+import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 
 from app import gifts, speed
 from app.auth import Auth0Subject, require_server_admin
 from app.database import utc_now
+from app.days import calendar_date
 from app.deps import DbSession, load_server
 from app.game_data import delete_game_data
-from app.models import Player, Server
+from app.models import Character, Player, Server, ServerSeat
 from app.schemas import (
+    AdminDrawing,
     AdminPlayer,
     AdminServer,
     CleanupResponse,
     GiftSend,
     GiftSent,
 )
-from app.storage import Files, delete_quietly
+from app.storage import FileNotFound, Files, StorageUnavailable, delete_quietly
 
 router = APIRouter(
     # Not /admin: the Azure Functions host keeps every path under /admin for
@@ -106,3 +109,68 @@ def send_gift(body: GiftSend, subject: Auth0Subject, session: DbSession) -> Gift
             status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
     return GiftSent(id=gift.id, recipients=count)
+
+
+@router.get("/servers/{code}/drawings", response_model=list[AdminDrawing])
+def list_drawings(code: str, session: DbSession) -> list[AdminDrawing]:
+    """Every drawing of a server: the initial setup drawings first, then each
+    day's challengers, in roster order of their artists."""
+    server = load_server(session, code)
+    artist = aliased(ServerSeat)
+    subject = aliased(ServerSeat)
+    rows = session.execute(
+        select(Character, artist.name, subject.name)
+        .join(artist, artist.id == Character.artist_seat_id)
+        .join(subject, subject.id == Character.subject_seat_id)
+        .where(Character.server_id == server.id)
+        .order_by(
+            Character.day.is_not(None),
+            Character.day,
+            artist.position,
+            Character.created_at,
+        )
+    ).all()
+    return [
+        AdminDrawing(
+            id=character.id,
+            day=character.day,
+            date=None
+            if character.day is None
+            else calendar_date(server, character.day),
+            artist=artist_name,
+            subject=subject_name,
+            title=character.title,
+            rarity=character.rarity,
+            prompt=character.prompt,
+        )
+        for character, artist_name, subject_name in rows
+    ]
+
+
+@router.get(
+    "/characters/{character_id}/sketch",
+    response_class=Response,
+    responses={200: {"content": {"application/json": {}}}},
+)
+def get_any_sketch(
+    character_id: uuid.UUID, session: DbSession, files: Files
+) -> Response:
+    """The strokes of any server's character, like the players' own
+    `GET /characters/{id}/sketch`."""
+    if session.get(Character, character_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such character")
+    try:
+        data = files.download(str(character_id))
+    except FileNotFound as error:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="The drawing is missing"
+        ) from error
+    except StorageUnavailable as error:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, detail="Couldn't load the drawing"
+        ) from error
+    return Response(
+        data,
+        media_type="application/json",
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
+    )

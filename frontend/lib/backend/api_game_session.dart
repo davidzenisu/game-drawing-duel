@@ -425,6 +425,39 @@ class ApiGameSession extends GameSession {
   }
 
   @override
+  Future<List<AdminDrawing>> serverDrawings(String serverCode) async =>
+      switch (await _get('/manage/servers/$serverCode/drawings')) {
+        List drawings => [
+          for (final drawing in drawings)
+            if (drawing case {
+              'id': String id,
+              'day': int? day,
+              'date': String? date,
+              'artist': String artist,
+              'subject': String subject,
+              'title': String title,
+              'rarity': String rarity,
+            })
+              AdminDrawing(
+                id: id,
+                day: day,
+                date: date == null ? null : DateTime.parse('${date}T00:00:00Z'),
+                artist: artist,
+                subject: subject,
+                title: title,
+                rarity: Rarity.values.asNameMap()[rarity] ?? (throw FormatException('Unknown rarity $rarity.')),
+              )
+            else
+              throw const FormatException('Unexpected drawing.'),
+        ],
+        _ => throw const FormatException('Unexpected drawings.'),
+      };
+
+  @override
+  Future<Sketch> drawingSketch(AdminDrawing drawing) async =>
+      _sketches[drawing.id] ??= SketchJson.decode(await _get('/manage/characters/${drawing.id}/sketch'));
+
+  @override
   Future<List<GiftServer>> giftServers() async => switch (await _get('/manage/servers')) {
     List servers => [
       for (final server in servers)
