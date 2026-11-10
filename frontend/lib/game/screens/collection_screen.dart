@@ -6,6 +6,7 @@ import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/models.dart';
 import '../rules/upgrades.dart';
+import '../widgets/download_drawing_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/unlock_celebration.dart';
@@ -328,7 +329,10 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) => Scaffold(
-        appBar: AppBar(title: Text(card.subject)),
+        appBar: AppBar(
+          title: Text(card.subject),
+          actions: [DownloadDrawingButton(card: card)],
+        ),
         body: ListView(
           controller: _scroll,
           padding: const EdgeInsets.all(24),
