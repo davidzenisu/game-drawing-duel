@@ -319,7 +319,7 @@ rarity path in order (`upgrade` rows, one per effect), each step costing
 at least as many duplicates as the one before (`UPGRADE_COSTS`: 1, 2, 3, 5,
 7 and 10 for the six steps of a 1 star, about 30 to max out a 1 or 2 star). Only the mockup unlocks upgrades on credit.
 | `GET /characters/{id}/sketch` | The strokes of a drawn character, for the players of its server |
-| `GET /characters/{id}/sketch.svg` | The same drawing as an SVG image on its white 4:5 card, drawn like the app draws it (`app/sketch_svg.py`): to look at a drawing outside the app, e.g. in Swagger UI |
+| `GET /characters/{id}/sketch.svg` | The same drawing as an SVG image on its 4:5 cardboard card, drawn like the app draws it (`app/sketch_svg.py`): to look at a drawing outside the app, e.g. in Swagger UI |
 
 ### Database schema
 

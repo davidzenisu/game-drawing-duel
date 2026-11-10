@@ -43,7 +43,7 @@ def get_sketch_svg(
     character_id: uuid.UUID, player: CurrentPlayer, session: DbSession, files: Files
 ) -> Response:
     """The character's drawing as an SVG image, drawn like the app draws it on
-    its white card: to look at a drawing outside the app. For the players of
+    its cardboard card: to look at a drawing outside the app. For the players of
     its server, cached for good like the strokes."""
     data = _load_sketch(character_id, player, session, files)
     return Response(

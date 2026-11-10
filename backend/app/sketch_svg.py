@@ -12,8 +12,9 @@ from app.schemas import SketchData
 # The card's size in SVG units; 4:5 like `cardAspectRatio` in the app.
 WIDTH = 400
 HEIGHT = 500
-# The white cardboard the drawings are on.
-BACKGROUND = "#ffffff"
+# The cardboard the drawings are on (`AppPalette.cardboard`), which the
+# eraser draws with too.
+BACKGROUND = "#fbf9f4"
 
 
 def _num(value: float) -> str:
