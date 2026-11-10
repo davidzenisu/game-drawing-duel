@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/palette.dart';
 import '../game_session.dart';
-import '../rules/models.dart';
 import '../tutorials.dart';
 import '../unavailable.dart';
-import '../widgets/game_action.dart';
 import '../widgets/hub_tile.dart';
 import '../widgets/notification_board.dart';
 import '../widgets/ticket_chip.dart';
@@ -98,14 +95,6 @@ class HeroesMenuScreen extends StatelessWidget {
                                 ? null
                                 : () => open(RankingScreen(controller: c), Tutorial.finale),
                           ),
-                          HubTile(
-                            icon: Icons.bolt_rounded,
-                            title: c.hurrySentTo == null ? 'Send a hurry' : 'Hurry sent',
-                            done: c.hurrySentTo != null,
-                            unavailable: Unavailable.hurry(c),
-                            // Hurries cut someone's drawing time tomorrow, once a day.
-                            onTap: c.canSendHurry ? () => _sendHurry(context) : null,
-                          ),
                         ],
                       ),
                     ],
@@ -117,41 +106,5 @@ class HeroesMenuScreen extends StatelessWidget {
         );
       },
     );
-  }
-
-  Future<void> _sendHurry(BuildContext context) async {
-    final target = await showModalBottomSheet<Player>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const ListTile(
-              title: Text('Send a hurry'),
-              subtitle: Text(
-                "Free once a day. Their drawing tomorrow gets shorter, and they only find out while drawing.",
-              ),
-            ),
-            for (final player in controller.otherPlayers)
-              ListTile(
-                leading: CircleAvatar(child: Text(player.name.characters.first)),
-                title: Text(player.name),
-                trailing: const Icon(Icons.bolt_rounded, color: AppPalette.hurry),
-                onTap: () => Navigator.of(context).pop(player),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (target == null || !context.mounted) return;
-    final sent = await runGameQuery(context, () => controller.sendHurry(target));
-    if (sent == true && context.mounted) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text('${target.name} will have to hurry. Shh!'), behavior: SnackBarBehavior.floating),
-        );
-    }
   }
 }

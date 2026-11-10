@@ -27,11 +27,11 @@ void main() {
         ),
       ),
     );
-    expect(find.text('1:00'), findsOneWidget);
+    expect(find.text('1:30'), findsOneWidget);
     final canvas = tester.getRect(find.byType(SketchPad));
 
-    // 15s in, with 45s left, Alex's hurry takes 5s.
-    await tester.pump(const Duration(milliseconds: 15200));
+    // 45s in, with 45s left, Alex's hurry takes 5s.
+    await tester.pump(const Duration(milliseconds: 45200));
     expect(find.text('Alex sent a hurry! -5s'), findsOneWidget);
     // Once the banner is in, the canvas is as big as before.
     await tester.pump(const Duration(milliseconds: 400));
@@ -46,11 +46,11 @@ void main() {
           .opacity,
       0,
     );
-    // 29s in, with 26s left, Robin's takes 5s too.
+    // 59s in, with 26s left, Robin's takes 5s too.
     await tester.pump(const Duration(milliseconds: 10600));
     expect(find.text('Robin sent a hurry! -5s'), findsOneWidget);
     expect(tester.getRect(find.byType(SketchPad)), canvas);
-    // 60s - 30.2s - 10s of hurries.
+    // 90s - 60.2s - 10s of hurries.
     expect(find.text('0:19'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
@@ -232,7 +232,7 @@ void main() {
     );
     await tester.tap(find.text('Draw'));
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(seconds: 61));
+    await tester.pump(const Duration(seconds: 91));
     expect(find.byType(BackButton), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();

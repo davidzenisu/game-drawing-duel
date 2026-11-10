@@ -4,6 +4,7 @@ import 'package:frontend/game/screens/daily_hub_screen.dart';
 import 'package:frontend/game/screens/gacha_screen.dart';
 import 'package:frontend/game/screens/heroes_menu_screen.dart';
 import 'package:frontend/game/tutorials.dart';
+import 'package:frontend/game/widgets/hurry_button.dart';
 import 'package:frontend/game/widgets/hub_tile.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
@@ -90,11 +91,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(HeroesMenuScreen), findsOneWidget);
+    expect(find.text('Send a hurry'), findsNothing, reason: 'on the hub');
     expect(find.byType(SummonTile), findsOneWidget);
     expect(find.text('${controller.tickets} pulls ready'), findsOneWidget);
     expect(
       {
-        for (final title in ['Hero List', 'Challengers', 'Win rates', 'Fight replay', 'Week ranking', 'Send a hurry'])
+        for (final title in ['Hero List', 'Challengers', 'Win rates', 'Fight replay', 'Week ranking'])
           title: _enabled(tester, title),
       },
       {
@@ -103,7 +105,6 @@ void main() {
         'Win rates': true,
         'Fight replay': false, // no past fights yet
         'Week ranking': false, // the first week isn't over
-        'Send a hurry': true, // against a drawing tomorrow
       },
     );
     expect(tester.takeException(), isNull, reason: 'fits a phone');
@@ -115,14 +116,40 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('on day 8, the week ranking and a hurry are on', (tester) async {
+  testWidgets('the hurry sits on the hub, above the drawing step', (tester) async {
+    _phone(tester);
+    final controller = await launchedGame(launchDate: firstMonday);
+    await _seenAll(controller);
+    await tester.pumpWidget(MaterialApp(home: DailyHubScreen(controller: controller)));
+    await tester.pump();
+    await tester.tap(find.text("Let's go"));
+    await tester.pumpAndSettle();
+    final hurry = find.byType(HurryButton);
+    expect(hurry, findsOneWidget);
+    // Next to the day's title, in the column of the drawing step.
+    final draw = tester.getRect(find.widgetWithText(HubTile, 'Draw a challenger'));
+    final button = tester.getRect(hurry);
+    expect(button.bottom, lessThan(draw.top));
+    expect(button.center.dx, closeTo(draw.center.dx, 1));
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+
+    // Free once a day: sent, it's done.
+    await tester.tap(find.text('Send a hurry'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(controller.otherPlayers.first.name).last);
+    await tester.pumpAndSettle();
+    expect(controller.hurrySentTo, controller.otherPlayers.first);
+    expect(find.text('Hurry sent'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('on day 8, the week ranking is on', (tester) async {
     _phone(tester);
     final controller = await launchedGame(launchDate: firstMonday, day: 8);
     await _seenAll(controller);
     await tester.pumpWidget(MaterialApp(home: HeroesMenuScreen(controller: controller)));
     await tester.pump();
     expect(_enabled(tester, 'Week ranking'), isTrue);
-    expect(_enabled(tester, 'Send a hurry'), isTrue);
     expect(_enabled(tester, 'Fight replay'), isTrue, reason: 'the fights of days 4 to 7');
     await tester.pumpWidget(const SizedBox());
   });
