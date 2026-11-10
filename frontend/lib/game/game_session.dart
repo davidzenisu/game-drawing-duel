@@ -362,7 +362,8 @@ abstract class GameSession extends ChangeNotifier {
   /// Joins [server] (from [previewServer]) as the player at [seat].
   Future<void> joinServer(ServerSession server, Player seat);
 
-  /// How often the lobby and the setup refresh the server.
+  /// How often a speed day refreshes on its own. The lobby and the setup only
+  /// refresh on demand.
   Duration get refreshInterval;
 
   /// Updates the server: who joined the lobby, whether the admin started the

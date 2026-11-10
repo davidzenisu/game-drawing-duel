@@ -52,10 +52,13 @@ void main() {
 
     expect(find.text('Lobby'), findsOneWidget);
     expect(find.text(controller.server.code), findsOneWidget);
-    // Friends join one after another.
-    await tester.pump(const Duration(seconds: 10));
-    await tester.pumpAndSettle();
+    // Friends join one after another, as you refresh.
+    for (var i = 0; i < SetupPlan.maxPlayers && !controller.server.everyoneJoined; i++) {
+      await tester.tap(find.byTooltip('Refresh'));
+      await tester.pumpAndSettle();
+    }
     expect(controller.server.everyoneJoined, isTrue);
+    expect(find.textContaining('at the top to check on the others'), findsNothing, reason: 'ready to start');
 
     await tester.ensureVisible(find.text('Start drawing'));
     await tester.tap(find.text('Start drawing'));
@@ -66,7 +69,6 @@ void main() {
     expect(basic.hint, isNotNull);
     expect(find.textContaining(basic.hint!), findsOneWidget);
 
-    // Stop the background timers before the test ends.
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -130,9 +132,15 @@ void main() {
     expect(controller.you.name, 'Pat');
     expect(find.text('Waiting for the admin to start…'), findsOneWidget);
 
-    // The simulated admin starts the setup once everyone joined.
+    // Nothing polls: refreshing shows who joined. The simulated admin starts
+    // the setup once everyone did.
+    final joined = controller.server.joined.length;
+    await tester.pump(const Duration(seconds: 30));
+    expect(controller.server.joined.length, joined, reason: 'no polling');
+    expect(find.textContaining('at the top to check on the others'), findsOneWidget);
     for (var i = 0; i < SetupPlan.maxPlayers && controller.phase == GamePhase.lobby; i++) {
-      await tester.pump(controller.refreshInterval);
+      await tester.tap(find.byTooltip('Refresh'));
+      await tester.pumpAndSettle();
     }
     await tester.pumpAndSettle();
     expect(controller.phase, GamePhase.setup);

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,46 +5,20 @@ import '../game_session.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
+import '../widgets/refresh_button.dart';
 import '../widgets/account_menu.dart';
 import '../rules/daily_loop.dart';
 import '../rules/setup_plan.dart';
 
-/// Waiting room showing the server code while friends join.
-class LobbyScreen extends StatefulWidget {
+/// Waiting room showing the server code while friends join; refresh to see
+/// who did, and whether the setup started.
+class LobbyScreen extends StatelessWidget {
   const LobbyScreen({super.key, required this.controller});
 
   final GameSession controller;
 
   @override
-  State<LobbyScreen> createState() => _LobbyScreenState();
-}
-
-class _LobbyScreenState extends State<LobbyScreen> {
-  Timer? _joinTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Who joined, whether the setup started or the server was cancelled.
-    _joinTimer = Timer.periodic(widget.controller.refreshInterval, (timer) async {
-      if (widget.controller.phase != GamePhase.lobby) return timer.cancel();
-      try {
-        await widget.controller.refreshServer();
-      } catch (_) {
-        // Polling: try again on the next tick.
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _joinTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
     final server = controller.server;
     final textTheme = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
@@ -55,6 +27,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
       appBar: AppBar(
         title: const Text('Lobby'),
         actions: [
+          RefreshButton(session: controller),
           AdminMenu(session: controller),
           AccountMenu(session: controller, canCancelServer: true),
         ],
@@ -155,6 +128,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                       _ => 'Waiting for the admin to start…',
                     }),
                   ),
+                  if (!server.canStart) const RefreshHint(),
                 ],
               ),
             ),
