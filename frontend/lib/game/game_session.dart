@@ -103,6 +103,31 @@ class GiftServer {
   final List<({int position, String name, bool joined})> players;
 }
 
+/// A drawing of a server, for admins to look at ([GameSession.serverDrawings]):
+/// an initial setup drawing (no [day]) or a day's challenger.
+class AdminDrawing {
+  const AdminDrawing({
+    required this.id,
+    required this.day,
+    required this.date,
+    required this.artist,
+    required this.subject,
+    required this.title,
+    required this.rarity,
+  });
+
+  final String id;
+
+  /// The day a challenger was drawn and the calendar day it was played on;
+  /// both null for setup drawings.
+  final int? day;
+  final DateTime? date;
+  final String artist;
+  final String subject;
+  final String title;
+  final Rarity rarity;
+}
+
 class PullOutcome {
   const PullOutcome({required this.card, required this.isNew, required this.copies});
 
@@ -420,6 +445,15 @@ abstract class GameSession extends ChangeNotifier {
   /// [positions]. Completes with how many players got it.
   Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) =>
       Future.error(UnsupportedError('Only server admins can send gifts.'));
+
+  /// Every drawing of the server with [serverCode], setup drawings first, for
+  /// server admins (see [canManageServers]).
+  Future<List<AdminDrawing>> serverDrawings(String serverCode) =>
+      Future.error(UnsupportedError('Only server admins can see every drawing.'));
+
+  /// The strokes of any server's [drawing], for server admins.
+  Future<Sketch> drawingSketch(AdminDrawing drawing) =>
+      Future.error(UnsupportedError('Only server admins can see every drawing.'));
 
   /// Sends today's free hurry, against [target]'s drawing tomorrow.
   /// Completes with false if it was already used.

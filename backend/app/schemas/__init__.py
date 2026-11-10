@@ -1,3 +1,4 @@
+from app.schemas.admin_drawing import AdminDrawing
 from app.schemas.character import (
     ChallengerSubmit,
     CharacterResponse,
@@ -63,6 +64,7 @@ from app.schemas.server import (
 )
 
 __all__ = [
+    "AdminDrawing",
     "AdminPlayer",
     "AdminServer",
     "AssignmentResponse",

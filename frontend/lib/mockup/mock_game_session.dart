@@ -436,6 +436,42 @@ class MockGameSession extends GameSession {
       ),
   ];
 
+  /// The setup drawings, then each day's challengers up to today: the
+  /// friends' and yours, if you drew one.
+  @override
+  Future<List<AdminDrawing>> serverDrawings(String serverCode) async {
+    if (serverCode != _server?.code) throw ArgumentError('No server with this code.');
+    return [for (final card in _allDrawings) _adminDrawing(card)];
+  }
+
+  List<CharacterCard> get _allDrawings {
+    final seen = <String>{};
+    return [
+      for (final card in _pool)
+        if (card.day == 0 && seen.add(card.id)) card,
+      for (var day = 1; day <= _day; day++)
+        if (_drawnOn(day)) ...[
+          for (var slot = 0; slot < DemoDays.slots; slot++)
+            if (_challenger(day, slot) case final card when seen.add(card.id)) card,
+          if (_yourChallengers[day] case final card? when seen.add(card.id)) card,
+        ],
+    ];
+  }
+
+  AdminDrawing _adminDrawing(CharacterCard card) => AdminDrawing(
+    id: card.id,
+    day: card.day == 0 ? null : card.day,
+    date: card.day == 0 ? null : (server.isSpeed ? _days.dateOf(1) : _days.dateOf(card.day)),
+    artist: card.artist,
+    subject: card.subject,
+    title: card.title,
+    rarity: card.rarity,
+  );
+
+  @override
+  Future<Sketch> drawingSketch(AdminDrawing drawing) async =>
+      _allDrawings.firstWhere((c) => c.id == drawing.id, orElse: () => throw ArgumentError('No such drawing.')).sketch;
+
   @override
   Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) async {
     final server = _server;

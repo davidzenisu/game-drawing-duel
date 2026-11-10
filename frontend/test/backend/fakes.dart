@@ -279,6 +279,32 @@ class FakeBackend {
               },
         ]);
       }
+      final managed = request.url.pathSegments;
+      if (request.method == 'GET' && managed.length == 4 && managed[1] == 'servers' && managed[3] == 'drawings') {
+        final code = managed[2];
+        final server = servers[code];
+        if (server == null) return _json(404, {'detail': 'No server with this code'});
+        String name(Object? position) => server.seats[position! as int]['name'] as String;
+        final characters = _characters(code)
+          ..sort((a, b) => ((a['day'] as int?) ?? 0).compareTo((b['day'] as int?) ?? 0));
+        return _json(200, [
+          for (final c in characters)
+            {
+              'id': c['id'],
+              'day': c['day'],
+              'date': c['day'] == null ? null : '2026-10-${(4 + (c['day'] as int)).toString().padLeft(2, '0')}',
+              'artist': name(c['artist_position']),
+              'subject': name(c['subject_position']),
+              'title': c['title'],
+              'rarity': c['rarity'],
+              'prompt': c['prompt'],
+            },
+        ]);
+      }
+      if (request.method == 'GET' && managed.length == 4 && managed[1] == 'characters' && managed[3] == 'sketch') {
+        final drawing = drawings.values.where((d) => d.character['id'] == managed[2]).firstOrNull;
+        return drawing == null ? _json(404, {'detail': 'No such character'}) : _json(200, drawing.sketch);
+      }
       if (request.method == 'POST' && request.url.path == '/manage/gifts') {
         final code = body!['server_code'] as String?;
         final positions = (body['positions'] as List?)?.cast<int>();

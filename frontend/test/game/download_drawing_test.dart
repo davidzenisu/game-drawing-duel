@@ -47,16 +47,14 @@ void main() {
   });
 
   test('downloads are named after the character', () {
-    expect(DownloadDrawingButton.fileName(_card()), 'Kim - Baron of the Brunch Table.png');
-    expect(DownloadDrawingButton.fileName(_card(title: 'AC/DC: "Live"?')), 'Kim - ACDC Live.png');
+    expect(DownloadDrawingButton.fileName('Kim', 'Baron of the Brunch Table'), 'Kim - Baron of the Brunch Table.png');
+    expect(DownloadDrawingButton.fileName('Kim', 'AC/DC: "Live"?'), 'Kim - ACDC Live.png');
   });
 
   testWidgets('the button only shows where the browser can download', (tester) async {
     Widget app(bool available) => MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          actions: [DownloadDrawingButton(card: _card(), available: available)],
-        ),
+        appBar: AppBar(actions: [DownloadDrawingButton.card(_card(), available: available)]),
       ),
     );
     await tester.pumpWidget(app(false));

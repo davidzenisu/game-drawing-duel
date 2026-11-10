@@ -393,6 +393,13 @@ and returns the deleted codes. It needs the `manage:servers` permission of
 the Auth0 API on top of the player permission; like `edit:content`, give it
 through a role in the infrastructure repository.
 
+The same permission lets admins look at any drawing:
+`GET /manage/servers/{code}/drawings` lists a server's drawings (its setup
+drawings first, without a day, then each day's challengers with the day and
+its date), and `GET /manage/characters/{id}/sketch` returns the strokes of any
+character, like the players' own `GET /characters/{id}/sketch`. The app's
+Admin menu shows them on its Drawings screen.
+
 ### Game rules
 
 The rules the server enforces (`backend/app/rules.py`) and the ones the app

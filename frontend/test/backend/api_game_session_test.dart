@@ -432,6 +432,28 @@ void main() {
       expect(admin.tickets, before + 3);
     });
 
+    test('admins list the drawings of any server and load their strokes', () async {
+      backend.serverManagers.add('alex');
+      admin = await signedUpAgain('alex');
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+
+      final drawings = await admin.serverDrawings('123456');
+      expect(backend.requests.last.url.path, '/manage/servers/123456/drawings');
+      expect(drawings, isNotEmpty);
+      expect(drawings.every((d) => d.day == null && d.date == null), isTrue, reason: 'setup drawings only');
+      expect(drawings.first.artist, 'Alex');
+
+      // From an admin who isn't on that server.
+      backend.serverManagers.add('kim');
+      final viewer = await signedUp('kim', 'Kim');
+      final sketch = await viewer.drawingSketch(drawings.first);
+      expect(backend.requests.last.url.path, '/manage/characters/${drawings.first.id}/sketch');
+      expect(sketch.strokes, isNotEmpty);
+    });
+
     test('admins list servers and send gifts, which can reach themselves', () async {
       backend.serverManagers.add('alex');
       // Signed in again, to learn the permission.

@@ -329,10 +329,7 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) => Scaffold(
-        appBar: AppBar(
-          title: Text(card.subject),
-          actions: [DownloadDrawingButton(card: card)],
-        ),
+        appBar: AppBar(title: Text(card.subject), actions: [DownloadDrawingButton.card(card)]),
         body: ListView(
           controller: _scroll,
           padding: const EdgeInsets.all(24),

@@ -38,7 +38,7 @@ void main() {
     expect(admin.canManageServers, isTrue);
     await tester.pumpWidget(MaterialApp(home: ServerScreen(controller: admin)));
     await tester.pump();
-    expect(await adminMenuItems(tester), ['Try the mockup', 'Send a gift']);
+    expect(await adminMenuItems(tester), ['Try the mockup', 'Send a gift', 'Drawings']);
     await tester.pumpWidget(const SizedBox());
   });
 
