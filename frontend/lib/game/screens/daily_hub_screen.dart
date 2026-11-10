@@ -17,6 +17,7 @@ import '../widgets/account_menu.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/tutorial_dialog.dart';
 import '../widgets/ticket_chip.dart';
+import '../widgets/hurry_button.dart';
 import '../widgets/hub_tile.dart';
 import 'boost_screen.dart';
 import 'drawing_recap_screen.dart';
@@ -301,7 +302,17 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _DayHeader(day: _controller.day, theme: theme, color: onScenery),
+                          // The day's free hurry, above the drawing step.
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: _DayHeader(day: _controller.day, theme: theme, color: onScenery),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(child: HurryButton(controller: _controller)),
+                            ],
+                          ),
                           const SizedBox(height: 8),
                           if (_controller.dayEndsAt case final endsAt?)
                             Center(

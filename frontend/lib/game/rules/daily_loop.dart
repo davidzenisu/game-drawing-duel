@@ -91,7 +91,7 @@ abstract final class WinRates {
 }
 
 /// The time limit for drawing a challenger.
-const challengerDrawTime = Duration(seconds: 60);
+const challengerDrawTime = Duration(seconds: 90);
 
 /// Free daily hurries: what one takes away when it hits, and when the
 /// hurries a player receives hit. Every one counts.
