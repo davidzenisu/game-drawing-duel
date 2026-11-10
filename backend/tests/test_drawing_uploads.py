@@ -1,5 +1,6 @@
 import json
 import uuid
+import xml.etree.ElementTree as ET
 
 from app.main import app
 from app.storage import StorageUnavailable, get_file_store
@@ -101,6 +102,31 @@ class DrawingUploadTests(SetupTestCase):
         self.assertEqual(
             self.sketch(character["id"]).json()["detail"], "The drawing is missing"
         )
+
+    def test_players_of_the_server_see_the_drawing_as_svg(self) -> None:
+        character = self.draw(self.by_prompt["legend"]["id"]).json()
+        url = f"/characters/{character['id']}/sketch.svg"
+        response = self.client.get(url, headers=bearer(make_token(ADMIN)))
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.headers["content-type"], "image/svg+xml")
+        self.assertIn("immutable", response.headers["cache-control"])
+        svg = ET.fromstring(response.text)
+        ns = "{http://www.w3.org/2000/svg}"
+        self.assertEqual(svg.tag, f"{ns}svg")
+        # A 4:5 card with one path per stroke, scaled to it.
+        self.assertEqual(svg.get("viewBox"), "0 0 400 500")
+        paths = svg.findall(f"{ns}g/{ns}path")
+        self.assertEqual(
+            [(p.get("d"), p.get("stroke"), p.get("stroke-width")) for p in paths],
+            [
+                ("M40 100 L120 200", "#000000", "6.4"),
+                ("M200 250 L400 0", "#e53935", "14"),
+            ],
+        )
+
+        self.sign_up("auth0|stranger", "Pat")
+        stranger = self.client.get(url, headers=bearer(make_token("auth0|stranger")))
+        self.assertEqual(stranger.status_code, 404)
 
     def test_you_only_draw_your_own_assignments(self) -> None:
         self.sign_up(FRIEND_SUBJECTS[0], "Sam")
