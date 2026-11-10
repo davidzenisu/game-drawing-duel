@@ -8,7 +8,7 @@ category: concept
 ---
 When a server is created, the creator can prepopulate their own and all other player's names. Their own name starts as their account's first name; tapping it lets them go by another name on that server only (the account keeps its name).
 
-They can then share a generated server code with friends to join.
+They can then share a generated server code with friends to join. The lobby (while friends join) and the setup (while they finish their drawings) don't update on their own: a **refresh** button in the top right checks who joined or finished, and whether the game moved on or was cancelled.
 
 After signing up, a player picks between joining a server and creating one. Joining comes first, since most players join a friend's server with its code. Until they dismiss it, new players also see a short note there: the game in one sentence (you and your friends draw each other as heroes and challengers, collect the drawings and send them into fights), and that everything is explained step by step once they join or create a server.
 

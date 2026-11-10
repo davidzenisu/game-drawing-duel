@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../game_session.dart';
@@ -8,6 +6,7 @@ import '../widgets/card_art.dart';
 import '../widgets/admin_menu.dart';
 import '../widgets/game_action.dart';
 import '../widgets/phase_builder.dart';
+import '../widgets/refresh_button.dart';
 import '../widgets/countdown.dart';
 import '../widgets/account_menu.dart';
 import '../widgets/sketch_canvas.dart';
@@ -24,31 +23,9 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  Timer? _refreshTimer;
-
   /// Assignments whose drawing is being uploaded.
   final Set<String> _uploading = {};
   bool _launching = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Who finished, whether the game launched or the server was cancelled.
-    _refreshTimer = Timer.periodic(widget.controller.refreshInterval, (timer) async {
-      if (widget.controller.phase != GamePhase.setup) return timer.cancel();
-      try {
-        await widget.controller.refreshServer();
-      } catch (_) {
-        // Polling: try again on the next tick.
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
 
   Future<void> _draw(DrawingAssignment assignment) async {
     final controller = widget.controller;
@@ -97,6 +74,7 @@ class _SetupScreenState extends State<SetupScreen> {
           appBar: AppBar(
             title: const Text('Initial drawings'),
             actions: [
+              RefreshButton(session: controller),
               AdminMenu(session: controller),
               AccountMenu(session: controller, canCancelServer: true),
             ],
@@ -157,6 +135,7 @@ class _SetupScreenState extends State<SetupScreen> {
                               : 'Finish and launch',
                         ),
                       ),
+                      if (waiting) const RefreshHint(),
                     ],
                   ),
                 ),
