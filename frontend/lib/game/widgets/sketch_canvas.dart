@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -41,6 +44,28 @@ class SketchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(SketchPainter oldDelegate) => oldDelegate.strokes != strokes;
+}
+
+/// [sketch] as a PNG image on its cardboard card, [width] pixels wide, drawn
+/// exactly like [SketchView] draws it, e.g. to download it.
+Future<Uint8List> sketchPng(Sketch sketch, {int width = 800}) async {
+  final size = Size(width.toDouble(), (width / cardAspectRatio).roundToDouble());
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder, Offset.zero & size);
+  canvas.drawRect(Offset.zero & size, Paint()..color = AppPalette.cardboard);
+  SketchPainter(sketch.strokes).paint(canvas, size);
+  final picture = recorder.endRecording();
+  try {
+    final image = await picture.toImage(size.width.toInt(), size.height.toInt());
+    try {
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      return png!.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    picture.dispose();
+  }
 }
 
 /// Read-only rendering of a [Sketch].
