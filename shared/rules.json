@@ -28,7 +28,7 @@
   },
   "gacha": {
     "launch_bonus": 10,
-    "rates": {"basic": 40, "adventurer": 50, "hero": 8, "legend": 2},
+    "rates": {"basic": 50, "adventurer": 40, "hero": 8, "legend": 2},
     "beginner_window": 10,
     "legend_pity": 50,
     "rate_up": 50,

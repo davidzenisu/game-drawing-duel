@@ -302,9 +302,10 @@ launch). A seat can't receive the same reason twice. A `pull` spends exactly
 one grant (`grant_id` is unique) on a character, numbered per seat; a
 player's pulls are serialised with a row lock, so the same grant can't be
 spent twice. Each pull is on a banner (`pull.banner`): the standard one is
-always there and has the setup drawings, with a legend guaranteed once within
-a player's first 10 standard pulls; the weekly one opens with the first
-finale and has the whole pool, weekly heroes included. The rarity is rolled
+always there, with a legend guaranteed once within a player's first 10
+standard pulls; the weekly one opens with the first finale and adds this
+week's rate-up. Both pull from the whole pool: the setup drawings and every
+weekly hero (each week's new 3 star, `app.pulls.in_pool`). The rarity is rolled
 on the server (`app/gacha.py`) with the rates and pity from
 `docs/concept/gacha-rates.md`: the pity follows from a player's pulls so far
 instead of being stored, and the legend pity counts both banners. Within the

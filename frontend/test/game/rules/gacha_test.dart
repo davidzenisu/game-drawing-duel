@@ -99,8 +99,8 @@ void main() {
     });
     // No legends: theirs goes down to the heroes.
     expect(GachaMachine.tierRates({Rarity.basic, Rarity.adventurer, Rarity.hero}), {
-      Rarity.basic: 40,
-      Rarity.adventurer: 50,
+      Rarity.basic: 50,
+      Rarity.adventurer: 40,
       Rarity.hero: 10,
     });
     expect(GachaMachine.tierRates({}), isEmpty);
@@ -143,7 +143,7 @@ void main() {
         closeTo(8 * 0.5 / 3, 1e-9),
       );
       expect(chances[legend.id], closeTo(2 * 0.5, 1e-9));
-      expect(chances[pool.first.id], closeTo(40 / 5, 1e-9));
+      expect(chances[pool.first.id], closeTo(50 / 5, 1e-9));
       // Nothing rate-up: everyone in a rarity alike.
       expect(GachaMachine.characterChances(pool, {})[hero.id], closeTo(8 / 4, 1e-9));
     });
@@ -199,7 +199,7 @@ void main() {
     expect(gacha.pullsUntilLegend, GachaMachine.legendPity - 20);
   });
 
-  test('the standard banner pulls only the setup drawings, without rate-up', () {
+  test('both banners pull from the whole pool, weekly heroes included; only the weekly one with rate-up', () {
     final setup = poolOf({Rarity.basic: 2, Rarity.legend: 2});
     final weeklyHero = CharacterCard(
       id: 'weekly',
@@ -212,13 +212,13 @@ void main() {
       day: 7,
     );
     final all = [...setup, weeklyHero];
-    expect(GachaBanner.standard.poolOf(all), setup);
+    expect(GachaBanner.standard.poolOf(all), all);
     expect(GachaBanner.weekly.poolOf(all), all);
     final gacha = GachaMachine(random: Random(6));
     final pulled = {
       for (var i = 0; i < 500; i++) gacha.pull(all, rateUp: {'legend0'}).id,
     };
-    expect(pulled, isNot(contains('weekly')));
+    expect(pulled, contains('weekly'), reason: "the week's new 3 star is on the standard banner too");
     final legends = [
       for (var i = 0; i < 4000; i++) gacha.pull(setup, rateUp: {'legend0'}),
     ].where((c) => c.rarity == Rarity.legend);

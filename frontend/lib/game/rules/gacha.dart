@@ -20,27 +20,21 @@ class GachaStatus {
 
 /// What a pull draws from, like the server's `Banner` (`backend/app/gacha.py`).
 enum GachaBanner {
-  /// Always there: the setup drawings, with a legend guaranteed within the
-  /// first pulls on it.
+  /// Always there: the whole pool (the setup drawings and every week's new
+  /// hero, its finale's winner), with a legend guaranteed within the first
+  /// pulls on it.
   standard('Standard'),
 
-  /// From the first finale on: the whole pool, weekly heroes included, with
-  /// this week's rate-up.
+  /// From the first finale on: the same pool, with this week's rate-up.
   weekly('Weekly');
 
   const GachaBanner(this.label);
 
   final String label;
 
-  /// The characters of [pool] this banner pulls from.
-  List<CharacterCard> poolOf(List<CharacterCard> pool) => switch (this) {
-    // The setup drawings are the ones in the pool from day 0.
-    standard => [
-      for (final card in pool)
-        if (card.day == 0) card,
-    ],
-    weekly => pool,
-  };
+  /// The characters of [pool] this banner pulls from: all of them, on both
+  /// banners; they differ in the rate-up and the beginner guarantee.
+  List<CharacterCard> poolOf(List<CharacterCard> pool) => pool;
 }
 
 /// Gacha pulls with rates and pity, see `docs/concept/gacha-rates.md`.
@@ -54,7 +48,7 @@ class GachaMachine {
   static const launchBonus = 10;
 
   /// Pull chances in percent.
-  static const rates = {Rarity.basic: 40, Rarity.adventurer: 50, Rarity.hero: 8, Rarity.legend: 2};
+  static const rates = {Rarity.basic: 50, Rarity.adventurer: 40, Rarity.hero: 8, Rarity.legend: 2};
 
   /// Within the first pulls on the standard banner, a legend is guaranteed
   /// once.

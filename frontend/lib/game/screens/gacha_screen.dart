@@ -69,7 +69,7 @@ class _GachaScreenState extends State<GachaScreen> {
     final beginner = controller.gachaStatus.beginnerPullsLeft;
     return switch (banner) {
       GachaBanner.standard when beginner != null => '★★★★ guaranteed in your next $beginner pulls',
-      GachaBanner.standard => 'The legends of the setup, and everyone they drew',
+      GachaBanner.standard => 'The setup drawings, and every weekly hero',
       GachaBanner.weekly => switch (controller.weeklyHero) {
         final hero? => 'This week\'s hero: ${hero.card.title}',
         null => 'This week\'s rate-up',
@@ -194,11 +194,11 @@ class _GachaScreenState extends State<GachaScreen> {
                         Text(
                           switch (banner) {
                             GachaBanner.standard =>
-                              'The characters drawn during the setup.'
+                              'The characters drawn during the setup, and every weekly hero.'
                                   '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens with the first finale.'}',
                             GachaBanner.weekly when !weeklyOpen =>
-                              'The whole pool, weekly heroes included. It opens once the first finale crowns a weekly hero.',
-                            GachaBanner.weekly => 'The whole pool, weekly heroes included, with this week\'s rate-up.',
+                              'The same pool, with this week\'s rate-up. It opens once the first finale crowns a weekly hero.',
+                            GachaBanner.weekly => 'The same pool, with this week\'s rate-up.',
                           },
                           textAlign: TextAlign.center,
                           style: textTheme.bodySmall,
