@@ -5,6 +5,7 @@ import '../rules/models.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/themed_background.dart';
+import 'win_rates_screen.dart';
 
 /// Step 1: choose the person who fits the day's description best and write a
 /// challenger title for them.
@@ -46,8 +47,8 @@ class _PromptScreenState extends State<PromptScreen> {
     final subject = _subject;
     final theme = controller.promptTheme;
     final textTheme = Theme.of(context).textTheme;
-    // An existing card of the person, for inspiration.
-    final reference = subject == null ? null : controller.pool.where((c) => c.subject == subject.name).firstOrNull;
+    // The person's basic (1 star) drawing, for inspiration.
+    final reference = subject == null ? null : basicDrawingOf(controller, subject);
     return Scaffold(
       appBar: AppBar(title: const Text('Choose a challenger')),
       body: ThemedBackground(

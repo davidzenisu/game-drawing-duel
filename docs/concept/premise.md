@@ -22,6 +22,8 @@ The daily hub shows the 4 steps of the cycle as big buttons (icon and title, the
 | 1. Choose a challenger | 2. Draw a challenger |
 | 3. Boost challengers | 4. Pick your fighters |
 
+When choosing a challenger, the picked player's basic (1 star) drawing from the setup shows as a standee, for inspiration (as it does on the win rates).
+
 Above them, next to the day's title and above the drawing step, a **Send a hurry** button sends the day's free hurry (greyed out once sent, or on a day without one).
 
 Below them, a **Heroes** button opens the heroes menu with the same big buttons:
