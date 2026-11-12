@@ -30,9 +30,6 @@ class _GachaScreenState extends State<GachaScreen> {
   final _pages = PageController(viewportFraction: 0.9);
   int _page = 0;
 
-  /// Three legends of the standard banner, picked at random once.
-  List<String> _standardFeatured = const [];
-
   @override
   void dispose() {
     _pages.dispose();
@@ -50,8 +47,8 @@ class _GachaScreenState extends State<GachaScreen> {
 
   bool _locked(GachaBanner banner) => banner == GachaBanner.weekly && !_weeklyOpen;
 
-  /// The characters a banner shows off: this week's rate-up, or three of the
-  /// standard banner's legends.
+  /// The characters a banner shows off: this week's rate-up, or the standard
+  /// banner's showcase of the week (see [StandardShowcase]).
   List<CharacterCard> _featured(GachaBanner banner) {
     final pool = banner.poolOf(controller.pool);
     switch (banner) {
@@ -61,14 +58,9 @@ class _GachaScreenState extends State<GachaScreen> {
             if (controller.rateUp.contains(card.id)) card,
         ]..sort((a, b) => b.rarity.stars.compareTo(a.rarity.stars));
       case GachaBanner.standard:
-        final legends = {
-          for (final card in pool)
-            if (card.rarity == Rarity.legend) card.id: card,
-        };
-        if (_standardFeatured.isEmpty || !_standardFeatured.every(legends.containsKey)) {
-          _standardFeatured = (legends.keys.toList()..shuffle()).take(3).toList();
-        }
-        return [for (final id in _standardFeatured) legends[id]!];
+        // Speed mode sessions last a single week.
+        final week = controller.server.isSpeed ? 0 : StandardShowcase.week(controller.day, controller.theme);
+        return StandardShowcase.of(pool, [for (final p in controller.server.players) p.name], week);
     }
   }
 

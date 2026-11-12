@@ -87,12 +87,15 @@ void main() {
     await controller.launch();
     await tester.pumpWidget(MaterialApp(home: GachaScreen(controller: controller)));
     await tester.pump();
-    // The standard banner comes first, with three of its legends.
+    // The standard banner comes first, with the week's showcase from the
+    // setup: a basic of the first player, a 2 star of the second and a legend
+    // of the third.
     final standard = tester.widget<BannerArt>(_bannerArt(GachaBanner.standard));
-    final setupLegends = controller.pool.where((c) => c.day == 0 && c.rarity == Rarity.legend);
-    expect(standard.featured, hasLength(min(3, setupLegends.length)));
-    expect(standard.featured.every((c) => c.day == 0 && c.rarity == Rarity.legend), isTrue);
-    expect(standard.featured.map((c) => c.id).toSet(), hasLength(standard.featured.length), reason: 'all different');
+    final players = [for (final p in controller.server.players) p.name];
+    expect(
+      [for (final c in standard.featured) (c.rarity, c.subject, c.day)],
+      [(Rarity.basic, players[0], 0), (Rarity.adventurer, players[1], 0), (Rarity.legend, players[2], 0)],
+    );
     expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
     expect(find.text('Hero'), findsNothing, reason: 'no 3 stars among the setup drawings');
     expect(tester.takeException(), isNull, reason: 'fits a phone');
@@ -127,10 +130,10 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Rate up this week'), findsNothing);
     expect(find.text('★★★★ guaranteed within your next 10 standard pulls'), findsOneWidget);
+    // A new week: each slot moves on to the next player.
     expect(
-      tester.widget<BannerArt>(_bannerArt(GachaBanner.standard)).featured.map((c) => c.id),
-      standard.featured.map((c) => c.id),
-      reason: 'the same three legends while you stay',
+      [for (final c in tester.widget<BannerArt>(_bannerArt(GachaBanner.standard)).featured) (c.rarity, c.subject)],
+      [(Rarity.basic, players[1]), (Rarity.adventurer, players[2]), (Rarity.legend, players[3])],
     );
 
     final pull = find.text('Pull ×1');
