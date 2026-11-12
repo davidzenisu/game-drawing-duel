@@ -43,7 +43,10 @@ abstract final class Unavailable {
             : "All your characters fought this week. They're back on Monday.");
   }
 
-  static String? winRates(GameSession c) => c.server.isSpeed ? 'Speed mode has no win rates.' : null;
+  /// Win rates show everyone's basic drawing, so they wait for the first
+  /// week to be over: by then, players have met them in fights and pulls.
+  static String? winRates(GameSession c) =>
+      c.server.isSpeed ? 'Speed mode has no win rates.' : 'Win rates open once the first week is over, on Monday.';
 
   /// Replays are of the days before today, from the first fights on.
   static String? fightReplay(GameSession c) => c.day > LoopStep.fight

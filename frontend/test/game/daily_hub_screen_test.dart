@@ -102,7 +102,7 @@ void main() {
       {
         'Hero List': true,
         'Challengers': true,
-        'Win rates': true,
+        'Win rates': false, // not before the first week is over
         'Fight replay': false, // no past fights yet
         'Week ranking': false, // the first week isn't over
       },
@@ -150,6 +150,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: HeroesMenuScreen(controller: controller)));
     await tester.pump();
     expect(_enabled(tester, 'Week ranking'), isTrue);
+    expect(_enabled(tester, 'Win rates'), isTrue, reason: 'the first week is over');
     expect(_enabled(tester, 'Fight replay'), isTrue, reason: 'the fights of days 4 to 7');
     await tester.pumpWidget(const SizedBox());
   });
