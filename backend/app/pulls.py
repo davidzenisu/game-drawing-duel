@@ -126,9 +126,9 @@ def pull(
     banner: Banner = Banner.STANDARD,
     rng: random.Random | None = None,
 ) -> list[Outcome]:
-    """Spends `count` of the seat's grants on characters of `banner`: the
-    standard one pulls from the setup drawings, the weekly one from the whole
-    pool with this week's rate-up.
+    """Spends `count` of the seat's grants on characters of `banner`: both
+    pull from the whole pool (`in_pool`), the weekly one with this week's
+    rate-up.
 
     Locks the seat, so the same player pulling twice at once waits instead of
     spending the same grants; the caller commits.
@@ -150,9 +150,7 @@ def pull(
         select(Character)
         .where(
             Character.server_id == seat.server_id,
-            in_pool()
-            if banner is Banner.WEEKLY
-            else Character.assignment_id.is_not(None),
+            in_pool(),
         )
         .order_by(Character.id)
     ):

@@ -16,7 +16,7 @@ from app.rules import Rarity
 LAUNCH_BONUS = 10
 
 # Pull chances in percent.
-RATES = {Rarity.BASIC: 40, Rarity.ADVENTURER: 50, Rarity.HERO: 8, Rarity.LEGEND: 2}
+RATES = {Rarity.BASIC: 50, Rarity.ADVENTURER: 40, Rarity.HERO: 8, Rarity.LEGEND: 2}
 
 # Within the first pulls on the standard banner, a legend is guaranteed once.
 BEGINNER_WINDOW = 10
@@ -32,10 +32,11 @@ _STARS = {rarity: stars for stars, rarity in enumerate(Rarity, start=1)}
 
 
 class Banner(StrEnum):
-    """What a pull draws from. The standard banner is always there: the
-    setup drawings, with a legend guaranteed within the first pulls on it.
-    The weekly banner is the whole pool, weekly heroes included, with this
-    week's rate-up (`app.pulls.rate_up`); it opens with the first finale."""
+    """What a pull draws from. Both banners pull from the whole pool: the
+    setup drawings and every week's new hero, its finale's winner. The
+    standard banner is always there, with a legend guaranteed within the
+    first pulls on it. The weekly banner adds this week's rate-up
+    (`app.pulls.rate_up`); it opens with the first finale."""
 
     STANDARD = "standard"
     WEEKLY = "weekly"

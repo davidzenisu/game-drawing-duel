@@ -232,15 +232,18 @@ class FightTests(FightTestCase):
         self.assertFalse(lost["outcome"]["fighters_win"])
         self.assertEqual(self.get(f"/servers/{self.code}/gacha", SAM).json(), before)
 
-        # Neither does a win chance picked the fighters for.
-        before = self.get(f"/servers/{self.code}/gacha", ROBIN).json()
+        # Neither does a win chance picked the fighters for. (Only the pulls
+        # and stars: the next day may be a Monday, with a new rate-up.)
+        def rewards(subject: str) -> tuple[int, int]:
+            gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
+            return gacha["tickets"], gacha["victory_stars"]
+
+        before = rewards(ROBIN)
         with patch.object(rules, "team_stars", lambda team: 99):
             self.next_day()
-        [chance] = [
-            r for r in self.today(ROBIN)["results"] if r["owner_position"] == 2
-        ]
+        [chance] = [r for r in self.today(ROBIN)["results"] if r["owner_position"] == 2]
         self.assertTrue(chance["by_chance"] and chance["outcome"]["fighters_win"])
-        self.assertEqual(self.get(f"/servers/{self.code}/gacha", ROBIN).json(), before)
+        self.assertEqual(rewards(ROBIN), before)
 
     def test_ties_go_to_the_challenger(self) -> None:
         self.next_day()
@@ -250,7 +253,9 @@ class FightTests(FightTestCase):
         self.assertEqual(self.boost_stars(challenger), 3)
         with patch.object(rules, "team_stars", lambda team: 6):
             outcome = self.pick(self.owned()[:1]).json()["fight"]["yours"]["outcome"]
-        self.assertEqual((outcome["fighter_stars"], outcome["challenger_stars"]), (6, 6))
+        self.assertEqual(
+            (outcome["fighter_stars"], outcome["challenger_stars"]), (6, 6)
+        )
         self.assertFalse(outcome["fighters_win"])
 
     def test_a_decided_fight_keeps_its_result_when_the_rules_change(self) -> None:
@@ -552,7 +557,8 @@ class FightPairingTests(FightTestCase):
         refused = self.boost({}, self.players[2])
         self.assertEqual(refused.status_code, 409, refused.text)
         self.assertEqual(
-            refused.json()["detail"], "You didn't draw yesterday, so you can't boost today"
+            refused.json()["detail"],
+            "You didn't draw yesterday, so you can't boost today",
         )
         boosted = {}
         for i, subject in enumerate(self.players):

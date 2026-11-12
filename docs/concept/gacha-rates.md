@@ -21,11 +21,15 @@ The gacha chances should be as follows:
 - 3 star (heroes)
 - 4 star (legends)
 
-Stolen from Arknights rates:
-- 1 star: 40%
-- 2 star: 50%
+The rates, with more 1 stars than 2 stars:
+- 1 star: 50%
+- 2 star: 40%
 - 3 star: 8%
 - 4 star: 2%
+
+(At first stolen from Arknights rates: 40% 1 star and 50% 2 star, the rest the same.)
+
+Both banners pull from the same pool: the setup drawings and every weekly hero, the challenger that won its week's finale, as each week's new 3 star. The weekly banner (from the first finale on) adds this week's rate-up; the standard one has the beginner guarantee. Before the first finale there's no 3 star yet: their 8% goes to the 2 stars.
 
 Arknights original ratio was roughly:
 - 1 star: 21

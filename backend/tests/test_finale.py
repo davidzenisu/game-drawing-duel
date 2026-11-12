@@ -1,9 +1,19 @@
+import random
 import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 
-from app.models import Boost, Character, Server, ServerSeat, WeeklyHero
+from app import pulls
+from app.gacha import Banner
+from app.models import (
+    Boost,
+    Character,
+    PullGrant,
+    Server,
+    ServerSeat,
+    WeeklyHero,
+)
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_fights import ADMIN, PLAYERS, FightTestCase
@@ -156,24 +166,33 @@ class FinaleTests(FightTestCase):
             gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
             self.assertEqual(set(gacha["rate_up"]), set(rate_up))
 
-    def test_the_weekly_banner_pulls_the_hero_the_standard_one_never(self) -> None:
+    def test_both_banners_pull_the_weekly_hero(self) -> None:
         self.go_to_day(8)
         hero = self.today()["weekly_hero"]["character"]["id"]
         gacha = self.get(f"/servers/{self.code}/gacha").json()
         weekly = self.post_pulls(min(gacha["tickets"], 10), "weekly")
         self.assertEqual(weekly.status_code, 200, weekly.text)
         pool = {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
+        self.assertIn(hero, pool)
         for outcome in weekly.json()["outcomes"]:
             self.assertIn(outcome["character"]["id"], pool)
-        # The standard banner is the setup drawings only: no heroes.
-        for subject in PLAYERS:
-            if subject == ADMIN:
-                continue
-            tickets = self.get(f"/servers/{self.code}/gacha", subject).json()["tickets"]
-            standard = self.post_pulls(min(tickets, 10), "standard", subject).json()
-            rarities = {o["character"]["rarity"] for o in standard["outcomes"]}
-            self.assertNotIn("hero", rarities)
-            self.assertNotIn(hero, {o["character"]["id"] for o in standard["outcomes"]})
+        # The week's new 3 star is on the standard banner too: with enough
+        # pulls, it comes up there as well.
+        with self.session_factory() as session:
+            seat = session.scalar(
+                select(ServerSeat)
+                .join(Server, Server.id == ServerSeat.server_id)
+                .where(Server.code == self.code, ServerSeat.position == 1)
+            )
+            session.add_all(
+                PullGrant(seat_id=seat.id, reason=f"test:{n}") for n in range(300)
+            )
+            session.flush()
+            outcomes = pulls.pull(session, seat, 300, Banner.STANDARD, random.Random(1))
+            pulled = {str(o.character.id) for o in outcomes}
+            session.rollback()
+        self.assertIn(hero, pulled)
+        self.assertLessEqual(pulled, pool)
 
     def post_pulls(self, count: int, banner: str, subject: str = ADMIN):
         return self.client.post(
