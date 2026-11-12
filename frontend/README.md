@@ -28,6 +28,14 @@ Register `http://localhost:7357` in the Auth0 application's **Allowed Callback
 URLs**, **Allowed Logout URLs**, and **Allowed Web Origins**. Add the production
 origin to the same settings.
 
+The app renews its access token with **refresh tokens** (scope
+`offline_access`), kept in the browser's local storage, so the sign-in
+survives reloads and doesn't need Auth0's hidden iframe: browsers that block
+third-party cookies (Brave, Safari) never answer it, and renewing failed with
+"Timeout" and a new sign-in. It needs, in the Auth0 setup (infrastructure
+repository): **Refresh Token Rotation** on the application and **Allow Offline
+Access** on the API. Until then, renewal falls back to the iframe as before.
+
 The Azure Static Web Apps workflow reads these values from Key Vault
 (`auth0-domain`, `auth0-client-id`, `auth0-api-audience`, `api-custom-domain`),
 writes a temporary JSON defines file, and passes it to the release build. These
