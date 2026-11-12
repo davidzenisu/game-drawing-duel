@@ -20,6 +20,6 @@ This works the following way:
 - Speed mode has no weeks, so it has no win rates.
 
 Where to see them:
-- **Win rates** (in the heroes menu): every player as a card with their basic drawing, name and a "Show win rates" button. It opens that player's matchups side by side: both players' basic drawings and names, their extra ☆ and how many fights they won. Only matchups that change stars on either side are shown.
+- **Win rates** (in the heroes menu): every player as a card with their basic drawing, name and a "Show win rates" button. It opens that player's matchups side by side: both players' basic drawings and names, their extra ☆ and how many fights they won. Only matchups that change stars on either side are shown. It opens once the first week is over (like the week ranking, on the first Monday), so it doesn't give away everyone's basic drawing before players met them in fights and pulls.
 - **Picking fighters**: every hero shows the stars its player's win rate changes against today's challenger: "+N ★" in green when it gets them, "−N ★" in red when the challenger gets them against it. They show in the roster, on the stage and summed up below it.
 - **Battles**: the fight reveal adds each side's extra stars to its stars and shows them as "+N from win rates".

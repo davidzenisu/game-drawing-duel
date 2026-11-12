@@ -74,8 +74,11 @@ class HeroesMenuScreen extends StatelessWidget {
                             icon: Icons.percent_rounded,
                             title: 'Win rates',
                             unavailable: Unavailable.winRates(c),
-                            // Speed mode sessions have none.
-                            onTap: c.server.isSpeed ? null : () => open(WinRatesScreen(controller: c)),
+                            // Once the first week is over, so they don't give
+                            // away everyone's basic drawing; speed mode has none.
+                            onTap: c.weeklyHero == null || c.server.isSpeed
+                                ? null
+                                : () => open(WinRatesScreen(controller: c)),
                           ),
                           HubTile(
                             icon: Icons.play_circle_fill_rounded,

@@ -20,6 +20,7 @@ void main() {
     expect(Unavailable.boost(day3), "You didn't draw yesterday's challenger, so you can't boost today.");
     expect(Unavailable.fight(game), 'Fighting starts on day 4.');
     expect(Unavailable.weekRanking(game), contains('once the first week is over'));
+    expect(Unavailable.winRates(game), 'Win rates open once the first week is over, on Monday.');
     expect(Unavailable.fightReplay(game), 'The first fights are on day 4: replay them from day 5 on.');
 
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
