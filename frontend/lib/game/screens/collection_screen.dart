@@ -21,13 +21,25 @@ class CollectionScreen extends StatefulWidget {
   State<CollectionScreen> createState() => _CollectionScreenState();
 }
 
-/// What the collection can be narrowed down to, besides the rarity.
+/// What the collection can be narrowed down to, besides the rarity and the
+/// player.
 enum _Status {
   ready('Upgrade ready'),
-  maxed('Maxed out'),
+  owned('Summoned'),
   missing('Not summoned');
 
   const _Status(this.label);
+
+  final String label;
+}
+
+/// Which player a character belongs to, for the player filter: the one it
+/// shows, or the one who drew it.
+enum _PlayerRole {
+  subject('Drawing of'),
+  artist('Drawn by');
+
+  const _PlayerRole(this.label);
 
   final String label;
 }
@@ -49,16 +61,21 @@ typedef _Entry = ({CharacterCard card, OwnedCard? owned});
 class _CollectionScreenState extends State<CollectionScreen> {
   Rarity? _filter;
   _Status? _status;
-  ElementKind? _element;
+  _PlayerRole _role = _PlayerRole.subject;
+
+  /// The player's name to filter by, or null for anyone.
+  String? _player;
   _Sort _sort = _Sort.pool;
 
   bool _matches(CharacterCard card, OwnedCard? owned) {
     if (_filter != null && card.rarity != _filter) return false;
-    if (_element != null && owned?.element != _element) return false;
+    if (_player case final player?) {
+      if ((_role == _PlayerRole.subject ? card.subject : card.artist) != player) return false;
+    }
     return switch (_status) {
       null => true,
       _Status.ready => owned != null && owned.hasUnspentPoints,
-      _Status.maxed => owned != null && owned.nextUpgrade == null,
+      _Status.owned => owned != null,
       _Status.missing => owned == null,
     };
   }
@@ -153,12 +170,35 @@ class _CollectionScreenState extends State<CollectionScreen> {
                         selected: _status == status,
                         onSelected: (selected) => setState(() => _status = selected ? status : null),
                       ),
-                    for (final element in ElementKind.values)
-                      FilterChip(
-                        avatar: Icon(Icons.circle, size: 12, color: elementColor(element)),
-                        label: Text(element.name),
-                        selected: _element == element,
-                        onSelected: (selected) => setState(() => _element = selected ? element : null),
+                  ],
+                ),
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    DropdownButton<_PlayerRole>(
+                      value: _role,
+                      underline: const SizedBox.shrink(),
+                      borderRadius: BorderRadius.circular(12),
+                      items: [
+                        for (final role in _PlayerRole.values)
+                          DropdownMenuItem(value: role, child: Text('${role.label}:')),
+                      ],
+                      onChanged: (role) => setState(() => _role = role!),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Anyone'),
+                      selected: _player == null,
+                      onSelected: (_) => setState(() => _player = null),
+                    ),
+                    for (final player in controller.server.players)
+                      ChoiceChip(
+                        label: Text(player.isYou ? '${player.name} (you)' : player.name),
+                        selected: _player == player.name,
+                        onSelected: (_) => setState(() => _player = player.name),
                       ),
                   ],
                 ),
