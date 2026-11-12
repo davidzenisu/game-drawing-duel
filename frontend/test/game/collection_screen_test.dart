@@ -75,8 +75,9 @@ void main() {
     }
 
     Iterable<String> shownIds() => tester.widgetList<Standee>(find.byType(Standee)).map((s) => s.card.id);
-    await tap('Maxed out');
-    expect(shownIds(), [maxed.card.id]);
+    Iterable<Standee> shown() => tester.widgetList<Standee>(find.byType(Standee));
+    expect(find.text('Maxed out'), findsNothing, reason: 'no maxed out filter');
+    expect(find.text('fire'), findsNothing, reason: 'no element filters');
 
     await tap('Upgrade ready');
     expect(shownIds(), contains(ready.card.id));
@@ -90,15 +91,27 @@ void main() {
     expect(mark.top - plate.bottom, lessThan(20));
 
     await tap('Not summoned');
-    final standees = tester.widgetList<Standee>(find.byType(Standee));
-    expect(standees, isNotEmpty);
-    expect(standees.every((s) => s.hidden), isTrue);
+    expect(shown(), isNotEmpty);
+    expect(shown().every((s) => s.hidden), isTrue);
 
-    // Characters not summoned yet have no element.
-    await tap('fire');
-    expect(find.text('No characters match these filters.'), findsOneWidget);
-    await tap('fire');
-    await tap('Not summoned');
+    // The opposite: only the ones you have.
+    await tap('Summoned');
+    expect(shown(), isNotEmpty);
+    expect(shown().every((s) => !s.hidden), isTrue);
+    expect(shownIds().toSet(), {for (final o in game.collection) o.card.id});
+    await tap('Summoned');
+
+    // A player's drawings: of them, or by them.
+    final sam = game.server.players.firstWhere((p) => !p.isYou).name;
+    await tap(sam);
+    expect(shown(), isNotEmpty);
+    expect(shown().every((s) => s.card.subject == sam), isTrue);
+    await tap('Drawing of:');
+    await tester.tap(find.text('Drawn by:').last);
+    await tester.pump(const Duration(seconds: 1));
+    expect(shown(), isNotEmpty);
+    expect(shown().every((s) => s.card.artist == sam), isTrue);
+    await tap('Anyone');
 
     await tester.tap(find.byTooltip('Sort'));
     await tester.pump();

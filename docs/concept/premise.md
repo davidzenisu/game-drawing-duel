@@ -37,7 +37,7 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 
 **Fight replay** lists the days before today that had fights, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). Picking a day shows every fight of that day, one per player who fought, by its challenger (when someone skipped their drawing, the challenger standing in for theirs shows twice); the one you fought and the one you drew come first and are highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen.
 
-In the **Hero List**, a character's page has a **download** button (in the browser) that saves its drawing as a PNG image on its cardboard card, named after the character.
+The **Hero List** shows every character of the pool, summoned or not, and can be narrowed down by rarity, by status (upgrade ready, summoned, not summoned) and by player: the drawings *of* a player or *by* a player. In the **Hero List**, a character's page has a **download** button (in the browser) that saves its drawing as a PNG image on its cardboard card, named after the character.
 
 In the top right of the hub and the heroes menu, a **notification board** button has a badge counting what's new. For now that's **gifts**: pulls an admin gives players outside the regular rewards, each with a message. A gift's pulls only count once it's accepted on the board ("Accept", or "Accept all"); gifts don't expire. The board is loaded with the app and the day, without live updates; later it may carry other news too, like the weekly hero or patch notes.
 
