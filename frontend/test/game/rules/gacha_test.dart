@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/rules/setup_plan.dart';
+import 'package:frontend/game/rules/themes.dart';
 
 List<CharacterCard> poolOf(Map<Rarity, int> counts) => [
   for (final MapEntry(key: rarity, value: count) in counts.entries)
@@ -19,6 +21,68 @@ List<CharacterCard> poolOf(Map<Rarity, int> counts) => [
 ];
 
 void main() {
+  group('standard banner showcase', () {
+    const roster = ['Ann', 'Ben', 'Cid', 'Dee'];
+    CharacterCard card(String subject, SetupPrompt prompt, {int day = 0}) => CharacterCard(
+      id: '$subject-${prompt.name}-$day',
+      subject: subject,
+      title: 'T',
+      rarity: prompt.rarity,
+      prompt: prompt.label,
+      artist: 'A',
+      sketch: Sketch.empty,
+      day: day,
+    );
+    final pool = [
+      for (final player in roster)
+        for (final prompt in [SetupPrompt.legend, SetupPrompt.rogue, SetupPrompt.knight, SetupPrompt.basic])
+          card(player, prompt),
+      // A challenger isn't part of the starting pool.
+      card('Ann', SetupPrompt.basic, day: 3),
+    ];
+
+    test('weeks run Monday to Sunday from the launch', () {
+      // Launched on a Monday: days 1 to 7, then the next week.
+      expect(
+        [for (var day = 1; day <= 15; day++) StandardShowcase.week(day, DailyTheme.values[(day - 1) % 7])],
+        [...List.filled(7, 0), ...List.filled(7, 1), 2],
+      );
+      // Launched on a Wednesday: Sunday is day 5, Monday day 6.
+      final wednesday = DailyTheme.values[2];
+      DailyTheme on(int day) => DailyTheme.values[(wednesday.index + day - 1) % 7];
+      expect(StandardShowcase.week(5, on(5)), 0);
+      expect(StandardShowcase.week(6, on(6)), 1);
+    });
+
+    test('a basic, a 2 star and a legend of the next players, moving on each week', () {
+      List<(Rarity, String)> showcase(int week) => [
+        for (final c in StandardShowcase.of(pool, roster, week)) (c.rarity, c.subject),
+      ];
+      expect(showcase(0), [(Rarity.basic, 'Ann'), (Rarity.adventurer, 'Ben'), (Rarity.legend, 'Cid')]);
+      expect(showcase(1), [(Rarity.basic, 'Ben'), (Rarity.adventurer, 'Cid'), (Rarity.legend, 'Dee')]);
+      // Around the roster.
+      expect(showcase(3), [(Rarity.basic, 'Dee'), (Rarity.adventurer, 'Ann'), (Rarity.legend, 'Ben')]);
+      expect(showcase(4), showcase(0));
+      // The setup basic, never a challenger; the first 2 star prompt: the knight.
+      final week0 = StandardShowcase.of(pool, roster, 0);
+      expect(week0.first.day, 0);
+      expect(week0[1].prompt, SetupPrompt.knight.label);
+    });
+
+    test("a player without the rarity hands their slot to the next who has it", () {
+      final noLegendForCid = [
+        for (final c in pool)
+          if (!(c.subject == 'Cid' && c.rarity == Rarity.legend)) c,
+      ];
+      expect(StandardShowcase.of(noLegendForCid, roster, 0).last.subject, 'Dee');
+      final noLegends = [
+        for (final c in pool)
+          if (c.rarity != Rarity.legend) c,
+      ];
+      expect(StandardShowcase.of(noLegends, roster, 0), hasLength(2));
+    });
+  });
+
   final pool = poolOf({Rarity.basic: 10, Rarity.adventurer: 10, Rarity.hero: 5, Rarity.legend: 5});
 
   test('rates add up to 100%', () {

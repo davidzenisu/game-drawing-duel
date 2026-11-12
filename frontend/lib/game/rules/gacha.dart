@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import 'models.dart';
+import 'setup_plan.dart';
+import 'themes.dart';
 
 /// Pity progress shown to the player.
 class GachaStatus {
@@ -189,5 +191,50 @@ class GachaMachine {
     final lower = Rarity.values.reversed.where((r) => r.stars < wanted.stars && available.contains(r));
     final order = preferHigher ? [...higher, ...lower] : [...lower, ...higher];
     return order.first;
+  }
+}
+
+/// The heroes the standard banner shows off, the same all week: from the
+/// starting pool (the setup drawings), the basic of one player, a 2 star of
+/// the next and a legend of the one after, in roster order. Each week, the
+/// next player starts, around the roster.
+abstract final class StandardShowcase {
+  /// The rarities shown, and how many players after the week's first each
+  /// one belongs to.
+  static const slots = [(Rarity.basic, 0), (Rarity.adventurer, 1), (Rarity.legend, 2)];
+
+  /// The week of the server [day] falls in, 0 the week it launched in, when
+  /// [today] is that day's theme: weeks run Monday to Sunday, like the
+  /// finales.
+  static int week(int day, DailyTheme today) {
+    final launchWeekday = (today.index - (day - 1)) % DailyTheme.values.length;
+    return (day - 1 + launchWeekday) ~/ DailyTheme.values.length;
+  }
+
+  /// The showcase of [week] from [pool] for the players of [roster], in
+  /// roster order. A player without a setup drawing of a slot's rarity hands
+  /// it to the next one who has one; a rarity nobody has is left out.
+  static List<CharacterCard> of(List<CharacterCard> pool, List<String> roster, int week) {
+    if (roster.isEmpty) return const [];
+    int order(CharacterCard card) {
+      final index = SetupPrompt.values.indexWhere((p) => p.label == card.prompt);
+      return index < 0 ? SetupPrompt.values.length : index;
+    }
+
+    final setup = [
+      for (final card in pool)
+        if (card.day == 0) card,
+    ]..sort((a, b) => order(a) != order(b) ? order(a).compareTo(order(b)) : a.id.compareTo(b.id));
+    return [for (final (rarity, offset) in slots) ?_first(setup, roster, rarity, week + offset)];
+  }
+
+  static CharacterCard? _first(List<CharacterCard> setup, List<String> roster, Rarity rarity, int start) {
+    for (var k = 0; k < roster.length; k++) {
+      final player = roster[(start + k) % roster.length];
+      for (final card in setup) {
+        if (card.subject == player && card.rarity == rarity) return card;
+      }
+    }
+    return null;
   }
 }
