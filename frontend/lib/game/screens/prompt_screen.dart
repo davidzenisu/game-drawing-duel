@@ -46,8 +46,6 @@ class _PromptScreenState extends State<PromptScreen> {
     final subject = _subject;
     final theme = controller.promptTheme;
     final textTheme = Theme.of(context).textTheme;
-    // An existing card of the person, for inspiration.
-    final reference = subject == null ? null : controller.pool.where((c) => c.subject == subject.name).firstOrNull;
     return Scaffold(
       appBar: AppBar(title: const Text('Choose a challenger')),
       body: ThemedBackground(
@@ -82,10 +80,6 @@ class _PromptScreenState extends State<PromptScreen> {
                             ),
                         ],
                       ),
-                      if (reference != null) ...[
-                        const SizedBox(height: 16),
-                        Center(child: Standee(card: reference, width: 72)),
-                      ],
                       const SizedBox(height: 16),
                       TextField(
                         controller: _title,

@@ -102,11 +102,15 @@ class _WinRatesScreenState extends State<WinRatesScreen> {
   }
 }
 
-/// [player]'s basic drawing, their preview, if it's known.
-CharacterCard? basicDrawingOf(GameSession controller, Player player) => [
-  ...controller.pool,
-  ...controller.collection.map((o) => o.card),
-].where((c) => c.rarity == Rarity.basic && c.subject == player.name).firstOrNull;
+/// [player]'s basic (1 star) drawing, their preview wherever they're
+/// picked, if it's known: the one from the initial setup first.
+CharacterCard? basicDrawingOf(GameSession controller, Player player) {
+  final basics = [
+    ...controller.pool,
+    ...controller.collection.map((o) => o.card),
+  ].where((c) => c.rarity == Rarity.basic && c.subject == player.name);
+  return basics.where((c) => c.day == 0).firstOrNull ?? basics.firstOrNull;
+}
 
 String _name(Player player) => player.isYou ? '${player.name} (you)' : player.name;
 
