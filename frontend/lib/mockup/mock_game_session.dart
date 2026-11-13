@@ -519,8 +519,27 @@ class MockGameSession extends GameSession {
   /// Friends drew challengers on the days after one with prompts.
   bool _drawnOn(int day) => _promptsOn(day - 1);
 
+  /// Like online, with the question the friend answered: the description
+  /// that comes with the canned title.
   @override
-  ChallengerPrompt? get promptToDraw => _drawnOn(_day) && !sessionOver ? _days.promptToDraw(_day) : null;
+  ChallengerPrompt? get promptToDraw {
+    if (!_drawnOn(_day) || sessionOver) return null;
+    final prompt = _days.promptToDraw(_day);
+    final hint = [
+      for (final hints in _hints.values)
+        for (final (text, premadeTitle) in hints)
+          if (premadeTitle == prompt.title) text,
+    ].firstOrNull;
+    return ChallengerPrompt(
+      id: prompt.id,
+      author: prompt.author,
+      subject: prompt.subject,
+      theme: prompt.theme,
+      title: prompt.title,
+      day: prompt.day,
+      hint: hint,
+    );
+  }
 
   @override
   CharacterCard? get yourChallenger => _yourChallengers[_day];
