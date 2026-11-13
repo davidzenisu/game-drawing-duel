@@ -106,6 +106,9 @@ class _GachaScreenState extends State<GachaScreen> {
         final rates = pool.isEmpty
             ? GachaMachine.rates
             : GachaMachine.tierRates({for (final card in pool) card.rarity});
+        // Text right on the day's scenery follows its brightness, not the
+        // app's light or dark mode, like on the hub.
+        final onScenery = controller.theme.isDark ? Colors.white : Colors.black87;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Summon'),
@@ -185,9 +188,7 @@ class _GachaScreenState extends State<GachaScreen> {
                                     width: index == _page ? 24 : 8,
                                     height: 8,
                                     decoration: BoxDecoration(
-                                      color: index == _page
-                                          ? Theme.of(context).colorScheme.primary
-                                          : Theme.of(context).colorScheme.outlineVariant,
+                                      color: index == _page ? onScenery : onScenery.withValues(alpha: 0.3),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                   ),
@@ -205,7 +206,7 @@ class _GachaScreenState extends State<GachaScreen> {
                             GachaBanner.weekly => 'The same pool, with this week\'s rate-up.',
                           },
                           textAlign: TextAlign.center,
-                          style: textTheme.bodySmall,
+                          style: textTheme.bodySmall?.copyWith(color: onScenery),
                         ),
                         const SizedBox(height: 16),
                         if (banner == GachaBanner.weekly && weeklyOpen) ...[

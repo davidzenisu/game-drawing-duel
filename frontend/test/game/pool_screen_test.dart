@@ -5,6 +5,7 @@ import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/gacha_screen.dart';
 import 'package:frontend/game/screens/pool_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 import '../helpers.dart';
 
@@ -73,6 +74,24 @@ void main() {
     final summoned = pool.where((card) => card.rarity == pulled.rarity && owned.contains(card.id)).length + 1;
     final section = find.ancestor(of: find.text(pulled.rarity.label), matching: find.byType(Card));
     expect(find.descendant(of: section, matching: find.textContaining('$summoned/$count summoned')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("the text on the day's scenery follows its brightness, in dark mode too", (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = await launchedGame(others: ['Alex', 'Sam', 'Robin', 'Kim']);
+    expect(controller.theme.isDark, isFalse, reason: 'a light scenery');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: GachaScreen(controller: controller),
+      ),
+    );
+    await tester.pump();
+    final description = tester.widget<Text>(find.textContaining('The characters drawn during the setup'));
+    expect(description.style?.color, Colors.black87, reason: 'dark text on the light scenery');
     await tester.pumpWidget(const SizedBox());
   });
 }
