@@ -121,6 +121,11 @@ class SketchPadController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void unlock() {
+    enabled = true;
+    notifyListeners();
+  }
+
   void _begin(Offset point) {
     if (!enabled) return;
     _strokes.add(Stroke(color: color, width: width, points: [point]));

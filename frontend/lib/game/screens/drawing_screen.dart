@@ -41,6 +41,7 @@ class DrawingScreen extends StatefulWidget {
     this.hurries = const [],
     this.noBackingOut = false,
     this.nameplate = false,
+    this.startOnReady = false,
   });
 
   final String subject;
@@ -76,6 +77,11 @@ class DrawingScreen extends StatefulWidget {
   /// the character will appear, instead of the [prompt] text.
   final bool nameplate;
 
+  /// The clock waits for a Ready button on the canvas, so the prompt and
+  /// its info can be read first. Until then, nothing can be drawn and
+  /// leaving is allowed.
+  final bool startOnReady;
+
   @override
   State<DrawingScreen> createState() => _DrawingScreenState();
 }
@@ -92,7 +98,10 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   final _leaveGuard = LeaveGuard();
 
   /// Whether leaving now would let the drawing be started over.
-  bool get _locked => widget.noBackingOut && _limit != null && !_done && !(_timeUp && _pad.isEmpty);
+  /// Whether the clock was started, see [DrawingScreen.startOnReady].
+  late bool _started = !widget.startOnReady;
+
+  bool get _locked => widget.noBackingOut && _limit != null && _started && !_done && !(_timeUp && _pad.isEmpty);
 
   /// How many of the hurries hit so far, and the time they took away.
   int _hits = 0;
@@ -123,11 +132,26 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _pad.addListener(_rebuild);
     _title.addListener(_rebuild);
+    if (_started) {
+      _startClock();
+    } else {
+      _pad.lock();
+    }
+  }
+
+  void _startClock() {
     if (_limit != null) {
       _stopwatch.start();
       _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) => _tick());
     }
     if (_locked) _leaveGuard.enable();
+  }
+
+  /// Ready: the canvas opens and the clock starts.
+  void _ready() {
+    setState(() => _started = true);
+    _pad.unlock();
+    _startClock();
   }
 
   void _rebuild() => setState(() {});
@@ -439,6 +463,39 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
+  /// Covers the canvas until the player is ready to draw.
+  Widget _readyCover(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.45),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton.icon(
+                onPressed: _ready,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                  textStyle: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                icon: const Icon(Icons.play_arrow_rounded, size: 28),
+                label: const Text('Ready'),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _limit == null ? 'Take your time.' : 'The clock starts when you press Ready.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _canvas() {
     return Center(
       child: CardboardCard(
@@ -447,6 +504,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           children: [
             SketchPad(controller: _pad),
             _hurryBanner(context),
+            if (!_started) _readyCover(context),
             IgnorePointer(
               child: AnimatedOpacity(
                 opacity: _timeUp ? 1 : 0,

@@ -123,6 +123,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           hurries: _controller.incomingHurries,
           noBackingOut: true,
           nameplate: true,
+          startOnReady: true,
         ),
       ),
     );
