@@ -110,8 +110,9 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
         builder: (_) => DrawingScreen(
           subject: prompt.subject.name,
           prompt: '"${prompt.title}"',
+          // Who wrote no title stays between them and the game.
           hint: prompt.premade
-              ? 'A premade prompt, as ${prompt.author.name} wrote none · ${prompt.theme.label}'
+              ? prompt.theme.label
               : 'A challenger prompt by ${prompt.author.name} · ${prompt.theme.label}',
           rarity: Rarity.hero,
           description: prompt.question,
@@ -121,6 +122,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           timeLimit: challengerDrawTime,
           hurries: _controller.incomingHurries,
           noBackingOut: true,
+          nameplate: true,
         ),
       ),
     );

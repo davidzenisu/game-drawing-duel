@@ -5,6 +5,7 @@ import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/drawing_recap_screen.dart';
 import 'package:frontend/game/screens/drawing_screen.dart';
+import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 
 void main() {
@@ -327,6 +328,40 @@ void main() {
       isA<Border>().having((b) => b.top.color, 'color', Colors.transparent),
     );
     expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a challenger shows who and what to draw in its nameplate, without taking the canvas', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    Future<Rect> canvas({required bool nameplate}) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DrawingScreen(
+            subject: 'Daniel',
+            prompt: '"the Missing Guest"',
+            hint: 'Royal Castle',
+            rarity: Rarity.hero,
+            description: 'Who is a challenger forgetting their brunch date?',
+            initialTitle: 'the Missing Guest',
+            titleLocked: true,
+            timeLimit: challengerDrawTime,
+            nameplate: nameplate,
+          ),
+        ),
+      );
+      await tester.pump();
+      return tester.getRect(find.byType(SketchPad));
+    }
+
+    final plain = await canvas(nameplate: false);
+    final withPlate = await canvas(nameplate: true);
+    final plate = tester.widget<Nameplate>(find.byType(Nameplate));
+    expect((plate.name, plate.title), ('Daniel', 'the Missing Guest'));
+    expect(find.text('"the Missing Guest"'), findsNothing, reason: 'the nameplate replaces the quoted title');
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    expect(plain.height - withPlate.height, lessThan(24), reason: 'the canvas keeps nearly all its room');
     await tester.pumpWidget(const SizedBox());
   });
 }

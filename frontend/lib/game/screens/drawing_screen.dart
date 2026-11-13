@@ -40,6 +40,7 @@ class DrawingScreen extends StatefulWidget {
     this.timeLimit,
     this.hurries = const [],
     this.noBackingOut = false,
+    this.nameplate = false,
   });
 
   final String subject;
@@ -70,6 +71,10 @@ class DrawingScreen extends StatefulWidget {
   /// asks before the page is closed or reloaded. If time runs out with
   /// nothing drawn, leaving is allowed again.
   final bool noBackingOut;
+
+  /// Shows [subject] and the [initialTitle] in a compact blue nameplate, as
+  /// the character will appear, instead of the [prompt] text.
+  final bool nameplate;
 
   @override
   State<DrawingScreen> createState() => _DrawingScreenState();
@@ -245,10 +250,22 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  StarRow(rarity: widget.rarity),
+                  if (!widget.nameplate) StarRow(rarity: widget.rarity),
                   if (widget.description case final description?)
                     Text(description, style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
-                  Text(widget.prompt, style: textTheme.titleMedium),
+                  if (widget.nameplate)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Nameplate(
+                        name: widget.subject,
+                        title: widget.initialTitle,
+                        rarity: widget.rarity,
+                        nameFirst: true,
+                        compact: true,
+                      ),
+                    )
+                  else
+                    Text(widget.prompt, style: textTheme.titleMedium),
                   Text(widget.hint, style: textTheme.bodySmall),
                 ],
               ),
