@@ -484,7 +484,7 @@ class FakeBackend {
       if (request.method == 'GET' && path.length == 3 && path[2] == 'fights') {
         final today = days[code] ?? 1;
         final fought = {
-          for (final f in fights[code] ?? const <FakeFight>[])
+          for (final f in _yourFights(code, myId))
             if (f.day < today) f.day,
         }.toList()..sort((a, b) => b.compareTo(a));
         return _json(200, [
@@ -496,9 +496,10 @@ class FakeBackend {
         final day = int.parse(path[3]);
         if (day >= (days[code] ?? 1)) return _json(409, {'detail': 'Only the fights of past days replay'});
         return _json(200, [
-          for (final f
-              in (fights[code] ?? const <FakeFight>[]).where((f) => f.day == day).toList()
-                ..sort((a, b) => a.owner.compareTo(b.owner)))
+          for (final f in _yourFights(
+            code,
+            myId,
+          ).where((f) => f.day == day).toList()..sort((a, b) => a.owner.compareTo(b.owner)))
             _fightJson(f),
         ]);
       }
@@ -722,6 +723,16 @@ class FakeBackend {
     return 3 * written + 3 * drawn + won + collected - 10 * (starPulls[(code, playerId)] ?? 0);
   }
 
+  /// Like the real API, the fights the player may replay: theirs (the fake
+  /// has no chance fights) and the ones against a challenger they drew.
+  Iterable<FakeFight> _yourFights(String code, String playerId) {
+    final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
+    return [
+      for (final f in fights[code] ?? const <FakeFight>[])
+        if (f.owner == yours || f.challenger['artist_position'] == yours) f,
+    ];
+  }
+
   /// The fights [seat] won: each earns a pull and the challenger's stars.
   Iterable<FakeFight> _wins(String code, int seat) => [
     for (final f in fights[code] ?? const <FakeFight>[])
@@ -933,10 +944,8 @@ class FakeBackend {
   List<Map<String, Object?>> _challengers(String code, String playerId) {
     final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
     final all = fights[code] ?? const [];
-    bool encountered(Map<String, Object?> c) =>
-        c['artist_position'] == yours ||
-        boosts.entries.any((e) => e.key.$1 == code && e.key.$3 == yours && e.value.containsKey(c['id'])) ||
-        all.any((f) => f.challenger['id'] == c['id'] && f.owner == yours);
+    // Like the real API, only the ones you drew (for now).
+    bool encountered(Map<String, Object?> c) => c['artist_position'] == yours;
     return [
       for (final c in _characters(code).reversed)
         if (c['prompt'] == 'challenger' && encountered(c))

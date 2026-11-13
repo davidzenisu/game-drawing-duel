@@ -369,36 +369,33 @@ void main() {
     expect(await dayFour(1), await dayFour(2));
   });
 
-  test('challengers stay out of the pool, listed once encountered with their record', () async {
+  test('challengers stay out of the pool, only yours listed, with their record', () async {
     final game = await launchedGame();
     final pool = game.pool.length;
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     await game.advanceDay();
-    expect(game.challengers, isEmpty, reason: 'the others drew some, but you met none');
+    expect(game.challengers, isEmpty, reason: 'the others drew some, but you none');
     await game.submitChallenger(doodle);
     expect(game.pool, hasLength(pool), reason: 'challengers never join the gacha pool');
     expect(game.challengers.single.card, game.yourChallenger);
+    final yours = game.yourChallenger!;
 
-    // Day 3: boosting one makes it encountered too.
+    // Day 3: not the ones you boost.
     await game.advanceDay();
-    final boosted = game.boostTargets.first.challenger;
-    expect(game.challengers.map((c) => c.card), isNot(contains(boosted)));
-    await game.setBoosts({boosted.id: 1});
-    expect(game.challengers.map((c) => c.card), contains(boosted));
+    await game.setBoosts({game.boostTargets.first.challenger.id: 1});
+    expect(game.challengers.map((c) => c.card), [yours]);
 
-    // Day 4: and fighting one, whose record counts once the day is over.
+    // Day 4: nor the one you fight. Yours is fought too; its record counts
+    // once the day is over.
     await game.advanceDay();
-    final opponent = game.fightChallenger!;
-    expect(game.challengers.map((c) => c.card), isNot(contains(opponent)));
     await game.submitFighters(game.collection.take(2).toList());
-    final fight = game.yourFight!;
-    expect(game.challengers.map((c) => c.card), contains(opponent));
-    expect(game.challengers.firstWhere((c) => c.card == opponent).winRate, isNull, reason: 'counts tomorrow');
+    expect(game.challengers.map((c) => c.card), [yours]);
+    expect(game.challengers.single.winRate, isNull, reason: 'counts tomorrow');
 
     await game.advanceDay();
-    final record = game.challengers.firstWhere((c) => c.card == opponent);
+    final record = game.challengers.single;
     expect(record.fights, 1);
-    expect(record.wins, fight.fightersWin ? 0 : 1);
+    expect(record.wins, yours.day.isEven ? 1 : 0);
     expect(game.pool, hasLength(pool));
   });
 

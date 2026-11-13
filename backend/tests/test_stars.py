@@ -64,7 +64,11 @@ class ChallengerStarTests(FightTestCase):
         # Day 5: the artist collects them, once.
         self.next_day()
         self.assertEqual(entry(artist)["stars_to_collect"], won)
-        self.assertEqual(entry(ADMIN)["stars_to_collect"], 0, "only for its artist")
+        self.assertNotIn(
+            challenger["id"],
+            [c["character"]["id"] for c in self.challengers(ADMIN)],
+            "only for its artist",
+        )
         before = self.stars(artist)
         response = self.collect(challenger["id"], artist)
         self.assertEqual(response.status_code, 200, response.text)

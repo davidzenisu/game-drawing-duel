@@ -338,31 +338,26 @@ class ChallengerListTests(FightTestCase):
         listed = self.get(f"/servers/{self.code}/challengers", subject).json()
         return {c["character"]["id"]: c for c in listed}
 
-    def test_challengers_you_drew_fought_or_boosted_with_their_record(self) -> None:
+    def test_only_the_challengers_you_drew_with_their_record(self) -> None:
         drawn = {
             subject: self.client.get(
                 f"/servers/{self.code}/challengers", headers=bearer(make_token(subject))
             ).json()[0]["character"]["id"]
             for subject in PLAYERS
         }
-        # Day 3: a player encounters the challengers they boost.
+        # Day 3: not the challengers a player boosts.
         [target] = self.today()["boost"]["targets"]
-        boosted = target["challenger"]["id"]
+        self.assertEqual(self.boost({target["challenger"]["id"]: 1}).status_code, 200)
         self.assertEqual(set(self.challengers()), {drawn[ADMIN]})
-        self.assertEqual(self.boost({boosted: 1}).status_code, 200)
-        self.assertEqual(set(self.challengers()), {drawn[ADMIN], boosted})
         self.next_day()
 
-        # Day 4: and the one they fight, whose record counts from tomorrow.
-        alex_fight = self.pick(self.owned()[:2]).json()["fight"]["yours"]
-        opponent = alex_fight["challenger"]["id"]
-        self.assertEqual(set(self.challengers()), {drawn[ADMIN], boosted, opponent})
-        self.assertEqual(self.challengers()[opponent]["fights"], 0)
+        # Day 4: nor the one they fight. Theirs is fought too, and its record
+        # counts from tomorrow.
+        self.pick(self.owned()[:2])
+        self.assertEqual(set(self.challengers()), {drawn[ADMIN]})
+        self.assertEqual(self.challengers()[drawn[ADMIN]]["fights"], 0)
         self.next_day()
-
-        record = self.challengers()[opponent]
-        wins = not alex_fight["outcome"]["fighters_win"]
-        self.assertEqual((record["fights"], record["wins"]), (1, int(wins)))
+        self.assertEqual(self.challengers()[drawn[ADMIN]]["fights"], 1)
 
     def test_pulls_never_return_challengers(self) -> None:
         challengers = set()
@@ -600,7 +595,7 @@ class FightPairingTests(FightTestCase):
 
 
 class FightReplayTests(FightTestCase):
-    def test_every_fight_of_a_past_day_replays(self) -> None:
+    def test_your_fights_of_a_past_day_replay(self) -> None:
         # Day 4: Alex picks fighters, the others leave it to chance.
         self.next_day()
         picked = self.pick(self.owned()[:1])
@@ -615,10 +610,15 @@ class FightReplayTests(FightTestCase):
             self.get(fights_url, SAM).json(),
             [{"day": 4, "date": (launched + timedelta(days=3)).isoformat()}],
         )
-        fights = self.get(f"{fights_url}/4", SAM).json()
-        self.assertEqual([f["owner_position"] for f in fights], [0, 1, 2])
-        self.assertEqual([f["by_chance"] for f in fights], [False, True, True])
-        challengers = {f["challenger"]["id"] for f in fights}
-        self.assertEqual(len(challengers), 3, "every challenger has its fight")
-        alex = fights[0]
+        # Sam left it to chance: only the fight against Sam's challenger.
+        [sams] = self.get(f"{fights_url}/4", SAM).json()
+        self.assertEqual(sams["challenger"]["artist_position"], 1)
+        # Alex: the fight Alex picked the fighters for, and the one against
+        # Alex's challenger.
+        fights = self.get(f"{fights_url}/4").json()
+        self.assertEqual(len(fights), 2)
+        [alex] = [f for f in fights if f["owner_position"] == 0]
+        self.assertFalse(alex["by_chance"])
         self.assertEqual(alex["id"], picked.json()["fight"]["yours"]["id"])
+        [against] = [f for f in fights if f["owner_position"] != 0]
+        self.assertEqual(against["challenger"]["artist_position"], 0)

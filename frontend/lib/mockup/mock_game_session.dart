@@ -885,19 +885,14 @@ class MockGameSession extends GameSession {
   /// one fight once fought, two days after: the even ones won it.
   @override
   List<ChallengerRecord> get challengers {
-    final encountered = <CharacterCard>{
-      ..._yourChallengers.values,
-      for (final given in _yourBoosts.entries)
-        for (final t in given.value.keys) _challenger(given.key - 1, _slotOf(t)),
-      for (final fight in _yourFights.values) fight.challenger,
-    };
+    // Like online, only the ones you drew (for now).
+    final encountered = <CharacterCard>{..._yourChallengers.values};
     ChallengerRecord record(CharacterCard card) {
-      final yours = _yourChallengers.containsValue(card);
-      final fought = _yourFights.values.where((f) => f.challenger.id == card.id && f.day < _day).toList();
-      final fights = yours ? (_day > card.day + 2 ? 1 : 0) : fought.length;
-      final wins = yours ? (fights > 0 && card.day.isEven ? 1 : 0) : fought.where((f) => !f.fightersWin).length;
+      // Fought once, two days after it was drawn; the even days' ones won.
+      final fights = _day > card.day + 2 ? 1 : 0;
+      final wins = fights > 0 && card.day.isEven ? 1 : 0;
       // Like online, the artist collects its stars in a fight it won.
-      final stars = yours && wins > 0 ? Stars.ofChallenger(_boostStars(card)) : 0;
+      final stars = wins > 0 ? Stars.ofChallenger(_boostStars(card)) : 0;
       final collected = _collectedChallengers.contains(card.id);
       return ChallengerRecord(
         card: card,
@@ -932,19 +927,18 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  int _slotOf(String challengerId) => int.parse(challengerId.split('-').last);
-
   /// Like online, the days before today with fights: two days after
   /// friends drew challengers. A speed session plays them all on its
   /// launch date.
   @override
   Future<List<FightDay>> fightDays() async => [
     for (var day = _day - 1; day >= LoopStep.fight; day--)
-      if (_drawnOn(day - 2)) FightDay(day: day, date: server.isSpeed ? _days.dateOf(1) : _days.dateOf(day)),
+      if (_drawnOn(day - 2) && (await fightsOn(day)).isNotEmpty)
+        FightDay(day: day, date: server.isSpeed ? _days.dateOf(1) : _days.dateOf(day)),
   ];
 
-  /// The fights of [day], against the challengers drawn two days before.
-  /// Like online, everyone who draws fights, whether they drew that day or
+  /// The fights of [day] you may replay, against the challengers drawn two
+  /// days before. Like online, everyone who draws fights, whether they drew that day or
   /// not: you (or chance for you) against the fourth friend's challenger,
   /// and each friend who drew against the next challenger that isn't their
   /// own and nobody fights yet. Without yours, one is fought twice. Like in
@@ -967,7 +961,12 @@ class MockGameSession extends GameSession {
       fought.add(challenger.id);
       fights.add(_cannedFight(day, challenger, friend));
     }
-    return fights;
+    // Like online, only yours to replay: the one you picked the fighters for
+    // and the ones against your challenger.
+    return [
+      for (final fight in fights)
+        if (fight == _yourFights[day] || fight.challenger.artist == you.name) fight,
+    ];
   }
 
   /// A friend's (or chance's) fighters from the pool against [challenger]:
