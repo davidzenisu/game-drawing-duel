@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../widgets/card_art.dart';
+import '../widgets/game_action.dart';
 
 /// The challengers you encountered (drew, fought against or boosted) with
-/// their win rates. Challengers don't join the gacha pool.
+/// their win rates. Challengers don't join the gacha pool. The ones you drew
+/// that won a fight have its stars for you to collect.
 class ChallengersScreen extends StatelessWidget {
   const ChallengersScreen({super.key, required this.controller});
 
@@ -33,13 +36,17 @@ class ChallengersScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 170,
-                    // Room for titles on two lines.
-                    mainAxisExtent: 336,
+                    // Room for titles on two lines, and collecting stars.
+                    mainAxisExtent: 392,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
                   itemCount: challengers.length,
-                  itemBuilder: (context, index) => _ChallengerTile(record: challengers[index]),
+                  itemBuilder: (context, index) => _ChallengerTile(
+                    record: challengers[index],
+                    onCollect: () =>
+                        runGameAction(context, () => controller.collectChallengerStars(challengers[index])),
+                  ),
                 ),
         );
       },
@@ -48,9 +55,10 @@ class ChallengersScreen extends StatelessWidget {
 }
 
 class _ChallengerTile extends StatelessWidget {
-  const _ChallengerTile({required this.record});
+  const _ChallengerTile({required this.record, required this.onCollect});
 
   final ChallengerRecord record;
+  final VoidCallback onCollect;
 
   /// E.g. "Won 2 of 3 · 67%".
   static String recordLabel(ChallengerRecord record) => switch (record.winRate) {
@@ -70,6 +78,28 @@ class _ChallengerTile extends StatelessWidget {
         const SizedBox(height: 4),
         Text(recordLabel(record), style: text.labelMedium, textAlign: TextAlign.center),
         Text('Day ${card.day} · by ${card.artist}', style: text.labelSmall, textAlign: TextAlign.center),
+        const SizedBox(height: 4),
+        if (record.starsToCollect > 0)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: FilledButton.icon(
+              onPressed: onCollect,
+              icon: const Icon(Icons.star_rounded, color: AppPalette.star),
+              label: Text('Collect ${record.starsToCollect}'),
+            ),
+          )
+        else if (record.starsCollected > 0)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star_rounded, size: 16, color: AppPalette.star),
+                const SizedBox(width: 4),
+                Text('${record.starsCollected} collected', style: text.labelMedium),
+              ],
+            ),
+          ),
       ],
     );
   }

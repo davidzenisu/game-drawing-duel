@@ -68,6 +68,7 @@ class HeroesMenuScreen extends StatelessWidget {
                           HubTile(
                             icon: Icons.shield_rounded,
                             title: 'Challengers',
+                            badge: c.challengersToCollect,
                             onTap: () => open(ChallengersScreen(controller: c)),
                           ),
                           HubTile(

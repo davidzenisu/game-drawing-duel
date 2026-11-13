@@ -47,6 +47,7 @@ A tap on the pulls chip opens a small menu under it with your **stars** ⭐, the
 - writing a challenger title (step 1): 3 stars;
 - drawing a challenger (step 2): 3 stars, besides its pull;
 - winning a fight you picked the fighters for (step 4): the challenger's stars (its own and its boost stars), besides the pull.
+- drawing a challenger that wins a fight: its stars in that fight (its own and its boost stars), whoever picked the fighters, even chance. Its artist collects them in the **Challengers** menu, on the challenger's card, from the day after the fight: the 5th day of the rotation. The Challengers button, and the Heroes button on the hub, show a badge counting the challengers with stars to collect.
 
 Each reward counts once. The victory stars of the fights won before stars came in carried over.
 

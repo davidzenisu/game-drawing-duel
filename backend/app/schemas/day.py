@@ -181,6 +181,10 @@ class ChallengerResponse(BaseModel):
     # Its decided fights, and how many of them it won.
     fights: int
     wins: int
+    # For its artist: the stars it won in its fights, to collect, and the
+    # ones collected already.
+    stars_to_collect: int = 0
+    stars_collected: int = 0
 
 
 class FightersSubmit(BaseModel):

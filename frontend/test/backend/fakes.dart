@@ -554,6 +554,15 @@ class FakeBackend {
         }
         return _json(200, _giftsFor(code, yours));
       }
+      if (request.method == 'POST' && path.length == 5 && path[2] == 'challengers' && path[4] == 'stars') {
+        final record = _challengers(code, myId).where((r) => (r['character'] as Map)['id'] == path[3]).firstOrNull;
+        final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);
+        if (record == null || (record['character'] as Map)['artist_position'] != yours) {
+          return _json(404, {'detail': "You didn't draw this challenger"});
+        }
+        collectedChallengers.add((code, path[3]));
+        return _json(200, _challengers(code, myId));
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'challengers') {
         return _json(200, _challengers(code, myId));
       }
@@ -696,7 +705,10 @@ class FakeBackend {
     final written = prompts.keys.where((k) => k.$1 == code && k.$2 == yours).length;
     final drawn = _characters(code).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
     final won = _wins(code, yours).fold<int>(0, (sum, f) => sum + (_outcome(f)['challenger_stars'] as int));
-    return 3 * written + 3 * drawn + won;
+    final collected = [
+      for (final r in _challengers(code, playerId)) r['stars_collected'] as int,
+    ].fold(0, (a, b) => a + b);
+    return 3 * written + 3 * drawn + won + collected;
   }
 
   /// The fights [seat] won: each earns a pull and the challenger's stars.
@@ -901,6 +913,9 @@ class FakeBackend {
 
   /// The challengers you drew, fought or boosted; fights count once their
   /// day is over.
+  /// The challengers whose stars their artist collected, by server code.
+  final Set<(String, Object?)> collectedChallengers = {};
+
   List<Map<String, Object?>> _challengers(String code, String playerId) {
     final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
     final all = fights[code] ?? const [];
@@ -914,7 +929,18 @@ class FakeBackend {
           () {
             final decided = all.where((f) => f.challenger['id'] == c['id'] && f.day < days[code]!);
             final wins = decided.where((f) => _outcome(f)['fighters_win'] == false);
-            return {'character': c, 'fights': decided.length, 'wins': wins.length};
+            // Like the real API: its artist collects its stars in each win.
+            final stars = c['artist_position'] == yours
+                ? wins.fold<int>(0, (sum, f) => sum + (_outcome(f)['challenger_stars'] as int))
+                : 0;
+            final collected = collectedChallengers.contains((code, c['id']));
+            return {
+              'character': c,
+              'fights': decided.length,
+              'wins': wins.length,
+              'stars_to_collect': collected ? 0 : stars,
+              'stars_collected': collected ? stars : 0,
+            };
           }(),
     ];
   }
