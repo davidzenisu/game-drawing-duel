@@ -42,6 +42,8 @@ class DrawingScreen extends StatefulWidget {
     this.noBackingOut = false,
     this.nameplate = false,
     this.startOnReady = false,
+    this.save,
+    this.then,
   });
 
   final String subject;
@@ -81,6 +83,15 @@ class DrawingScreen extends StatefulWidget {
   /// its info can be read first. Until then, nothing can be drawn and
   /// leaving is allowed.
   final bool startOnReady;
+
+  /// Saves the drawing once Done is pressed, e.g. uploads it: the clock
+  /// stops and the screen says it's saving until it's done. Completes with
+  /// whether it worked; if not, the screen stays for Done to try again.
+  final Future<bool> Function(DrawingResult result)? save;
+
+  /// The screen that takes this one's place once the drawing is done (and
+  /// saved), e.g. its recap; without it, the screen pops with the result.
+  final Widget Function(DrawingResult result)? then;
 
   @override
   State<DrawingScreen> createState() => _DrawingScreenState();
@@ -189,7 +200,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     super.dispose();
   }
 
-  bool get _canSubmit => !_pad.isEmpty;
+  bool get _canSubmit => !_pad.isEmpty && !_saving;
 
   /// Done: a title given by the prompt goes with it as is, otherwise it's
   /// asked for now, so typing it never takes room from the canvas.
@@ -208,13 +219,35 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     builder: (_) => _TitleDialog(initial: _title.text),
   );
 
-  void _submit() {
+  /// Whether the drawing is being saved, see [DrawingScreen.save].
+  bool _saving = false;
+
+  Future<void> _submit() async {
+    final result = DrawingResult(
+      _pad.toSketch(),
+      _title.text.trim(),
+      hurriedBy: [for (final hurry in widget.hurries) hurry.by],
+    );
+    // The drawing is done: the clock stops and the canvas closes.
     _ticker?.cancel();
+    _stopwatch.stop();
+    if (widget.save case final save?) {
+      _pad.lock();
+      setState(() => _saving = true);
+      final saved = await save(result);
+      if (!mounted) return;
+      setState(() => _saving = false);
+      // Done tries again; there's still no backing out.
+      if (!saved) return;
+    }
     _done = true;
     _leaveGuard.disable();
-    Navigator.of(context).pop(
-      DrawingResult(_pad.toSketch(), _title.text.trim(), hurriedBy: [for (final hurry in widget.hurries) hurry.by]),
-    );
+    final navigator = Navigator.of(context);
+    if (widget.then case final then?) {
+      navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => then(result)), result: result);
+    } else {
+      navigator.pop(result);
+    }
   }
 
   void _blockedBack() {
@@ -259,7 +292,13 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
         if (!didPop) _blockedBack();
       },
       child: Scaffold(
-        body: widget.theme == null ? body : ThemedBackground(theme: widget.theme!, child: body),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            widget.theme == null ? body : ThemedBackground(theme: widget.theme!, child: body),
+            if (_saving) const _Saving(),
+          ],
+        ),
       ),
     );
   }
@@ -686,6 +725,35 @@ class _TitleDialogState extends State<_TitleDialog> {
         TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Keep drawing')),
         FilledButton(onPressed: title.isEmpty ? null : save, child: const Text('Save')),
       ],
+    );
+  }
+}
+
+/// Over the whole screen while the drawing is saved: nothing else happens
+/// until it's done.
+class _Saving extends StatelessWidget {
+  const _Saving();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black54,
+      child: Center(
+        child: Card(
+          margin: const EdgeInsets.all(24),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 3)),
+                const SizedBox(width: 16),
+                Flexible(child: Text('Saving your drawing…', style: Theme.of(context).textTheme.titleMedium)),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

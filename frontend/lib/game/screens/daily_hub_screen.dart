@@ -105,7 +105,9 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     await showTutorialOnce(context, _controller, Tutorial.draw);
     if (!mounted) return;
     final prompt = _controller.promptToDraw!;
-    final result = await Navigator.of(context).push<DrawingResult>(
+    // The drawing is uploaded before anything else shows, then its recap
+    // takes its place; the pull it earns is celebrated once you're back.
+    await Navigator.of(context).push<DrawingResult>(
       MaterialPageRoute(
         builder: (_) => DrawingScreen(
           subject: prompt.subject.name,
@@ -124,12 +126,11 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           noBackingOut: true,
           nameplate: true,
           startOnReady: true,
+          save: (result) => runGameAction(context, () => _controller.submitChallenger(result.sketch)),
+          then: (result) => DrawingRecapScreen(subject: prompt.subject.name, result: result, theme: prompt.theme),
         ),
       ),
     );
-    if (result == null || !mounted) return;
-    if (!await runGameAction(context, () => _controller.submitChallenger(result.sketch)) || !mounted) return;
-    await _open(DrawingRecapScreen(subject: prompt.subject.name, result: result, theme: prompt.theme));
   }
 
   Future<void> _nextDay() async {
