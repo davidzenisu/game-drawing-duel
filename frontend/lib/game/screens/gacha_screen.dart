@@ -110,7 +110,7 @@ class _GachaScreenState extends State<GachaScreen> {
           appBar: AppBar(
             title: const Text('Summon'),
             actions: [
-              TicketChip(tickets: controller.tickets),
+              TicketChip(tickets: controller.tickets, stars: controller.stars),
               const SizedBox(width: 12),
             ],
           ),

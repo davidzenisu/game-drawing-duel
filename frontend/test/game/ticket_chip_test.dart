@@ -130,4 +130,22 @@ void main() {
     expect((ticket - chip).distance, lessThan(12));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('a tap on the chip shows your stars under it', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(appBar: AppBar(actions: const [TicketChip(tickets: 3, stars: 17)])),
+      ),
+    );
+    expect(find.text('17 stars'), findsNothing);
+    await tester.tap(find.byType(TicketChip));
+    await tester.pumpAndSettle();
+    expect(find.text('17 stars'), findsOneWidget);
+    expect(find.textContaining('for writing a title'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('17 stars')).dy,
+      greaterThan(tester.getBottomLeft(find.byType(Chip)).dy),
+      reason: 'below the pulls',
+    );
+  });
 }

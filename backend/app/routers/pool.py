@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import fights, finale, pulls, upgrades
+from app import finale, pulls, stars, upgrades
 from app.auth import CurrentPlayer
 from app.deps import (
     Code,
@@ -59,13 +59,15 @@ def get_pool(
 
 def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
     state = pulls.gacha_state(session, seat.id)
+    balance = stars.balance(session, seat.id)
     return GachaResponse(
         tickets=pulls.tickets(session, seat.id),
         total_pulls=state.total_pulls,
         pulls_until_legend=state.pulls_until_legend,
         beginner_pulls_left=state.beginner_pulls_left,
         rate_up=sorted(pulls.rate_up(session, seat.server_id)),
-        victory_stars=fights.victory_stars(session, seat.id),
+        stars=balance,
+        victory_stars=balance,
     )
 
 

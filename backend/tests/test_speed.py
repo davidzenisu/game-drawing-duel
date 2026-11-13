@@ -174,7 +174,8 @@ class SpeedDayTests(SpeedTestCase):
         # Day 4: the fights.
         while self.today()["day"] < 4:
             self.post("days/next")
-        tickets = self.get(f"/servers/{self.code}/gacha").json()["tickets"]
+        gacha = self.get(f"/servers/{self.code}/gacha").json()
+        tickets, stars = gacha["tickets"], gacha["stars"]
         owned = [
             o["character"]["id"]
             for o in self.get(f"/servers/{self.code}/collection").json()
@@ -190,7 +191,7 @@ class SpeedDayTests(SpeedTestCase):
         self.assertGreater(outcome["challenger_stars"], 3, "boosted")
         gacha = self.get(f"/servers/{self.code}/gacha").json()
         self.assertEqual(gacha["tickets"], tickets + outcome["challenger_stars"])
-        self.assertEqual(gacha["victory_stars"], outcome["challenger_stars"])
+        self.assertEqual(gacha["stars"], stars + outcome["challenger_stars"])
 
     def test_prompts_are_written_on_the_first_three_days_only(self) -> None:
         for day in range(1, 4):

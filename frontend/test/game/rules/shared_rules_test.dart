@@ -133,6 +133,11 @@ void main() {
     expect(Boost.maxPerChallenger, boost['max_per_challenger']);
   });
 
+  test('stars', () {
+    final stars = rules['stars'] as Map<String, dynamic>;
+    expect((StarRewards.prompt, StarRewards.challenger), (stars['prompt'], stars['challenger']));
+  });
+
   test('hurry', () {
     final hurry = rules['hurry'] as Map<String, dynamic>;
     double seconds(Duration d) => d.inMicroseconds / Duration.microsecondsPerSecond;

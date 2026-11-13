@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import day_flow, days, fights, finale, speed, win_rates
+from app import day_flow, days, fights, finale, speed, stars, win_rates
 from app.auth import CurrentPlayer
 from app.deps import Code, DbSession, running_game
 from app.drawings import save_character
@@ -27,6 +27,8 @@ from app.rules import (
     BOOST_MAX_PER_CHALLENGER,
     BOOST_STARS,
     SPEED_DAYS,
+    STARS_FOR_CHALLENGER,
+    STARS_FOR_PROMPT,
     WIN_RATE_MIN_FIGHTS,
     Rarity,
     hurry_hits,
@@ -243,7 +245,7 @@ def write_prompt(
 ) -> TodayResponse:
     """Step 1: chooses the person who fits today's description best (anyone
     but yourself) and writes their challenger title; the next player draws
-    it tomorrow. Once a day."""
+    it tomorrow. Earns stars (`rules.STARS_FOR_PROMPT`). Once a day."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     if not days.prompts_on(server, day):
@@ -268,6 +270,7 @@ def write_prompt(
             hint=days.prompt_hint(session, server, day, seat),
         )
     )
+    session.add(stars.grant(seat.id, f"prompt:day-{day}", STARS_FOR_PROMPT))
     try:
         session.commit()
     except IntegrityError as error:
@@ -288,7 +291,7 @@ def draw_challenger(
     files: Files,
 ) -> TodayResponse:
     """Step 2: draws today's prompt. The challenger joins the pool as a hero
-    and earns a pull. Once a day."""
+    and earns a pull and stars (`rules.STARS_FOR_CHALLENGER`). Once a day."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     prompt = days.prompt_to_draw(session, server, day, seat)
@@ -315,6 +318,9 @@ def draw_challenger(
     def reward() -> None:
         # Besides a won fight, the only pull to earn each day.
         session.add(PullGrant(seat_id=seat.id, reason=f"challenger:day-{day}"))
+        session.add(
+            stars.grant(seat.id, f"challenger:day-{day}", STARS_FOR_CHALLENGER)
+        )
 
     save_character(
         session,
@@ -337,8 +343,8 @@ def pick_fighters(
     """Step 4: sends up to four of your characters against today's
     challenger, boosted yesterday. The stars decide right away: a win earns
     a pull (`fight:day-N`), or in speed mode one per challenger star
-    (`fight:day-N:1`, …), and the challenger's stars as victory stars. Once
-    a day, and every character but the basic ones once a week."""
+    (`fight:day-N:1`, …), and the challenger's stars as stars (`app.stars`).
+    Once a day, and every character but the basic ones once a week."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     fights.complete_boosts(session, server, day - 1)
@@ -369,6 +375,9 @@ def pick_fighters(
             PullGrant(seat_id=seat.id, reason=reason)
             for reason in fights.win_rewards(server, day, fight)
         )
+        session.add(
+            stars.grant(seat.id, f"fight:day-{day}", fight.challenger_stars)
+        )
     try:
         session.commit()
     except IntegrityError as error:
@@ -389,13 +398,13 @@ def boost(
     the stars you left."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
-    stars = {b.challenger_id: b.stars for b in body.boosts}
-    if len(stars) != len(body.boosts):
+    given = {b.challenger_id: b.stars for b in body.boosts}
+    if len(given) != len(body.boosts):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Boost every challenger once"
         )
     try:
-        fights.set_boosts(session, server, day, seat, stars)
+        fights.set_boosts(session, server, day, seat, given)
     except fights.InvalidBoost as error:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
     except IntegrityError as error:

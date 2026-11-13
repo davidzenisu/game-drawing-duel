@@ -217,13 +217,13 @@ class FightTests(FightTestCase):
     def test_a_win_earns_a_pull_and_the_challengers_stars(self) -> None:
         self.next_day()
         gacha = self.get(f"/servers/{self.code}/gacha").json()
-        self.assertEqual(gacha["victory_stars"], 0)
         with patch.object(rules, "team_stars", lambda team: 99):
             won = self.pick(self.owned()[:1]).json()["fight"]["yours"]["outcome"]
         self.assertTrue(won["fighters_win"])
         after = self.get(f"/servers/{self.code}/gacha").json()
         self.assertEqual(after["tickets"], gacha["tickets"] + 1, "a pull")
-        self.assertEqual(after["victory_stars"], won["challenger_stars"])
+        self.assertEqual(after["stars"], gacha["stars"] + won["challenger_stars"])
+        self.assertEqual(after["victory_stars"], after["stars"], "for older apps")
 
         # A loss earns nothing.
         before = self.get(f"/servers/{self.code}/gacha", SAM).json()
@@ -236,7 +236,7 @@ class FightTests(FightTestCase):
         # and stars: the next day may be a Monday, with a new rate-up.)
         def rewards(subject: str) -> tuple[int, int]:
             gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
-            return gacha["tickets"], gacha["victory_stars"]
+            return gacha["tickets"], gacha["stars"]
 
         before = rewards(ROBIN)
         with patch.object(rules, "team_stars", lambda team: 99):

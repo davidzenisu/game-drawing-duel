@@ -755,6 +755,7 @@ void main() {
       await nextDay();
       expect(admin.fightChallenger!.id, samsChallenger);
       backend.extraStars['fight-4-0'] = (challenger: 1, fighters: [2, 0]);
+      final starsBefore = admin.stars;
       await admin.submitFighters(admin.collection.take(2).toList());
       final fighters = backend.requests.lastWhere((r) => r.method == 'PUT');
       expect(fighters.url.path, '/servers/123456/today/fighters');
@@ -768,7 +769,7 @@ void main() {
       expect(fight.fightersWin, fight.fighterStars + 2 > 6);
       // A win earns a pull and the challenger's stars, reloaded right away.
       expect(backend.requests.last.url.path, '/servers/123456/gacha');
-      expect(admin.victoryStars, fight.fightersWin ? 5 : 0);
+      expect(admin.stars - starsBefore, fight.fightersWin ? 5 : 0);
       expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
       expect(admin.restingCharacterIds, isEmpty);
 

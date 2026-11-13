@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
+import '../rules/daily_loop.dart';
 
-/// Shows the number of available gacha pulls and pops when it changes.
+/// Shows the number of available gacha pulls and pops when it changes. A
+/// tap opens a menu under it with your [stars], the currency.
 ///
 /// New pulls are celebrated: a big ticket with the pulls received rises in
 /// the middle of a darkened screen, then flies into the chip, whose count
@@ -13,9 +15,12 @@ import '../../theme/palette.dart';
 /// covered (e.g. the pull a drawing earns) are celebrated once you're back
 /// and the page on top is gone. Landed, the count goes up one pull at a time.
 class TicketChip extends StatefulWidget {
-  const TicketChip({super.key, required this.tickets});
+  const TicketChip({super.key, required this.tickets, this.stars = 0});
 
   final int tickets;
+
+  /// Your stars, shown in the menu under the chip.
+  final int stars;
 
   @override
   State<TicketChip> createState() => _TicketChipState();
@@ -166,6 +171,16 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    return PopupMenuButton<void>(
+      tooltip: 'Pulls and stars',
+      position: PopupMenuPosition.under,
+      // A tap on it just closes the menu.
+      itemBuilder: (_) => [PopupMenuItem<void>(child: _StarsInfo(stars: widget.stars))],
+      child: _chip(),
+    );
+  }
+
+  Widget _chip() {
     return Chip(
       avatar: const Icon(Icons.confirmation_number_rounded, color: AppPalette.ticket),
       label: AnimatedSwitcher(
@@ -175,6 +190,44 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
           child: child,
         ),
         child: Text('$_shown pulls', key: ValueKey(_shown)),
+      ),
+    );
+  }
+}
+
+/// Your stars, and what earns them: the menu under the pulls chip.
+class _StarsInfo extends StatelessWidget {
+  const _StarsInfo({required this.stars});
+
+  final int stars;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.star_rounded, color: AppPalette.star),
+              const SizedBox(width: 8),
+              Text(
+                '$stars ${stars == 1 ? 'star' : 'stars'}',
+                style: textTheme.titleMedium?.copyWith(color: colors.onSurface, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Earn ${StarRewards.prompt} for writing a title, ${StarRewards.challenger} for drawing a challenger, '
+            'and a challenger\'s stars for beating it.',
+            style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }

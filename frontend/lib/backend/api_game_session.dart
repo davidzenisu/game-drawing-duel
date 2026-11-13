@@ -31,7 +31,7 @@ class ApiGameSession extends GameSession {
   List<CharacterCard> _pool = const [];
   List<OwnedCard> _collection = const [];
   int _tickets = 0;
-  int _victoryStars = 0;
+  int _stars = 0;
   GachaStatus _gachaStatus = GachaMachine().status;
   Set<String> _rateUp = const {};
 
@@ -802,10 +802,9 @@ class ApiGameSession extends GameSession {
       'pulls_until_legend': int untilLegend,
       'beginner_pulls_left': int? beginnerLeft,
       'rate_up': List rateUp,
-      'victory_stars': int victoryStars,
     }) {
       _tickets = tickets;
-      _victoryStars = victoryStars;
+      _stars = json['stars'] as int? ?? 0;
       _rateUp = {for (final id in rateUp) id as String};
       _gachaStatus = GachaStatus(
         totalPulls: totalPulls,
@@ -1008,7 +1007,7 @@ class ApiGameSession extends GameSession {
   int get tickets => _tickets;
 
   @override
-  int get victoryStars => _victoryStars;
+  int get stars => _stars;
 
   @override
   GachaStatus get gachaStatus => _gachaStatus;
@@ -1091,7 +1090,7 @@ class ApiGameSession extends GameSession {
     });
     await _setToday(server, json);
     await _reloadChallengers(server);
-    // A win earns a pull and victory stars.
+    // A win earns a pull and stars.
     _setGacha(await _get('/servers/${server.code}/gacha'));
     notifyListeners();
   }

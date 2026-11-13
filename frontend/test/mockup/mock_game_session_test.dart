@@ -280,9 +280,11 @@ void main() {
     final game = await launchedGame();
     final you = game.you;
 
-    // Day 1: write a prompt.
+    // Day 1: write a prompt, for stars.
     final hint = game.promptHint;
+    expect(game.stars, 0);
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
+    expect(game.stars, StarRewards.prompt);
     expect(game.yourPrompt?.hint, hint);
 
     // Day 2: draw someone else's prompt from yesterday, with its description.
@@ -296,6 +298,7 @@ void main() {
     final tickets = game.tickets;
     await game.submitChallenger(doodle);
     expect(game.tickets, tickets + 1);
+    expect(game.stars, StarRewards.prompt + StarRewards.challenger, reason: 'and stars');
     expect(game.yourChallenger?.title, toDraw.title);
     final drawn = game.yourChallenger!;
     await game.submitChallenger(doodle);
@@ -335,11 +338,12 @@ void main() {
     expect(targets.map((t) => t.challenger.id), isNot(contains(challenger.id)));
     await expectLater(game.submitFighters(game.collection.take(5).toList()), throwsArgumentError);
     final ticketsBefore = game.tickets;
+    final starsBefore = game.stars;
     await game.submitFighters(game.collection.take(4).toList());
     final fight = game.yourFight!;
     // A win earns a pull and the challenger's stars.
     expect(game.tickets, ticketsBefore + (fight.fightersWin ? 1 : 0));
-    expect(game.victoryStars, fight.fightersWin ? fight.challengerStars : 0);
+    expect(game.stars - starsBefore, fight.fightersWin ? fight.challengerStars : 0);
     expect(fight.fighters, hasLength(4));
     expect(fight.fighterStars, Stars.ofTeam(fight.fighters.map((f) => f.card.rarity)));
     expect(fight.fightersWin, fight.fighterStars > Stars.ofChallenger(fight.boostStars));

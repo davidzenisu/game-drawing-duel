@@ -689,6 +689,16 @@ class FakeBackend {
     return launchBonus + challengers + _wins(code, yours).length + gifted - (pulls[(code, playerId)]?.length ?? 0);
   }
 
+  /// Like the real API: 3 stars for each prompt written and challenger
+  /// drawn, and the challenger's stars for each fight won.
+  int _stars(String code, String playerId) {
+    final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
+    final written = prompts.keys.where((k) => k.$1 == code && k.$2 == yours).length;
+    final drawn = _characters(code).where((c) => c['prompt'] == 'challenger' && c['artist_position'] == yours).length;
+    final won = _wins(code, yours).fold<int>(0, (sum, f) => sum + (_outcome(f)['challenger_stars'] as int));
+    return 3 * written + 3 * drawn + won;
+  }
+
   /// The fights [seat] won: each earns a pull and the challenger's stars.
   Iterable<FakeFight> _wins(String code, int seat) => [
     for (final f in fights[code] ?? const <FakeFight>[])
@@ -917,10 +927,8 @@ class FakeBackend {
       'pulls_until_legend': 50 - total,
       'beginner_pulls_left': total < 10 ? 10 - total : null,
       'rate_up': _rateUp(code),
-      'victory_stars': _wins(
-        code,
-        servers[code]!.seats.indexWhere((s) => s['player'] == playerId),
-      ).fold<int>(0, (sum, f) => sum + (_outcome(f)['challenger_stars'] as int)),
+      'stars': _stars(code, playerId),
+      'victory_stars': _stars(code, playerId),
     };
   }
 
