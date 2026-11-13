@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/palette.dart';
 import '../game_session.dart';
 import 'game_action.dart';
+import 'ticket_chip.dart';
 
 /// App bar button opening the notification board; its badge counts the
 /// gifts waiting to be accepted.
@@ -32,7 +33,8 @@ class NotificationBoardButton extends StatelessWidget {
 }
 
 /// What's new for you: for now the gifts waiting to be accepted, each with
-/// its message and pulls. Their pulls count once accepted.
+/// its message, pulls and stars (or just a message, to mark as read). Their
+/// pulls and stars count once accepted.
 class NotificationBoard extends StatelessWidget {
   const NotificationBoard({super.key, required this.session});
 
@@ -111,10 +113,10 @@ class _GiftCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            const CircleAvatar(
-              backgroundColor: AppPalette.ticket,
+            CircleAvatar(
+              backgroundColor: gift.justMessage ? Theme.of(context).colorScheme.primary : AppPalette.ticket,
               foregroundColor: Colors.white,
-              child: Icon(Icons.card_giftcard_rounded),
+              child: Icon(gift.justMessage ? Icons.mail_rounded : Icons.card_giftcard_rounded),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -122,18 +124,20 @@ class _GiftCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(gift.message, style: textTheme.bodyLarge),
-                  const SizedBox(height: 2),
-                  Text(
-                    '+${gift.pulls} ${gift.pulls == 1 ? 'pull' : 'pulls'}',
-                    style: textTheme.labelLarge?.copyWith(color: AppPalette.ticket, fontWeight: FontWeight.w800),
-                  ),
+                  if (!gift.justMessage) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      PullsReceived.label(pulls: gift.pulls, stars: gift.stars),
+                      style: textTheme.labelLarge?.copyWith(color: AppPalette.ticket, fontWeight: FontWeight.w800),
+                    ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(width: 8),
             FilledButton(
               onPressed: () => runGameAction(context, () => session.acceptGift(gift)),
-              child: const Text('Accept'),
+              child: Text(gift.justMessage ? 'OK' : 'Accept'),
             ),
           ],
         ),

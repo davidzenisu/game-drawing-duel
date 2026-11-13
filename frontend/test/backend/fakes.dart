@@ -171,6 +171,9 @@ class FakeBackend {
   /// server code, else to the seats at positions (or all) of that server.
   final List<({String id, String message, int pulls, String? serverCode, List<int>? positions})> gifts = [];
 
+  /// The stars of the gifts that give some, by gift id.
+  final Map<String, int> giftStars = {};
+
   /// Accepted gifts by server code and seat: their ids.
   final Map<(String, int), Set<String>> acceptedGifts = {};
 
@@ -180,7 +183,13 @@ class FakeBackend {
       if ((g.serverCode == null || g.serverCode == code) &&
           (g.positions == null || g.positions!.contains(position)) &&
           !(acceptedGifts[(code, position)]?.contains(g.id) ?? false))
-        {'id': g.id, 'message': g.message, 'pulls': g.pulls, 'sent_at': '2026-11-09T10:00:00Z'},
+        {
+          'id': g.id,
+          'message': g.message,
+          'pulls': g.pulls,
+          'stars': giftStars[g.id] ?? 0,
+          'sent_at': '2026-11-09T10:00:00Z',
+        },
   ];
 
   /// The feedback boards by server code: each suggestion with its author's
@@ -343,6 +352,7 @@ class FakeBackend {
           serverCode: code,
           positions: positions,
         ));
+        giftStars[id] = body['stars'] as int? ?? 0;
         return _json(201, {'id': id, 'recipients': recipients});
       }
     }
@@ -720,7 +730,11 @@ class FakeBackend {
     final collected = [
       for (final r in _challengers(code, playerId)) r['stars_collected'] as int,
     ].fold(0, (a, b) => a + b);
-    return 3 * written + 3 * drawn + won + collected - 10 * (starPulls[(code, playerId)] ?? 0);
+    final gifted = [
+      for (final g in gifts)
+        if (acceptedGifts[(code, yours)]?.contains(g.id) ?? false) giftStars[g.id] ?? 0,
+    ].fold(0, (a, b) => a + b);
+    return 3 * written + 3 * drawn + won + collected + gifted - 10 * (starPulls[(code, playerId)] ?? 0);
   }
 
   /// Like the real API, the fights the player may replay: theirs (the fake

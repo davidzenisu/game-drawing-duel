@@ -82,20 +82,58 @@ void main() {
     await tester.pump();
     expect(button().onPressed, isNotNull);
 
-    // Out of range pulls can't be sent.
-    await tester.enterText(find.widgetWithText(TextField, 'Pulls per player'), '0');
+    // Out of range pulls or stars can't be sent.
+    await tester.enterText(find.widgetWithText(TextField, 'Pulls per player'), '101');
     await tester.pump();
     expect(button().onPressed, isNull);
     await tester.enterText(find.widgetWithText(TextField, 'Pulls per player'), '5');
+    await tester.enterText(find.widgetWithText(TextField, 'Stars per player'), '1001');
+    await tester.pump();
+    expect(button().onPressed, isNull);
+    // With neither, it's just a message.
+    await tester.enterText(find.widgetWithText(TextField, 'Pulls per player'), '0');
+    await tester.enterText(find.widgetWithText(TextField, 'Stars per player'), '0');
+    await tester.pump();
+    await tester.scrollUntilVisible(find.text('Send message'), 100, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Send message'), findsOneWidget);
+    expect(find.text('Neither pulls nor stars: just the message.'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Pulls per player'), '5');
+    await tester.enterText(find.widgetWithText(TextField, 'Stars per player'), '25');
     await tester.pump();
 
     await tester.ensureVisible(send);
     await tester.tap(send);
     await tester.pumpAndSettle();
     expect(find.byType(SendGiftScreen), findsNothing);
-    expect(find.text('Sent 5 pulls to 1 player.'), findsOneWidget);
+    expect(find.text('Sent 5 pulls and 25 stars to 1 player.'), findsOneWidget);
     expect(game.gifts.single.message, 'Thanks for testing!');
+    expect((game.gifts.single.pulls, game.gifts.single.stars), (5, 25));
     expect(find.byTooltip('Notifications (1 new)'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a gift of stars shows them, and a message is just marked as read', (tester) async {
+    _phone(tester);
+    final game = await _hub(tester);
+    await game.acceptGift(game.gifts.single);
+    await game.sendGift(message: 'Stars for you', pulls: 0, stars: 20);
+    await game.sendGift(message: 'Maintenance tonight', pulls: 0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Notifications (2 new)'));
+    await tester.pumpAndSettle();
+    expect(find.text('+20 stars'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'OK'), findsOneWidget, reason: 'just a message');
+    expect(find.widgetWithText(FilledButton, 'Accept'), findsOneWidget);
+
+    final stars = game.stars;
+    await tester.tap(find.widgetWithText(FilledButton, 'Accept'));
+    await tester.pumpAndSettle();
+    expect(game.stars, stars + 20);
+    final tickets = game.tickets;
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+    expect(game.gifts, isEmpty);
+    expect((game.tickets, game.stars), (tickets, stars + 20), reason: 'a message gives nothing');
     await tester.pumpWidget(const SizedBox());
   });
 }

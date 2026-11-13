@@ -102,11 +102,41 @@ class GiftTests(GiftTestCase):
         first = self.gifts(SAM)[0]["id"]
         self.assertEqual(self.accept(first, ROBIN).status_code, 404, "not Robin's")
 
+    def stars(self, subject: str = ADMIN) -> int:
+        return self.get(f"/servers/{self.code}/gacha", subject).json()["stars"]
+
+    def test_a_gift_of_stars_or_both_counts_once_accepted(self) -> None:
+        sent = self.send(server_code=self.code, pulls=2, stars=25)
+        self.assertEqual(sent.status_code, 201, sent.text)
+        [gift] = self.gifts()
+        self.assertEqual((gift["pulls"], gift["stars"]), (2, 25))
+        tickets, stars = self.tickets(), self.stars()
+        self.accept(gift["id"])
+        self.assertEqual((self.tickets(), self.stars()), (tickets + 2, stars + 25))
+        self.accept(gift["id"])
+        self.assertEqual(self.stars(), stars + 25, "once")
+
+        self.send(server_code=self.code, pulls=0, stars=10)
+        [only_stars] = self.gifts()
+        self.accept(only_stars["id"])
+        self.assertEqual((self.tickets(), self.stars()), (tickets + 2, stars + 35))
+
+    def test_a_gift_can_be_just_a_message(self) -> None:
+        sent = self.send(server_code=self.code, pulls=0)
+        self.assertEqual(sent.status_code, 201, sent.text)
+        [gift] = self.gifts()
+        self.assertEqual((gift["message"], gift["pulls"], gift["stars"]), ("Sorry for the downtime!", 0, 0))
+        tickets, stars = self.tickets(), self.stars()
+        self.assertEqual(self.accept(gift["id"]).json(), [], "read: off the board")
+        self.assertEqual((self.tickets(), self.stars()), (tickets, stars))
+
     def test_invalid_gifts_are_refused(self) -> None:
         cases = [
             ({"positions": [1]}, "a server is needed for chosen players"),
             ({"server_code": "999999"}, "no such server"),
-            ({"server_code": None, "pulls": 0}, "at least one pull"),
+            ({"server_code": None, "pulls": -1}, "no negative pulls"),
+            ({"server_code": None, "stars": -1}, "no negative stars"),
+            ({"server_code": None, "stars": 1001}, "1000 stars at most"),
             ({"server_code": None, "message": "   "}, "a message"),
         ]
         for body, reason in cases:

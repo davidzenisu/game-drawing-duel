@@ -87,10 +87,11 @@ def list_servers(session: DbSession) -> list[AdminServer]:
 
 @router.post("/gifts", response_model=GiftSent, status_code=status.HTTP_201_CREATED)
 def send_gift(body: GiftSend, subject: Auth0Subject, session: DbSession) -> GiftSent:
-    """Gives pulls outside the regular rewards, with a message: to everyone
-    on every server without `server_code`, else to everyone on that server,
-    or only the players at `positions`. They see it on the app's
-    notification board and get the pulls once they accept it."""
+    """Gives pulls and stars outside the regular rewards, with a message (or
+    just a message, with neither): to everyone on every server without
+    `server_code`, else to everyone on that server, or only the players at
+    `positions`. They see it on the app's notification board and get the
+    pulls and stars once they accept it."""
     if body.server_code is None and body.positions is not None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -102,7 +103,13 @@ def send_gift(body: GiftSend, subject: Auth0Subject, session: DbSession) -> Gift
     sender = session.scalar(select(Player.id).where(Player.auth0_id == subject))
     try:
         gift, count = gifts.send(
-            session, sender, body.message, body.pulls, server, body.positions
+            session,
+            sender,
+            body.message,
+            body.pulls,
+            server,
+            body.positions,
+            stars=body.stars,
         )
     except gifts.GiftError as error:
         raise HTTPException(
