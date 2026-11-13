@@ -273,6 +273,67 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a failed save keeps the drawing for Done to try again, then the next screen takes its place', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var attempts = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<DrawingResult>(
+                builder: (_) => DrawingScreen(
+                  subject: 'Sam',
+                  prompt: '"Sauna Lord"',
+                  hint: 'A challenger prompt',
+                  rarity: Rarity.hero,
+                  initialTitle: 'Sauna Lord',
+                  titleLocked: true,
+                  timeLimit: challengerDrawTime,
+                  noBackingOut: true,
+                  save: (_) async {
+                    await Future<void>.delayed(const Duration(seconds: 1));
+                    return ++attempts > 1;
+                  },
+                  then: (result) => Scaffold(body: Text('Recap of ${result.title}')),
+                ),
+              ),
+            ),
+            child: const Text('Draw'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Draw'));
+    await tester.pumpAndSettle();
+    await tester.dragFrom(tester.getRect(find.byType(SketchPad)).center, const Offset(60, 30));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    expect(find.text('Saving your drawing…'), findsOneWidget);
+    final clock = find.textContaining(RegExp(r'^\d:\d\d$'));
+    final shown = tester.widget<Text>(clock).data;
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(find.text('Saving your drawing…'), findsNothing);
+    expect(find.byType(DrawingScreen), findsOneWidget, reason: 'it failed: still there');
+    expect(find.byType(BackButton), findsNothing, reason: 'still no backing out');
+    await tester.pump(const Duration(seconds: 5));
+    expect(tester.widget<Text>(clock).data, shown, reason: 'the clock stopped at Done');
+
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrawingScreen), findsNothing);
+    expect(find.text('Recap of Sauna Lord'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('running out of time with nothing drawn lets you leave', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
