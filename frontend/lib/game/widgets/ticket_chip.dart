@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
-import '../rules/daily_loop.dart';
 
 /// Shows the number of available gacha pulls and pops when it changes. A
 /// tap opens a menu under it with your [stars], the currency.
@@ -195,7 +194,8 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
   }
 }
 
-/// Your stars, and what earns them: the menu under the pulls chip.
+/// Your stars: the menu under the pulls chip. What earns them is in the
+/// intros (`Tutorial.welcome`).
 class _StarsInfo extends StatelessWidget {
   const _StarsInfo({required this.stars});
 
@@ -204,31 +204,19 @@ class _StarsInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final colors = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 260),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.star_rounded, color: AppPalette.star),
-              const SizedBox(width: 8),
-              Text(
-                '$stars ${stars == 1 ? 'star' : 'stars'}',
-                style: textTheme.titleMedium?.copyWith(color: colors.onSurface, fontWeight: FontWeight.bold),
-              ),
-            ],
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.star_rounded, color: AppPalette.star),
+        const SizedBox(width: 8),
+        Text(
+          '$stars ${stars == 1 ? 'star' : 'stars'}',
+          style: textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Earn ${StarRewards.prompt} for writing a title, ${StarRewards.challenger} for drawing a challenger, '
-            'and a challenger\'s stars for beating it.',
-            style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

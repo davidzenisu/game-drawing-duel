@@ -43,7 +43,7 @@ In the top right of the hub and the heroes menu, a **notification board** button
 
 Next to it, the **pulls** chip shows the pulls you have. New pulls, from a gift, a drawing or a win, are celebrated: the screen darkens, a big glowing ticket with "+N pulls" pops up in the middle, then flies into the chip, which counts up one pull at a time as it lands. Pulls earned on another screen (like the pull a drawing or a win earns) are celebrated once you're back on a screen with the chip and the other screen is gone; they're yours as soon as they're earned, even if you close the app before.
 
-A tap on the pulls chip opens a small menu under it with your **stars** ⭐, the currency players collect, and what earns them:
+A tap on the pulls chip opens a small menu under it with your **stars** ⭐, the currency players collect. What earns them is explained in the welcome intro (and "How to play"):
 - writing a challenger title (step 1): 3 stars;
 - drawing a challenger (step 2): 3 stars, besides its pull;
 - winning a fight you picked the fighters for (step 4): the challenger's stars (its own and its boost stars), besides the pull.

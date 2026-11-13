@@ -39,8 +39,8 @@ enum Tutorial {
   final IconData icon;
 
   List<TutorialPage> get pages => switch (this) {
-    welcome => const [
-      TutorialPage(
+    welcome => [
+      const TutorialPage(
         icon: Icons.today_rounded,
         title: 'A few minutes a day',
         text:
@@ -48,19 +48,27 @@ enum Tutorial {
             'boost a few of yesterday\'s challengers and send fighters against another. New steps unlock '
             'over the first days.',
       ),
-      TutorialPage(
+      const TutorialPage(
         icon: Icons.star_rounded,
         title: 'Stars decide the fights',
         text:
             'Your fighters\' stars against the challenger\'s and the boosts it got the day before. You see '
             'the result as soon as you lock in your fighters.',
       ),
-      TutorialPage(
+      const TutorialPage(
         icon: Icons.auto_awesome_rounded,
         title: 'Pull and collect',
         text:
             'Drawing a challenger earns a pull. The gacha pool holds everyone\'s setup drawings and the '
-            'weekly heroes. Open "How to play" any time to see these intros again.',
+            'weekly heroes.',
+      ),
+      TutorialPage(
+        icon: Icons.stars_rounded,
+        title: 'Earn stars',
+        text:
+            'Writing a title earns ${StarRewards.prompt} stars, drawing a challenger ${StarRewards.challenger}, '
+            'and beating a challenger its stars. Tap your pulls at the top to see yours. Open "How to play" '
+            'any time to see these intros again.',
       ),
     ],
     prompt => [

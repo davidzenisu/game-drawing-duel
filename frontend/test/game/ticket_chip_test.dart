@@ -141,7 +141,6 @@ void main() {
     await tester.tap(find.byType(TicketChip));
     await tester.pumpAndSettle();
     expect(find.text('17 stars'), findsOneWidget);
-    expect(find.textContaining('for writing a title'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('17 stars')).dy,
       greaterThan(tester.getBottomLeft(find.byType(Chip)).dy),
