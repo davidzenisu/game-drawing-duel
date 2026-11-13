@@ -236,6 +236,13 @@ abstract class GameSession extends ChangeNotifier {
   /// a fight you picked the fighters for and won.
   int get stars;
 
+  /// Whether stars can buy a pull now: once your pulls are used up, for
+  /// [StarRewards.pullPrice] stars.
+  bool get canBuyPullWithStars => tickets == 0 && stars >= StarRewards.pullPrice;
+
+  /// Spends [StarRewards.pullPrice] stars on a pull, see [canBuyPullWithStars].
+  Future<void> buyPullWithStars();
+
   GachaStatus get gachaStatus;
 
   /// This week's rate-up characters' ids: the latest weekly hero and the

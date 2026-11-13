@@ -14,12 +14,18 @@ import '../../theme/palette.dart';
 /// covered (e.g. the pull a drawing earns) are celebrated once you're back
 /// and the page on top is gone. Landed, the count goes up one pull at a time.
 class TicketChip extends StatefulWidget {
-  const TicketChip({super.key, required this.tickets, this.stars = 0});
+  const TicketChip({super.key, required this.tickets, this.stars = 0, this.onBuyPull});
 
   final int tickets;
 
   /// Your stars, shown in the menu under the chip.
   final int stars;
+
+  /// Buys a pull with stars, from the menu; without it, or while you have
+  /// pulls or too few stars, the menu only says how it works.
+  final VoidCallback? onBuyPull;
+
+  bool get _canBuyPull => onBuyPull != null && tickets == 0 && stars >= StarRewards.pullPrice;
 
   @override
   State<TicketChip> createState() => _TicketChipState();
@@ -170,11 +176,27 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<void>(
+    return PopupMenuButton<bool>(
       tooltip: 'Pulls and stars',
       position: PopupMenuPosition.under,
-      // A tap on it just closes the menu.
-      itemBuilder: (_) => [PopupMenuItem<void>(child: _StarsInfo(stars: widget.stars))],
+      onSelected: (buy) {
+        if (buy) widget.onBuyPull?.call();
+      },
+      itemBuilder: (_) => [
+        // A tap on it just closes the menu.
+        PopupMenuItem<bool>(value: false, child: _StarsInfo(stars: widget.stars)),
+        const PopupMenuDivider(),
+        PopupMenuItem<bool>(
+          value: true,
+          enabled: widget._canBuyPull,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.confirmation_number_rounded),
+            title: Text('Buy a pull · ${StarRewards.pullPrice} stars'),
+            subtitle: widget.tickets > 0 ? const Text('Once your pulls are used up') : null,
+          ),
+        ),
+      ],
       child: _chip(),
     );
   }

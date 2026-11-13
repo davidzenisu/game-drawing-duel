@@ -80,6 +80,18 @@ def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaRes
     return _gacha(session, seat)
 
 
+@router.post("/{code}/stars/pull", response_model=GachaResponse)
+def buy_pull(code: Code, player: CurrentPlayer, session: DbSession) -> GachaResponse:
+    """Spends `rules.STARS_PER_PULL` of your stars on a pull, once your pulls
+    are used up. Returns your pulls and stars."""
+    _, seat = running_game(session, code, player.id)
+    try:
+        stars.buy_pull(session, seat.id)
+    except stars.CantBuyPull as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+    return _gacha(session, seat)
+
+
 @router.post("/{code}/pulls", response_model=PullsResponse)
 def pull(
     code: Code, body: PullRequest, player: CurrentPlayer, session: DbSession

@@ -554,6 +554,12 @@ class FakeBackend {
         }
         return _json(200, _giftsFor(code, yours));
       }
+      if (request.method == 'POST' && path.length == 4 && path[2] == 'stars' && path[3] == 'pull') {
+        if (_tickets(code, myId) > 0) return _json(409, {'detail': 'Use your pulls first'});
+        if (_stars(code, myId) < 10) return _json(409, {'detail': 'A pull costs 10 stars'});
+        starPulls.update((code, myId), (n) => n + 1, ifAbsent: () => 1);
+        return _json(200, _gacha(code, myId));
+      }
       if (request.method == 'POST' && path.length == 5 && path[2] == 'challengers' && path[4] == 'stars') {
         final record = _challengers(code, myId).where((r) => (r['character'] as Map)['id'] == path[3]).firstOrNull;
         final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);
@@ -695,7 +701,12 @@ class FakeBackend {
       for (final g in gifts)
         if (acceptedGifts[(code, yours)]?.contains(g.id) ?? false) g.pulls,
     ].fold(0, (a, b) => a + b);
-    return launchBonus + challengers + _wins(code, yours).length + gifted - (pulls[(code, playerId)]?.length ?? 0);
+    return launchBonus +
+        challengers +
+        _wins(code, yours).length +
+        gifted +
+        (starPulls[(code, playerId)] ?? 0) -
+        (pulls[(code, playerId)]?.length ?? 0);
   }
 
   /// Like the real API: 3 stars for each prompt written and challenger
@@ -708,7 +719,7 @@ class FakeBackend {
     final collected = [
       for (final r in _challengers(code, playerId)) r['stars_collected'] as int,
     ].fold(0, (a, b) => a + b);
-    return 3 * written + 3 * drawn + won + collected;
+    return 3 * written + 3 * drawn + won + collected - 10 * (starPulls[(code, playerId)] ?? 0);
   }
 
   /// The fights [seat] won: each earns a pull and the challenger's stars.
@@ -913,6 +924,9 @@ class FakeBackend {
 
   /// The challengers you drew, fought or boosted; fights count once their
   /// day is over.
+  /// Pulls bought with stars, by server code and player.
+  final Map<(String, String), int> starPulls = {};
+
   /// The challengers whose stars their artist collected, by server code.
   final Set<(String, Object?)> collectedChallengers = {};
 

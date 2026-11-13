@@ -154,4 +154,40 @@ void main() {
       reason: 'below the pulls',
     );
   });
+
+  testWidgets('the menu buys a pull with stars, only once the pulls are used up', (tester) async {
+    var bought = 0;
+    Future<void> open({required int tickets, required int stars}) async {
+      // A fresh app, without the menu opened before.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            appBar: AppBar(
+              actions: [TicketChip(tickets: tickets, stars: stars, onBuyPull: () => bought++)],
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TicketChip));
+      await tester.pumpAndSettle();
+    }
+
+    bool enabled() => tester
+        .widget<PopupMenuItem<bool>>(
+          find.ancestor(of: find.text('Buy a pull · 10 stars'), matching: find.byType(PopupMenuItem<bool>)),
+        )
+        .enabled;
+
+    await open(tickets: 2, stars: 30);
+    expect(enabled(), isFalse, reason: 'pulls left');
+    expect(find.text('Once your pulls are used up'), findsOneWidget);
+    await open(tickets: 0, stars: 9);
+    expect(enabled(), isFalse, reason: 'too few stars');
+    await open(tickets: 0, stars: 10);
+    expect(enabled(), isTrue);
+    await tester.tap(find.text('Buy a pull · 10 stars'));
+    await tester.pumpAndSettle();
+    expect(bought, 1);
+  });
 }

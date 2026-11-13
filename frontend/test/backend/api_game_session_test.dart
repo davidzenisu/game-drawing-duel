@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -795,6 +796,17 @@ void main() {
         expect((collected.starsToCollect, collected.starsCollected), (0, 5));
       }
       await expectLater(admin.collectChallengerStars(record), throwsA(isA<ApiException>()), reason: 'not its artist');
+
+      // Once Alex's pulls are used up, ten stars buy one.
+      await expectLater(admin.buyPullWithStars(), throwsA(isA<ApiException>()), reason: 'pulls left');
+      while (admin.tickets > 0) {
+        await admin.pull(min(admin.tickets, 10));
+      }
+      final stars = admin.stars;
+      expect(stars, greaterThanOrEqualTo(10));
+      await admin.buyPullWithStars();
+      expect(backend.requests.last.url.path, '/servers/123456/stars/pull');
+      expect((admin.tickets, admin.stars), (1, stars - 10));
 
       // Day 4's fights replay for everyone, on the day's calendar date.
       final days = await sam.fightDays();

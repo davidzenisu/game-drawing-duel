@@ -49,7 +49,7 @@ A tap on the pulls chip opens a small menu under it with your **stars** ⭐, the
 - winning a fight you picked the fighters for (step 4): the challenger's stars (its own and its boost stars), besides the pull.
 - drawing a challenger that wins a fight: its stars in that fight (its own and its boost stars), whoever picked the fighters, even chance. Its artist collects them in the **Challengers** menu, on the challenger's card, from the day after the fight: the 5th day of the rotation. The Challengers button, and the Heroes button on the hub, show a badge counting the challengers with stars to collect.
 
-Each reward counts once. The victory stars of the fights won before stars came in carried over.
+Once all of a player's pulls are used, **10 stars buy a pull**, from the same menu (greyed out while pulls are left or stars are short). Each reward counts once. The victory stars of the fights won before stars came in carried over.
 
 Players with admin permissions get an **Admin** menu in the app bar instead of several buttons: the game content (for content editors), and for players who manage servers, trying the mockup and **sending a gift**. The gift form sends pulls with a message to all servers (and all players), or to one server picked from a list, to all of its players or to players picked from its roster. The **Drawings** screen shows any drawing of any server, picked from three lists: the server, the date (or "Setup" for the initial drawings) and the drawing. It's shown as drawn, without upgrade effects, with a download button that saves it as a PNG.
 

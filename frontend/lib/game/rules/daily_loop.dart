@@ -101,6 +101,9 @@ const challengerDrawTime = Duration(seconds: 90);
 abstract final class StarRewards {
   static const prompt = 3;
   static const challenger = 3;
+
+  /// Stars buy a pull for this many, once your pulls are used up.
+  static const pullPrice = 10;
 }
 
 abstract final class Hurries {

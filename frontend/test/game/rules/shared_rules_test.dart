@@ -136,6 +136,7 @@ void main() {
   test('stars', () {
     final stars = rules['stars'] as Map<String, dynamic>;
     expect((StarRewards.prompt, StarRewards.challenger), (stars['prompt'], stars['challenger']));
+    expect(StarRewards.pullPrice, stars['pull_price']);
   });
 
   test('hurry', () {
