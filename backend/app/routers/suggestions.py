@@ -1,5 +1,6 @@
 """Your server's feedback board: ideas and bug reports the players post,
-and upvote. Only the players of the same server see them."""
+and upvote. Only the players of the same server see them. Authors remove
+their own; server admins (`auth.ADMIN_PERMISSION`) remove any."""
 
 import uuid
 
@@ -7,7 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.auth import CurrentPlayer
+from app.auth import ADMIN_PERMISSION, CurrentPlayer, TokenClaims
 from app.deps import Code, DbSession, load_server, your_seat
 from app.models import Server, ServerSeat, Suggestion, SuggestionVote
 from app.schemas import SuggestionResponse, SuggestionSubmit
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/servers", tags=["suggestions"])
 
 
 def _response(
-    suggestion: Suggestion, server: Server, seat: ServerSeat
+    suggestion: Suggestion, server: Server, seat: ServerSeat, claims: TokenClaims
 ) -> SuggestionResponse:
     names = {s.id: s.name for s in server.seats}
     return SuggestionResponse(
@@ -29,6 +30,15 @@ def _response(
         votes=len(suggestion.votes),
         voted=any(v.seat_id == seat.id for v in suggestion.votes),
         yours=suggestion.author_seat_id == seat.id,
+        removable=_can_remove(suggestion, seat, claims),
+    )
+
+
+def _can_remove(suggestion: Suggestion, seat: ServerSeat, claims: TokenClaims) -> bool:
+    """Its author can remove it, and server admins any."""
+    return (
+        suggestion.author_seat_id == seat.id
+        or ADMIN_PERMISSION in claims["permissions"]
     )
 
 
@@ -51,7 +61,7 @@ def _suggestion(session: Session, server: Server, suggestion_id: uuid.UUID) -> S
 
 @router.get("/{code}/suggestions", response_model=list[SuggestionResponse])
 def get_suggestions(
-    code: Code, player: CurrentPlayer, session: DbSession
+    code: Code, player: CurrentPlayer, claims: TokenClaims, session: DbSession
 ) -> list[SuggestionResponse]:
     """The server's suggestions, most upvoted first, then newest first."""
     server, seat = _board(code, player, session)
@@ -63,7 +73,7 @@ def get_suggestions(
     ranked = sorted(
         suggestions, key=lambda s: (len(s.votes), s.created_at), reverse=True
     )
-    return [_response(s, server, seat) for s in ranked]
+    return [_response(s, server, seat, claims) for s in ranked]
 
 
 @router.post(
@@ -72,7 +82,11 @@ def get_suggestions(
     status_code=status.HTTP_201_CREATED,
 )
 def post_suggestion(
-    code: Code, body: SuggestionSubmit, player: CurrentPlayer, session: DbSession
+    code: Code,
+    body: SuggestionSubmit,
+    player: CurrentPlayer,
+    claims: TokenClaims,
+    session: DbSession,
 ) -> SuggestionResponse:
     """Posts an idea or a bug report on the server's board."""
     server, seat = _board(code, player, session)
@@ -85,12 +99,16 @@ def post_suggestion(
     )
     session.add(suggestion)
     session.commit()
-    return _response(_suggestion(session, server, suggestion.id), server, seat)
+    return _response(_suggestion(session, server, suggestion.id), server, seat, claims)
 
 
 @router.put("/{code}/suggestions/{suggestion_id}/vote", response_model=SuggestionResponse)
 def upvote(
-    code: Code, suggestion_id: uuid.UUID, player: CurrentPlayer, session: DbSession
+    code: Code,
+    suggestion_id: uuid.UUID,
+    player: CurrentPlayer,
+    claims: TokenClaims,
+    session: DbSession,
 ) -> SuggestionResponse:
     """Upvotes a suggestion, once; not your own. Upvoting again changes
     nothing."""
@@ -104,14 +122,18 @@ def upvote(
     if not any(v.seat_id == seat.id for v in suggestion.votes):
         suggestion.votes.append(SuggestionVote(seat_id=seat.id))
         session.commit()
-    return _response(_suggestion(session, server, suggestion_id), server, seat)
+    return _response(_suggestion(session, server, suggestion_id), server, seat, claims)
 
 
 @router.delete(
     "/{code}/suggestions/{suggestion_id}/vote", response_model=SuggestionResponse
 )
 def take_back_vote(
-    code: Code, suggestion_id: uuid.UUID, player: CurrentPlayer, session: DbSession
+    code: Code,
+    suggestion_id: uuid.UUID,
+    player: CurrentPlayer,
+    claims: TokenClaims,
+    session: DbSession,
 ) -> SuggestionResponse:
     """Takes your upvote back, if you gave one."""
     server, seat = _board(code, player, session)
@@ -119,4 +141,27 @@ def take_back_vote(
     for vote in [v for v in suggestion.votes if v.seat_id == seat.id]:
         suggestion.votes.remove(vote)
     session.commit()
-    return _response(_suggestion(session, server, suggestion_id), server, seat)
+    return _response(_suggestion(session, server, suggestion_id), server, seat, claims)
+
+
+@router.delete(
+    "/{code}/suggestions/{suggestion_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def remove_suggestion(
+    code: Code,
+    suggestion_id: uuid.UUID,
+    player: CurrentPlayer,
+    claims: TokenClaims,
+    session: DbSession,
+) -> None:
+    """Removes a suggestion and its upvotes: your own, or any for server
+    admins."""
+    server, seat = _board(code, player, session)
+    suggestion = _suggestion(session, server, suggestion_id)
+    if not _can_remove(suggestion, seat, claims):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Only its author or a server admin can remove a suggestion",
+        )
+    session.delete(suggestion)
+    session.commit()

@@ -34,3 +34,5 @@ class SuggestionResponse(BaseModel):
     voted: bool
     # Whether you wrote it: you can't upvote your own.
     yours: bool
+    # Whether you can remove it: your own, or any for server admins.
+    removable: bool

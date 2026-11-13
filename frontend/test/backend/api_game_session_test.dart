@@ -458,6 +458,19 @@ void main() {
       final takenBack = await admin.voteOn(voted, up: false);
       expect((takenBack.votes, takenBack.voted), (0, false));
       await expectLater(admin.voteOn(board.first, up: true), throwsA(isA<ApiException>()), reason: 'not your own');
+
+      // Authors remove their own; server admins any.
+      expect(
+        [for (final s in await sam.suggestions()) (s.title, s.removable)],
+        [('Crash', false), ('Dark mode', true)],
+      );
+      await expectLater(sam.removeSuggestion(board.first), throwsA(isA<ApiException>()));
+      await sam.removeSuggestion(idea);
+      expect((await admin.suggestions()).map((s) => s.title), ['Crash']);
+      backend.serverManagers.add('sam');
+      expect((await sam.suggestions()).single.removable, isTrue);
+      await sam.removeSuggestion(board.first);
+      expect(await admin.suggestions(), isEmpty);
     });
 
     test('admins list the drawings of any server and load their strokes', () async {

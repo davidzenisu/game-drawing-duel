@@ -114,6 +114,7 @@ class Suggestion {
     required this.votes,
     required this.voted,
     required this.yours,
+    this.removable = false,
   });
 
   final String id;
@@ -131,6 +132,9 @@ class Suggestion {
 
   /// Whether you posted it: you can't upvote your own.
   final bool yours;
+
+  /// Whether you can remove it: your own, or any for server admins.
+  final bool removable;
 
   /// The most a title and a description can hold, as the backend allows.
   static const maxTitleLength = 80;
@@ -493,6 +497,10 @@ abstract class GameSession extends ChangeNotifier {
   /// Upvotes [suggestion] (not your own), or takes your upvote back;
   /// completes with it updated.
   Future<Suggestion> voteOn(Suggestion suggestion, {required bool up});
+
+  /// Removes [suggestion] and its upvotes: your own, or any for server
+  /// admins (see [Suggestion.removable]).
+  Future<void> removeSuggestion(Suggestion suggestion);
 
   /// The servers a gift can go to, see [canManageServers].
   Future<List<GiftServer>> giftServers() => Future.error(UnsupportedError('Only server admins can send gifts.'));

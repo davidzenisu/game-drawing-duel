@@ -459,6 +459,8 @@ class MockGameSession extends GameSession {
     votes: s.voters.length,
     voted: s.voters.contains(_yourName),
     yours: s.author == _yourName,
+    // Like a server admin's, see [canManageServers].
+    removable: s.author == _yourName || canManageServers,
   );
 
   /// Your name on the board: one per server, like the friends'.
@@ -489,6 +491,13 @@ class MockGameSession extends GameSession {
     );
     _board.add(suggestion);
     return _suggestion(suggestion);
+  }
+
+  @override
+  Future<void> removeSuggestion(Suggestion suggestion) async {
+    final s = _board.firstWhere((s) => s.id == suggestion.id);
+    if (!_suggestion(s).removable) throw ArgumentError('Only its author or a server admin can remove it.');
+    _board.remove(s);
   }
 
   @override

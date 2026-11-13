@@ -435,6 +435,7 @@ class ApiGameSession extends GameSession {
       'votes': int votes,
       'voted': bool voted,
       'yours': bool yours,
+      'removable': bool removable,
     } =>
       Suggestion(
         id: id,
@@ -446,6 +447,7 @@ class ApiGameSession extends GameSession {
         votes: votes,
         voted: voted,
         yours: yours,
+        removable: removable,
       ),
     _ => throw const FormatException('Unexpected suggestion.'),
   };
@@ -473,6 +475,11 @@ class ApiGameSession extends GameSession {
   Future<Suggestion> voteOn(Suggestion suggestion, {required bool up}) async {
     final path = '/servers/${server.code}/suggestions/${suggestion.id}/vote';
     return _parseSuggestion(up ? await _put(path, const {}) : await _delete(path));
+  }
+
+  @override
+  Future<void> removeSuggestion(Suggestion suggestion) async {
+    await _delete('/servers/${server.code}/suggestions/${suggestion.id}');
   }
 
   @override

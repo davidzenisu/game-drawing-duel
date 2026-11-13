@@ -93,3 +93,32 @@ class SuggestionTests(ServerTestCase):
     def test_another_servers_suggestion_cant_be_voted_on(self) -> None:
         theirs = self.suggest(KIM, self.other).json()
         self.assertEqual(self.vote(theirs["id"], ADMIN).status_code, 404)
+
+    def remove(self, suggestion_id: str, subject: str, permissions=None):
+        return self.client.delete(
+            f"/servers/{self.code}/suggestions/{suggestion_id}",
+            headers=bearer(make_token(subject, permissions=permissions)),
+        )
+
+    def test_authors_remove_their_own_and_server_admins_any(self) -> None:
+        mine = self.suggest(SAM, title="Mine").json()
+        theirs = self.suggest(title="Alex's").json()
+        self.vote(theirs["id"], SAM)
+        self.assertEqual(
+            {s["title"]: s["removable"] for s in self.board(SAM).json()},
+            {"Mine": True, "Alex's": False},
+        )
+        self.assertEqual(self.remove(theirs["id"], SAM).status_code, 403)
+        self.assertEqual(self.remove(mine["id"], SAM).status_code, 204)
+        self.assertEqual([s["title"] for s in self.board().json()], ["Alex's"])
+
+        # Sam, as a server admin, removes Alex's too, with its upvote.
+        admin = ["read:api", "manage:servers"]
+        listed = self.client.get(
+            f"/servers/{self.code}/suggestions",
+            headers=bearer(make_token(SAM, permissions=admin)),
+        ).json()
+        self.assertTrue(listed[0]["removable"])
+        self.assertEqual(self.remove(theirs["id"], SAM, admin).status_code, 204)
+        self.assertEqual(self.board().json(), [])
+        self.assertEqual(self.remove(theirs["id"], ADMIN).status_code, 404)

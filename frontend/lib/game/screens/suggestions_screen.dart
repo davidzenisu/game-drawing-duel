@@ -75,11 +75,43 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
       );
   }
 
+  /// Removes [suggestion] once confirmed; completes with whether it's gone.
+  Future<bool> _remove(Suggestion suggestion) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove this suggestion?'),
+        content: Text(
+          suggestion.yours
+              ? '"${suggestion.title}" and its upvotes are removed for everyone.'
+              : '"${suggestion.title}" by ${suggestion.author} and its upvotes are removed for everyone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Keep it')),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return false;
+    if (!await runGameAction(context, () => widget.session.removeSuggestion(suggestion)) || !mounted) return false;
+    setState(
+      () => _suggestions = [
+        for (final s in _suggestions ?? const <Suggestion>[])
+          if (s.id != suggestion.id) s,
+      ],
+    );
+    return true;
+  }
+
   Future<void> _open(Suggestion suggestion) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => _SuggestionDetails(suggestion: suggestion, onVote: _vote),
+    builder: (_) => _SuggestionDetails(suggestion: suggestion, onVote: _vote, onRemove: _remove),
   );
 
   @override
@@ -263,10 +295,13 @@ class _VoteButton extends StatelessWidget {
 
 /// A suggestion's details, with its upvote button.
 class _SuggestionDetails extends StatefulWidget {
-  const _SuggestionDetails({required this.suggestion, required this.onVote});
+  const _SuggestionDetails({required this.suggestion, required this.onVote, required this.onRemove});
 
   final Suggestion suggestion;
   final Future<Suggestion?> Function(Suggestion) onVote;
+
+  /// Asks first; completes with whether it was removed.
+  final Future<bool> Function(Suggestion) onRemove;
 
   @override
   State<_SuggestionDetails> createState() => _SuggestionDetailsState();
@@ -275,6 +310,10 @@ class _SuggestionDetails extends StatefulWidget {
 class _SuggestionDetailsState extends State<_SuggestionDetails> {
   late Suggestion _suggestion = widget.suggestion;
   bool _voting = false;
+
+  Future<void> _remove() async {
+    if (await widget.onRemove(_suggestion) && mounted) Navigator.of(context).pop();
+  }
 
   Future<void> _vote() async {
     setState(() => _voting = true);
@@ -325,6 +364,15 @@ class _SuggestionDetailsState extends State<_SuggestionDetails> {
                       icon: const Icon(Icons.thumb_up_alt_outlined),
                       label: Text('Upvote · $votes'),
                     ),
+            if (s.removable) ...[
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _remove,
+                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Remove'),
+              ),
+            ],
           ],
         ),
       ),

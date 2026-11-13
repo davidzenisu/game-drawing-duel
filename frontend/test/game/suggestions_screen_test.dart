@@ -50,6 +50,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Upvoted · 1 upvote'), findsOneWidget);
     expect((await game.suggestions()).firstWhere((s) => s.title == 'Undo removes two strokes').voted, isTrue);
+    await tester.tapAt(const Offset(195, 40));
+    await tester.pumpAndSettle();
+
+    // Remove your own, once confirmed.
+    await tester.tap(find.text('Hub flickers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Remove'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove this suggestion?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hub flickers'), findsNothing);
+    expect((await game.suggestions()).map((s) => s.title), isNot(contains('Hub flickers')));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

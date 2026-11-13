@@ -521,6 +521,10 @@ void main() {
     expect((mine.yours, mine.author), (true, game.you.name));
     expect((await game.suggestions()).map((s) => s.title), contains('Oops'));
     await expectLater(game.voteOn(mine, up: true), throwsArgumentError, reason: 'not your own');
+    // Like a server admin, you can remove any in the mockup.
+    expect((await game.suggestions()).every((s) => s.removable), isTrue);
+    await game.removeSuggestion(mine);
+    expect((await game.suggestions()).map((s) => s.title), isNot(contains('Oops')));
   });
 
   test('a hurry is free and can be sent once per day', () async {

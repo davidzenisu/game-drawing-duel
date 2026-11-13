@@ -191,6 +191,7 @@ class FakeBackend {
   Map<String, Object?> _suggestionJson(
     String code,
     int yours,
+    bool admin,
     ({String id, String kind, String title, String description, int author, Set<int> voters}) s,
   ) => {
     'id': s.id,
@@ -202,6 +203,7 @@ class FakeBackend {
     'votes': s.voters.length,
     'voted': s.voters.contains(yours),
     'yours': s.author == yours,
+    'removable': s.author == yours || admin,
   };
 
   /// The prompt hints, each with its premade title.
@@ -506,7 +508,7 @@ class FakeBackend {
         final board = suggestions.putIfAbsent(code, () => []);
         if (request.method == 'GET' && path.length == 3) {
           final ranked = [...board.reversed]..sort((a, b) => b.voters.length.compareTo(a.voters.length));
-          return _json(200, [for (final s in ranked) _suggestionJson(code, yours, s)]);
+          return _json(200, [for (final s in ranked) _suggestionJson(code, yours, serverManagers.contains(token), s)]);
         }
         if (request.method == 'POST' && path.length == 3) {
           final suggestion = (
@@ -518,7 +520,16 @@ class FakeBackend {
             voters: <int>{},
           );
           board.add(suggestion);
-          return _json(201, _suggestionJson(code, yours, suggestion));
+          return _json(201, _suggestionJson(code, yours, serverManagers.contains(token), suggestion));
+        }
+        if (request.method == 'DELETE' && path.length == 4) {
+          final suggestion = board.where((s) => s.id == path[3]).firstOrNull;
+          if (suggestion == null) return _json(404, {'detail': 'No such suggestion'});
+          if (suggestion.author != yours && !serverManagers.contains(token)) {
+            return _json(403, {'detail': 'Only its author or a server admin can remove a suggestion'});
+          }
+          board.remove(suggestion);
+          return http.Response('', 204);
         }
         if (path.length == 5 && path[4] == 'vote') {
           final suggestion = board.where((s) => s.id == path[3]).firstOrNull;
@@ -529,7 +540,7 @@ class FakeBackend {
           } else {
             suggestion.voters.remove(yours);
           }
-          return _json(200, _suggestionJson(code, yours, suggestion));
+          return _json(200, _suggestionJson(code, yours, serverManagers.contains(token), suggestion));
         }
       }
       if (path.length >= 3 && path[2] == 'gifts') {
