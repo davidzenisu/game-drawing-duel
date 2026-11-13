@@ -276,7 +276,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
               NotificationBoardButton(session: _controller),
               TicketChip(tickets: _controller.tickets),
               AdminMenu(session: _controller),
-              AccountMenu(session: _controller, canCancelServer: true),
+              AccountMenu(session: _controller, canCancelServer: true, suggestions: true),
               const SizedBox(width: 12),
             ],
           ),

@@ -76,7 +76,7 @@ class _SetupScreenState extends State<SetupScreen> {
             actions: [
               RefreshButton(session: controller),
               AdminMenu(session: controller),
-              AccountMenu(session: controller, canCancelServer: true),
+              AccountMenu(session: controller, canCancelServer: true, suggestions: true),
             ],
           ),
           body: ListView(

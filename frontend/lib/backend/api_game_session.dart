@@ -424,6 +424,64 @@ class ApiGameSession extends GameSession {
     notifyListeners();
   }
 
+  static Suggestion _parseSuggestion(Object? json) => switch (json) {
+    {
+      'id': String id,
+      'kind': String kind,
+      'title': String title,
+      'description': String description,
+      'author': String author,
+      'created_at': String createdAt,
+      'votes': int votes,
+      'voted': bool voted,
+      'yours': bool yours,
+      'removable': bool removable,
+    } =>
+      Suggestion(
+        id: id,
+        kind: SuggestionKind.values.byName(kind),
+        title: title,
+        description: description,
+        author: author,
+        createdAt: DateTime.parse(createdAt),
+        votes: votes,
+        voted: voted,
+        yours: yours,
+        removable: removable,
+      ),
+    _ => throw const FormatException('Unexpected suggestion.'),
+  };
+
+  @override
+  Future<List<Suggestion>> suggestions() async => switch (await _get('/servers/${server.code}/suggestions')) {
+    List suggestions => [for (final s in suggestions) _parseSuggestion(s)],
+    _ => throw const FormatException('Unexpected suggestions.'),
+  };
+
+  @override
+  Future<Suggestion> suggest({
+    required SuggestionKind kind,
+    required String title,
+    required String description,
+  }) async => _parseSuggestion(
+    await _post('/servers/${server.code}/suggestions', {
+      'kind': kind.name,
+      'title': title.trim(),
+      'description': description.trim(),
+    }),
+  );
+
+  @override
+  Future<Suggestion> voteOn(Suggestion suggestion, {required bool up}) async {
+    final path = '/servers/${server.code}/suggestions/${suggestion.id}/vote';
+    return _parseSuggestion(up ? await _put(path, const {}) : await _delete(path));
+  }
+
+  @override
+  Future<void> removeSuggestion(Suggestion suggestion) async {
+    await _delete('/servers/${server.code}/suggestions/${suggestion.id}');
+  }
+
   @override
   Future<List<AdminDrawing>> serverDrawings(String serverCode) async =>
       switch (await _get('/manage/servers/$serverCode/drawings')) {

@@ -22,6 +22,7 @@ from app.routers import (
     pool,
     servers,
     setup,
+    suggestions,
     today,
 )
 
@@ -82,6 +83,7 @@ app.include_router(characters.router, dependencies=_authenticated)
 app.include_router(pool.router, dependencies=_authenticated)
 app.include_router(today.router, dependencies=_authenticated)
 app.include_router(gifts.router, dependencies=_authenticated)
+app.include_router(suggestions.router, dependencies=_authenticated)
 # Also needs the content permission.
 app.include_router(content.router, dependencies=_authenticated)
 app.include_router(admin.router, dependencies=_authenticated)

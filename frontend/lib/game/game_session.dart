@@ -91,6 +91,56 @@ class Gift {
   final DateTime sentAt;
 }
 
+/// What a [Suggestion] is about.
+enum SuggestionKind {
+  idea(label: 'Idea'),
+  bug(label: 'Bug');
+
+  const SuggestionKind({required this.label});
+
+  final String label;
+}
+
+/// An idea or a bug report on the feedback board of the server you're on
+/// ([GameSession.suggestions]): only its players see it, and upvote it.
+class Suggestion {
+  const Suggestion({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.description,
+    required this.author,
+    required this.createdAt,
+    required this.votes,
+    required this.voted,
+    required this.yours,
+    this.removable = false,
+  });
+
+  final String id;
+  final SuggestionKind kind;
+  final String title;
+  final String description;
+
+  /// Who posted it: their name on the server.
+  final String author;
+  final DateTime createdAt;
+  final int votes;
+
+  /// Whether you upvoted it.
+  final bool voted;
+
+  /// Whether you posted it: you can't upvote your own.
+  final bool yours;
+
+  /// Whether you can remove it: your own, or any for server admins.
+  final bool removable;
+
+  /// The most a title and a description can hold, as the backend allows.
+  static const maxTitleLength = 80;
+  static const maxDescriptionLength = 2000;
+}
+
 /// A server a gift can go to, with its players, for the admin's gift form.
 class GiftServer {
   const GiftServer({required this.code, required this.speed, required this.launched, required this.players});
@@ -436,6 +486,21 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Accepts [gift]: its pulls are yours now.
   Future<void> acceptGift(Gift gift);
+
+  /// The feedback board of the server you're on: its players' ideas and bug
+  /// reports, most upvoted first, then newest first. Loaded on demand.
+  Future<List<Suggestion>> suggestions();
+
+  /// Posts an idea or a bug report on the board; completes with it.
+  Future<Suggestion> suggest({required SuggestionKind kind, required String title, required String description});
+
+  /// Upvotes [suggestion] (not your own), or takes your upvote back;
+  /// completes with it updated.
+  Future<Suggestion> voteOn(Suggestion suggestion, {required bool up});
+
+  /// Removes [suggestion] and its upvotes: your own, or any for server
+  /// admins (see [Suggestion.removable]).
+  Future<void> removeSuggestion(Suggestion suggestion);
 
   /// The servers a gift can go to, see [canManageServers].
   Future<List<GiftServer>> giftServers() => Future.error(UnsupportedError('Only server admins can send gifts.'));
