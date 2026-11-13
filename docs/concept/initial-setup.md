@@ -14,7 +14,7 @@ After signing up, a player picks between joining a server and creating one. Join
 
 In the top right of the main screens (servers, lobby, setup and the daily hub), an **account** menu shows who you're signed in as, lets you change your account's first name and sign out (the mockup has no account to sign out of). On a server, it also holds cancelling the server. A new first name is your default name on servers you create from then on; servers you already joined keep the name you have there.
 
-Any player who joins needs to do 3-6 drawings and titles for other players. 
+Any player who joins needs to do 3-6 drawings and titles for other players. The title is asked once the drawing is done (pressing Done), so typing it never takes room from the canvas.
 
 The following prompts should be the default prompts:
 - 1 star: basic
