@@ -9,11 +9,13 @@ import '../rules/daily_loop.dart';
 /// Shows the number of available gacha pulls and pops when it changes. A
 /// tap opens a menu under it with your [stars], the currency.
 ///
-/// New pulls are celebrated: a big ticket with the pulls received rises in
-/// the middle of a darkened screen, then flies into the chip, whose count
-/// only goes up once it lands. Pulls that arrive while the chip's screen is
-/// covered (e.g. the pull a drawing earns) are celebrated once you're back
-/// and the page on top is gone. Landed, the count goes up one pull at a time.
+/// New pulls and stars are celebrated: a big ticket (or star) with what was
+/// received rises in the middle of a darkened screen, then flies into the
+/// chip, whose count only goes up once it lands. Pulls and stars received
+/// together are celebrated together. Ones that arrive while the chip's
+/// screen is covered (e.g. what a drawing earns) are celebrated once you're
+/// back and the page on top is gone. Landed, the count goes up one pull at a
+/// time. Spending them is not celebrated.
 class TicketChip extends StatefulWidget {
   const TicketChip({super.key, required this.tickets, this.stars = 0, this.onBuyPull});
 
@@ -33,11 +35,13 @@ class TicketChip extends StatefulWidget {
 }
 
 class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateMixin {
-  /// The count last celebrated by any chip, so a chip on a screen below
-  /// doesn't celebrate the same pulls again once you go back to it.
+  /// The counts last celebrated by any chip, so a chip on a screen below
+  /// doesn't celebrate the same pulls and stars again once you go back to it.
   static int? _celebrated;
+  static int? _celebratedStars;
 
-  late int _shown = widget.tickets;
+  late int _shown;
+  late int _shownStars;
   bool _playing = false;
   ValueListenable<TickerModeData>? _tickerMode;
   Animation<double>? _covered;
@@ -48,7 +52,9 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _celebrated = widget.tickets;
+    // Set right away: a lazy start would only be read after a change.
+    _shown = _celebrated = widget.tickets;
+    _shownStars = _celebratedStars = widget.stars;
     _count = AnimationController(vsync: this);
   }
 
@@ -85,6 +91,12 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
     } else if (widget.tickets > oldWidget.tickets) {
       _celebrateLater();
     }
+    if (widget.stars < oldWidget.stars) {
+      _celebratedStars = min<int>(_celebratedStars ?? widget.stars, widget.stars);
+      if (!_playing) _shownStars = widget.stars;
+    } else if (widget.stars > oldWidget.stars) {
+      _celebrateLater();
+    }
   }
 
   /// After the frame, once the chip has its place on screen.
@@ -114,32 +126,45 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
   void _celebrate() {
     if (!mounted || _playing) return;
     final target = widget.tickets;
-    if (target <= _shown) return;
-    final gained = target - max<int>(_shown, _celebrated ?? _shown);
-    if (gained <= 0 || MediaQuery.maybeDisableAnimationsOf(context) == true) {
-      // Already celebrated elsewhere, or animations are off.
+    final targetStars = widget.stars;
+    if (target <= _shown && targetStars <= _shownStars) return;
+    final gained = max<int>(0, target - max<int>(_shown, _celebrated ?? _shown));
+    final gainedStars = max<int>(0, targetStars - max<int>(_shownStars, _celebratedStars ?? _shownStars));
+    void showAll() {
       _celebrated = max<int>(_celebrated ?? target, target);
-      setState(() => _shown = target);
+      _celebratedStars = max<int>(_celebratedStars ?? targetStars, targetStars);
+      setState(() {
+        _shown = max(_shown, target);
+        _shownStars = max(_shownStars, targetStars);
+      });
+    }
+
+    if ((gained == 0 && gainedStars == 0) || MediaQuery.maybeDisableAnimationsOf(context) == true) {
+      // Already celebrated elsewhere, or animations are off.
+      showAll();
       return;
     }
     if (!_onScreen) return;
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     var into = overlay == null ? null : _center(overlay);
     if (overlay == null || into == null) {
-      setState(() => _shown = target);
+      showAll();
       return;
     }
-    _celebrated = target;
+    _celebrated = max<int>(_celebrated ?? target, target);
+    _celebratedStars = max<int>(_celebratedStars ?? targetStars, targetStars);
     _playing = true;
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => PullsReceived(
         pulls: gained,
+        stars: gainedStars,
         // Follows the chip, should the app bar change meanwhile.
         into: () => into = _center(overlay) ?? into!,
         onDone: () {
           entry.remove();
-          _countUp(target);
+          _shownStars = max(_shownStars, targetStars);
+          _countUp(max(_shown, target));
         },
       ),
     );
@@ -273,16 +298,19 @@ class _BuyPull extends StatelessWidget {
   }
 }
 
-/// The celebration of new pulls: a big glowing ticket with "+N pulls" pops up
-/// in the middle of a darkened screen, then shrinks into [into], where the
-/// pulls chip sits. Taps go through, so it never gets in the way.
+/// The celebration of new pulls and stars: a big glowing ticket with
+/// "+N pulls" (a star with "+N stars", or both side by side with
+/// "+N pulls · +N stars") pops up in the middle of a darkened screen, then
+/// shrinks into [into], where the pulls chip sits. Taps go through, so it
+/// never gets in the way.
 class PullsReceived extends StatefulWidget {
-  const PullsReceived({super.key, required this.pulls, required this.into, required this.onDone});
+  const PullsReceived({super.key, this.pulls = 0, this.stars = 0, required this.into, required this.onDone});
 
   final int pulls;
+  final int stars;
 
-  /// Where the ticket flies to, in the overlay's coordinates: asked every
-  /// frame, so it follows the chip.
+  /// Where it flies to, in the overlay's coordinates: asked every frame, so
+  /// it follows the chip.
   final Offset Function() into;
   final VoidCallback onDone;
 
@@ -290,6 +318,12 @@ class PullsReceived extends StatefulWidget {
 
   /// How long the chip takes per pull to count up once the ticket lands.
   static const countStep = Duration(milliseconds: 250);
+
+  /// E.g. "+1 pull", "+3 stars" or "+1 pull · +3 stars".
+  static String label({required int pulls, required int stars}) => [
+    if (pulls > 0) '+$pulls ${pulls == 1 ? 'pull' : 'pulls'}',
+    if (stars > 0) '+$stars ${stars == 1 ? 'star' : 'stars'}',
+  ].join(' · ');
 
   @override
   State<PullsReceived> createState() => _PullsReceivedState();
@@ -324,10 +358,27 @@ class _PullsReceivedState extends State<PullsReceived> with SingleTickerProvider
     super.dispose();
   }
 
+  /// A glowing white disc with [icon] in [color].
+  Widget _token(IconData icon, Color color, double size) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Colors.white,
+      boxShadow: [BoxShadow(color: AppPalette.rarityLegend.withValues(alpha: 0.8), blurRadius: 32, spreadRadius: 4)],
+    ),
+    child: Icon(icon, size: size * 0.62, color: color),
+  );
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final label = '+${widget.pulls} ${widget.pulls == 1 ? 'pull' : 'pulls'}';
+    final label = PullsReceived.label(pulls: widget.pulls, stars: widget.stars);
+    final both = widget.pulls > 0 && widget.stars > 0;
+    final tokens = [
+      if (widget.pulls > 0) _token(Icons.confirmation_number_rounded, AppPalette.ticket, both ? 76 : 96),
+      if (widget.stars > 0) _token(Icons.star_rounded, AppPalette.star, both ? 76 : 96),
+    ];
     return IgnorePointer(
       child: Semantics(
         liveRegion: true,
@@ -345,9 +396,9 @@ class _PullsReceivedState extends State<PullsReceived> with SingleTickerProvider
                     child: ColoredBox(color: Colors.black.withValues(alpha: 0.6 * _scrim.value)),
                   ),
                   Positioned(
-                    left: at.dx - 120,
+                    left: at.dx - 160,
                     top: at.dy - 120,
-                    width: 240,
+                    width: 320,
                     height: 240,
                     child: Transform.scale(
                       scale: max(scale, 0),
@@ -355,12 +406,11 @@ class _PullsReceivedState extends State<PullsReceived> with SingleTickerProvider
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           SizedBox(
-                            width: 150,
                             height: 150,
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                // Rays turning behind the ticket.
+                                // Rays turning behind the prize.
                                 Transform.rotate(
                                   angle: _controller.value * pi,
                                   child: CustomPaint(
@@ -368,37 +418,29 @@ class _PullsReceivedState extends State<PullsReceived> with SingleTickerProvider
                                     painter: _Rays(color: AppPalette.rarityLegend.withValues(alpha: 0.55)),
                                   ),
                                 ),
-                                Container(
-                                  width: 96,
-                                  height: 96,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.white,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppPalette.rarityLegend.withValues(alpha: 0.8),
-                                        blurRadius: 32,
-                                        spreadRadius: 4,
-                                      ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    for (final (i, token) in tokens.indexed) ...[
+                                      if (i > 0) const SizedBox(width: 12),
+                                      token,
                                     ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.confirmation_number_rounded,
-                                    size: 60,
-                                    color: AppPalette.ticket,
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
                           Opacity(
                             opacity: 1 - _label.value,
-                            child: Text(
-                              label,
-                              style: text.headlineMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                label,
+                                style: text.headlineMedium?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
+                                ),
                               ),
                             ),
                           ),
