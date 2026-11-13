@@ -186,6 +186,8 @@ void main() {
     expect(enabled(), isFalse, reason: 'too few stars');
     await open(tickets: 0, stars: 10);
     expect(enabled(), isTrue);
+    TextStyle style(String text) => tester.renderObject<RenderParagraph>(find.text(text)).text.style!;
+    expect(style('Buy a pull · 10 stars').fontSize, style('0 pulls').fontSize, reason: 'in the pulls\' font');
     await tester.tap(find.text('Buy a pull · 10 stars'));
     await tester.pumpAndSettle();
     expect(bought, 1);

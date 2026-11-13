@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
+import '../rules/daily_loop.dart';
 
 /// Shows the number of available gacha pulls and pops when it changes. A
 /// tap opens a menu under it with your [stars], the currency.
@@ -189,12 +190,7 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
         PopupMenuItem<bool>(
           value: true,
           enabled: widget._canBuyPull,
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.confirmation_number_rounded),
-            title: Text('Buy a pull · ${StarRewards.pullPrice} stars'),
-            subtitle: widget.tickets > 0 ? const Text('Once your pulls are used up') : null,
-          ),
+          child: _BuyPull(note: widget.tickets > 0 ? 'Once your pulls are used up' : null),
         ),
       ],
       child: _chip(),
@@ -238,6 +234,40 @@ class _StarsInfo extends StatelessWidget {
             color: theme.colorScheme.onSurface,
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Buying a pull with stars, in the menu under the pulls chip: in the
+/// pulls' font, like the stars.
+class _BuyPull extends StatelessWidget {
+  const _BuyPull({this.note});
+
+  /// Why it can't be bought yet.
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.confirmation_number_rounded, size: 18),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Buy a pull · ${StarRewards.pullPrice} stars',
+                style: theme.chipTheme.labelStyle ?? theme.textTheme.labelLarge,
+              ),
+            ),
+          ],
+        ),
+        if (note case final note?) Text(note, style: theme.textTheme.bodySmall),
       ],
     );
   }
