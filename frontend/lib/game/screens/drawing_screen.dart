@@ -250,62 +250,80 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       margin: EdgeInsets.zero,
       child: Padding(
         padding: EdgeInsets.fromLTRB(canLeave ? 0 : 8, 6, 8, 6),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (canLeave) const BackButton(),
-            if (widget.reference != null) ...[
-              SizedBox(
-                width: 40,
-                child: Tooltip(
-                  message: 'Your original drawing',
-                  child: CardboardCard(child: SketchView(widget.reference!)),
+            // The question the prompt answers, in a small line across the
+            // top, so it doesn't make the bar much taller.
+            if (widget.nameplate && widget.description != null)
+              Padding(
+                padding: EdgeInsets.only(left: canLeave ? 8 : 0, bottom: 2),
+                child: Text(
+                  widget.description!,
+                  style: textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: widget.nameplate
-                  ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: Nameplate(
-                        name: widget.subject,
-                        title: widget.initialTitle,
-                        rarity: widget.rarity,
-                        nameFirst: true,
-                        compact: true,
-                      ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
+            Row(
+              children: [
+                if (canLeave) const BackButton(),
+                if (widget.reference != null) ...[
+                  SizedBox(
+                    width: 40,
+                    child: Tooltip(
+                      message: 'Your original drawing',
+                      child: CardboardCard(child: SketchView(widget.reference!)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: widget.nameplate
+                      ? Align(
+                          alignment: Alignment.centerLeft,
+                          child: Nameplate(
+                            name: widget.subject,
+                            title: widget.initialTitle,
+                            rarity: widget.rarity,
+                            nameFirst: true,
+                            compact: true,
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Flexible(
-                              child: Text(
-                                '${widget.subject} · ${widget.prompt}',
-                                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${widget.subject} · ${widget.prompt}',
+                                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                StarRow(rarity: widget.rarity, size: 14),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            StarRow(rarity: widget.rarity, size: 14),
+                            Text(widget.hint, style: textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                           ],
                         ),
-                        Text(widget.hint, style: textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
-                      ],
-                    ),
+                ),
+                if (info)
+                  IconButton(
+                    onPressed: _showInfo,
+                    tooltip: 'About this prompt',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.info_outline_rounded),
+                  ),
+                const SizedBox(width: 4),
+                _timer(context),
+              ],
             ),
-            if (info)
-              IconButton(
-                onPressed: _showInfo,
-                tooltip: 'About this prompt',
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.info_outline_rounded),
-              ),
-            const SizedBox(width: 4),
-            _timer(context),
           ],
         ),
       ),
