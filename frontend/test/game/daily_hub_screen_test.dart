@@ -162,7 +162,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('after Done the drawing uploads first, then its recap shows, then the pull is celebrated', (
+  testWidgets('after Done the drawing uploads first, then its recap shows, then the pull and stars are celebrated', (
     tester,
   ) async {
     _phone(tester);
@@ -224,7 +224,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(PullsReceived), findsOneWidget);
-    expect(find.text('+1 pull'), findsOneWidget);
+    expect(find.text('+1 pull · +3 stars'), findsOneWidget, reason: 'the pull and the stars together');
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
   });

@@ -192,4 +192,71 @@ void main() {
     await tester.pumpAndSettle();
     expect(bought, 1);
   });
+
+  group('stars', () {
+    /// A screen with the chip, its pulls and stars driven by [wallet].
+    Widget app(ValueNotifier<(int, int)> wallet) => MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(
+          actions: [
+            ValueListenableBuilder(
+              valueListenable: wallet,
+              builder: (_, w, _) => TicketChip(tickets: w.$1, stars: w.$2),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Finder icon(IconData data) => find.descendant(of: find.byType(PullsReceived), matching: find.byIcon(data));
+
+    testWidgets('new stars are celebrated like pulls, flying into the chip', (tester) async {
+      final wallet = ValueNotifier((3, 0));
+      await tester.pumpWidget(app(wallet));
+      wallet.value = (3, 3);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('+3 stars'), findsOneWidget);
+      expect(icon(Icons.star_rounded), findsOneWidget);
+      expect(icon(Icons.confirmation_number_rounded), findsNothing);
+      // Done flying, just before it's gone.
+      await tester.pump(PullsReceived.duration * 0.66);
+      final chip = tester.getCenter(find.byType(TicketChip));
+      expect((tester.getCenter(icon(Icons.star_rounded)) - chip).distance, lessThan(12), reason: 'lands on the chip');
+      await tester.pumpAndSettle();
+      expect(find.byType(PullsReceived), findsNothing);
+    });
+
+    testWidgets('pulls and stars received together are celebrated together', (tester) async {
+      final wallet = ValueNotifier((3, 0));
+      await tester.pumpWidget(app(wallet));
+      // Like a drawing: a pull and 3 stars.
+      wallet.value = (4, 3);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byType(PullsReceived), findsOneWidget);
+      expect(find.text('+1 pull · +3 stars'), findsOneWidget);
+      expect(icon(Icons.confirmation_number_rounded), findsOneWidget);
+      expect(icon(Icons.star_rounded), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.text('4 pulls'), findsOneWidget);
+    });
+
+    testWidgets('stars spent on a pull are not celebrated, the pull is', (tester) async {
+      final wallet = ValueNotifier((0, 12));
+      await tester.pumpWidget(app(wallet));
+      wallet.value = (1, 2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('+1 pull'), findsOneWidget);
+      await tester.pumpAndSettle();
+      // Earned again later: only the new ones count.
+      wallet.value = (1, 5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('+3 stars'), findsOneWidget);
+      await tester.pumpAndSettle();
+    });
+  });
 }
