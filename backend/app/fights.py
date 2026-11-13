@@ -453,21 +453,26 @@ class ChallengerRecord:
     won: tuple[tuple[Fight, int], ...] = ()
 
 
+def your_fight(fight: Fight, seat: ServerSeat) -> bool:
+    """Whether `seat` may replay `fight`: one they picked the fighters for,
+    or one against a challenger they drew."""
+    return (
+        fight.owner_seat_id == seat.id and not fight.by_chance
+    ) or fight.challenger.artist_seat_id == seat.id
+
+
 def encountered_challengers(
     session: Session, server: Server, seat: ServerSeat
 ) -> list[ChallengerRecord]:
-    """The challengers `seat` encountered, newest first: the ones they drew,
-    fought against or boosted, with their record in decided fights."""
-    drawn = select(Character.id).where(
-        Character.artist_seat_id == seat.id, Character.assignment_id.is_(None)
-    )
-    fought = select(Fight.challenger_id).where(Fight.owner_seat_id == seat.id)
-    boosted_ids = select(Boost.challenger_id).where(Boost.booster_seat_id == seat.id)
+    """The challengers `seat` drew, newest first, with their record in
+    decided fights. (Only their own for now: not the ones they fought
+    against or boosted.)"""
     challengers = session.scalars(
         select(Character)
         .where(
             Character.server_id == server.id,
-            Character.id.in_(drawn.union(fought, boosted_ids)),
+            Character.artist_seat_id == seat.id,
+            Character.assignment_id.is_(None),
         )
         .options(selectinload(Character.artist), selectinload(Character.subject))
         .order_by(Character.day.desc(), Character.created_at.desc())

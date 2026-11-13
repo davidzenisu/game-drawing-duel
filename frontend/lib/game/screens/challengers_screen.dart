@@ -6,8 +6,7 @@ import '../rules/daily_loop.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 
-/// The challengers you encountered (drew, fought against or boosted) with
-/// their win rates. Challengers don't join the gacha pool. The ones you drew
+/// The challengers you drew (for now only your own) with their win rates. Challengers don't join the gacha pool. The ones you drew
 /// that won a fight have its stars for you to collect.
 class ChallengersScreen extends StatelessWidget {
   const ChallengersScreen({super.key, required this.controller});
@@ -26,10 +25,7 @@ class ChallengersScreen extends StatelessWidget {
               ? const Center(
                   child: Padding(
                     padding: EdgeInsets.all(24),
-                    child: Text(
-                      'No challengers yet. Draw one, fight one or boost one to meet them.',
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('No challengers yet. The ones you draw show here.', textAlign: TextAlign.center),
                   ),
                 )
               : GridView.builder(

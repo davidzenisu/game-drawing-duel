@@ -4,7 +4,7 @@ import random
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -644,14 +644,21 @@ def get_win_rates(
 def get_fight_days(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> list[FightDay]:
-    """The days before today with fights to replay, newest first."""
-    server, _ = running_game(session, code, player.id)
+    """The days before today with fights you may replay, newest first: ones
+    you picked the fighters for, or against a challenger you drew."""
+    server, seat = running_game(session, code, player.id)
     today = days.current_day(server)
     fights.complete_fights(session, server, today - 1)
-    seat_ids = [s.id for s in server.seats]
     fought = session.scalars(
         select(Fight.day)
-        .where(Fight.owner_seat_id.in_(seat_ids), Fight.day < today)
+        .join(Character, Character.id == Fight.challenger_id)
+        .where(
+            Fight.day < today,
+            or_(
+                and_(Fight.owner_seat_id == seat.id, Fight.by_chance.is_(False)),
+                Character.artist_seat_id == seat.id,
+            ),
+        )
         .distinct()
         .order_by(Fight.day.desc())
     ).all()
@@ -662,9 +669,10 @@ def get_fight_days(
 def get_fights_of_day(
     code: Code, day: int, player: CurrentPlayer, session: DbSession
 ) -> list[FightResponse]:
-    """Every fight of a day before today, in roster order of the fighters'
-    players, to replay."""
-    server, _ = running_game(session, code, player.id)
+    """The fights of a day before today you may replay, in roster order of
+    the fighters' players: ones you picked the fighters for, or against a
+    challenger you drew."""
+    server, seat = running_game(session, code, player.id)
     if day >= days.current_day(server):
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Only the fights of past days replay"
@@ -674,6 +682,7 @@ def get_fights_of_day(
     seats = sorted(server.seats, key=lambda s: s.position)
     return [
         _fight_response(session, server, fight)
-        for seat in seats
-        if (fight := fights.fight_of(session, seat, day)) is not None
+        for owner in seats
+        if (fight := fights.fight_of(session, owner, day)) is not None
+        and fights.your_fight(fight, seat)
     ]

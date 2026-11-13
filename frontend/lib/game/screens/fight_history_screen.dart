@@ -70,7 +70,11 @@ class _FightHistoryScreenState extends State<FightHistoryScreen> {
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('No fights to replay yet: they show here the day after.', textAlign: TextAlign.center),
+                child: Text(
+                  'No fights to replay yet. Yours show here the day after: the one you pick the fighters for '
+                  'and the one against the challenger you drew.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             )
           : ListView.separated(

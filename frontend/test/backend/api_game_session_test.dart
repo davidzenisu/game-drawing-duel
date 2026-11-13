@@ -744,7 +744,7 @@ void main() {
       });
       expect(robin.boostTargets.single.stars, 2);
       expect((robin.canBoost, robin.boostStarsLeft), (true, 1));
-      expect(robin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'boosted');
+      expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)), reason: 'only the ones drawn');
       // Challengers drawn today are fought on day 5.
       for (final player in players) {
         await player.submitChallenger(doodle);
@@ -771,7 +771,7 @@ void main() {
       // A win earns a pull and the challenger's stars, reloaded right away.
       expect(backend.requests.last.url.path, '/servers/123456/gacha');
       expect(admin.stars - starsBefore, fight.fightersWin ? 5 : 0);
-      expect(admin.challengers.map((c) => c.card.id), contains(samsChallenger), reason: 'fought against');
+      expect(admin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)), reason: 'only the ones drawn');
       expect(admin.restingCharacterIds, isEmpty);
 
       // Day 5: Alex's two fighters rest until Monday.
@@ -782,11 +782,10 @@ void main() {
       };
       expect(admin.restingCharacterIds, rested, reason: 'basic ones fight every day');
       expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
-      final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);
-      expect((record.fights, record.wins), (1, fight.fightersWin ? 0 : 1));
-      // Sam drew it: if it won, Sam collects its 5 stars, once.
+      // Sam drew it: its record, and if it won, Sam collects its 5 stars, once.
       await sam.refreshDay();
       final sams = sam.challengers.firstWhere((c) => c.card.id == samsChallenger);
+      expect((sams.fights, sams.wins), (1, fight.fightersWin ? 0 : 1));
       expect(sams.starsToCollect, fight.fightersWin ? 0 : 5);
       if (!fight.fightersWin) {
         final before = sam.stars;
@@ -795,7 +794,7 @@ void main() {
         final collected = sam.challengers.firstWhere((c) => c.card.id == samsChallenger);
         expect((collected.starsToCollect, collected.starsCollected), (0, 5));
       }
-      await expectLater(admin.collectChallengerStars(record), throwsA(isA<ApiException>()), reason: 'not its artist');
+      await expectLater(admin.collectChallengerStars(sams), throwsA(isA<ApiException>()), reason: 'not its artist');
 
       // Once Alex's pulls are used up, ten stars buy one.
       await expectLater(admin.buyPullWithStars(), throwsA(isA<ApiException>()), reason: 'pulls left');

@@ -19,35 +19,26 @@ Future<MockGameSession> _foughtOnDaySeven() async {
 }
 
 void main() {
-  test('the days before today have their fights, one per challenger', () async {
+  test('only your fights replay: the one you picked the fighters for and the one against yours', () async {
     final game = await _foughtOnDaySeven();
     final days = await game.fightDays();
-    expect([for (final d in days) d.day], [7, 6, 5, 4], reason: 'newest first, from the first fights');
+    expect([for (final d in days) d.day], [7], reason: 'none of yours before');
     expect(fightDate(days.first.date), 'Sunday, 11 October 2026');
 
     final fights = await game.fightsOn(7);
-    expect({for (final f in fights) f.challenger.id}.length, fights.length, reason: 'every challenger once');
+    expect(fights, hasLength(2));
     expect(fights.where((f) => f.owner.isYou).single.id, 'fight7-${game.you.id}', reason: 'your own fight');
     final drawn = fights.singleWhere((f) => f.challenger.artist == game.you.name);
     expect(drawn.owner.isYou, isFalse, reason: 'a friend fought yours');
-    for (final f in fights.where((f) => !f.owner.isYou)) {
-      // Like the ranking: the challengers drawn on even days won theirs.
-      expect(f.fightersWin, f.challenger.day.isOdd, reason: f.challenger.id);
-      expect(f.owner.name, isNot(f.challenger.artist), reason: 'nobody fights their own');
-    }
+    // Like the ranking: the challengers drawn on even days won theirs.
+    expect(drawn.fightersWin, drawn.challenger.day.isOdd);
     expect(await game.fightsOn(8), isEmpty, reason: "not today's");
   });
 
-  test('without your drawing, everyone still fights: one challenger twice', () async {
+  test('without your drawing or your picks, there are none to replay', () async {
     final game = await launchedGame(launchDate: firstMonday, day: 8);
-    final fights = await game.fightsOn(7);
-    final challengers = {for (final f in fights) f.challenger.id};
-    expect((fights.length, challengers.length), (5, 4), reason: '4 friends drew; they and you fight');
-    expect({for (final f in fights) f.owner.id}.length, 5, reason: 'one fight each');
-    expect(fights.where((f) => f.challenger.artist == game.you.name), isEmpty);
-    for (final f in fights) {
-      expect(f.owner.name, isNot(f.challenger.artist), reason: 'nobody fights their own');
-    }
+    expect(await game.fightsOn(7), isEmpty, reason: "chance's picks for you aren't yours");
+    expect(await game.fightDays(), isEmpty);
   });
 
   testWidgets('pick a day, then a challenger to replay its fight', (tester) async {
@@ -59,7 +50,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Day 7'), findsOneWidget);
     expect(find.text('Sunday, 11 October 2026'), findsOneWidget);
-    expect(find.text('Day 4'), findsOneWidget);
 
     await tester.tap(find.text('Day 7'));
     await tester.pumpAndSettle();

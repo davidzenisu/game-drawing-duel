@@ -309,19 +309,19 @@ abstract class GameSession extends ChangeNotifier {
   /// You skipped yesterday's challenger drawing, so you can't boost today.
   bool get boostForfeited;
 
-  /// The challengers you encountered, newest first: the ones you drew,
-  /// fought against or boosted. They don't join the gacha [pool].
+  /// The challengers you drew, newest first (for now only your own, not the
+  /// ones you fought or boosted). They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
 
   /// Collects the stars [challenger], one you drew, won in its fights (see
   /// [ChallengerRecord.starsToCollect]): they add to your [stars].
   Future<void> collectChallengerStars(ChallengerRecord challenger);
 
-  /// The days before today with fights to replay, newest first.
+  /// The days before today with fights of yours to replay, newest first.
   Future<List<FightDay>> fightDays();
 
-  /// Every fight of [day], a day before today, to replay: one per
-  /// challenger fought that day.
+  /// Your fights of [day], a day before today, to replay: the one you picked
+  /// the fighters for and the one against the challenger you drew.
   Future<List<FightSetup>> fightsOn(int day);
 
   /// The hurries sent yesterday against your challenger drawing today, in the order

@@ -19,7 +19,7 @@ The drawing has no stand-in. Its prompt can only be drawn on its own day; once t
 - The next day, the boosts skip the missing challenger: everyone who would have seen it gets the next player's instead, so some challengers are boosted by more players than others.
 - The day after, the player who would have fought it fights the next player's challenger instead, so that one gets two fights.
 - Hurries sent against that drawing do nothing.
-- The other players aren't told; only the fight replays and the ranking show that a challenger is missing.
+- The other players aren't told; only the ranking shows that a challenger is missing.
 
 This makes the drawing the only step whose skipping costs the others something: the prompt someone wrote goes undrawn, and boosts and fights are spread unevenly.
 

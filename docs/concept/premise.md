@@ -35,7 +35,9 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 | Win rates | Fight replay (past days' fights) |
 | Week ranking | |
 
-**Fight replay** lists the days before today that had fights, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). Picking a day shows every fight of that day, one per player who fought, by its challenger (when someone skipped their drawing, the challenger standing in for theirs shows twice); the one you fought and the one you drew come first and are highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen.
+**Challengers** lists the challengers you drew (for now only your own, not the ones you fought or boosted), each with its record in its decided fights.
+
+**Fight replay** lists the days before today that had fights of yours, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). For now a player only sees their own fights: picking a day shows the fight they picked the fighters for (not one chance picked for them) and the fight against the challenger they drew, each by its challenger and highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen.
 
 The **Hero List** shows every character of the pool, summoned or not, and can be narrowed down by rarity, by status (upgrade ready, summoned, not summoned) and by player: the drawings *of* a player or *by* a player. In the **Hero List**, a character's page has a **download** button (in the browser) that saves its drawing as a PNG image on its cardboard card, named after the character.
 
