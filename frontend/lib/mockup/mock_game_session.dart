@@ -298,6 +298,7 @@ class MockGameSession extends GameSession {
     _yourPrompts.clear();
     _yourChallengers.clear();
     _yourFights.clear();
+    _collectedChallengers.clear();
     _yourBoosts.clear();
     _weeklyHero = null;
     _hurrySentTo = null;
@@ -895,10 +896,31 @@ class MockGameSession extends GameSession {
       final fought = _yourFights.values.where((f) => f.challenger.id == card.id && f.day < _day).toList();
       final fights = yours ? (_day > card.day + 2 ? 1 : 0) : fought.length;
       final wins = yours ? (fights > 0 && card.day.isEven ? 1 : 0) : fought.where((f) => !f.fightersWin).length;
-      return ChallengerRecord(card: card, fights: fights, wins: wins);
+      // Like online, the artist collects its stars in a fight it won.
+      final stars = yours && wins > 0 ? Stars.ofChallenger(_boostStars(card)) : 0;
+      final collected = _collectedChallengers.contains(card.id);
+      return ChallengerRecord(
+        card: card,
+        fights: fights,
+        wins: wins,
+        starsToCollect: collected ? 0 : stars,
+        starsCollected: collected ? stars : 0,
+      );
     }
 
     return [for (final card in encountered.toList()..sort((a, b) => b.day.compareTo(a.day))) record(card)];
+  }
+
+  /// Your challengers whose stars you collected.
+  final Set<String> _collectedChallengers = {};
+
+  @override
+  Future<void> collectChallengerStars(ChallengerRecord challenger) async {
+    final record = challengers.where((r) => r.card.id == challenger.card.id).firstOrNull;
+    if (record == null || record.starsToCollect == 0) return;
+    _collectedChallengers.add(challenger.card.id);
+    _stars += record.starsToCollect;
+    notifyListeners();
   }
 
   int _slotOf(String challengerId) => int.parse(challengerId.split('-').last);

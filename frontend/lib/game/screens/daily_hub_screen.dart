@@ -344,7 +344,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                             icon: Icons.military_tech_rounded,
                             title: 'Heroes',
                             height: 112,
-                            badge: _controller.upgradesAvailable,
+                            // Upgrades to unlock and challenger stars to collect.
+                            badge: _controller.upgradesAvailable + _controller.challengersToCollect,
                             onTap: () => _open(HeroesMenuScreen(controller: _controller)),
                           ),
                         ],

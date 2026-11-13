@@ -498,17 +498,73 @@ def get_challengers(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> list[ChallengerResponse]:
     """The challengers you encountered, newest first: the ones you drew,
-    fought against or boosted, with their decided fights and wins.
-    Challengers aren't part of the gacha pool."""
+    fought against or boosted, with their decided fights and wins, and for
+    the ones you drew, the stars they won to collect. Challengers aren't
+    part of the gacha pool."""
     server, seat = running_game(session, code, player.id)
+    # Chance picks the fighters left of yesterday's fights first.
+    fights.complete_fights(session, server, days.current_day(server) - 1)
+    return _challengers(session, server, seat)
+
+
+def _challengers(
+    session: Session, server: Server, seat: ServerSeat
+) -> list[ChallengerResponse]:
+    records = fights.encountered_challengers(session, server, seat)
+    rewards = {r.challenger.id: stars.challenger_stars(r, seat.id) for r in records}
+    collected = stars.granted(
+        session, seat.id, [reason for won in rewards.values() for reason, _ in won]
+    )
     return [
         ChallengerResponse(
             character=character_response(record.challenger),
             fights=record.fights,
             wins=record.wins,
+            stars_to_collect=sum(
+                n for reason, n in rewards[record.challenger.id] if reason not in collected
+            ),
+            stars_collected=sum(
+                n for reason, n in rewards[record.challenger.id] if reason in collected
+            ),
         )
-        for record in fights.encountered_challengers(session, server, seat)
+        for record in records
     ]
+
+
+@router.post(
+    "/{code}/challengers/{challenger_id}/stars",
+    response_model=list[ChallengerResponse],
+)
+def collect_challenger_stars(
+    code: Code, challenger_id: uuid.UUID, player: CurrentPlayer, session: DbSession
+) -> list[ChallengerResponse]:
+    """Collects the stars your challenger won in its fights: its stars in
+    each, once that fight's day is over. Returns the challengers you
+    encountered. Collecting again changes nothing."""
+    server, seat = running_game(session, code, player.id)
+    fights.complete_fights(session, server, days.current_day(server) - 1)
+    record = next(
+        (
+            r
+            for r in fights.encountered_challengers(session, server, seat)
+            if r.challenger.id == challenger_id
+        ),
+        None,
+    )
+    if record is None or record.challenger.artist_seat_id != seat.id:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="You didn't draw this challenger"
+        )
+    rewards = stars.challenger_stars(record, seat.id)
+    collected = stars.granted(session, seat.id, [reason for reason, _ in rewards])
+    for reason, n in rewards:
+        if reason not in collected:
+            session.add(stars.grant(seat.id, reason, n))
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()  # Collected at the same time elsewhere.
+    return _challengers(session, server, seat)
 
 
 @router.get("/{code}/ranking", response_model=RankingResponse | None)

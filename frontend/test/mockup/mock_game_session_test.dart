@@ -531,6 +531,27 @@ void main() {
     expect((await game.suggestions()).map((s) => s.title), isNot(contains('Oops')));
   });
 
+  test('your challenger that won its fight has its stars for you to collect, once', () async {
+    // Day 2's challenger is fought on day 4; the mockup's even-day ones win.
+    final game = await launchedGame(day: 2);
+    await game.submitChallenger(doodle);
+    await game.advanceDay();
+    await game.advanceDay();
+    expect(game.challengers.firstWhere((r) => r.card.day == 2).starsToCollect, 0, reason: 'fought today');
+    await game.advanceDay();
+    final record = game.challengers.firstWhere((r) => r.card.day == 2);
+    expect(record.wins, 1);
+    expect(record.starsToCollect, greaterThanOrEqualTo(Stars.challengerBase));
+    expect(game.challengersToCollect, 1);
+    final before = game.stars;
+    await game.collectChallengerStars(record);
+    expect(game.stars, before + record.starsToCollect);
+    final collected = game.challengers.firstWhere((r) => r.card.day == 2);
+    expect((collected.starsToCollect, collected.starsCollected), (0, record.starsToCollect));
+    await game.collectChallengerStars(record);
+    expect(game.stars, before + record.starsToCollect, reason: 'once');
+  });
+
   test('a hurry is free and can be sent once per day', () async {
     final game = await launchedGame();
     final tickets = game.tickets;

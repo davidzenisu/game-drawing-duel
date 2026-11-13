@@ -602,10 +602,24 @@ class ApiGameSession extends GameSession {
     _challengers = [
       for (final record in json)
         if (record case {'character': final Object character, 'fights': int fights, 'wins': int wins})
-          ChallengerRecord(card: await _card(server, character), fights: fights, wins: wins)
+          ChallengerRecord(
+            card: await _card(server, character),
+            fights: fights,
+            wins: wins,
+            starsToCollect: record['stars_to_collect'] as int? ?? 0,
+            starsCollected: record['stars_collected'] as int? ?? 0,
+          )
         else
           throw const FormatException('Unexpected challenger.'),
     ];
+  }
+
+  @override
+  Future<void> collectChallengerStars(ChallengerRecord challenger) async {
+    final server = this.server;
+    await _setChallengers(server, await _post('/servers/${server.code}/challengers/${challenger.card.id}/stars'));
+    _setGacha(await _get('/servers/${server.code}/gacha'));
+    notifyListeners();
   }
 
   /// Drawing, fighting and boosting add to the challengers you encountered.

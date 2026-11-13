@@ -256,7 +256,13 @@ class FightDay {
 }
 
 class ChallengerRecord {
-  const ChallengerRecord({required this.card, required this.fights, required this.wins});
+  const ChallengerRecord({
+    required this.card,
+    required this.fights,
+    required this.wins,
+    this.starsToCollect = 0,
+    this.starsCollected = 0,
+  });
 
   final CharacterCard card;
 
@@ -265,6 +271,12 @@ class ChallengerRecord {
 
   /// Decided fights it won.
   final int wins;
+
+  /// For its artist: the challenger's stars in every decided fight it won,
+  /// to collect ([GameSession.collectChallengerStars]), and the ones
+  /// collected already.
+  final int starsToCollect;
+  final int starsCollected;
 
   /// The share of its decided fights it won, or null before any was decided.
   double? get winRate => fights == 0 ? null : wins / fights;

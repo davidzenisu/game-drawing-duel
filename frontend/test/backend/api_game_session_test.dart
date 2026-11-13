@@ -783,6 +783,18 @@ void main() {
       expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
       final record = admin.challengers.firstWhere((c) => c.card.id == samsChallenger);
       expect((record.fights, record.wins), (1, fight.fightersWin ? 0 : 1));
+      // Sam drew it: if it won, Sam collects its 5 stars, once.
+      await sam.refreshDay();
+      final sams = sam.challengers.firstWhere((c) => c.card.id == samsChallenger);
+      expect(sams.starsToCollect, fight.fightersWin ? 0 : 5);
+      if (!fight.fightersWin) {
+        final before = sam.stars;
+        await sam.collectChallengerStars(sams);
+        expect(sam.stars, before + 5);
+        final collected = sam.challengers.firstWhere((c) => c.card.id == samsChallenger);
+        expect((collected.starsToCollect, collected.starsCollected), (0, 5));
+      }
+      await expectLater(admin.collectChallengerStars(record), throwsA(isA<ApiException>()), reason: 'not its artist');
 
       // Day 4's fights replay for everyone, on the day's calendar date.
       final days = await sam.fightDays();

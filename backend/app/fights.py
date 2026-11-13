@@ -449,6 +449,8 @@ class ChallengerRecord:
     # Decided fights against it, and how many it won.
     fights: int
     wins: int
+    # The decided fights it won, with the challenger's stars in each.
+    won: tuple[tuple[Fight, int], ...] = ()
 
 
 def encountered_challengers(
@@ -479,6 +481,10 @@ def encountered_challengers(
             .where(Fight.challenger_id == challenger.id, Fight.day < today)
             .options(selectinload(Fight.fighters), selectinload(Fight.challenger))
         ).all()
-        wins = sum(not outcome(session, f).fighters_win for f in decided)
-        records.append(ChallengerRecord(challenger, len(decided), wins))
+        won = tuple(
+            (f, result.challenger_stars)
+            for f in decided
+            if not (result := outcome(session, f)).fighters_win
+        )
+        records.append(ChallengerRecord(challenger, len(decided), len(won), won))
     return records

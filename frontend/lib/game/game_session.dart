@@ -306,6 +306,10 @@ abstract class GameSession extends ChangeNotifier {
   /// fought against or boosted. They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
 
+  /// Collects the stars [challenger], one you drew, won in its fights (see
+  /// [ChallengerRecord.starsToCollect]): they add to your [stars].
+  Future<void> collectChallengerStars(ChallengerRecord challenger);
+
   /// The days before today with fights to replay, newest first.
   Future<List<FightDay>> fightDays();
 
@@ -395,6 +399,9 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Characters with duplicates waiting to be spent on upgrades.
   int get upgradesAvailable => collection.where((o) => o.hasUnspentPoints).length;
+
+  /// Your challengers with stars to collect, see [collectChallengerStars].
+  int get challengersToCollect => challengers.where((r) => r.starsToCollect > 0).length;
 
   /// Whether there is still something to do on the current day.
   bool get hasOpenSteps =>
