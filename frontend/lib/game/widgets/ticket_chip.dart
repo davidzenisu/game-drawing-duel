@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 
-/// Shows the number of available gacha pulls and pops when it changes.
+/// Shows the number of available gacha pulls and pops when it changes. A
+/// tap opens a menu under it with your [stars], the currency.
 ///
 /// New pulls are celebrated: a big ticket with the pulls received rises in
 /// the middle of a darkened screen, then flies into the chip, whose count
@@ -13,9 +14,12 @@ import '../../theme/palette.dart';
 /// covered (e.g. the pull a drawing earns) are celebrated once you're back
 /// and the page on top is gone. Landed, the count goes up one pull at a time.
 class TicketChip extends StatefulWidget {
-  const TicketChip({super.key, required this.tickets});
+  const TicketChip({super.key, required this.tickets, this.stars = 0});
 
   final int tickets;
+
+  /// Your stars, shown in the menu under the chip.
+  final int stars;
 
   @override
   State<TicketChip> createState() => _TicketChipState();
@@ -166,6 +170,16 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    return PopupMenuButton<void>(
+      tooltip: 'Pulls and stars',
+      position: PopupMenuPosition.under,
+      // A tap on it just closes the menu.
+      itemBuilder: (_) => [PopupMenuItem<void>(child: _StarsInfo(stars: widget.stars))],
+      child: _chip(),
+    );
+  }
+
+  Widget _chip() {
     return Chip(
       avatar: const Icon(Icons.confirmation_number_rounded, color: AppPalette.ticket),
       label: AnimatedSwitcher(
@@ -176,6 +190,33 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
         ),
         child: Text('$_shown pulls', key: ValueKey(_shown)),
       ),
+    );
+  }
+}
+
+/// Your stars: the menu under the pulls chip. What earns them is in the
+/// intros (`Tutorial.welcome`).
+class _StarsInfo extends StatelessWidget {
+  const _StarsInfo({required this.stars});
+
+  final int stars;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Like the pulls chip's label and icon.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.star_rounded, size: 18, color: AppPalette.star),
+        const SizedBox(width: 8),
+        Text(
+          '$stars ${stars == 1 ? 'star' : 'stars'}',
+          style: (theme.chipTheme.labelStyle ?? theme.textTheme.labelLarge)?.copyWith(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ],
     );
   }
 }

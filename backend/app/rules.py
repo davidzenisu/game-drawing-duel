@@ -334,6 +334,12 @@ HURRY_CUT_SECONDS = 5.0
 HURRY_FIRST_LEFT_SECONDS = 55.0
 HURRY_LAST_LEFT_SECONDS = 15.0
 
+# Stars, the currency players collect (`app.stars`): writing a challenger
+# title and drawing a challenger earn these; a won fight earns the
+# challenger's stars.
+STARS_FOR_PROMPT = 3
+STARS_FOR_CHALLENGER = 3
+
 
 def hurry_hits(jitters: list[float]) -> list[float]:
     """The seconds left at which each of a day's hurries hits, in the order

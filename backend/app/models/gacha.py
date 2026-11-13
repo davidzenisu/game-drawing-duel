@@ -39,6 +39,30 @@ class PullGrant(Base):
     )
 
 
+class StarGrant(Base):
+    """Stars, the currency, awarded to a seat (`app.stars`).
+
+    `reason` names what earned them (e.g. "prompt:day-3"), so the same reward
+    can never be awarded twice.
+    """
+
+    __tablename__ = "star_grant"
+    __table_args__ = (UniqueConstraint("seat_id", "reason"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    seat_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False
+    )
+    reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        server_default=func.now(),
+    )
+
+
 class Pull(Base):
     """A gacha pull: spends exactly one grant on a character of the pool."""
 

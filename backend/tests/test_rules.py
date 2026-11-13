@@ -165,6 +165,11 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.BOOST_STARS, boost["stars"])
         self.assertEqual(rules.BOOST_MAX_PER_CHALLENGER, boost["max_per_challenger"])
 
+    def test_stars(self):
+        stars = SHARED["stars"]
+        self.assertEqual(rules.STARS_FOR_PROMPT, stars["prompt"])
+        self.assertEqual(rules.STARS_FOR_CHALLENGER, stars["challenger"])
+
     def test_hurry(self):
         hurry = SHARED["hurry"]
         self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])

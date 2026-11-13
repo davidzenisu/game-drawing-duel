@@ -39,7 +39,7 @@ class HeroesMenuScreen extends StatelessWidget {
             title: const Text('Heroes'),
             actions: [
               NotificationBoardButton(session: c),
-              TicketChip(tickets: c.tickets),
+              TicketChip(tickets: c.tickets, stars: c.stars),
               const SizedBox(width: 12),
             ],
           ),

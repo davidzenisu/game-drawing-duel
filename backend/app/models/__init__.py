@@ -2,7 +2,7 @@ from app.models.character import Character
 from app.models.day import ChallengerPrompt, DayEnd, HintAssignment
 from app.models.fight import Boost, Fight, Fighter
 from app.models.finale import WeeklyHero
-from app.models.gacha import Pull, PullGrant
+from app.models.gacha import Pull, PullGrant, StarGrant
 from app.models.gift import Gift, GiftDelivery
 from app.models.hurry import Hurry
 from app.models.player import Player, TutorialSeen
@@ -30,6 +30,7 @@ __all__ = [
     "ServerSeat",
     "SetupAssignment",
     "SetupHint",
+    "StarGrant",
     "Suggestion",
     "SuggestionVote",
     "ThemeHint",

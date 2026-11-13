@@ -29,6 +29,8 @@ abstract final class AppPalette {
 
   // Gameplay accents.
   static const ticket = Color(0xFFFF8A3D);
+  // Stars, the currency.
+  static const star = Color(0xFFFFC21A);
   static const hurry = Color(0xFFE5484D);
   static const victory = Color(0xFF2FBF71);
   static const defeat = Color(0xFFD64545);

@@ -39,8 +39,8 @@ enum Tutorial {
   final IconData icon;
 
   List<TutorialPage> get pages => switch (this) {
-    welcome => const [
-      TutorialPage(
+    welcome => [
+      const TutorialPage(
         icon: Icons.today_rounded,
         title: 'A few minutes a day',
         text:
@@ -48,19 +48,27 @@ enum Tutorial {
             'boost a few of yesterday\'s challengers and send fighters against another. New steps unlock '
             'over the first days.',
       ),
-      TutorialPage(
+      const TutorialPage(
         icon: Icons.star_rounded,
         title: 'Stars decide the fights',
         text:
             'Your fighters\' stars against the challenger\'s and the boosts it got the day before. You see '
             'the result as soon as you lock in your fighters.',
       ),
-      TutorialPage(
+      const TutorialPage(
         icon: Icons.auto_awesome_rounded,
         title: 'Pull and collect',
         text:
             'Drawing a challenger earns a pull. The gacha pool holds everyone\'s setup drawings and the '
-            'weekly heroes. Open "How to play" any time to see these intros again.',
+            'weekly heroes.',
+      ),
+      TutorialPage(
+        icon: Icons.stars_rounded,
+        title: 'Earn stars',
+        text:
+            'Writing a title earns ${StarRewards.prompt} stars, drawing a challenger ${StarRewards.challenger}, '
+            'and beating a challenger its stars. Tap your pulls at the top to see yours. Open "How to play" '
+            'any time to see these intros again.',
       ),
     ],
     prompt => [
@@ -75,8 +83,8 @@ enum Tutorial {
         icon: Icons.title_rounded,
         title: 'Give them a title',
         text:
-            'Up to ${CharacterCard.maxTitleLength} characters. Tomorrow the next player draws your '
-            'challenger. If you skip, a premade title stands in.',
+            'Up to ${CharacterCard.maxTitleLength} characters, for ${StarRewards.prompt} stars. Tomorrow the '
+            'next player draws your challenger. If you skip, a premade title stands in.',
       ),
     ],
     draw => [
@@ -86,7 +94,8 @@ enum Tutorial {
             '${challengerDrawTime.inMinutes}:${(challengerDrawTime.inSeconds % 60).toString().padLeft(2, '0')} to draw',
         text:
             'Draw the title someone wrote for you yesterday. It becomes a ${_stars(Stars.challengerBase)} '
-            'challenger for the others to fight, and earns you a pull. Skip it, and you can\'t boost tomorrow.',
+            'challenger for the others to fight, and earns you a pull and ${StarRewards.challenger} stars. '
+            'Skip it, and you can\'t boost tomorrow.',
       ),
       TutorialPage(
         icon: Icons.bolt_rounded,
@@ -130,8 +139,8 @@ enum Tutorial {
         text:
             'You need more stars than the challenger\'s ${_stars(Stars.challengerBase)} plus its boosts, '
             'which stay secret until you lock in; ties go to the challenger. The fight plays out right away, '
-            'and a win earns a pull (one per challenger star in speed mode) and the challenger\'s stars as '
-            'victory stars.',
+            'and a win earns a pull (one per challenger star in speed mode) and the challenger\'s stars '
+            'as stars of yours, shown under your pulls.',
       ),
       const TutorialPage(
         icon: Icons.bedtime_rounded,

@@ -16,7 +16,7 @@ This works the following way:
 	- If a player's heroes and challengers won more than **50%** of their meetings with another player's, they get **one** extra ☆ against that player this week.
 	- If they won more than **75%**, they get **two** extra ☆ instead.
 - In a fight, each hero gets its extra stars against the challenger's player, and the challenger gets its extra stars once for each hero whose player it beat most of the time. Ties still go to the challenger.
-- The extra stars only decide the fight: victory stars and pulls still come from the challenger's own and boost stars.
+- The extra stars only decide the fight: the stars and pulls a win earns still come from the challenger's own and boost stars.
 - Speed mode has no weeks, so it has no win rates.
 
 Where to see them:

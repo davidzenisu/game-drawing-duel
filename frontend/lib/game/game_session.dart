@@ -231,10 +231,10 @@ abstract class GameSession extends ChangeNotifier {
   /// Available gacha pulls.
   int get tickets;
 
-  /// The stars of the challengers you beat: a fight you picked the fighters
-  /// for and won earns a pull and the challenger's stars. A currency to
-  /// spend later.
-  int get victoryStars;
+  /// Your stars, the currency you collect: for writing a challenger title
+  /// and drawing a challenger ([StarRewards]), and a challenger's stars for
+  /// a fight you picked the fighters for and won.
+  int get stars;
 
   GachaStatus get gachaStatus;
 

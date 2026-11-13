@@ -95,6 +95,14 @@ const challengerDrawTime = Duration(seconds: 90);
 
 /// Free daily hurries: what one takes away when it hits, and when the
 /// hurries a player receives hit. Every one counts.
+/// Stars, the currency players collect: writing a challenger title and
+/// drawing a challenger earn these, and a won fight the challenger's stars
+/// ([FightSetup.challengerStars]). Checked against `shared/rules.json`.
+abstract final class StarRewards {
+  static const prompt = 3;
+  static const challenger = 3;
+}
+
 abstract final class Hurries {
   /// The drawing time a hurry takes away when it hits.
   static const cut = Duration(seconds: 5);
@@ -209,7 +217,7 @@ class FightSetup {
   int get fighterExtraStars => fighters.fold(0, (sum, f) => sum + f.extraStars);
 
   /// The challenger's own and boost stars, without its extra stars: what a
-  /// win pays in victory stars.
+  /// win pays in stars.
   int get challengerStars => Stars.ofChallenger(boostStars);
 
   /// Both sides' stars in the fight, extra stars included.

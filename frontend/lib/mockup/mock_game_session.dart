@@ -166,8 +166,8 @@ class MockGameSession extends GameSession {
   int _tickets = 0;
 
   @override
-  int get victoryStars => _victoryStars;
-  int _victoryStars = 0;
+  int get stars => _stars;
+  int _stars = 0;
   @override
   int get tickets => _tickets;
 
@@ -291,7 +291,7 @@ class MockGameSession extends GameSession {
     _pool.clear();
     _owned.clear();
     _tickets = 0;
-    _victoryStars = 0;
+    _stars = 0;
     _day = 0;
     _theme = DailyTheme.forest;
     _gacha = GachaMachine(random: _random);
@@ -1001,8 +1001,8 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
-  /// Step 1: choose a person and write their title; a friend draws it
-  /// tomorrow, see [DemoDays.challenger].
+  /// Step 1: choose a person and write their title, for stars; a friend
+  /// draws it tomorrow, see [DemoDays.challenger].
   @override
   Future<void> submitPrompt(String title, Player subject) async {
     if (yourPrompt != null) return;
@@ -1017,11 +1017,12 @@ class MockGameSession extends GameSession {
       day: _day,
       hint: promptHint,
     );
+    _stars += StarRewards.prompt;
     notifyListeners();
   }
 
   /// Step 2: drawing the challenger adds it to the challengers (not the gacha
-  /// pool) as a hero and earns a pull.
+  /// pool) as a hero and earns a pull and stars.
   @override
   Future<void> submitChallenger(Sketch sketch) async {
     final prompt = promptToDraw;
@@ -1038,6 +1039,7 @@ class MockGameSession extends GameSession {
       theme: prompt.theme,
     );
     _tickets++;
+    _stars += StarRewards.challenger;
     notifyListeners();
   }
 
@@ -1068,7 +1070,7 @@ class MockGameSession extends GameSession {
     // A win earns pulls and the challenger's stars.
     if (fight.fightersWin) {
       _tickets += pullsForWin(fight);
-      _victoryStars += fight.challengerStars;
+      _stars += fight.challengerStars;
     }
     notifyListeners();
   }

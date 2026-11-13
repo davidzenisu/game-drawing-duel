@@ -121,7 +121,7 @@ class WinRateTests(FightTestCase):
 
         # Two extra stars turn a loss into a win: 3 + 2 against 3 + 3.
         challenger_stars = 3 + self.boost_stars(challenger["id"])
-        before = self.get(f"/servers/{self.code}/gacha").json()["victory_stars"]
+        before = self.get(f"/servers/{self.code}/gacha").json()["stars"]
         with patch.object(rules, "team_stars", lambda team: challenger_stars - 1):
             fight = self.pick([fighter["id"]]).json()["fight"]["yours"]
         self.assertEqual([f["extra_stars"] for f in fight["fighters"]], [2])
@@ -130,9 +130,9 @@ class WinRateTests(FightTestCase):
             (outcome["fighter_extra_stars"], outcome["challenger_extra_stars"]), (2, 0)
         )
         self.assertTrue(outcome["fighters_win"])
-        # The victory stars are the challenger's own and boost stars.
+        # The stars earned are the challenger's own and boost stars.
         gacha = self.get(f"/servers/{self.code}/gacha").json()
-        self.assertEqual(gacha["victory_stars"], before + challenger_stars)
+        self.assertEqual(gacha["stars"], before + challenger_stars)
         self.assertEqual(self.today()["fight"]["yours"], fight, "as stored")
 
     def test_winning_most_meetings_gives_challengers_extra_stars(self) -> None:
