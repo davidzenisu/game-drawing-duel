@@ -404,25 +404,15 @@ void main() {
     final plate = tester.widget<Nameplate>(find.byType(Nameplate));
     expect((plate.name, plate.title), ('Daniel', 'the Missing Guest'));
     expect(find.text('"the Missing Guest"'), findsNothing, reason: 'the nameplate replaces the quoted title');
-    expect(
-      find.text('Who is a challenger forgetting their brunch date?'),
-      findsOneWidget,
-      reason: 'above the nameplate',
-    );
-    expect(
-      tester.getRect(find.text('Who is a challenger forgetting their brunch date?')).bottom,
-      lessThanOrEqualTo(tester.getRect(find.byType(Nameplate)).top),
-    );
+    expect(find.text('Who is a challenger forgetting their brunch date?'), findsNothing, reason: 'behind the info');
     expect(find.text('1:30'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     final canvas = tester.getRect(find.byType(SketchPad));
-    // The test font is wider than the real one, so the question takes two
-    // lines here; in a browser it takes one and the canvas 360 px.
-    expect(canvas.width, greaterThan(335), reason: 'the canvas takes nearly the full width');
+    expect(canvas.width, greaterThan(350), reason: 'the canvas takes the full width');
 
     await tester.tap(find.byTooltip('About this prompt'));
     await tester.pumpAndSettle();
-    expect(find.text('Who is a challenger forgetting their brunch date?'), findsNWidgets(2));
+    expect(find.text('Who is a challenger forgetting their brunch date?'), findsOneWidget);
     expect(find.text('Royal Castle'), findsOneWidget);
     await tester.tap(find.text('Back to drawing'));
     await tester.pumpAndSettle();
