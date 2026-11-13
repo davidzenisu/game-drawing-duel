@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/widgets/ticket_chip.dart';
 
@@ -141,6 +142,12 @@ void main() {
     await tester.tap(find.byType(TicketChip));
     await tester.pumpAndSettle();
     expect(find.text('17 stars'), findsOneWidget);
+    TextStyle style(String text) => tester.renderObject<RenderParagraph>(find.text(text)).text.style!;
+    expect(
+      (style('17 stars').fontSize, style('17 stars').fontWeight),
+      (style('3 pulls').fontSize, style('3 pulls').fontWeight),
+      reason: 'like the pulls',
+    );
     expect(
       tester.getTopLeft(find.text('17 stars')).dy,
       greaterThan(tester.getBottomLeft(find.byType(Chip)).dy),

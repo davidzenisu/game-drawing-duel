@@ -203,17 +203,17 @@ class _StarsInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    // Like the pulls chip's label and icon.
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star_rounded, color: AppPalette.star),
+        const Icon(Icons.star_rounded, size: 18, color: AppPalette.star),
         const SizedBox(width: 8),
         Text(
           '$stars ${stars == 1 ? 'star' : 'stars'}',
-          style: textTheme.titleMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
+          style: (theme.chipTheme.labelStyle ?? theme.textTheme.labelLarge)?.copyWith(
+            color: theme.colorScheme.onSurface,
           ),
         ),
       ],
