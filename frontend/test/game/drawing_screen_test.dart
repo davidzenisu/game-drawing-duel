@@ -207,6 +207,72 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('the clock waits for Ready, and until then the prompt can be read and left', (tester) async {
+    tester.view.physicalSize = const Size(390, 664);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<DrawingResult>(
+                builder: (_) => const DrawingScreen(
+                  subject: 'Daniel',
+                  prompt: '"the Missing Guest"',
+                  hint: 'Royal Castle',
+                  rarity: Rarity.hero,
+                  description: 'Who is a challenger forgetting their brunch date?',
+                  initialTitle: 'the Missing Guest',
+                  titleLocked: true,
+                  timeLimit: challengerDrawTime,
+                  noBackingOut: true,
+                  nameplate: true,
+                  startOnReady: true,
+                  hurries: [HurryPlan(by: 'Alex', left: Duration(seconds: 45))],
+                ),
+              ),
+            ),
+            child: const Text('Draw'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Draw'));
+    await tester.pumpAndSettle();
+    final pad = tester.widget<SketchPad>(find.byType(SketchPad)).controller;
+
+    // Reading the prompt takes no time.
+    await tester.pump(const Duration(seconds: 60));
+    expect(find.text('1:30'), findsOneWidget);
+    expect(find.textContaining('sent a hurry'), findsNothing);
+    await tester.tap(find.byTooltip('About this prompt'));
+    await tester.pumpAndSettle();
+    expect(find.text('Who is a challenger forgetting their brunch date?'), findsOneWidget);
+    await tester.tap(find.text('Back to drawing'));
+    await tester.pumpAndSettle();
+    expect(pad.enabled, isFalse, reason: 'nothing can be drawn yet');
+    expect(find.byType(BackButton), findsOneWidget, reason: 'leaving is still allowed');
+
+    await tester.tap(find.text('Ready'));
+    await tester.pump();
+    expect(find.text('Ready'), findsNothing);
+    expect(pad.enabled, isTrue);
+    expect(find.byType(BackButton), findsNothing, reason: 'no backing out once the clock runs');
+    await tester.dragFrom(tester.getRect(find.byType(SketchPad)).center, const Offset(60, 30));
+    await tester.pump();
+    expect(pad.isEmpty, isFalse);
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.text('1:20'), findsOneWidget);
+    // Alex's hurry hits at 45s left, counted from Ready.
+    await tester.pump(const Duration(milliseconds: 35400));
+    expect(find.text('Alex sent a hurry! -5s'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrawingScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('running out of time with nothing drawn lets you leave', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
