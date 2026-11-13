@@ -7,6 +7,7 @@ import 'package:frontend/game/screens/drawing_recap_screen.dart';
 import 'package:frontend/game/screens/drawing_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
+import 'package:frontend/theme/palette.dart';
 
 void main() {
   testWidgets('every hurry takes 5s when it hits, at its time left', (tester) async {
@@ -265,8 +266,56 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('while the title is typed, a tap on the canvas only hides the keyboard', (tester) async {
+  testWidgets('Done asks for the title, and they can keep drawing instead', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    DrawingResult? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async => result = await Navigator.of(context).push<DrawingResult>(
+              MaterialPageRoute(
+                builder: (_) =>
+                    const DrawingScreen(subject: 'Sam', prompt: 'Basic', hint: 'Them by day', rarity: Rarity.basic),
+              ),
+            ),
+            child: const Text('Draw'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Draw'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing, reason: 'no title field taking room from the canvas');
+    expect(find.text('Sam · Basic'), findsOneWidget);
+    expect(find.text('Them by day'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.dragFrom(tester.getRect(find.byType(SketchPad)).center, const Offset(60, 30));
+    await tester.pump();
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save')).onPressed, isNull);
+    await tester.tap(find.text('Keep drawing'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrawingScreen), findsOneWidget);
+
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), ' The early years ');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrawingScreen), findsNothing);
+    expect(result!.title, 'The early years');
+    expect(result!.sketch.strokes, hasLength(1));
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the colours fit one row, without taking the canvas', (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
@@ -275,20 +324,18 @@ void main() {
       ),
     );
     final pad = tester.widget<SketchPad>(find.byType(SketchPad)).controller;
-    await tester.tap(find.byType(TextField));
+    Finder swatch(Color color) => find.byWidgetPredicate(
+      (widget) => widget is AnimatedContainer && (widget.decoration as BoxDecoration?)?.color == color,
+    );
+    final tops = {
+      for (final brush in [...AppPalette.brushes, AppPalette.eraser]) tester.getRect(swatch(brush)).top,
+    };
+    expect(tops, hasLength(1), reason: 'one row');
+    await tester.tap(swatch(AppPalette.brushBrown));
     await tester.pump();
-    expect(tester.testTextInput.isVisible, isTrue);
-
-    final canvas = tester.getRect(find.byType(SketchPad));
-    await tester.dragFrom(canvas.center, const Offset(60, 30));
-    await tester.pump();
-    expect(pad.isEmpty, isTrue, reason: 'no stroke by mistake');
-    expect(tester.testTextInput.isVisible, isFalse, reason: 'the keyboard is hidden');
-
-    // With the keyboard gone, the canvas draws again.
-    await tester.dragFrom(tester.getRect(find.byType(SketchPad)).center, const Offset(60, 30));
-    await tester.pump();
-    expect(pad.isEmpty, isFalse);
+    expect(pad.color, AppPalette.brushBrown);
+    expect(tester.takeException(), isNull, reason: 'the tools fit a small phone');
+    expect(tester.getRect(find.byType(SketchPad)).width, greaterThan(320), reason: 'the canvas still takes the width');
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -309,7 +356,7 @@ void main() {
       ),
     );
     expect(find.byType(TextField), findsNothing);
-    expect(find.text('"Sauna Lord"'), findsOneWidget);
+    expect(find.text('Sam · "Sauna Lord"'), findsOneWidget);
 
     BoxBorder? ringOf(int i) =>
         (tester
@@ -331,37 +378,44 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a challenger shows who and what to draw in its nameplate, without taking the canvas', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+  testWidgets('a challenger shows who and what to draw in its nameplate, and the canvas takes the width', (
+    tester,
+  ) async {
+    // A phone browser with its address bar showing.
+    tester.view.physicalSize = const Size(390, 664);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    Future<Rect> canvas({required bool nameplate}) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DrawingScreen(
-            subject: 'Daniel',
-            prompt: '"the Missing Guest"',
-            hint: 'Royal Castle',
-            rarity: Rarity.hero,
-            description: 'Who is a challenger forgetting their brunch date?',
-            initialTitle: 'the Missing Guest',
-            titleLocked: true,
-            timeLimit: challengerDrawTime,
-            nameplate: nameplate,
-          ),
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingScreen(
+          subject: 'Daniel',
+          prompt: '"the Missing Guest"',
+          hint: 'Royal Castle',
+          rarity: Rarity.hero,
+          description: 'Who is a challenger forgetting their brunch date?',
+          initialTitle: 'the Missing Guest',
+          titleLocked: true,
+          timeLimit: challengerDrawTime,
+          nameplate: true,
         ),
-      );
-      await tester.pump();
-      return tester.getRect(find.byType(SketchPad));
-    }
-
-    final plain = await canvas(nameplate: false);
-    final withPlate = await canvas(nameplate: true);
+      ),
+    );
+    await tester.pump();
     final plate = tester.widget<Nameplate>(find.byType(Nameplate));
     expect((plate.name, plate.title), ('Daniel', 'the Missing Guest'));
     expect(find.text('"the Missing Guest"'), findsNothing, reason: 'the nameplate replaces the quoted title');
+    expect(find.text('Who is a challenger forgetting their brunch date?'), findsNothing, reason: 'behind the info');
+    expect(find.text('1:30'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
-    expect(plain.height - withPlate.height, lessThan(24), reason: 'the canvas keeps nearly all its room');
+    final canvas = tester.getRect(find.byType(SketchPad));
+    expect(canvas.width, greaterThan(350), reason: 'the canvas takes the full width');
+
+    await tester.tap(find.byTooltip('About this prompt'));
+    await tester.pumpAndSettle();
+    expect(find.text('Who is a challenger forgetting their brunch date?'), findsOneWidget);
+    expect(find.text('Royal Castle'), findsOneWidget);
+    await tester.tap(find.text('Back to drawing'));
+    await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
   });
 }

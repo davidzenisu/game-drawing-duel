@@ -83,11 +83,6 @@ class DrawingScreen extends StatefulWidget {
 class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProviderStateMixin {
   final _pad = SketchPadController();
   late final _title = TextEditingController(text: widget.initialTitle);
-
-  /// While the title is being typed, the keyboard shrinks the canvas: a
-  /// tap on it then only hides the keyboard, so no stroke is drawn by
-  /// mistake.
-  final _titleFocus = FocusNode();
   // From `clock`, so tests can control the time.
   final _stopwatch = clock.stopwatch();
   late final AnimationController _shake;
@@ -128,7 +123,6 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _pad.addListener(_rebuild);
     _title.addListener(_rebuild);
-    _titleFocus.addListener(_rebuild);
     if (_limit != null) {
       _stopwatch.start();
       _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) => _tick());
@@ -168,11 +162,27 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _shake.dispose();
     _pad.dispose();
     _title.dispose();
-    _titleFocus.dispose();
     super.dispose();
   }
 
-  bool get _canSubmit => !_pad.isEmpty && _title.text.trim().isNotEmpty;
+  bool get _canSubmit => !_pad.isEmpty;
+
+  /// Done: a title given by the prompt goes with it as is, otherwise it's
+  /// asked for now, so typing it never takes room from the canvas.
+  Future<void> _finish() async {
+    if (!widget.titleLocked) {
+      final title = await _askTitle();
+      if (title == null || !mounted) return;
+      _title.text = title;
+    }
+    _submit();
+  }
+
+  /// Asks for the drawing's title; null if they'd rather keep drawing.
+  Future<String?> _askTitle() => showDialog<String>(
+    context: context,
+    builder: (_) => _TitleDialog(initial: _title.text),
+  );
 
   void _submit() {
     _ticker?.cancel();
@@ -196,19 +206,22 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final locked = _locked;
+    // No app bar: the top bar holds the way back, who to draw and the
+    // clock, so the canvas gets all the height it can.
     final body = SafeArea(
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _header(context),
-                const SizedBox(height: 12),
+                _topBar(context, locked),
+                const SizedBox(height: 6),
                 Expanded(child: _canvas()),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 _toolbar(context),
               ],
             ),
@@ -216,46 +229,44 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
         ),
       ),
     );
-    final locked = _locked;
     return PopScope(
       canPop: !locked,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _blockedBack();
       },
       child: Scaffold(
-        appBar: AppBar(title: Text('Draw ${widget.subject}'), automaticallyImplyLeading: !locked),
         body: widget.theme == null ? body : ThemedBackground(theme: widget.theme!, child: body),
       ),
     );
   }
 
-  Widget _header(BuildContext context) {
+  /// Back (unless there's no backing out), who and what to draw, more
+  /// about the prompt behind a button, and the clock.
+  Widget _topBar(BuildContext context, bool locked) {
     final textTheme = Theme.of(context).textTheme;
+    final canLeave = !locked && (ModalRoute.of(context)?.impliesAppBarDismissal ?? false);
+    final info = widget.nameplate || widget.description != null;
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.fromLTRB(canLeave ? 0 : 8, 6, 8, 6),
         child: Row(
           children: [
+            if (canLeave) const BackButton(),
             if (widget.reference != null) ...[
               SizedBox(
-                width: 56,
+                width: 40,
                 child: Tooltip(
                   message: 'Your original drawing',
                   child: CardboardCard(child: SketchView(widget.reference!)),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
             ],
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!widget.nameplate) StarRow(rarity: widget.rarity),
-                  if (widget.description case final description?)
-                    Text(description, style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
-                  if (widget.nameplate)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+              child: widget.nameplate
+                  ? Align(
+                      alignment: Alignment.centerLeft,
                       child: Nameplate(
                         name: widget.subject,
                         title: widget.initialTitle,
@@ -264,13 +275,36 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                         compact: true,
                       ),
                     )
-                  else
-                    Text(widget.prompt, style: textTheme.titleMedium),
-                  Text(widget.hint, style: textTheme.bodySmall),
-                ],
-              ),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${widget.subject} · ${widget.prompt}',
+                                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            StarRow(rarity: widget.rarity, size: 14),
+                          ],
+                        ),
+                        Text(widget.hint, style: textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
             ),
-            const SizedBox(width: 12),
+            if (info)
+              IconButton(
+                onPressed: _showInfo,
+                tooltip: 'About this prompt',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.info_outline_rounded),
+              ),
+            const SizedBox(width: 4),
             _timer(context),
           ],
         ),
@@ -278,10 +312,38 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
+  /// The prompt's question and where it's from, kept out of the way.
+  void _showInfo() {
+    final textTheme = Theme.of(context).textTheme;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.nameplate ? widget.subject : '${widget.subject} · ${widget.prompt}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (widget.nameplate) Text(widget.initialTitle, style: textTheme.titleMedium),
+            if (widget.description case final description?) ...[
+              const SizedBox(height: 8),
+              Text(description, style: textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic)),
+            ],
+            const SizedBox(height: 8),
+            Text(widget.hint, style: textTheme.bodyMedium),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Back to drawing'))],
+      ),
+    );
+  }
+
   Widget _timer(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     if (_limit == null) {
-      return Chip(avatar: const Icon(Icons.all_inclusive_rounded), label: const Text('No limit'));
+      return const Tooltip(
+        message: 'No time limit',
+        child: SizedBox.square(dimension: 48, child: Icon(Icons.all_inclusive_rounded)),
+      );
     }
     final remaining = _remaining;
     final urgent = remaining.inSeconds < 10;
@@ -293,21 +355,21 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       builder: (context, child) =>
           Transform.translate(offset: Offset(sin(_shake.value * pi * 10) * 8 * (1 - _shake.value), 0), child: child),
       child: SizedBox(
-        width: 64,
-        height: 64,
+        width: 48,
+        height: 48,
         child: Stack(
           fit: StackFit.expand,
           children: [
             CircularProgressIndicator(
               value: total.inMilliseconds == 0 ? 0 : (seconds * 1000 / total.inMilliseconds).clamp(0.0, 1.0),
-              strokeWidth: 6,
+              strokeWidth: 5,
               color: urgent || _hurried ? AppPalette.hurry : colors.primary,
               backgroundColor: colors.surfaceContainerHighest,
             ),
             Center(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontFeatures: const [FontFeature.tabularFigures()],
                   color: urgent ? AppPalette.hurry : null,
                   fontWeight: FontWeight.bold,
@@ -384,14 +446,6 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           fit: StackFit.expand,
           children: [
             SketchPad(controller: _pad),
-            if (_titleFocus.hasFocus)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapDown: (_) => _titleFocus.unfocus(),
-                  onPanStart: (_) => _titleFocus.unfocus(),
-                ),
-              ),
             _hurryBanner(context),
             IgnorePointer(
               child: AnimatedOpacity(
@@ -414,83 +468,65 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
-  /// The tools, the title to type and Done, on a card of their own, so they
-  /// read well on every day's scenery, in light and dark mode.
+  /// The colours on one row, the other tools and Done on the next, on a
+  /// card of their own, so they read well on every day's scenery, in light
+  /// and dark mode. On narrow screens the rows shrink a little rather than
+  /// wrap.
   Widget _toolbar(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Card(
       margin: EdgeInsets.zero,
       color: colors.surface,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                for (final brush in [...AppPalette.brushes, AppPalette.eraser])
-                  InkResponse(
-                    onTap: _pad.enabled ? () => _pad.setColor(brush) : null,
-                    radius: 20,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: brush,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _pad.color == brush ? colors.primary : colors.outline,
-                          width: _pad.color == brush ? 3 : 1,
-                        ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final brush in [...AppPalette.brushes, AppPalette.eraser])
+                    InkResponse(
+                      onTap: _pad.enabled ? () => _pad.setColor(brush) : null,
+                      radius: 18,
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: _swatch(colors, brush, size: 30, selected: _pad.color == brush),
                       ),
-                      child: brush == AppPalette.eraser
-                          ? const Icon(Icons.auto_fix_normal_rounded, size: 16, color: AppPalette.ink)
-                          : null,
                     ),
-                  ),
-                const SizedBox(width: 8),
-                for (final width in brushWidths) _widthButton(context, width),
-                IconButton(
-                  onPressed: _pad.enabled ? _pad.undo : null,
-                  tooltip: 'Undo',
-                  icon: const Icon(Icons.undo_rounded),
-                ),
-                IconButton(
-                  onPressed: _pad.enabled ? _pad.clear : null,
-                  tooltip: 'Clear',
-                  icon: const Icon(Icons.delete_outline_rounded),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 6),
             Row(
               children: [
-                // A title given by the prompt shows at the top already.
-                if (widget.titleLocked)
-                  const Spacer()
-                else
-                  Expanded(
-                    child: TextField(
-                      controller: _title,
-                      focusNode: _titleFocus,
-                      maxLength: CharacterCard.maxTitleLength,
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        hintText: 'e.g. The early years',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        counterText: '',
-                      ),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final width in brushWidths) _widthButton(context, width),
+                        IconButton(
+                          onPressed: _pad.enabled ? _pad.undo : null,
+                          tooltip: 'Undo',
+                          icon: const Icon(Icons.undo_rounded),
+                        ),
+                        IconButton(
+                          onPressed: _pad.enabled ? _pad.clear : null,
+                          tooltip: 'Clear',
+                          icon: const Icon(Icons.delete_outline_rounded),
+                        ),
+                      ],
                     ),
                   ),
-                const SizedBox(width: 12),
+                ),
+                const SizedBox(width: 4),
                 FilledButton.icon(
-                  onPressed: _canSubmit ? _submit : null,
+                  onPressed: _canSubmit ? _finish : null,
+                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14)),
                   icon: const Icon(Icons.check_rounded),
                   label: const Text('Done'),
                 ),
@@ -499,6 +535,22 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           ],
         ),
       ),
+    );
+  }
+
+  Widget _swatch(ColorScheme colors, Color brush, {required double size, required bool selected}) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: brush,
+        shape: BoxShape.circle,
+        border: Border.all(color: selected ? colors.primary : colors.outline, width: selected ? 3 : 1),
+      ),
+      child: brush == AppPalette.eraser
+          ? Icon(Icons.auto_fix_normal_rounded, size: size * 0.55, color: AppPalette.ink)
+          : null,
     );
   }
 
@@ -529,6 +581,53 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Asks for a drawing's title once it's done, so typing it never takes
+/// room from the canvas. Pops with the title, or null to keep drawing.
+class _TitleDialog extends StatefulWidget {
+  const _TitleDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_TitleDialog> createState() => _TitleDialogState();
+}
+
+class _TitleDialogState extends State<_TitleDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = _controller.text.trim();
+    void save() => Navigator.of(context).pop(title);
+    return AlertDialog(
+      title: const Text('Name your drawing'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: CharacterCard.maxTitleLength,
+        textCapitalization: TextCapitalization.sentences,
+        onChanged: (_) => setState(() {}),
+        onSubmitted: (_) => title.isEmpty ? null : save(),
+        decoration: const InputDecoration(
+          labelText: 'Title',
+          hintText: 'e.g. The early years',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Keep drawing')),
+        FilledButton(onPressed: title.isEmpty ? null : save, child: const Text('Save')),
+      ],
     );
   }
 }

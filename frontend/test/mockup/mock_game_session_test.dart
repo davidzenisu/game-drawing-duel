@@ -289,8 +289,8 @@ void main() {
     await game.advanceDay();
     final toDraw = game.promptToDraw!;
     expect(toDraw.author.isYou, isFalse);
-    // The mockup has two descriptions a theme: the others may have none.
-    expect(toDraw.question, toDraw.hint == null ? isNull : 'Who is ${toDraw.hint}?');
+    // With the question its canned title answers, as online.
+    expect(toDraw.question, startsWith('Who is a challenger '));
     expect(toDraw.day, 1);
     expect(toDraw.subject.id, isNot(you.id));
     final tickets = game.tickets;

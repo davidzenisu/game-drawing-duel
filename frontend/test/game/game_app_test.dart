@@ -274,11 +274,14 @@ void main() {
             widget is AnimatedContainer && (widget.decoration as BoxDecoration?)?.color == AppPalette.brushBrown,
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.drag(find.byType(SketchPad), const Offset(80, 60));
-    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Brown');
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Brown');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
 
     final drawing = controller.setupDrawing(controller.assignments.first)!;
@@ -404,9 +407,12 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Draw').first);
       await tester.pumpAndSettle();
       await tester.drag(find.byType(SketchPad), const Offset(80, 60));
-      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Drawing $i');
       await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Drawing $i');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       // The progress circle keeps spinning, so the screen never settles.
       await tester.pump(const Duration(seconds: 1));
 
