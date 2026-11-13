@@ -615,6 +615,12 @@ class ApiGameSession extends GameSession {
   }
 
   @override
+  Future<void> buyPullWithStars() async {
+    _setGacha(await _post('/servers/${server.code}/stars/pull'));
+    notifyListeners();
+  }
+
+  @override
   Future<void> collectChallengerStars(ChallengerRecord challenger) async {
     final server = this.server;
     await _setChallengers(server, await _post('/servers/${server.code}/challengers/${challenger.card.id}/stars'));

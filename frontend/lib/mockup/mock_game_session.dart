@@ -911,6 +911,15 @@ class MockGameSession extends GameSession {
     return [for (final card in encountered.toList()..sort((a, b) => b.day.compareTo(a.day))) record(card)];
   }
 
+  @override
+  Future<void> buyPullWithStars() async {
+    if (tickets > 0) throw StateError('Use your pulls first.');
+    if (stars < StarRewards.pullPrice) throw StateError('A pull costs ${StarRewards.pullPrice} stars.');
+    _stars -= StarRewards.pullPrice;
+    _tickets++;
+    notifyListeners();
+  }
+
   /// Your challengers whose stars you collected.
   final Set<String> _collectedChallengers = {};
 

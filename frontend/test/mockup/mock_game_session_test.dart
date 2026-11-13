@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
 import 'package:frontend/game/rules/content.dart';
@@ -550,6 +552,25 @@ void main() {
     expect((collected.starsToCollect, collected.starsCollected), (0, record.starsToCollect));
     await game.collectChallengerStars(record);
     expect(game.stars, before + record.starsToCollect, reason: 'once');
+  });
+
+  test('ten stars buy a pull once the pulls are used up', () async {
+    final game = await launchedGame(day: 2);
+    await game.submitPrompt('Sunburnt', game.promptCandidates.first);
+    await game.submitChallenger(doodle);
+    await game.advanceDay();
+    await game.submitPrompt('Sunburnt', game.promptCandidates.first);
+    await game.submitChallenger(doodle);
+    expect(game.stars, 4 * 3);
+    expect(game.canBuyPullWithStars, isFalse, reason: 'pulls left');
+    await expectLater(game.buyPullWithStars(), throwsStateError);
+    while (game.tickets > 0) {
+      await game.pull(min(game.tickets, 10));
+    }
+    expect(game.canBuyPullWithStars, isTrue);
+    await game.buyPullWithStars();
+    expect((game.tickets, game.stars), (1, 2));
+    expect(game.canBuyPullWithStars, isFalse);
   });
 
   test('a hurry is free and can be sent once per day', () async {

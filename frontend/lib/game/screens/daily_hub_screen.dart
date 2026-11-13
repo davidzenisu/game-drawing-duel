@@ -275,7 +275,11 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                 icon: const Icon(Icons.help_outline_rounded),
               ),
               NotificationBoardButton(session: _controller),
-              TicketChip(tickets: _controller.tickets, stars: _controller.stars),
+              TicketChip(
+                tickets: _controller.tickets,
+                stars: _controller.stars,
+                onBuyPull: () => runGameAction(context, _controller.buyPullWithStars),
+              ),
               AdminMenu(session: _controller),
               AccountMenu(session: _controller, canCancelServer: true, suggestions: true),
               const SizedBox(width: 12),
