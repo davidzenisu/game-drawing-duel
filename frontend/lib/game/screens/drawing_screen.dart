@@ -83,7 +83,6 @@ class DrawingScreen extends StatefulWidget {
 class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProviderStateMixin {
   final _pad = SketchPadController();
   late final _title = TextEditingController(text: widget.initialTitle);
-  final _palette = MenuController();
   // From `clock`, so tests can control the time.
   final _stopwatch = clock.stopwatch();
   late final AnimationController _shake;
@@ -469,10 +468,10 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
-  /// The tools and Done on one row, on a card of their own, so they read
-  /// well on every day's scenery, in light and dark mode. The colours wait
-  /// behind a single swatch; on narrow screens the tools shrink a little
-  /// rather than take a second row.
+  /// The colours on one row, the other tools and Done on the next, on a
+  /// card of their own, so they read well on every day's scenery, in light
+  /// and dark mode. On narrow screens the rows shrink a little rather than
+  /// wrap.
   Widget _toolbar(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Card(
@@ -480,89 +479,60 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       color: colors.surface,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _paletteButton(context),
-                    const SizedBox(width: 4),
-                    for (final width in brushWidths) _widthButton(context, width),
-                    IconButton(
-                      onPressed: _pad.enabled ? _pad.undo : null,
-                      tooltip: 'Undo',
-                      icon: const Icon(Icons.undo_rounded),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final brush in [...AppPalette.brushes, AppPalette.eraser])
+                    InkResponse(
+                      onTap: _pad.enabled ? () => _pad.setColor(brush) : null,
+                      radius: 18,
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: _swatch(colors, brush, size: 30, selected: _pad.color == brush),
+                      ),
                     ),
-                    IconButton(
-                      onPressed: _pad.enabled ? _pad.clear : null,
-                      tooltip: 'Clear',
-                      icon: const Icon(Icons.delete_outline_rounded),
-                    ),
-                  ],
-                ),
+                ],
               ),
             ),
-            const SizedBox(width: 4),
-            FilledButton.icon(
-              onPressed: _canSubmit ? _finish : null,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14)),
-              icon: const Icon(Icons.check_rounded),
-              label: const Text('Done'),
+            Row(
+              children: [
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final width in brushWidths) _widthButton(context, width),
+                        IconButton(
+                          onPressed: _pad.enabled ? _pad.undo : null,
+                          tooltip: 'Undo',
+                          icon: const Icon(Icons.undo_rounded),
+                        ),
+                        IconButton(
+                          onPressed: _pad.enabled ? _pad.clear : null,
+                          tooltip: 'Clear',
+                          icon: const Icon(Icons.delete_outline_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                FilledButton.icon(
+                  onPressed: _canSubmit ? _finish : null,
+                  style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14)),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Done'),
+                ),
+              ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// The colour in use; a tap opens all the colours and the eraser.
-  Widget _paletteButton(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return MenuAnchor(
-      controller: _palette,
-      menuChildren: [
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: SizedBox(
-            width: 5 * 44,
-            child: Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                for (final brush in [...AppPalette.brushes, AppPalette.eraser])
-                  InkResponse(
-                    onTap: () {
-                      _pad.setColor(brush);
-                      _palette.close();
-                    },
-                    radius: 22,
-                    child: _swatch(colors, brush, size: 40, selected: _pad.color == brush),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-      child: Tooltip(
-        message: 'Colour',
-        child: InkResponse(
-          onTap: _pad.enabled ? () => _palette.isOpen ? _palette.close() : _palette.open() : null,
-          radius: 22,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 4, top: 4, bottom: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _swatch(colors, _pad.color, size: 32, selected: true),
-                // Says there's more to pick from.
-                Icon(Icons.arrow_drop_down_rounded, size: 20, color: colors.onSurfaceVariant),
-              ],
-            ),
-          ),
         ),
       ),
     );

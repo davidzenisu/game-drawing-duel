@@ -314,7 +314,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('the colours wait behind one swatch', (tester) async {
+  testWidgets('the colours fit one row, without taking the canvas', (tester) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -327,14 +327,15 @@ void main() {
     Finder swatch(Color color) => find.byWidgetPredicate(
       (widget) => widget is AnimatedContainer && (widget.decoration as BoxDecoration?)?.color == color,
     );
-    expect(swatch(AppPalette.brushBrown), findsNothing);
-    await tester.tap(find.byTooltip('Colour'));
-    await tester.pumpAndSettle();
+    final tops = {
+      for (final brush in [...AppPalette.brushes, AppPalette.eraser]) tester.getRect(swatch(brush)).top,
+    };
+    expect(tops, hasLength(1), reason: 'one row');
     await tester.tap(swatch(AppPalette.brushBrown));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(pad.color, AppPalette.brushBrown);
-    expect(swatch(AppPalette.brushBrown), findsOneWidget, reason: 'the swatch shows the colour in use, menu closed');
-    expect(tester.takeException(), isNull, reason: 'the tools fit one row on a small phone');
+    expect(tester.takeException(), isNull, reason: 'the tools fit a small phone');
+    expect(tester.getRect(find.byType(SketchPad)).width, greaterThan(320), reason: 'the canvas still takes the width');
     await tester.pumpWidget(const SizedBox());
   });
 

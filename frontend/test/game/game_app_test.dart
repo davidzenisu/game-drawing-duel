@@ -268,8 +268,6 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, 'Draw').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Colour'));
-    await tester.pumpAndSettle();
     await tester.tap(
       find.byWidgetPredicate(
         (widget) =>
