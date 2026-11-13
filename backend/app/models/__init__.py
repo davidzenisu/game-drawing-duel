@@ -8,6 +8,7 @@ from app.models.hurry import Hurry
 from app.models.player import Player, TutorialSeen
 from app.models.server import Server, ServerSeat
 from app.models.setup import SetupAssignment, SetupHint
+from app.models.suggestion import Suggestion, SuggestionVote
 from app.models.theme import ThemeHint
 from app.models.upgrade import Upgrade
 
@@ -29,6 +30,8 @@ __all__ = [
     "ServerSeat",
     "SetupAssignment",
     "SetupHint",
+    "Suggestion",
+    "SuggestionVote",
     "ThemeHint",
     "TutorialSeen",
     "Upgrade",

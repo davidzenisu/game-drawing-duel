@@ -432,6 +432,34 @@ void main() {
       expect(admin.tickets, before + 3);
     });
 
+    test("the server's players post suggestions and upvote each other's, already in the lobby", () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+      final sam = await signedUp('sam', 'Sam');
+      await sam.joinServer(await sam.previewServer('123456'), (await sam.previewServer('123456')).players[1]);
+
+      expect(await admin.suggestions(), isEmpty);
+      final idea = await sam.suggest(kind: SuggestionKind.idea, title: ' Dark mode ', description: 'For night owls.');
+      expect((idea.title, idea.author, idea.yours, idea.votes), ('Dark mode', 'Sam', true, 0));
+      await admin.suggest(kind: SuggestionKind.bug, title: 'Crash', description: 'On undo.');
+
+      final board = await admin.suggestions();
+      expect(
+        [for (final s in board) (s.kind, s.title, s.yours)],
+        [(SuggestionKind.bug, 'Crash', true), (SuggestionKind.idea, 'Dark mode', false)],
+        reason: 'newest first while nobody upvoted',
+      );
+      final voted = await admin.voteOn(board.last, up: true);
+      expect((voted.votes, voted.voted), (1, true));
+      expect(
+        backend.requests.any((r) => r.method == 'PUT' && r.url.path == '/servers/123456/suggestions/${idea.id}/vote'),
+        isTrue,
+      );
+      expect((await sam.suggestions()).first.title, 'Dark mode', reason: 'most upvoted first');
+      final takenBack = await admin.voteOn(voted, up: false);
+      expect((takenBack.votes, takenBack.voted), (0, false));
+      await expectLater(admin.voteOn(board.first, up: true), throwsA(isA<ApiException>()), reason: 'not your own');
+    });
+
     test('admins list the drawings of any server and load their strokes', () async {
       backend.serverManagers.add('alex');
       admin = await signedUpAgain('alex');

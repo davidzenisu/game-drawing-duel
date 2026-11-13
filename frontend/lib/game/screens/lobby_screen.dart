@@ -29,7 +29,7 @@ class LobbyScreen extends StatelessWidget {
         actions: [
           RefreshButton(session: controller),
           AdminMenu(session: controller),
-          AccountMenu(session: controller, canCancelServer: true),
+          AccountMenu(session: controller, canCancelServer: true, suggestions: true),
         ],
       ),
       body: PhaseBuilder(

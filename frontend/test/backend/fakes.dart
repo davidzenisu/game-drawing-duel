@@ -183,6 +183,27 @@ class FakeBackend {
         {'id': g.id, 'message': g.message, 'pulls': g.pulls, 'sent_at': '2026-11-09T10:00:00Z'},
   ];
 
+  /// The feedback boards by server code: each suggestion with its author's
+  /// seat and the seats that upvoted it.
+  final Map<String, List<({String id, String kind, String title, String description, int author, Set<int> voters})>>
+  suggestions = {};
+
+  Map<String, Object?> _suggestionJson(
+    String code,
+    int yours,
+    ({String id, String kind, String title, String description, int author, Set<int> voters}) s,
+  ) => {
+    'id': s.id,
+    'kind': s.kind,
+    'title': s.title,
+    'description': s.description,
+    'author': servers[code]!.seats[s.author]['name'],
+    'created_at': '2026-11-13T10:00:00Z',
+    'votes': s.voters.length,
+    'voted': s.voters.contains(yours),
+    'yours': s.author == yours,
+  };
+
   /// The prompt hints, each with its premade title.
   final List<Map<String, Object?>> hints = [];
 
@@ -478,6 +499,38 @@ class FakeBackend {
                 ..sort((a, b) => a.owner.compareTo(b.owner)))
             _fightJson(f),
         ]);
+      }
+      if (path.length >= 3 && path[2] == 'suggestions') {
+        final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);
+        if (yours < 0) return _json(403, {'detail': "You haven't joined this server"});
+        final board = suggestions.putIfAbsent(code, () => []);
+        if (request.method == 'GET' && path.length == 3) {
+          final ranked = [...board.reversed]..sort((a, b) => b.voters.length.compareTo(a.voters.length));
+          return _json(200, [for (final s in ranked) _suggestionJson(code, yours, s)]);
+        }
+        if (request.method == 'POST' && path.length == 3) {
+          final suggestion = (
+            id: 'suggestion-${board.length + 1}',
+            kind: body!['kind'] as String,
+            title: body['title'] as String,
+            description: body['description'] as String,
+            author: yours,
+            voters: <int>{},
+          );
+          board.add(suggestion);
+          return _json(201, _suggestionJson(code, yours, suggestion));
+        }
+        if (path.length == 5 && path[4] == 'vote') {
+          final suggestion = board.where((s) => s.id == path[3]).firstOrNull;
+          if (suggestion == null) return _json(404, {'detail': 'No such suggestion'});
+          if (request.method == 'PUT') {
+            if (suggestion.author == yours) return _json(422, {'detail': "You can't upvote your own suggestion"});
+            suggestion.voters.add(yours);
+          } else {
+            suggestion.voters.remove(yours);
+          }
+          return _json(200, _suggestionJson(code, yours, suggestion));
+        }
       }
       if (path.length >= 3 && path[2] == 'gifts') {
         final yours = servers[code]!.seats.indexWhere((s) => s['player'] == myId);

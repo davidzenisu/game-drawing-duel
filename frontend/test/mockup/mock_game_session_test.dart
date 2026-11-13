@@ -508,6 +508,21 @@ void main() {
     expect(game.upgradesAvailable, 0);
   });
 
+  test('the feedback board starts with two of the friends\' suggestions, to upvote and add to', () async {
+    final game = await launchedGame();
+    final board = await game.suggestions();
+    expect(board, hasLength(2));
+    expect(board.first.votes, 1, reason: 'the upvoted one first');
+    expect(board.every((s) => !s.yours && s.author != game.you.name), isTrue);
+
+    final voted = await game.voteOn(board.last, up: true);
+    expect((voted.votes, voted.voted), (1, true));
+    final mine = await game.suggest(kind: SuggestionKind.bug, title: 'Oops', description: 'Something broke.');
+    expect((mine.yours, mine.author), (true, game.you.name));
+    expect((await game.suggestions()).map((s) => s.title), contains('Oops'));
+    await expectLater(game.voteOn(mine, up: true), throwsArgumentError, reason: 'not your own');
+  });
+
   test('a hurry is free and can be sent once per day', () async {
     final game = await launchedGame();
     final tickets = game.tickets;

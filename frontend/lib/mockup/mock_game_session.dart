@@ -417,6 +417,88 @@ class MockGameSession extends GameSession {
     notifyListeners();
   }
 
+  /// The feedback boards, by server code, kept for the whole session. A
+  /// board starts with two of your friends' suggestions, one you can
+  /// upvote, one they upvoted already.
+  final Map<String, List<_MockSuggestion>> _boards = {};
+
+  List<_MockSuggestion> get _board => _boards.putIfAbsent(server.code, () {
+    final friends = [
+      for (final p in server.players)
+        if (!p.isYou) p.name,
+    ];
+    final now = DateTime.now();
+    return [
+      _MockSuggestion(
+        id: '${server.code}-suggestion-1',
+        kind: SuggestionKind.idea,
+        title: 'A dark mode for the canvas',
+        description: 'Drawing at night on the bright cardboard hurts the eyes. A darker canvas would help.',
+        author: friends.first,
+        createdAt: now.subtract(const Duration(days: 2)),
+        voters: {friends.last},
+      ),
+      _MockSuggestion(
+        id: '${server.code}-suggestion-2',
+        kind: SuggestionKind.bug,
+        title: 'Undo removes two strokes',
+        description: 'Sometimes one tap on undo takes away the last two strokes instead of one.',
+        author: friends.last,
+        createdAt: now.subtract(const Duration(hours: 5)),
+      ),
+    ];
+  });
+
+  Suggestion _suggestion(_MockSuggestion s) => Suggestion(
+    id: s.id,
+    kind: s.kind,
+    title: s.title,
+    description: s.description,
+    author: s.author,
+    createdAt: s.createdAt,
+    votes: s.voters.length,
+    voted: s.voters.contains(_yourName),
+    yours: s.author == _yourName,
+  );
+
+  /// Your name on the board: one per server, like the friends'.
+  String get _yourName => server.players.firstWhere((p) => p.isYou).name;
+
+  @override
+  Future<List<Suggestion>> suggestions() async {
+    final board = [..._board]
+      ..sort((a, b) {
+        final votes = b.voters.length.compareTo(a.voters.length);
+        return votes != 0 ? votes : b.createdAt.compareTo(a.createdAt);
+      });
+    return [for (final s in board) _suggestion(s)];
+  }
+
+  @override
+  Future<Suggestion> suggest({required SuggestionKind kind, required String title, required String description}) async {
+    if (title.trim().isEmpty || description.trim().isEmpty) {
+      throw ArgumentError('A suggestion needs a title and a description.');
+    }
+    final suggestion = _MockSuggestion(
+      id: '${server.code}-suggestion-${_board.length + 1}',
+      kind: kind,
+      title: title.trim(),
+      description: description.trim(),
+      author: _yourName,
+      createdAt: DateTime.now(),
+    );
+    _board.add(suggestion);
+    return _suggestion(suggestion);
+  }
+
+  @override
+  Future<Suggestion> voteOn(Suggestion suggestion, {required bool up}) async {
+    final s = _board.firstWhere((s) => s.id == suggestion.id);
+    if (up && s.author == _yourName) throw ArgumentError("You can't upvote your own suggestion.");
+    up ? s.voters.add(_yourName) : s.voters.remove(_yourName);
+    return _suggestion(s);
+  }
+
   /// The mockup has no accounts, so you can try the gift form: it lists
   /// this server, and a gift that reaches you lands on your board.
   @override
@@ -1089,4 +1171,27 @@ class _MockContent {
   String get text => entry.text;
 
   String get premadeTitle => entry.premadeTitle;
+}
+
+/// A suggestion on a mockup feedback board, see [MockGameSession.suggestions].
+class _MockSuggestion {
+  _MockSuggestion({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.description,
+    required this.author,
+    required this.createdAt,
+    Set<String>? voters,
+  }) : voters = voters ?? {};
+
+  final String id;
+  final SuggestionKind kind;
+  final String title;
+  final String description;
+  final String author;
+  final DateTime createdAt;
+
+  /// Who upvoted it, by name.
+  final Set<String> voters;
 }

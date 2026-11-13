@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../game_session.dart';
+import '../screens/suggestions_screen.dart';
 import 'cancel_server.dart';
 import 'game_action.dart';
 
-enum _AccountAction { rename, signOut, cancelServer }
+enum _AccountAction { rename, suggestions, signOut, cancelServer }
 
 /// App bar menu for your account: who you're signed in as, changing your
 /// name and signing out (not in the mockup, which has no account to sign
-/// out of). On a server, also cancelling it ([canCancelServer]).
+/// out of). On a server, also its feedback board ([suggestions]) and
+/// cancelling it ([canCancelServer]).
 class AccountMenu extends StatelessWidget {
-  const AccountMenu({super.key, required this.session, this.canCancelServer = false});
+  const AccountMenu({super.key, required this.session, this.canCancelServer = false, this.suggestions = false});
 
   final GameSession session;
+
+  /// Whether the menu leads to the feedback board of the server you're on.
+  final bool suggestions;
 
   /// Whether the menu offers to cancel the server you're on.
   final bool canCancelServer;
@@ -33,6 +38,9 @@ class AccountMenu extends StatelessWidget {
       icon: const Icon(Icons.account_circle_rounded),
       onSelected: (action) => switch (action) {
         _AccountAction.rename => _rename(context),
+        _AccountAction.suggestions => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => SuggestionsScreen(session: session))),
         _AccountAction.signOut => runGameAction(context, session.signOut),
         _AccountAction.cancelServer => CancelServer.confirm(context, session),
       },
@@ -54,6 +62,15 @@ class AccountMenu extends StatelessWidget {
             title: Text('Change name'),
           ),
         ),
+        if (suggestions)
+          const PopupMenuItem(
+            value: _AccountAction.suggestions,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.lightbulb_outline_rounded),
+              title: Text('Ideas & bugs'),
+            ),
+          ),
         if (!session.isMockup)
           const PopupMenuItem(
             value: _AccountAction.signOut,

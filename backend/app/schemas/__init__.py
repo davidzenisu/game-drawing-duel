@@ -62,6 +62,7 @@ from app.schemas.server import (
     ServerCreate,
     ServerResponse,
 )
+from app.schemas.suggestion import SuggestionResponse, SuggestionSubmit
 
 __all__ = [
     "AdminDrawing",
@@ -112,6 +113,8 @@ __all__ = [
     "SetupHintAdded",
     "SetupHintItem",
     "SketchData",
+    "SuggestionResponse",
+    "SuggestionSubmit",
     "TodayResponse",
     "UpgradeRequest",
     "WeeklyHeroResponse",
