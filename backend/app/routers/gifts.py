@@ -15,7 +15,11 @@ router = APIRouter(prefix="/servers", tags=["gifts"])
 
 def _response(gift: Gift) -> GiftResponse:
     return GiftResponse(
-        id=gift.id, message=gift.message, pulls=gift.pulls, sent_at=gift.sent_at
+        id=gift.id,
+        message=gift.message,
+        pulls=gift.pulls,
+        stars=gift.stars,
+        sent_at=gift.sent_at,
     )
 
 

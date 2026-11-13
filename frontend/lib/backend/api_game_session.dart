@@ -409,7 +409,13 @@ class ApiGameSession extends GameSession {
     List gifts => [
       for (final gift in gifts)
         if (gift case {'id': String id, 'message': String message, 'pulls': int pulls, 'sent_at': String sentAt})
-          Gift(id: id, message: message, pulls: pulls, sentAt: DateTime.parse(sentAt))
+          Gift(
+            id: id,
+            message: message,
+            pulls: pulls,
+            stars: gift['stars'] as int? ?? 0,
+            sentAt: DateTime.parse(sentAt),
+          )
         else
           throw const FormatException('Unexpected gift.'),
     ],
@@ -539,10 +545,17 @@ class ApiGameSession extends GameSession {
   };
 
   @override
-  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) async {
+  Future<int> sendGift({
+    required String message,
+    required int pulls,
+    int stars = 0,
+    String? serverCode,
+    List<int>? positions,
+  }) async {
     final json = await _post('/manage/gifts', {
       'message': message,
       'pulls': pulls,
+      'stars': stars,
       'server_code': ?serverCode,
       'positions': ?positions,
     });

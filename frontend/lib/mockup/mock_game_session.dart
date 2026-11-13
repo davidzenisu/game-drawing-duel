@@ -415,6 +415,7 @@ class MockGameSession extends GameSession {
     if (!_gifts.any((g) => g.id == gift.id)) return;
     _gifts.removeWhere((g) => g.id == gift.id);
     _tickets += gift.pulls;
+    _stars += gift.stars;
     notifyListeners();
   }
 
@@ -565,7 +566,13 @@ class MockGameSession extends GameSession {
       _allDrawings.firstWhere((c) => c.id == drawing.id, orElse: () => throw ArgumentError('No such drawing.')).sketch;
 
   @override
-  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) async {
+  Future<int> sendGift({
+    required String message,
+    required int pulls,
+    int stars = 0,
+    String? serverCode,
+    List<int>? positions,
+  }) async {
     final server = _server;
     if (server == null) throw StateError('No server to send it to.');
     if (serverCode != null && serverCode != server.code) throw ArgumentError('No server with this code.');
@@ -577,6 +584,7 @@ class MockGameSession extends GameSession {
           id: 'gift-${_gifts.length}-${DateTime.now().microsecondsSinceEpoch}',
           message: message,
           pulls: pulls,
+          stars: stars,
           sentAt: DateTime.now(),
         ),
       );

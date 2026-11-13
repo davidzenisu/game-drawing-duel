@@ -13,7 +13,7 @@ Additionally, there should be the change to win additional pulls (having the bes
 
 The standard banner shows off three heroes of the starting pool (the setup drawings), the same all week: the basic (1 star) of one player, a 2 star of the next and the legend (4 star) of the one after, in roster order. In the server's first week that's players 1, 2 and 3; each week (Monday to Sunday) the next player starts, around the roster. A player without a drawing of that rarity hands the slot to the next one who has one. It's only what the banner shows: the pull rates don't change.
 
-Admins can also gift pulls outside the regular rewards, with a message: to everyone on every server, everyone on one server, or chosen players of one. Players accept them on the notification board, and the pulls only count once accepted (see [Premise](./premise.md)).
+Admins can also gift pulls, stars or both outside the regular rewards, with a message (or send just a message, with neither): to everyone on every server, everyone on one server, or chosen players of one (up to 100 pulls and 1000 stars each). Players accept them on the notification board, and the pulls and stars only count once accepted (see [Premise](./premise.md)).
 
 The gacha chances should be as follows:
 - 1 star (Basics/Starters)

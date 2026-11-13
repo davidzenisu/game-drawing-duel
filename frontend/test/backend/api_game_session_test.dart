@@ -517,6 +517,7 @@ void main() {
       expect(jsonDecode(post.body), {
         'message': 'Sorry!',
         'pulls': 3,
+        'stars': 0,
         'server_code': '123456',
         'positions': [0],
       });
@@ -535,6 +536,7 @@ void main() {
       expect(jsonDecode(backend.requests.lastWhere((r) => r.url.path == '/manage/gifts').body), {
         'message': 'For everyone',
         'pulls': 1,
+        'stars': 0,
       });
     });
 

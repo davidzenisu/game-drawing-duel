@@ -16,17 +16,18 @@ from app.database import Base, utc_now
 
 
 class Gift(Base):
-    """Pulls an admin (`auth.ADMIN_PERMISSION`) gave players outside the
-    regular rewards, with a message: to everyone on every server, to everyone
-    on one server, or to chosen players of one. Each recipient's seat gets a
-    `GiftDelivery` to accept."""
+    """Pulls and stars an admin (`auth.ADMIN_PERMISSION`) gave players outside
+    the regular rewards, with a message (neither, for just a message): to
+    everyone on every server, to everyone on one server, or to chosen players
+    of one. Each recipient's seat gets a `GiftDelivery` to accept."""
 
     __tablename__ = "gift"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     message: Mapped[str] = mapped_column(String(200), nullable=False)
-    # The pulls each recipient gets.
+    # The pulls and stars each recipient gets.
     pulls: Mapped[int] = mapped_column(Integer, nullable=False)
+    stars: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     sender_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("player.id", ondelete="SET NULL")
     )

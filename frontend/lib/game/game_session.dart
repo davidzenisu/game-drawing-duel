@@ -79,16 +79,20 @@ class HurryPlan {
   final Duration left;
 }
 
-/// Pulls an admin gave you outside the regular rewards, with a message.
-/// They count once you accept them ([GameSession.acceptGift]); gifts don't
-/// expire.
+/// Pulls and stars an admin gave you outside the regular rewards, with a
+/// message, or just a message. They count once you accept it
+/// ([GameSession.acceptGift]); gifts don't expire.
 class Gift {
-  const Gift({required this.id, required this.message, required this.pulls, required this.sentAt});
+  const Gift({required this.id, required this.message, required this.pulls, this.stars = 0, required this.sentAt});
 
   final String id;
   final String message;
   final int pulls;
+  final int stars;
   final DateTime sentAt;
+
+  /// Neither pulls nor stars: just a message.
+  bool get justMessage => pulls == 0 && stars == 0;
 }
 
 /// What a [Suggestion] is about.
@@ -519,11 +523,17 @@ abstract class GameSession extends ChangeNotifier {
   /// The servers a gift can go to, see [canManageServers].
   Future<List<GiftServer>> giftServers() => Future.error(UnsupportedError('Only server admins can send gifts.'));
 
-  /// Gives [pulls] with [message] to everyone on every server without
-  /// [serverCode], else to everyone on that server, or the players at
-  /// [positions]. Completes with how many players got it.
-  Future<int> sendGift({required String message, required int pulls, String? serverCode, List<int>? positions}) =>
-      Future.error(UnsupportedError('Only server admins can send gifts.'));
+  /// Gives [pulls] and [stars] with [message] (or just the message, with
+  /// neither) to everyone on every server without [serverCode], else to
+  /// everyone on that server, or the players at [positions]. Completes with
+  /// how many players got it.
+  Future<int> sendGift({
+    required String message,
+    required int pulls,
+    int stars = 0,
+    String? serverCode,
+    List<int>? positions,
+  }) => Future.error(UnsupportedError('Only server admins can send gifts.'));
 
   /// Every drawing of the server with [serverCode], setup drawings first, for
   /// server admins (see [canManageServers]).

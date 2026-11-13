@@ -1,6 +1,7 @@
-"""Pulls an admin gives players outside the regular rewards (`Gift`), and
-their delivery: each recipient's seat gets one to accept, and its pulls only
-count once accepted. Gifts don't expire."""
+"""Pulls and stars an admin gives players outside the regular rewards
+(`Gift`), or just a message, and their delivery: each recipient's seat gets
+one to accept, and its pulls and stars only count once accepted. Gifts don't
+expire."""
 
 import uuid
 
@@ -8,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import stars as star_ledger
 from app.database import utc_now
 from app.models import Gift, GiftDelivery, PullGrant, Server, ServerSeat
 
@@ -50,6 +52,7 @@ def send(
     pulls: int,
     server: Server | None,
     positions: list[int] | None,
+    stars: int = 0,
 ) -> tuple[Gift, int]:
     """Sends a gift and returns it with its number of recipients. Commits."""
     seats = recipients(session, server, positions)
@@ -58,6 +61,7 @@ def send(
     gift = Gift(
         message=message,
         pulls=pulls,
+        stars=stars,
         sender_id=sender_id,
         server_id=server.id if server else None,
         deliveries=[GiftDelivery(seat_id=seat.id) for seat in seats],
@@ -80,8 +84,8 @@ def pending(session: Session, seat: ServerSeat) -> list[Gift]:
 
 
 def accept(session: Session, seat: ServerSeat, gift_id: uuid.UUID) -> None:
-    """Accepts a gift for `seat`: its pulls now count. Accepting it again, or
-    on two devices at once, gives them only once. Commits."""
+    """Accepts a gift for `seat`: its pulls and stars now count. Accepting it
+    again, or on two devices at once, gives them only once. Commits."""
     delivery = session.scalar(
         select(GiftDelivery).where(
             GiftDelivery.gift_id == gift_id, GiftDelivery.seat_id == seat.id
@@ -101,6 +105,8 @@ def accept(session: Session, seat: ServerSeat, gift_id: uuid.UUID) -> None:
         PullGrant(seat_id=seat.id, reason=f"gift:{gift_id}:{n}")
         for n in range(1, delivery.gift.pulls + 1)
     )
+    if delivery.gift.stars:
+        session.add(star_ledger.grant(seat.id, f"gift:{gift_id}", delivery.gift.stars))
     try:
         session.commit()
     except IntegrityError:
