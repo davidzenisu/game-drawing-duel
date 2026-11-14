@@ -1,3 +1,4 @@
+from app.schemas.achievement import AchievementResponse
 from app.schemas.admin_drawing import AdminDrawing
 from app.schemas.character import (
     ChallengerSubmit,
@@ -65,6 +66,7 @@ from app.schemas.server import (
 from app.schemas.suggestion import SuggestionResponse, SuggestionSubmit
 
 __all__ = [
+    "AchievementResponse",
     "AdminDrawing",
     "AdminPlayer",
     "AdminServer",

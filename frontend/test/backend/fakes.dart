@@ -614,6 +614,16 @@ class FakeBackend {
         collectedChallengers.add((code, path[3]));
         return _json(200, _challengers(code, myId));
       }
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'achievements') {
+        return _json(200, _achievements(code, myId));
+      }
+      if (request.method == 'POST' && path.length == 5 && path[2] == 'achievements' && path[4] == 'collect') {
+        final achievement = _achievements(code, myId).where((a) => a['key'] == path[3]).firstOrNull;
+        if (achievement == null) return _json(409, {'detail': 'No such achievement'});
+        if (achievement['done'] != true) return _json(409, {'detail': 'Not achieved yet'});
+        collectedAchievements.add((code, myId, path[3]));
+        return _json(200, _achievements(code, myId));
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'challengers') {
         return _json(200, _challengers(code, myId));
       }
@@ -768,7 +778,44 @@ class FakeBackend {
       for (final g in gifts)
         if (acceptedGifts[(code, yours)]?.contains(g.id) ?? false) giftStars[g.id] ?? 0,
     ].fold(0, (a, b) => a + b);
-    return 3 * written + 3 * drawn + won + collected + gifted - 10 * (starPulls[(code, playerId)] ?? 0);
+    final achieved = [
+      for (final a in _achievements(code, playerId))
+        if (a['collected'] == true) a['stars'] as int,
+    ].fold(0, (a, b) => a + b);
+    return 3 * written + 3 * drawn + won + collected + gifted + achieved - 10 * (starPulls[(code, playerId)] ?? 0);
+  }
+
+  /// Like the real API, but only the fight achievements: 1, 3 and 10 fights
+  /// won, and 3 and 5 in a row, 5 stars each.
+  List<Map<String, Object?>> _achievements(String code, String playerId) {
+    final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);
+    final outcomes = [
+      for (final f
+          in (fights[code] ?? const <FakeFight>[]).where((f) => f.owner == yours).toList()
+            ..sort((a, b) => a.day.compareTo(b.day)))
+        _outcome(f)['fighters_win'] == true,
+    ];
+    var won = 0, streak = 0, best = 0;
+    for (final win in outcomes) {
+      streak = win ? streak + 1 : 0;
+      if (win) won++;
+      if (streak > best) best = streak;
+    }
+    Map<String, Object?> entry(String kind, int goal, int progress) => {
+      'key': '$kind:$goal',
+      'kind': kind,
+      'player_position': null,
+      'rarity': null,
+      'goal': goal,
+      'progress': progress < goal ? progress : goal,
+      'stars': 5,
+      'done': progress >= goal,
+      'collected': collectedAchievements.contains((code, playerId, '$kind:$goal')),
+    };
+    return [
+      for (final n in const [1, 3, 10]) entry('wins', n, won),
+      for (final n in const [3, 5]) entry('streak', n, best),
+    ];
   }
 
   /// Like the real API, the fights the player may replay: theirs (the fake
@@ -990,6 +1037,10 @@ class FakeBackend {
 
   /// The challengers whose stars their artist collected, by server code.
   final Set<(String, Object?)> collectedChallengers = {};
+
+  /// Achievements whose stars a player collected: (code, player id, key).
+  /// The fake has the fight ones only: wins and wins in a row.
+  final Set<(String, String, String)> collectedAchievements = {};
 
   List<Map<String, Object?>> _challengers(String code, String playerId) {
     final yours = servers[code]!.seats.indexWhere((s) => s['player'] == playerId);

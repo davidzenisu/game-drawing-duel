@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../game/game_session.dart';
+import '../game/rules/achievements.dart';
 import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
 import '../game/rules/gacha.dart';
@@ -93,6 +94,7 @@ class ApiGameSession extends GameSession {
     _pool = const [];
     _collection = const [];
     _challengers = const [];
+    _achievements = const [];
     _tickets = 0;
     _gifts = const [];
     _setPhase(GamePhase.signIn);
@@ -419,13 +421,14 @@ class ApiGameSession extends GameSession {
 
   /// The pool, your collection and today of a running game.
   Future<void> _loadPool(ServerSession server) async {
-    final (pool, collection, gacha, today, challengers, gifts) = await (
+    final (pool, collection, gacha, today, challengers, gifts, achievements) = await (
       _get('/servers/${server.code}/pool'),
       _get('/servers/${server.code}/collection'),
       _get('/servers/${server.code}/gacha'),
       _get('/servers/${server.code}/today'),
       _get('/servers/${server.code}/challengers'),
       _get('/servers/${server.code}/gifts'),
+      _get('/servers/${server.code}/achievements'),
     ).wait;
     if (pool is! List || collection is! List) throw const FormatException('Unexpected pool response.');
     _pool = await Future.wait([for (final character in pool) _loadCharacter(server, character)]);
@@ -441,6 +444,57 @@ class ApiGameSession extends GameSession {
     _setGacha(gacha);
     await _setToday(server, today);
     _gifts = _parseGifts(gifts);
+    _setAchievements(server, achievements);
+  }
+
+  List<Achievement> _achievements = const [];
+
+  @override
+  List<Achievement> get achievements => _achievements;
+
+  void _setAchievements(ServerSession server, Object? json) {
+    if (json is! List) throw const FormatException('Unexpected achievements response.');
+    _achievements = [
+      for (final achievement in json)
+        if (achievement case {
+          'key': String key,
+          'kind': String kind,
+          'goal': int goal,
+          'progress': int progress,
+          'stars': int stars,
+          'collected': bool collected,
+        })
+          Achievement(
+            key: key,
+            kind: AchievementKind.values.byName(kind),
+            goal: goal,
+            progress: progress,
+            stars: stars,
+            collected: collected,
+            player: switch (achievement['player_position']) {
+              final int position => _seat(server, position),
+              _ => null,
+            },
+            rarity: switch (achievement['rarity']) {
+              final String rarity => Rarity.values.byName(rarity),
+              _ => null,
+            },
+          )
+        else
+          throw const FormatException('Unexpected achievement.'),
+    ];
+  }
+
+  /// Summoning and fighting move achievements on.
+  Future<void> _reloadAchievements(ServerSession server) async =>
+      _setAchievements(server, await _get('/servers/${server.code}/achievements'));
+
+  @override
+  Future<void> collectAchievement(Achievement achievement) async {
+    final server = this.server;
+    _setAchievements(server, await _post('/servers/${server.code}/achievements/${achievement.key}/collect'));
+    _setGacha(await _get('/servers/${server.code}/gacha'));
+    notifyListeners();
   }
 
   List<Gift> _gifts = const [];
@@ -1011,6 +1065,7 @@ class ApiGameSession extends GameSession {
     _pool = const [];
     _collection = const [];
     _challengers = const [];
+    _achievements = const [];
     _tickets = 0;
     _gifts = const [];
     _suggestedFirstName = '';
@@ -1080,6 +1135,7 @@ class ApiGameSession extends GameSession {
     _pool = const [];
     _collection = const [];
     _challengers = const [];
+    _achievements = const [];
     _tickets = 0;
     _gifts = const [];
     _serverNotice = notice;
@@ -1202,6 +1258,7 @@ class ApiGameSession extends GameSession {
     });
     await _setToday(server, json);
     await _reloadChallengers(server);
+    await _reloadAchievements(server);
     // A win earns a pull and stars.
     _setGacha(await _get('/servers/${server.code}/gacha'));
     notifyListeners();
@@ -1323,6 +1380,7 @@ class ApiGameSession extends GameSession {
         }
       }
       _setGacha(gacha);
+      await _reloadAchievements(server);
       notifyListeners();
       return results;
     }

@@ -174,6 +174,26 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.STARS_FOR_CHALLENGER, stars["challenger"])
         self.assertEqual(rules.STARS_PER_PULL, stars["pull_price"])
 
+    def test_achievements(self):
+        achievements = SHARED["achievements"]
+        self.assertEqual(
+            {str(n): s for n, s in rules.ACHIEVEMENT_PLAYER_STARS.items()},
+            achievements["player_stars"],
+        )
+        self.assertEqual(
+            {r.value: s for r, s in rules.ACHIEVEMENT_RARITY_STARS.items()},
+            achievements["rarity_stars"],
+        )
+        self.assertEqual(list(rules.ACHIEVEMENT_WINS), achievements["wins"])
+        self.assertEqual(list(rules.ACHIEVEMENT_STREAKS), achievements["streaks"])
+        self.assertEqual(rules.ACHIEVEMENT_FIGHT_STARS, achievements["fight_stars"])
+        # Every player count gets a reward.
+        players = SHARED["players"]
+        self.assertEqual(
+            set(rules.ACHIEVEMENT_PLAYER_STARS),
+            set(range(players["min"], players["max"] + 1)),
+        )
+
     def test_hurry(self):
         hurry = SHARED["hurry"]
         self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])

@@ -352,6 +352,22 @@ STARS_FOR_CHALLENGER = 3
 # Stars buy a pull for this many, once a player's pulls are used up.
 STARS_PER_PULL = 10
 
+# Achievements (`app.achievements`), each rewarded once with stars:
+# - owning every starter hero of another player's, or portraying a player,
+#   by the number of players in the roster (fewer is harder);
+ACHIEVEMENT_PLAYER_STARS = {5: 10, 6: 9, 7: 8, 8: 7, 9: 6, 10: 5}
+# - owning every starter hero of a rarity;
+ACHIEVEMENT_RARITY_STARS = {
+    Rarity.BASIC: 10,
+    Rarity.ADVENTURER: 15,
+    Rarity.LEGEND: 20,
+}
+# - winning this many fights you picked the fighters for, and this many of
+#   them in a row.
+ACHIEVEMENT_WINS = (1, 3, 10)
+ACHIEVEMENT_STREAKS = (3, 5)
+ACHIEVEMENT_FIGHT_STARS = 5
+
 
 def hurry_hits(jitters: list[float]) -> list[float]:
     """The seconds left at which each of a day's hurries hits, in the order
