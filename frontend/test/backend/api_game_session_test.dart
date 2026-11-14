@@ -8,7 +8,6 @@ import 'package:frontend/backend/api_game_session.dart';
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/backend/sketch_json.dart';
 import 'package:frontend/game/game_session.dart';
-import 'package:frontend/game/rules/achievements.dart';
 import 'package:frontend/game/rules/content.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
@@ -645,7 +644,7 @@ void main() {
 
       // The fake hands out the pool in order: Basic, Knight, A legend, …
       final outcomes = await admin.pull(4);
-      final pull = backend.requests.lastWhere((r) => r.method == 'POST');
+      final pull = backend.requests.last;
       expect(pull.url.path, '/servers/123456/pulls');
       expect(jsonDecode(pull.body), {'count': 4, 'banner': 'standard'});
       expect(outcomes.map((o) => o.card.title), ['Basic', 'Knight', 'A legend', 'Basic']);
@@ -873,22 +872,6 @@ void main() {
       expect(admin.stars - starsBefore, fight.fightersWin ? 5 : 0);
       expect(admin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)), reason: 'only the ones drawn');
       expect(admin.restDays, isEmpty);
-      // The first win is an achievement, its 5 stars to collect once.
-      final firstWin = admin.achievements.firstWhere((a) => a.key == 'wins:1');
-      expect((firstWin.kind, firstWin.goal, firstWin.stars), (AchievementKind.wins, 1, 5));
-      expect(firstWin.collectable, fight.fightersWin);
-      expect(admin.achievementsToCollect, fight.fightersWin ? 1 : 0);
-      if (fight.fightersWin) {
-        final before = admin.stars;
-        await admin.collectAchievement(firstWin);
-        expect(
-          backend.requests.lastWhere((r) => r.method == 'POST').url.path,
-          '/servers/123456/achievements/wins:1/collect',
-        );
-        expect(admin.stars, before + 5);
-        expect(admin.achievements.firstWhere((a) => a.key == 'wins:1').collected, isTrue);
-        expect(admin.achievementsToCollect, 0);
-      }
 
       // Day 5: Alex's two fighters rest, by their rarity.
       await nextDay();

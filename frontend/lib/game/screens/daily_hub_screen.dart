@@ -349,10 +349,7 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                             title: 'Heroes',
                             height: 112,
                             // Upgrades to unlock and challenger stars to collect.
-                            badge:
-                                _controller.upgradesAvailable +
-                                _controller.challengersToCollect +
-                                _controller.achievementsToCollect,
+                            badge: _controller.upgradesAvailable + _controller.challengersToCollect,
                             onTap: () => _open(HeroesMenuScreen(controller: _controller)),
                           ),
                         ],

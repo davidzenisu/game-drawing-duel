@@ -13,12 +13,11 @@ import 'collection_screen.dart';
 import 'fight_history_screen.dart';
 import 'gacha_screen.dart';
 import 'ranking_screen.dart';
-import 'rewards_screen.dart';
 import 'win_rates_screen.dart';
 
 /// Everything around your heroes, off the daily hub: summoning, your
-/// heroes, the challengers, rewards, win rates, replays of past fights, the
-/// week ranking and hurries. What doesn't apply right now is greyed out.
+/// heroes, the challengers, win rates, replays of past fights, the week
+/// ranking and hurries. What doesn't apply right now is greyed out.
 class HeroesMenuScreen extends StatelessWidget {
   const HeroesMenuScreen({super.key, required this.controller});
 
@@ -76,12 +75,6 @@ class HeroesMenuScreen extends StatelessWidget {
                             title: 'Challengers',
                             badge: c.challengersToCollect,
                             onTap: () => open(ChallengersScreen(controller: c)),
-                          ),
-                          HubTile(
-                            icon: Icons.military_tech_rounded,
-                            title: 'Rewards',
-                            badge: c.achievementsToCollect,
-                            onTap: () => open(RewardsScreen(controller: c)),
                           ),
                           HubTile(
                             icon: Icons.percent_rounded,

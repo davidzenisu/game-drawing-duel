@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import 'rules/content.dart';
-import 'rules/achievements.dart';
 import 'rules/daily_loop.dart';
 import 'rules/gacha.dart';
 import 'rules/models.dart';
@@ -323,14 +322,6 @@ abstract class GameSession extends ChangeNotifier {
   /// [ChallengerRecord.starsToCollect]): they add to your [stars].
   Future<void> collectChallengerStars(ChallengerRecord challenger);
 
-  /// Your achievements: summoning every starter hero of a player, as artist
-  /// or portrayed, or of a rarity, and winning fights, see [Achievement].
-  List<Achievement> get achievements;
-
-  /// Collects the stars of an achievement you reached
-  /// ([Achievement.collectable]): they add to your [stars], once.
-  Future<void> collectAchievement(Achievement achievement);
-
   /// The days before today with fights of yours to replay, newest first.
   Future<List<FightDay>> fightDays();
 
@@ -426,9 +417,6 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Your challengers with stars to collect, see [collectChallengerStars].
   int get challengersToCollect => challengers.where((r) => r.starsToCollect > 0).length;
-
-  /// Your achievements with stars to collect, see [collectAchievement].
-  int get achievementsToCollect => achievements.where((a) => a.collectable).length;
 
   /// Whether there is still something to do on the current day.
   bool get hasOpenSteps =>
