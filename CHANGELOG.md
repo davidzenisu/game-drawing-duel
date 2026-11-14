@@ -19,6 +19,9 @@ version's date is the day of its last change.
 - The artist of a challenger that wins a fight collects its stars in the
   Challengers menu, from the day after the fight.
 - 10 stars buy a pull once all your pulls are used.
+- **Rewards** in the heroes menu: stars for summoning every starter hero of
+  a player (as artist or portrayed) or of a rarity, and for winning 1, 3
+  and 10 fights, and 3 and 5 in a row.
 - New stars are celebrated like pulls, together when both arrive.
 - An **Ideas & bugs** board in the account menu: post ideas and bug reports,
   upvote the ones of your server, and remove your own.
