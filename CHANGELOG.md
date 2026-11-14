@@ -3,67 +3,97 @@
 All notable changes to Drawing Duel, newest first. The app shows these same
 notes under **What's new** in the account menu.
 
-Versions follow [semantic versioning](https://semver.org): while the game is
-in early development (0.x), every week (Monday to Sunday, UTC) with new
-features is a new minor version, and a week with fixes only a patch. A
-version's date is the day of its last change.
+Versions follow [semantic versioning](https://semver.org). Up to 0.6.0,
+every week (Monday to Sunday, UTC) was one version. Since then, every
+change is a version of its own, dated the day it went live (UTC): a minor
+version when it adds or changes something, a patch when it only fixes. While
+the game is in early development (0.x), versions stay below 1.0.
 
-## [0.7.0] - 2026-11-14
+## [0.11.0] - 2026-11-14
 
 ### Added
+- **Rewards** in the heroes menu: stars for summoning every starter hero of
+  a player (as artist or portrayed) or of a rarity, and for winning 1, 3
+  and 10 fights, and 3 and 5 in a row.
 - Release notes, under **What's new** in the account menu, and in the
   repository.
+
+### Changed
+- After a fight, characters rest by rarity instead of until Monday: a day
+  for a basic one, up to four for a legend. Basic ones rest too, and the
+  roster shows the days left.
+- The game loads faster after your first visit: drawings are kept on your
+  device instead of downloaded every time. Signing out removes them.
+- Boosts are saved all at once with **Done**, not with every star; leaving
+  with stars not saved asks first.
+
+### Fixed
+- A drawing that fails to download while the game loads is tried again,
+  instead of stopping with "Signing in failed".
+- The stars for writing a title show right away, instead of with the next
+  reward.
+
+## [0.10.0] - 2026-11-13
+
+### Added
 - **Stars**, a new currency: 3 for writing a challenger title, 3 for drawing
   a challenger, and a challenger's stars for beating it. They show under your
   pulls.
 - The artist of a challenger that wins a fight collects its stars in the
   Challengers menu, from the day after the fight.
 - 10 stars buy a pull once all your pulls are used.
-- **Rewards** in the heroes menu: stars for summoning every starter hero of
-  a player (as artist or portrayed) or of a rarity, and for winning 1, 3
-  and 10 fights, and 3 and 5 in a row.
 - New stars are celebrated like pulls, together when both arrive.
+- Gifts can also bring stars, or just a message.
 - An **Ideas & bugs** board in the account menu: post ideas and bug reports,
   upvote the ones of your server, and remove your own.
-- Gifts of pulls on the notification board, celebrated with a ticket that
-  flies into your pulls. Gifts can also bring stars, or just a message.
-- Change your account name from the account menu, and your name on a server
-  when you create it.
 - A **Ready** button starts the challenger drawing's clock, so you can read
   the prompt first.
-- Download a character's drawing as a PNG from its page.
-- Hero list filters for the heroes you summoned and the drawings of or by a
-  player.
 
 ### Changed
-- Boosts are saved all at once with **Done**, not with every star; leaving
-  with stars not saved asks first.
+- You only see your own challengers, and replays of your own fights.
 - The drawing canvas takes the full width on phones, with a slimmer top bar
   and the tools on two rows.
 - Who and what to draw shows in a nameplate; the prompt's question is behind
   the info button.
-- 90 seconds to draw a challenger, and the hurry button sits on the hub.
-- The lobby and the setup refresh on demand instead of every few seconds.
-- The boost step shows the challenger's fight scenery.
+
+### Fixed
+- The text under the banners on the summon page is readable in dark mode.
+- After a drawing, the upload finishes before its recap and the
+  celebration of its rewards.
+
+## [0.9.0] - 2026-11-12
+
+### Added
+- Hero list filters for the heroes you summoned and the drawings of or by a
+  player.
+
+### Changed
 - Win rates open once the first week is over.
 - The standard banner shows a fixed trio each week, rotating through the
   roster; more 1 stars than 2 stars, and each week's new 3 star joins it.
-- You only see your own challengers, and replays of your own fights.
-- After a fight, characters rest by rarity instead of until Monday: a day
-  for a basic one, up to four for a legend. Basic ones rest too, and the
-  roster shows the days left.
-- The game loads faster after your first visit: drawings are kept on your
-  device instead of downloaded every time. Signing out removes them.
 
 ### Fixed
-- After a drawing, the upload finishes before its recap and the
-  celebration of its rewards.
 - No drawing preview when choosing a challenger to write a title for.
-- The text under the banners on the summon page is readable in dark mode.
-- The stars for writing a title show right away, instead of with the next
-  reward.
-- A drawing that fails to download while the game loads is tried again,
-  instead of stopping with "Signing in failed".
+
+## [0.8.0] - 2026-11-10
+
+### Added
+- Download a character's drawing as a PNG from its page.
+
+### Changed
+- 90 seconds to draw a challenger, and the hurry button sits on the hub.
+- The lobby and the setup refresh on demand instead of every few seconds.
+
+## [0.7.0] - 2026-11-09
+
+### Added
+- Gifts of pulls on the notification board, celebrated with a ticket that
+  flies into your pulls.
+- Change your account name from the account menu, and your name on a server
+  when you create it.
+
+### Changed
+- The boost step shows the challenger's fight scenery.
 
 ## [0.6.0] - 2026-11-08
 
