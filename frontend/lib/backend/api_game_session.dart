@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
@@ -10,21 +11,30 @@ import '../game/rules/models.dart';
 import '../game/rules/setup_plan.dart';
 import '../game/rules/themes.dart';
 import '../game/rules/upgrades.dart';
+import '../platform/sketch_store.dart';
 import 'api_client.dart';
 import 'auth_client.dart';
 import 'sketch_json.dart';
 
 /// [GameSession] backed by the API and Auth0.
 class ApiGameSession extends GameSession {
-  ApiGameSession({required ApiClient? api, String? signInProblem, this.retryDelay = const Duration(milliseconds: 500)})
-    : _api = api,
-      _signInProblem = api == null ? signInProblem ?? 'Sign-in is not configured.' : signInProblem;
+  ApiGameSession({
+    required ApiClient? api,
+    String? signInProblem,
+    this.retryDelay = const Duration(milliseconds: 500),
+    SketchStore? sketchStore,
+  }) : _api = api,
+       _sketchStore = sketchStore ?? SketchStore(),
+       _signInProblem = api == null ? signInProblem ?? 'Sign-in is not configured.' : signInProblem;
 
   final ApiClient? _api;
 
   /// How long a drawing download waits before its first retry; each next
   /// retry waits twice as long.
   final Duration retryDelay;
+
+  /// The drawings downloaded on earlier visits.
+  final SketchStore _sketchStore;
 
   GamePhase _phase = GamePhase.loading;
   String? _signInProblem;
@@ -552,7 +562,7 @@ class ApiGameSession extends GameSession {
 
   @override
   Future<Sketch> drawingSketch(AdminDrawing drawing) async =>
-      _sketches[drawing.id] ??= SketchJson.decode(await _getRetrying('/manage/characters/${drawing.id}/sketch'));
+      _sketches[drawing.id] ??= await _sketch(drawing.id, '/manage/characters/${drawing.id}/sketch');
 
   @override
   Future<List<GiftServer>> giftServers() async => switch (await _get('/manage/servers')) {
@@ -887,6 +897,30 @@ class ApiGameSession extends GameSession {
     orElse: () => throw FormatException('Unknown seat $position.'),
   );
 
+  /// The drawing of character [id]: from an earlier visit, or else
+  /// downloaded from [path] and kept for the next one. A character's drawing
+  /// never changes.
+  Future<Sketch> _sketch(String id, String path) async {
+    try {
+      if (await _sketchStore.read(id) case final String json) return SketchJson.decode(jsonDecode(json));
+    } catch (_) {
+      // A broken or unreadable copy: download it again.
+    }
+    final json = await _getRetrying(path);
+    final sketch = SketchJson.decode(json);
+    unawaited(_keep(id, json));
+    return sketch;
+  }
+
+  /// Keeps a drawing for the next visit, if the device lets us.
+  Future<void> _keep(String id, Object? json) async {
+    try {
+      await _sketchStore.write(id, jsonEncode(json));
+    } catch (_) {
+      // Full or unavailable storage: it's downloaded again next time.
+    }
+  }
+
   /// A character from the API, with its sketch loaded unless it is [known].
   Future<CharacterCard> _loadCharacter(ServerSession server, Object? json, {Sketch? known}) async {
     if (json case {
@@ -897,8 +931,9 @@ class ApiGameSession extends GameSession {
       'artist_position': int artist,
       'subject_position': int subject,
     }) {
-      final sketch = _sketches[id] =
-          known ?? _sketches[id] ?? SketchJson.decode(await _getRetrying('/characters/$id/sketch'));
+      // What you just drew is kept for the next visit, instead of downloaded.
+      if (known != null && !_sketches.containsKey(id)) unawaited(_keep(id, SketchJson.encode(known)));
+      final sketch = _sketches[id] = known ?? _sketches[id] ?? await _sketch(id, '/characters/$id/sketch');
       final theme = switch (json['theme']) {
         final String name => _theme(name),
         _ => null,
@@ -959,6 +994,13 @@ class ApiGameSession extends GameSession {
   @override
   Future<void> signOut() async {
     await _auth.signOut();
+    // The next player on this device shouldn't find your drawings.
+    _sketches.clear();
+    try {
+      await _sketchStore.clear();
+    } catch (_) {
+      // Nothing kept, or storage unavailable.
+    }
     _account = null;
     _canEditContent = false;
     _canManageServers = false;
