@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../game/game_session.dart';
+import '../game/rules/achievements.dart';
 import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
 import '../game/rules/gacha.dart';
@@ -299,6 +300,7 @@ class MockGameSession extends GameSession {
     _yourChallengers.clear();
     _yourFights.clear();
     _collectedChallengers.clear();
+    _collectedAchievements.clear();
     _yourBoosts.clear();
     _weeklyHero = null;
     _hurrySentTo = null;
@@ -930,6 +932,28 @@ class MockGameSession extends GameSession {
 
   /// Your challengers whose stars you collected.
   final Set<String> _collectedChallengers = {};
+
+  /// The achievements whose stars you collected, by key.
+  final Set<String> _collectedAchievements = {};
+
+  /// Like online, worked out from your collection and your fights.
+  @override
+  List<Achievement> get achievements => AchievementRewards.of(
+    players: server.players,
+    pool: _pool,
+    owned: _owned.keys.toSet(),
+    fightsWon: [for (final day in _yourFights.keys.toList()..sort()) _yourFights[day]!.fightersWin],
+    collected: _collectedAchievements,
+  );
+
+  @override
+  Future<void> collectAchievement(Achievement achievement) async {
+    final reached = achievements.where((a) => a.key == achievement.key && a.collectable).firstOrNull;
+    if (reached == null) return;
+    _collectedAchievements.add(reached.key);
+    _stars += reached.stars;
+    notifyListeners();
+  }
 
   @override
   Future<void> collectChallengerStars(ChallengerRecord challenger) async {

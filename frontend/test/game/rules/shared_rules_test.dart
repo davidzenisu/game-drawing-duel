@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/achievements.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
@@ -138,6 +139,19 @@ void main() {
     final stars = rules['stars'] as Map<String, dynamic>;
     expect((StarRewards.prompt, StarRewards.challenger), (stars['prompt'], stars['challenger']));
     expect(StarRewards.pullPrice, stars['pull_price']);
+  });
+
+  test('achievements', () {
+    final achievements = rules['achievements'] as Map<String, dynamic>;
+    expect({
+      for (final MapEntry(:key, :value) in AchievementRewards.playerStars.entries) '$key': value,
+    }, achievements['player_stars']);
+    expect({
+      for (final MapEntry(:key, :value) in AchievementRewards.rarityStars.entries) key.name: value,
+    }, achievements['rarity_stars']);
+    expect(AchievementRewards.wins, achievements['wins']);
+    expect(AchievementRewards.streaks, achievements['streaks']);
+    expect(AchievementRewards.fightStars, achievements['fight_stars']);
   });
 
   test('hurry', () {
