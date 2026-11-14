@@ -10,6 +10,10 @@ Game Drawing Duel is a daily, sketch-based competitive game where players draw c
 - Boosts for the challengers, and the stars decide the fights
 - A weekly finale: the week's challengers are ranked by their stars; the best joins the gacha pool as a hero
 
+## Release notes
+
+What changed in each version, with its date: [CHANGELOG.md](CHANGELOG.md). The app shows the same notes under **What's new** in the account menu.
+
 ## Design docs
 
 - [docs/concept/premise.md](docs/concept/premise.md) — the main game loop and daily structure

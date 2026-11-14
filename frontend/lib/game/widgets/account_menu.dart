@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../game_session.dart';
+import '../screens/release_notes_screen.dart';
 import '../screens/suggestions_screen.dart';
 import 'cancel_server.dart';
 import 'game_action.dart';
 
-enum _AccountAction { rename, suggestions, signOut, cancelServer }
+enum _AccountAction { rename, whatsNew, suggestions, signOut, cancelServer }
 
 /// App bar menu for your account: who you're signed in as, changing your
-/// name and signing out (not in the mockup, which has no account to sign
+/// name, what's new in the game (its release notes) and signing out (not in the mockup, which has no account to sign
 /// out of). On a server, also its feedback board ([suggestions]) and
 /// cancelling it ([canCancelServer]).
 class AccountMenu extends StatelessWidget {
@@ -38,6 +39,9 @@ class AccountMenu extends StatelessWidget {
       icon: const Icon(Icons.account_circle_rounded),
       onSelected: (action) => switch (action) {
         _AccountAction.rename => _rename(context),
+        _AccountAction.whatsNew => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const ReleaseNotesScreen())),
         _AccountAction.suggestions => Navigator.of(
           context,
         ).push(MaterialPageRoute<void>(builder: (_) => SuggestionsScreen(session: session))),
@@ -60,6 +64,14 @@ class AccountMenu extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.edit_rounded),
             title: Text('Change name'),
+          ),
+        ),
+        const PopupMenuItem(
+          value: _AccountAction.whatsNew,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.info_outline_rounded),
+            title: Text("What's new"),
           ),
         ),
         if (suggestions)
