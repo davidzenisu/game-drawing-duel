@@ -46,6 +46,8 @@ version's date is the day of its last change.
 - The standard banner shows a fixed trio each week, rotating through the
   roster; more 1 stars than 2 stars, and each week's new 3 star joins it.
 - You only see your own challengers, and replays of your own fights.
+- The game loads faster after your first visit: drawings are kept on your
+  device instead of downloaded every time. Signing out removes them.
 
 ### Fixed
 - After a drawing, the upload finishes before its recap and the
@@ -54,6 +56,8 @@ version's date is the day of its last change.
 - The text under the banners on the summon page is readable in dark mode.
 - The stars for writing a title show right away, instead of with the next
   reward.
+- A drawing that fails to download while the game loads is tried again,
+  instead of stopping with "Signing in failed".
 
 ## [0.6.0] - 2026-11-08
 

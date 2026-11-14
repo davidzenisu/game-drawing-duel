@@ -112,6 +112,7 @@ void main() {
 
   group('servers', () {
     late FakeBackend backend;
+    late FakeSketchStore store;
     late ApiGameSession admin;
 
     Future<ApiGameSession> signedUp(String token, String name) async {
@@ -134,6 +135,8 @@ void main() {
           auth: FakeAuthClient(token: token, profile: const AuthProfile()),
           httpClient: backend.client,
         ),
+        retryDelay: Duration.zero,
+        sketchStore: store,
       );
       await session.start();
       return session;
@@ -141,6 +144,7 @@ void main() {
 
     setUp(() async {
       backend = FakeBackend();
+      store = FakeSketchStore();
       admin = await signedUp('alex', 'Alex');
     });
 
@@ -302,6 +306,96 @@ void main() {
       expect(card.title, 'Basic');
       expect(card.sketch.strokes.single.points, doodle.strokes.single.points);
       expect(again.setupDrawing(again.assignments[1]), isNull);
+    });
+
+    test('a drawing that fails to download is tried again', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      final id = admin.setupDrawing(admin.assignments.first)!.id;
+      backend.failures['/characters/$id/sketch'] = [null, 503];
+
+      final again = await signedUpAgain('alex');
+      expect(again.phase, GamePhase.setup);
+      expect(again.setupDrawing(again.assignments.first)!.sketch.strokes, hasLength(1));
+      expect(backend.requests.where((r) => r.url.path == '/characters/$id/sketch'), hasLength(3));
+    });
+
+    test('a drawing download gives up after a few tries, or right away when it is gone', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      final id = admin.setupDrawing(admin.assignments.first)!.id;
+      final path = '/characters/$id/sketch';
+
+      backend.failures[path] = [503, 503, 503];
+      expect((await signedUpAgain('alex')).phase, GamePhase.signIn);
+      expect(backend.requests.where((r) => r.url.path == path), hasLength(3));
+
+      backend.requests.clear();
+      backend.failures[path] = [404];
+      expect((await signedUpAgain('alex')).phase, GamePhase.signIn);
+      expect(backend.requests.where((r) => r.url.path == path), hasLength(1));
+    });
+
+    test('drawings are kept on the device and not downloaded again', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      final id = admin.setupDrawing(admin.assignments.first)!.id;
+      final path = '/characters/$id/sketch';
+
+      // The first visit on this device downloads it, and keeps it.
+      expect((await signedUpAgain('alex')).setupDrawing(admin.assignments.first)!.sketch.strokes, hasLength(1));
+      expect(backend.requests.where((r) => r.url.path == path), hasLength(1));
+      await pumpEventQueue();
+      expect(store.sketches.keys, [id]);
+
+      backend.requests.clear();
+      final again = await signedUpAgain('alex');
+      expect(again.setupDrawing(again.assignments.first)!.sketch.strokes.single.points, doodle.strokes.single.points);
+      expect(backend.requests.where((r) => r.url.path == path), isEmpty);
+
+      await again.signOut();
+      expect(store.sketches, isEmpty, reason: 'the next player on this device starts fresh');
+    });
+
+    test('what you just drew is kept on the device right away', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      final alex = await signedUpAgain('alex');
+      await alex.submitSetupDrawing(alex.assignments.first, doodle, 'Basic');
+      await pumpEventQueue();
+      final id = alex.setupDrawing(alex.assignments.first)!.id;
+      expect(store.sketches.keys, [id]);
+      expect(backend.requests.where((r) => r.url.path.endsWith('/sketch')), isEmpty);
+    });
+
+    test('a broken copy is downloaded again', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      final id = admin.setupDrawing(admin.assignments.first)!.id;
+      store.sketches[id] = '{"strokes": "nope"}';
+
+      final again = await signedUpAgain('alex');
+      expect(again.setupDrawing(again.assignments.first)!.sketch.strokes, hasLength(1));
+      expect(backend.requests.where((r) => r.url.path == '/characters/$id/sketch'), hasLength(1));
+      await pumpEventQueue();
+      expect(store.sketches[id], isNot(contains('nope')));
+    });
+
+    test('without storage on the device, drawings are downloaded every time', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      store.broken = true;
+
+      final again = await signedUpAgain('alex');
+      expect(again.phase, GamePhase.setup);
+      expect(again.setupDrawing(again.assignments.first)!.sketch.strokes, hasLength(1));
+      await again.signOut();
+      expect(again.phase, GamePhase.signIn);
     });
 
     Future<void> drawAll(ApiGameSession player) async {

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:frontend/backend/auth_client.dart';
+import 'package:frontend/platform/sketch_store.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/rules/upgrades.dart';
@@ -55,6 +56,29 @@ class FakeAuthClient implements AuthClient {
 }
 
 /// An in-memory stand-in for the API. Callers are told apart by their token.
+/// A [SketchStore] in memory, like the browser's IndexedDB across visits.
+class FakeSketchStore implements SketchStore {
+  final Map<String, String> sketches = {};
+
+  /// Fails every call, like a browser without IndexedDB.
+  bool broken = false;
+
+  @override
+  Future<String?> read(String id) async => broken ? throw StateError('No IndexedDB') : sketches[id];
+
+  @override
+  Future<void> write(String id, String json) async {
+    if (broken) throw StateError('No IndexedDB');
+    sketches[id] = json;
+  }
+
+  @override
+  Future<void> clear() async {
+    if (broken) throw StateError('No IndexedDB');
+    sketches.clear();
+  }
+}
+
 class FakeBackend {
   /// Players by token: `{'id': 'player-uuid-7', 'first_name': 'Pat'}`.
   final Map<String, Map<String, Object?>> players = {};
@@ -224,11 +248,21 @@ class FakeBackend {
   /// Rejects every request with this status and detail, like the real API
   /// does for a bad token.
   ({int status, String detail})? rejectAll;
+
+  /// Failures to answer with before handling a request, by path: a status
+  /// code, or null for a request that never reaches the API (the browser's
+  /// "Failed to fetch"). Each is used once.
+  final Map<String, List<int?>> failures = {};
   int _nextCode = 123456;
 
   MockClient get client => MockClient((request) async {
     requests.add(request);
     if (rejectAll != null) return _json(rejectAll!.status, {'detail': rejectAll!.detail});
+    if (failures[request.url.path] case [final failure, ...] && final queue) {
+      queue.removeAt(0);
+      if (failure == null) throw http.ClientException('Failed to fetch', request.url);
+      return _json(failure, {'detail': 'Service unavailable'});
+    }
     final token = (request.headers['Authorization'] ?? '').replaceFirst('Bearer ', '');
     final path = request.url.pathSegments;
     final me = players[token];
