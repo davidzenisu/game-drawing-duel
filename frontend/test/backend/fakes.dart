@@ -947,13 +947,15 @@ class FakeBackend {
             for (final f in fights[code] ?? const [])
               if (f.owner == yours && f.day == today) _fightJson(f),
           ].firstOrNull,
-          // Day 1 is a Monday in the fake, so weeks start on days 1, 8, ...
-          'resting': {
+          // After a fight, a character rests 1 to 4 days, by its rarity.
+          'rest_days': {
             for (final f in fights[code] ?? const [])
-              if (f.owner == yours && f.day < today && f.day >= today - (today - 1) % 7)
+              if (f.owner == yours && f.day < today)
                 for (final c in f.fighters)
-                  if (c['rarity'] != 'basic') c['id'],
-          }.toList(),
+                  if (f.day + Rarity.values.byName(c['rarity'] as String).restDays + 1 - today case final left
+                      when left > 0)
+                    c['id'] as String: left,
+          },
         },
       },
       'boost': switch (boostTargets(today)) {

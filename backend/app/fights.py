@@ -25,6 +25,7 @@ from app.rules import (
     BOOST_MAX_PER_CHALLENGER,
     BOOST_STARS,
     MAX_FIGHTERS,
+    REST_DAYS,
     Rarity,
 )
 
@@ -303,29 +304,32 @@ def new_fight(
 
 def resting(
     session: Session, server: Server, seat: ServerSeat, day: int
-) -> set[uuid.UUID]:
-    """The characters `seat` sent into a fight earlier in `day`'s week. Every
-    character fights once a week, they're back on Monday; basic ones can
-    fight every day, so nobody ever runs out (everyone draws one during the
-    setup)."""
-    return set(
-        session.scalars(
-            select(Fighter.character_id)
-            .join(Fight, Fight.id == Fighter.fight_id)
-            .join(Character, Character.id == Fighter.character_id)
-            .where(
-                Fight.owner_seat_id == seat.id,
-                Character.rarity != Rarity.BASIC.value,
-                Fight.day >= days.week_start(server, day),
-                Fight.day < day,
-            )
-        ).all()
-    )
+) -> dict[uuid.UUID, int]:
+    """The characters `seat` sent into a fight that still rest on `day`, with
+    how many days they rest from `day` on (1: back tomorrow). After a fight,
+    a character rests `rules.REST_DAYS` of its rarity, from 1 day for a
+    basic one to 4 for a legend, fought by chance or not."""
+    last_fights = session.execute(
+        select(Fighter.character_id, Character.rarity, func.max(Fight.day))
+        .join(Fight, Fight.id == Fighter.fight_id)
+        .join(Character, Character.id == Fighter.character_id)
+        .where(
+            Fight.owner_seat_id == seat.id,
+            Fight.day >= day - max(REST_DAYS.values()),
+            Fight.day < day,
+        )
+        .group_by(Fighter.character_id, Character.rarity)
+    ).all()
+    left = {
+        character_id: fought + REST_DAYS[Rarity(rarity)] + 1 - day
+        for character_id, rarity, fought in last_fights
+    }
+    return {character_id: days for character_id, days in left.items() if days > 0}
 
 
 def complete_fights(session: Session, server: Server, day: int) -> None:
     """Once `day` is over, picks fighters by chance for everyone who picked
-    none, out of their characters that didn't fight yet that week. The week
+    none, out of their characters that don't rest (`resting`). The week
     before's last day first: its fights give `day`'s win rates
     (`app.win_rates`). Commits."""
     if not speed.is_speed(server):
@@ -342,7 +346,7 @@ def _complete_fights(session: Session, server: Server, day: int) -> None:
             continue
         challenger = fight_challenger(session, server, day, seat)
         owned = sorted(
-            set(pulls.copies(session, seat)) - resting(session, server, seat, day)
+            set(pulls.copies(session, seat)) - set(resting(session, server, seat, day))
         )
         if challenger is None or not owned:
             continue

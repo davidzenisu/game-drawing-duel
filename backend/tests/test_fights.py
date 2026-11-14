@@ -44,6 +44,21 @@ class FightTestCase(LaunchTestCase):
     def next_day(self):
         return self.post("days/next")
 
+    def pull_launch_bonus(self) -> None:
+        """Everyone pulls their launch pulls, for a bigger roster."""
+        for subject in PLAYERS:
+            response = self.client.post(
+                f"/servers/{self.code}/pulls",
+                json={"count": 10},
+                headers=bearer(make_token(subject)),
+            )
+            assert response.status_code == 200, response.text
+
+    def without_rest(self):
+        """No rest after fights, so chance always finds fighters: every
+        challenger gets its fight, whatever chance picked before."""
+        return patch.dict(rules.REST_DAYS, dict.fromkeys(rules.REST_DAYS, 0))
+
     def today(self, subject: str = ADMIN):
         return self.get(f"/servers/{self.code}/today", subject).json()
 
@@ -372,8 +387,8 @@ class ChallengerListTests(FightTestCase):
         self.assertFalse(pool & challengers)
 
 
-class WeeklyRestTests(FightTestCase):
-    """Every character fights once a week, from Monday to Sunday (UTC)."""
+class RestTests(FightTestCase):
+    """After a fight, a character rests a few days, by its rarity."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -414,49 +429,69 @@ class WeeklyRestTests(FightTestCase):
         collection = self.get(f"/servers/{self.code}/collection", subject).json()
         return {o["character"]["id"]: o["character"]["rarity"] for o in collection}
 
-    def test_characters_rest_until_monday_after_a_fight(self) -> None:
+    def test_characters_rest_after_a_fight_by_rarity(self) -> None:
         rarities = self.rarities()
         rare = [c for c, r in rarities.items() if r != "basic"][:2]
         basic = next(c for c, r in rarities.items() if r == "basic")
         self.assertEqual(len(rare), 2)
+        rest = rules.REST_DAYS[rules.Rarity(rarities[rare[0]])]
         self.next_day()
         self.assertEqual(self.today()["fight"]["resting"], [])
-        self.assertEqual(self.pick([*rare, basic]).status_code, 200)
+        self.assertEqual(self.today()["fight"]["rest_days"], {})
+        self.assertEqual(self.pick([rare[0], basic]).status_code, 200)
         self.next_day()
 
-        # Day 5: the two rarer fighters rest for the rest of the week, the
-        # basic one fights again.
-        self.assertEqual(set(self.today()["fight"]["resting"]), set(rare))
-        again = self.pick([rare[0], basic])
+        # Day 5: both rest, the basic one for today only.
+        fight = self.today()["fight"]
+        self.assertEqual(fight["rest_days"], {rare[0]: rest, basic: 1})
+        self.assertEqual(set(fight["resting"]), {rare[0], basic})
+        again = self.pick([rare[1], basic])
         self.assertEqual(again.status_code, 409)
         self.assertEqual(
-            again.json()["detail"],
-            "Every character fights once a week; they're back on Monday",
+            again.json()["detail"], "A character rests for a few days after a fight"
         )
+        self.assertEqual(self.pick([rare[1]]).status_code, 200)
+        self.next_day()
+
+        # Day 6: the basic one is back, the rarer one rests a day less.
+        rest_days = self.today()["fight"]["rest_days"]
+        self.assertNotIn(basic, rest_days)
+        self.assertEqual(rest_days.get(rare[0], 0), rest - 1)
         self.assertEqual(self.pick([basic]).status_code, 200)
 
-        # Day 8 is the next Monday: everyone is back.
-        for _ in range(3):
+    def test_rest_carries_over_into_the_next_week(self) -> None:
+        self.pull_launch_bonus()
+        rarities = self.rarities()
+        # Alex sends one fighter a day, so there's always one left.
+        while True:
             self.next_day()
-        self.assertEqual(self.today()["day"], 8)
-        self.assertEqual(self.today()["fight"]["resting"], [])
-        self.assertEqual(self.pick(rare).status_code, 200)
+            rest_days = self.today()["fight"]["rest_days"]
+            fighter = next(c for c in rarities if c not in rest_days)
+            if self.today()["day"] == 7:
+                break
+            self.assertEqual(self.pick([fighter]).status_code, 200)
+        self.assertEqual(self.pick([fighter]).status_code, 200)
+        self.next_day()
+        # Day 8 is a Monday, and the character that fought on Sunday rests.
+        rest = rules.REST_DAYS[rules.Rarity(rarities[fighter])]
+        self.assertEqual(self.today()["fight"]["rest_days"][fighter], rest)
 
     def test_fighters_picked_by_chance_rest_too(self) -> None:
         # Sam picks nobody all week, so chance does, from the characters
-        # that didn't fight yet that week, or basic ones.
+        # that don't rest.
         rarities = self.rarities(SAM)
         self.next_day()
-        picked = set()
-        for day in range(4, 8):
+        fought: dict[str, int] = {}
+        for day in range(4, 9):
             # A day's missing fighters are picked once the next day starts.
             self.next_day()
             self.today(SAM)
-            fighters = self.fighters_of(SAM, day)
-            self.assertTrue(fighters, f"day {day}: a basic one is always left")
-            rested = {c for c in picked & fighters if rarities[c] != "basic"}
-            self.assertFalse(rested, f"day {day}")
-            picked |= fighters
+            for character in self.fighters_of(SAM, day):
+                if character in fought:
+                    rest = rules.REST_DAYS[rules.Rarity(rarities[character])]
+                    self.assertGreater(day, fought[character] + rest, character)
+                fought[character] = day
+        self.assertTrue(fought)
 
 
 class StackedHurryTests(FightTestCase):

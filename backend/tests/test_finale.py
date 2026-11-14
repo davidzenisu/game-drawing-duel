@@ -113,9 +113,11 @@ class FinaleTests(FightTestCase):
         favourite = self.challengers(2)[0]
         self.boost(favourite, 2)
         # Day 7, a Sunday: challengers drawn today are boosted next week.
-        self.go_to_day(7)
-        self.draw_challengers()
-        self.next_day()
+        with self.without_rest():
+            self.go_to_day(7)
+            self.draw_challengers()
+            self.next_day()
+            self.today()
         ranking = self.ranking()
         self.assertEqual(ranking["day"], 7)
         ranked = [r["character"]["id"] for r in ranking["challengers"]]

@@ -134,6 +134,9 @@ class SharedRulesTest(unittest.TestCase):
         fights = SHARED["fights"]
         self.assertEqual(rules.MAX_FIGHTERS, fights["max_fighters"])
         self.assertEqual(rules.CHALLENGER_STARS, fights["challenger_stars"])
+        self.assertEqual(
+            {r.value: days for r, days in rules.REST_DAYS.items()}, fights["rest_days"]
+        )
         for team, boost_stars, fighters_win in fights["cases"]:
             self.assertEqual(
                 rules.fighters_win(

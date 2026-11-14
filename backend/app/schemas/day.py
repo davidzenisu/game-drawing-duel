@@ -104,9 +104,12 @@ class FightStep(BaseModel):
     challenger: CharacterResponse
     # Your fighters and how they fared, once picked.
     yours: FightResponse | None
-    # Your characters that fought earlier this week: every character but the
-    # basic ones fights once a week, they're back on Monday (UTC).
+    # Your characters that rest today after a fight
+    # (`rules.REST_DAYS`)...
     resting: list[uuid.UUID]
+    # ...with how many days each still rests from today on: 1 is back
+    # tomorrow.
+    rest_days: dict[uuid.UUID, int]
 
 
 class IncomingHurry(BaseModel):

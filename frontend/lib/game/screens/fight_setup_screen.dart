@@ -11,7 +11,8 @@ import 'fight_replay_screen.dart';
 
 /// Step 4: pick up to four fighters against a challenger the others boosted
 /// yesterday. Its boosts stay secret until you lock in, then the stars
-/// decide and the fight plays out. Every character fights once a week.
+/// decide and the fight plays out. After a fight, a character rests a few
+/// days, by its rarity.
 class FightSetupScreen extends StatefulWidget {
   const FightSetupScreen({super.key, required this.controller});
 
@@ -90,9 +91,13 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
             setSheetState(() {});
           }
 
-          // The characters that already fought this week come last.
+          // The resting characters come last, the ones back soonest first.
           final controller = widget.controller;
-          final roster = [...controller.availableFighters, ...controller.collection.where(controller.isResting)];
+          final roster = [
+            ...controller.availableFighters,
+            ...controller.collection.where(controller.isResting).toList()
+              ..sort((a, b) => controller.restDaysLeft(a).compareTo(controller.restDaysLeft(b))),
+          ];
           return SizedBox(
             height: MediaQuery.sizeOf(context).height * 0.7,
             child: Column(
@@ -115,7 +120,8 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                       final owned = roster[index];
                       final selected = _picked.contains(owned);
                       final full = _picked.length >= FightSetup.maxFighters;
-                      final resting = controller.isResting(owned);
+                      final restDays = controller.restDaysLeft(owned);
+                      final resting = restDays > 0;
                       final pickable = !resting && (selected || !full);
                       return InkWell(
                         borderRadius: BorderRadius.circular(12),
@@ -134,7 +140,13 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                             opacity: pickable ? 1 : 0.4,
                             child: Column(
                               children: [
-                                Standee(card: owned.card, width: 90, effects: owned.shown, element: owned.element),
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Standee(card: owned.card, width: 90, effects: owned.shown, element: owned.element),
+                                    if (resting) Positioned(top: 0, right: 0, child: RestBadge(days: restDays)),
+                                  ],
+                                ),
                                 const SizedBox(height: 4),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -148,7 +160,7 @@ class _FightSetupScreenState extends State<FightSetupScreen> {
                                 ),
                                 Text(owned.card.subject, overflow: TextOverflow.ellipsis),
                                 Text(
-                                  resting ? 'Resting until Monday' : owned.card.title,
+                                  resting ? 'Resting, ${backIn(restDays)}' : owned.card.title,
                                   overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context).textTheme.labelSmall,
                                 ),
@@ -286,4 +298,37 @@ String _extraStars(FightSetup fight) {
     if (fight.challengerExtraStars > 0) "the challenger's +${fight.challengerExtraStars}",
   ];
   return parts.isEmpty ? '' : ' (win rate extra stars: ${parts.join(', ')})';
+}
+
+/// The days a character still rests after a fight, on its card in the
+/// roster: a moon and the number of days.
+class RestBadge extends StatelessWidget {
+  const RestBadge({super.key, required this.days});
+
+  final int days;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: 'Resting, ${backIn(days)}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(color: colors.inverseSurface, borderRadius: BorderRadius.circular(10)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bedtime_rounded, size: 12, color: colors.onInverseSurface),
+            const SizedBox(width: 2),
+            Text(
+              '${days}d',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: colors.onInverseSurface, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

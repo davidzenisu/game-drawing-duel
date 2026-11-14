@@ -46,6 +46,9 @@ version's date is the day of its last change.
 - The standard banner shows a fixed trio each week, rotating through the
   roster; more 1 stars than 2 stars, and each week's new 3 star joins it.
 - You only see your own challengers, and replays of your own fights.
+- After a fight, characters rest by rarity instead of until Monday: a day
+  for a basic one, up to four for a legend. Basic ones rest too, and the
+  roster shows the days left.
 - The game loads faster after your first visit: drawings are kept on your
   device instead of downloaded every time. Signing out removes them.
 

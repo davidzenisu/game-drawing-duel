@@ -144,10 +144,10 @@ enum Tutorial {
       ),
       const TutorialPage(
         icon: Icons.bedtime_rounded,
-        title: 'Once a week',
+        title: 'Rest days',
         text:
-            'After a fight a character rests until Monday. Basic characters can fight every day, so you '
-            'never run out.',
+            'After a fight a character rests: a day for a basic one, two for an adventurer, three for a '
+            'hero and four for a legend. Their card shows when they\'re back.',
       ),
       const TutorialPage(
         icon: Icons.casino_rounded,

@@ -35,8 +35,11 @@ class WinRateTests(FightTestCase):
     def to_day_eight(self) -> None:
         """Moves on to day 8, the next Monday, leaving last week without any
         fighters but the ones `add_fight` adds."""
-        while self.today()["day"] < 8:
-            self.next_day()
+        # Chance picks fighters for everyone every day: a seat without a fight
+        # would get one picked once the fighters are gone.
+        with self.without_rest():
+            while self.today()["day"] < 8:
+                self.next_day()
         with self.session_factory() as session:
             session.execute(delete(Fighter))
             session.commit()

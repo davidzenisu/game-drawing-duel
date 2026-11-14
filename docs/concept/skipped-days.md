@@ -27,7 +27,7 @@ This makes the drawing the only step whose skipping costs the others something: 
 Once the day is over, the boost stars a player didn't give are spread by chance across their challengers to boost. A player who skipped the drawing the day before has no boosts to give, by hand or by chance (see above). That's for balance: only the players who drew boost, so however many skip, there are as many boosters as challengers, and challengers get about the same boost stars as on a day everyone drew instead of a few challengers sharing everyone's stars.
 
 # 4. Fight
-Once the day is over, chance picks fighters for a player who didn't: 1 to 4 of their characters that didn't fight yet that week, sent against their challenger. The fight is decided by the stars as usual and counts for the challenger's record, the ranking and next week's win rates (see [Win Rates](./win-rates.md)). A win by chance earns no pull and no stars, though: only fights a player picks themselves pay out. The characters chance sent count as having fought that week.
+Once the day is over, chance picks fighters for a player who didn't: 1 to 4 of their characters that don't rest after a fight, sent against their challenger (with every one resting, nobody). The fight is decided by the stars as usual and counts for the challenger's record, the ranking and next week's win rates (see [Win Rates](./win-rates.md)). A win by chance earns no pull and no stars, though: only fights a player picks themselves pay out. The characters chance sent rest afterwards like any others.
 
 # Hurry
 A free hurry that isn't sent is lost; it doesn't carry over to the next day.

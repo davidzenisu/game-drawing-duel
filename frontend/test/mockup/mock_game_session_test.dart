@@ -158,7 +158,8 @@ void main() {
         await expectLater(game.submitPrompt('Late', game.promptCandidates.first), throwsStateError);
       }
       expect(game.sessionOver, isFalse);
-      if (game.fightChallenger != null && game.yourFight == null) {
+      // Your basic one rests the day after its fight, and you pull nothing.
+      if (game.fightChallenger != null && game.yourFight == null && game.availableFighters.isNotEmpty) {
         final tickets = game.tickets;
         await game.submitFighters([game.availableFighters.first]);
         final fight = game.yourFight!;
@@ -399,29 +400,30 @@ void main() {
     expect(game.pool, hasLength(pool));
   });
 
-  test('characters fight once a week, until Monday, but basic ones every day', () async {
-    // A Monday: day 4 is a Thursday, day 8 the next Monday.
-    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
+  test('after a fight, characters rest a few days by their rarity, across weeks', () async {
+    // A Thursday: day 4 is a Sunday, day 5 the next Monday.
+    final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 8, 12));
     for (var day = 1; day < LoopStep.fight; day++) {
       await game.advanceDay();
     }
     final rare = game.collection.where((o) => o.card.rarity != Rarity.basic).first;
     final basic = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
     await game.submitFighters([rare, basic]);
-    expect(game.restingCharacterIds, isEmpty, reason: 'they rest from tomorrow on');
+    expect(game.restDays, isEmpty, reason: 'they rest from tomorrow on');
 
     await game.advanceDay();
-    expect(game.restingCharacterIds, {rare.card.id});
-    expect(game.availableFighters, isNot(contains(rare)));
-    expect(game.availableFighters, contains(basic));
-    await expectLater(game.submitFighters([rare]), throwsArgumentError);
-    await game.submitFighters([basic]);
-    expect(game.yourFight, isNotNull);
+    expect(game.restDays, {rare.card.id: rare.card.rarity.restDays, basic.card.id: 1}, reason: 'a new week too');
+    expect(game.restDaysLeft(basic), 1);
+    expect(game.availableFighters, isNot(contains(basic)));
+    await expectLater(game.submitFighters([basic]), throwsArgumentError);
 
-    for (var day = 6; day <= 8; day++) {
+    await game.advanceDay();
+    expect(game.availableFighters, contains(basic));
+    expect(game.restDaysLeft(rare), rare.card.rarity.restDays - 1);
+    for (var day = 0; day < rare.card.rarity.restDays - 1; day++) {
       await game.advanceDay();
     }
-    expect(game.restingCharacterIds, isEmpty, reason: 'a new week');
+    expect(game.restDays, isEmpty);
   });
 
   test("today's description is one of the theme's hints", () async {

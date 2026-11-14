@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'game_session.dart';
 import 'rules/daily_loop.dart';
 
@@ -40,7 +42,12 @@ abstract final class Unavailable {
     return _notYet(c, LoopStep.fight, 'Fighting') ??
         (c.fightChallenger == null
             ? 'No challenger to fight today.'
-            : "All your characters fought this week. They're back on Monday.");
+            : switch (c.restDays.values) {
+                final days when days.isNotEmpty =>
+                  "No heroes are available for fighting today: they're all resting after their fights. "
+                      'The first one is ${backIn(days.reduce(min))}.',
+                _ => 'No heroes are available for fighting today.',
+              });
   }
 
   /// Win rates show everyone's basic drawing, so they wait for the first
