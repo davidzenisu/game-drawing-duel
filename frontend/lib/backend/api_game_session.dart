@@ -993,14 +993,15 @@ class ApiGameSession extends GameSession {
 
   @override
   Future<void> signOut() async {
-    await _auth.signOut();
-    // The next player on this device shouldn't find your drawings.
+    // The next player on this device shouldn't find your drawings. Before
+    // Auth0, which may leave the page.
     _sketches.clear();
     try {
       await _sketchStore.clear();
     } catch (_) {
       // Nothing kept, or storage unavailable.
     }
+    await _auth.signOut();
     _account = null;
     _canEditContent = false;
     _canManageServers = false;
