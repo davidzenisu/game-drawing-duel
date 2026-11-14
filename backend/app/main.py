@@ -14,6 +14,7 @@ from app.database import get_db
 from app.docs_login import configure_docs_login
 from app.docs_page import configure_docs_page
 from app.routers import (
+    achievements,
     admin,
     characters,
     content,
@@ -84,6 +85,7 @@ app.include_router(pool.router, dependencies=_authenticated)
 app.include_router(today.router, dependencies=_authenticated)
 app.include_router(gifts.router, dependencies=_authenticated)
 app.include_router(suggestions.router, dependencies=_authenticated)
+app.include_router(achievements.router, dependencies=_authenticated)
 # Also needs the content permission.
 app.include_router(content.router, dependencies=_authenticated)
 app.include_router(admin.router, dependencies=_authenticated)
