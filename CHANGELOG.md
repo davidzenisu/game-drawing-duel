@@ -33,6 +33,8 @@ version's date is the day of its last change.
   player.
 
 ### Changed
+- Boosts are saved all at once with **Done**, not with every star; leaving
+  with stars not saved asks first.
 - The drawing canvas takes the full width on phones, with a slimmer top bar
   and the tools on two rows.
 - Who and what to draw shows in a nameplate; the prompt's question is behind

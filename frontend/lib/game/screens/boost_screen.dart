@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../platform/leave_guard.dart';
 import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
 import '../game_session.dart';
@@ -10,9 +12,10 @@ import '../widgets/themed_background.dart';
 /// Step 3: spread your boost stars across a few of yesterday's challengers,
 /// swiping freely between them. Drag a star from the tray at the bottom onto
 /// the challenger in view, or down from a challenger to take it back; a tap
-/// does the same. Tomorrow they're fought; the stars you leave are spread by
-/// chance once the day is over. Behind each one, the scenery it'll be fought
-/// in.
+/// does the same. The stars are only saved with Done; leaving with changes
+/// not saved asks first. Tomorrow they're fought; the stars you leave are
+/// spread by chance once the day is over. Behind each one, the scenery it'll
+/// be fought in.
 class BoostScreen extends StatefulWidget {
   const BoostScreen({super.key, required this.controller});
 
@@ -33,26 +36,79 @@ class _BoostScreenState extends State<BoostScreen> {
   final _pages = PageController(viewportFraction: 0.82);
   int _page = 0;
   bool _saving = false;
+  final _leaveGuard = LeaveGuard();
+
+  /// The stars by challenger as saved, and as you set them here.
+  Map<String, int> get _saved => {
+    for (final t in widget.controller.boostTargets)
+      if (t.stars > 0) t.challenger.id: t.stars,
+  };
+  late Map<String, int> _draft = _saved;
+
+  bool get _dirty => !mapEquals(_draft, _saved);
 
   @override
   void dispose() {
+    _leaveGuard.disable();
     _pages.dispose();
     super.dispose();
   }
 
-  Future<void> _give(String challengerId, int change) async {
-    final stars = {
-      for (final t in widget.controller.boostTargets)
-        if (t.stars > 0) t.challenger.id: t.stars,
-    };
-    stars[challengerId] = (stars[challengerId] ?? 0) + change;
-    setState(() => _saving = true);
-    await runGameAction(context, () => widget.controller.setBoosts(stars));
-    if (mounted) setState(() => _saving = false);
+  /// Gives a challenger a star, or takes one back: only here, until Done.
+  void _give(String challengerId, int change) {
+    setState(() {
+      final stars = (_draft[challengerId] ?? 0) + change;
+      _draft = {..._draft, challengerId: stars}..removeWhere((_, n) => n <= 0);
+    });
+    // On the web, the browser asks before the page is closed with changes.
+    _dirty ? _leaveGuard.enable() : _leaveGuard.disable();
   }
 
-  bool _canGive(BoostTarget target) =>
-      !_saving && widget.controller.boostStarsLeft > 0 && target.stars < Boost.maxPerChallenger;
+  int get _left => Boost.stars - _draft.values.fold(0, (sum, n) => sum + n);
+
+  bool _canGive(BoostTarget target) => !_saving && _left > 0 && target.stars < Boost.maxPerChallenger;
+
+  /// Saves the stars; completes with whether it worked.
+  Future<bool> _save() async {
+    if (!_dirty) return true;
+    setState(() => _saving = true);
+    final saved = await runGameAction(context, () => widget.controller.setBoosts(_draft));
+    if (!mounted) return saved;
+    setState(() => _saving = false);
+    if (saved) _leaveGuard.disable();
+    return saved;
+  }
+
+  Future<void> _done() async {
+    if (await _save() && mounted) Navigator.of(context).pop(true);
+  }
+
+  /// Leaving with changes not saved: save them, drop them, or stay.
+  Future<void> _confirmLeave() async {
+    final choice = await showDialog<_Leave>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save your boosts?'),
+        content: const Text("You moved stars but didn't save them. Unsaved boosts are lost when you leave."),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(_Leave.discard), child: const Text('Discard')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Keep boosting')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(_Leave.save), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case _Leave.save:
+        await _done();
+      case _Leave.discard:
+        _leaveGuard.disable();
+        setState(() => _draft = _saved);
+        Navigator.of(context).pop(false);
+      case null:
+        break;
+    }
+  }
 
   void _goTo(int page) =>
       _pages.animateToPage(page, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
@@ -62,51 +118,64 @@ class _BoostScreenState extends State<BoostScreen> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final targets = widget.controller.boostTargets;
-        final left = widget.controller.boostStarsLeft;
+        // The challengers with the stars as set here.
+        final targets = [
+          for (final t in widget.controller.boostTargets)
+            BoostTarget(challenger: t.challenger, stars: _draft[t.challenger.id] ?? 0),
+        ];
         final current = targets[_page.clamp(0, targets.length - 1)];
-        return Scaffold(
-          appBar: AppBar(title: Text('Boost challengers ${_page + 1}/${targets.length}')),
-          body: Column(
-            children: [
-              Expanded(
-                child: ThemedBackground(
-                  theme: current.challenger.scenery,
-                  child: PageView.builder(
-                    controller: _pages,
-                    itemCount: targets.length,
-                    onPageChanged: (page) => setState(() => _page = page),
-                    itemBuilder: (context, index) {
-                      final target = targets[index];
-                      return _ChallengerCard(
-                        key: ValueKey(target.challenger.id),
-                        target: target,
-                        inView: index == _page,
-                        canTake: !_saving,
-                        willAccept: (star) => star.from == null && index == _page && _canGive(target),
-                        onGive: () => _give(target.challenger.id, 1),
-                        onTakeBack: () => _give(target.challenger.id, -1),
-                      );
-                    },
+        return PopScope(
+          canPop: !_dirty,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _confirmLeave();
+          },
+          child: Scaffold(
+            appBar: AppBar(title: Text('Boost challengers ${_page + 1}/${targets.length}')),
+            body: Column(
+              children: [
+                Expanded(
+                  child: ThemedBackground(
+                    theme: current.challenger.scenery,
+                    child: PageView.builder(
+                      controller: _pages,
+                      itemCount: targets.length,
+                      onPageChanged: (page) => setState(() => _page = page),
+                      itemBuilder: (context, index) {
+                        final target = targets[index];
+                        return _ChallengerCard(
+                          key: ValueKey(target.challenger.id),
+                          target: target,
+                          inView: index == _page,
+                          canTake: !_saving,
+                          willAccept: (star) => star.from == null && index == _page && _canGive(target),
+                          onGive: () => _give(target.challenger.id, 1),
+                          onTakeBack: () => _give(target.challenger.id, -1),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-              _StarTray(
-                left: left,
-                enabled: _canGive(current),
-                saving: _saving,
-                onGive: () => _give(current.challenger.id, 1),
-                onTakeBack: (star) => _give(star.from!, -1),
-                onPrevious: _page > 0 ? () => _goTo(_page - 1) : null,
-                onNext: _page < targets.length - 1 ? () => _goTo(_page + 1) : null,
-              ),
-            ],
+                _StarTray(
+                  left: _left,
+                  enabled: _canGive(current),
+                  saving: _saving,
+                  unsaved: _dirty,
+                  onGive: () => _give(current.challenger.id, 1),
+                  onTakeBack: (star) => _give(star.from!, -1),
+                  onPrevious: _page > 0 ? () => _goTo(_page - 1) : null,
+                  onNext: _page < targets.length - 1 ? () => _goTo(_page + 1) : null,
+                  onDone: _saving ? null : _done,
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 }
+
+enum _Leave { save, discard }
 
 /// A challenger to boost, taking stars dropped on it while it's in view.
 class _ChallengerCard extends StatelessWidget {
@@ -260,15 +329,21 @@ class _StarTray extends StatelessWidget {
     required this.left,
     required this.enabled,
     required this.saving,
+    required this.unsaved,
     required this.onGive,
     required this.onTakeBack,
     required this.onPrevious,
     required this.onNext,
+    required this.onDone,
   });
 
   final int left;
   final bool enabled;
   final bool saving;
+
+  /// Whether the stars moved here aren't saved yet: Done saves them.
+  final bool unsaved;
+  final VoidCallback? onDone;
   final VoidCallback onGive;
   final void Function(_Star star) onTakeBack;
   final VoidCallback? onPrevious;
@@ -346,14 +421,21 @@ class _StarTray extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  'Move them until the day is over; the ones you leave are spread by chance.',
+                  unsaved
+                      ? 'Not saved yet: press Done to save your boosts.'
+                      : 'Move them until the day is over; the ones you leave are spread by chance.',
                   style: textTheme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Done')),
+                  child: FilledButton(
+                    onPressed: onDone,
+                    child: saving
+                        ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2.5))
+                        : const Text('Done'),
+                  ),
                 ),
               ],
             ),
