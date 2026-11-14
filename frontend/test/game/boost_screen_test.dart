@@ -6,27 +6,34 @@ import 'package:frontend/mockup/mock_game_session.dart';
 
 import '../helpers.dart';
 
+/// A mockup game on day 3, with three challengers to boost.
+Future<MockGameSession> _boostDay() async {
+  final controller = MockGameSession(seed: 1);
+  await controller.signUp('Pat');
+  await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
+  while (!controller.server.everyoneJoined) {
+    await controller.refreshServer();
+  }
+  await controller.startSetup();
+  for (final assignment in controller.assignments) {
+    await controller.submitSetupDrawing(assignment, doodle, 'Title');
+  }
+  await controller.launch();
+  // Everyone writes and draws, so there are three challengers to boost.
+  await controller.submitPrompt('Sunburnt', controller.promptCandidates.first);
+  await controller.advanceDay();
+  await controller.submitChallenger(doodle);
+  await controller.advanceDay();
+
+  return controller;
+}
+
 void main() {
   testWidgets("spreads the boost stars across yesterday's challengers", (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final controller = MockGameSession(seed: 1);
-    await controller.signUp('Pat');
-    await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
-    while (!controller.server.everyoneJoined) {
-      await controller.refreshServer();
-    }
-    await controller.startSetup();
-    for (final assignment in controller.assignments) {
-      await controller.submitSetupDrawing(assignment, doodle, 'Title');
-    }
-    await controller.launch();
-    // Everyone writes and draws, so there are three challengers to boost.
-    await controller.submitPrompt('Sunburnt', controller.promptCandidates.first);
-    await controller.advanceDay();
-    await controller.submitChallenger(doodle);
-    await controller.advanceDay();
+    final controller = await _boostDay();
     final targets = controller.boostTargets;
     expect(targets, hasLength(Boost.challengers));
 
@@ -76,7 +83,8 @@ void main() {
     final first = find.text(targets.first.challenger.title);
     await drag(trayStar(), first);
     await drag(trayStar(), first);
-    expect(controller.boostTargets.first.stars, 2);
+    expect(controller.boostTargets.first.stars, 0, reason: 'only saved with Done');
+    expect(find.text('Not saved yet: press Done to save your boosts.'), findsOneWidget);
     expect(find.textContaining('1 of 3 left'), findsOneWidget);
     expect(given(0, 1), findsOneWidget);
     expect(given(0, 2), findsNothing, reason: 'no empty slots');
@@ -84,33 +92,100 @@ void main() {
 
     // Drag one back down to the tray, and tap to give it again.
     await drag(given(0, 1), find.textContaining('1 of 3 left'));
-    expect(controller.boostTargets.first.stars, 1);
+    expect(given(0, 1), findsNothing);
     await tester.tap(trayStar());
     await tester.pumpAndSettle();
-    expect(controller.boostTargets.first.stars, 2);
+    expect(given(0, 1), findsOneWidget);
 
     // On to the next one: the last star goes there, and none are left.
     await tester.tap(find.byTooltip('Next challenger'));
     await tester.pumpAndSettle();
     expect(find.text('Boost challengers 2/${targets.length}'), findsOneWidget);
     await drag(trayStar(), find.text(targets[1].challenger.title));
-    expect(controller.boostTargets[1].stars, 1);
-    expect(controller.canBoost, isFalse);
+    expect(given(1, 0), findsOneWidget);
     expect(find.textContaining('All 3 stars given'), findsOneWidget);
     expect(find.byTooltip('Give a star'), findsNothing);
 
     // A tap takes one back; going back, the first one's stay.
     await tester.tap(given(1, 0));
     await tester.pumpAndSettle();
-    expect(controller.boostStarsLeft, 1);
+    expect(find.textContaining('1 of 3 left'), findsOneWidget);
     await tester.tap(find.byTooltip('Previous challenger'));
     await tester.pumpAndSettle();
-    expect(controller.boostTargets.first.stars, 2);
     expect(given(0, 1), findsOneWidget);
 
+    // Done saves them all at once.
+    expect(controller.boostStarsLeft, Boost.stars, reason: 'nothing saved yet');
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     expect(done, isTrue);
+    expect([for (final t in controller.boostTargets) t.stars], [2, 0, 0]);
+    expect(controller.boostStarsLeft, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('leaving with boosts not saved asks first: keep boosting, discard or save', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = await _boostDay();
+    bool? done;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => done = await Navigator.of(
+              context,
+            ).push<bool>(MaterialPageRoute(builder: (_) => BoostScreen(controller: controller))),
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+    Future<void> open() async {
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> giveOne() async {
+      await tester.tap(find.byTooltip('Give a star').hitTestable().first);
+      await tester.pumpAndSettle();
+    }
+
+    // Nothing changed: leaving doesn't ask.
+    await open();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.byType(BoostScreen), findsNothing);
+
+    // Keep boosting stays; Discard leaves without saving.
+    await open();
+    await giveOne();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Save your boosts?'), findsOneWidget);
+    await tester.tap(find.text('Keep boosting'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BoostScreen), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Save your boosts?'), findsOneWidget, reason: 'the system back asks too');
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BoostScreen), findsNothing);
+    expect(done, isFalse);
+    expect(controller.boostStarsLeft, Boost.stars, reason: 'not saved');
+
+    // Save saves, then leaves.
+    await open();
+    await giveOne();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BoostScreen), findsNothing);
+    expect(done, isTrue);
+    expect(controller.boostStarsLeft, Boost.stars - 1);
     await tester.pumpWidget(const SizedBox());
   });
 }
