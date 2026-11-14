@@ -47,6 +47,22 @@ void main() {
     }
   });
 
+  test('without a hero ready to fight, fighting is greyed out', () async {
+    // In speed mode you only own your basic one, which rests after its fight.
+    final game = await _speed(4);
+    await game.submitFighters(game.availableFighters);
+    expect(Unavailable.fight(game), isNull, reason: 'fought today');
+    await game.advanceDay();
+    expect(game.fightChallenger, isNotNull);
+    expect(game.availableFighters, isEmpty);
+    expect(game.hasOpenSteps, isFalse, reason: 'nothing left to do');
+    expect(
+      Unavailable.fight(game),
+      "No heroes are available for fighting today: they're all resting after their fights. "
+      'The first one is back tomorrow.',
+    );
+  });
+
   testWidgets('tapping a greyed out button tells why', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;

@@ -44,8 +44,9 @@ abstract final class Unavailable {
             ? 'No challenger to fight today.'
             : switch (c.restDays.values) {
                 final days when days.isNotEmpty =>
-                  'All your characters are resting after their fights. The first one is ${backIn(days.reduce(min))}.',
-                _ => 'You have no characters to send.',
+                  "No heroes are available for fighting today: they're all resting after their fights. "
+                      'The first one is ${backIn(days.reduce(min))}.',
+                _ => 'No heroes are available for fighting today.',
               });
   }
 
