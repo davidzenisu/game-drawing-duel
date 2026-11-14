@@ -45,8 +45,7 @@ class FightTestCase(LaunchTestCase):
         return self.post("days/next")
 
     def pull_launch_bonus(self) -> None:
-        """Everyone pulls their launch pulls, for a roster big enough that
-        chance never finds every character resting."""
+        """Everyone pulls their launch pulls, for a bigger roster."""
         for subject in PLAYERS:
             response = self.client.post(
                 f"/servers/{self.code}/pulls",
@@ -54,6 +53,11 @@ class FightTestCase(LaunchTestCase):
                 headers=bearer(make_token(subject)),
             )
             assert response.status_code == 200, response.text
+
+    def without_rest(self):
+        """No rest after fights, so chance always finds fighters: every
+        challenger gets its fight, whatever chance picked before."""
+        return patch.dict(rules.REST_DAYS, dict.fromkeys(rules.REST_DAYS, 0))
 
     def today(self, subject: str = ADMIN):
         return self.get(f"/servers/{self.code}/today", subject).json()
@@ -458,9 +462,14 @@ class RestTests(FightTestCase):
     def test_rest_carries_over_into_the_next_week(self) -> None:
         self.pull_launch_bonus()
         rarities = self.rarities()
-        while self.today()["day"] < 7:
+        # Alex sends one fighter a day, so there's always one left.
+        while True:
             self.next_day()
-        fighter = next(c for c in rarities if c not in self.today()["fight"]["rest_days"])
+            rest_days = self.today()["fight"]["rest_days"]
+            fighter = next(c for c in rarities if c not in rest_days)
+            if self.today()["day"] == 7:
+                break
+            self.assertEqual(self.pick([fighter]).status_code, 200)
         self.assertEqual(self.pick([fighter]).status_code, 200)
         self.next_day()
         # Day 8 is a Monday, and the character that fought on Sunday rests.
