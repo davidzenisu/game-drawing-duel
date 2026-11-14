@@ -1103,6 +1103,8 @@ class ApiGameSession extends GameSession {
         'subject_position': _seatPosition(subject),
       }),
     );
+    // The title earns stars: show them now, not with the next reward.
+    _setGacha(await _get('/servers/${server.code}/gacha'));
     notifyListeners();
   }
 

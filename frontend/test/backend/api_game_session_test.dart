@@ -643,8 +643,11 @@ void main() {
       expect((sam.canEndDay, sam.canAdvanceDay), (true, false), reason: 'only the admin skips ahead');
 
       expect(admin.promptHint, 'a challenger on a snow day');
+      final starsBefore = admin.stars;
       await admin.submitPrompt('  The Owl King ', admin.server.players[2]);
-      expect((jsonDecode(backend.requests.last.body) as Map)['subject_position'], 2);
+      final prompt = backend.requests.lastWhere((r) => r.url.path == '/servers/123456/today/prompt');
+      expect((jsonDecode(prompt.body) as Map)['subject_position'], 2);
+      expect(admin.stars, starsBefore + StarRewards.prompt, reason: "the title's stars show right away");
       expect(admin.yourPrompt!.subject.name, 'Robin');
       expect(admin.yourPrompt!.title, 'The Owl King');
       expect(admin.yourPrompt!.theme, DailyTheme.snow);

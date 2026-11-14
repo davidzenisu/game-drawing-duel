@@ -52,6 +52,8 @@ version's date is the day of its last change.
   celebration of its rewards.
 - No drawing preview when choosing a challenger to write a title for.
 - The text under the banners on the summon page is readable in dark mode.
+- The stars for writing a title show right away, instead of with the next
+  reward.
 
 ## [0.6.0] - 2026-11-08
 
