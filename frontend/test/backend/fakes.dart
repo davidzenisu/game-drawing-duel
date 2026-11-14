@@ -224,11 +224,21 @@ class FakeBackend {
   /// Rejects every request with this status and detail, like the real API
   /// does for a bad token.
   ({int status, String detail})? rejectAll;
+
+  /// Failures to answer with before handling a request, by path: a status
+  /// code, or null for a request that never reaches the API (the browser's
+  /// "Failed to fetch"). Each is used once.
+  final Map<String, List<int?>> failures = {};
   int _nextCode = 123456;
 
   MockClient get client => MockClient((request) async {
     requests.add(request);
     if (rejectAll != null) return _json(rejectAll!.status, {'detail': rejectAll!.detail});
+    if (failures[request.url.path] case [final failure, ...] && final queue) {
+      queue.removeAt(0);
+      if (failure == null) throw http.ClientException('Failed to fetch', request.url);
+      return _json(failure, {'detail': 'Service unavailable'});
+    }
     final token = (request.headers['Authorization'] ?? '').replaceFirst('Bearer ', '');
     final path = request.url.pathSegments;
     final me = players[token];

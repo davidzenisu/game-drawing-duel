@@ -54,6 +54,8 @@ version's date is the day of its last change.
 - The text under the banners on the summon page is readable in dark mode.
 - The stars for writing a title show right away, instead of with the next
   reward.
+- A drawing that fails to download while the game loads is tried again,
+  instead of stopping with "Signing in failed".
 
 ## [0.6.0] - 2026-11-08
 

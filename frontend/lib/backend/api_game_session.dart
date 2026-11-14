@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:http/http.dart' as http;
+
 import '../game/game_session.dart';
 import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
@@ -12,11 +16,15 @@ import 'sketch_json.dart';
 
 /// [GameSession] backed by the API and Auth0.
 class ApiGameSession extends GameSession {
-  ApiGameSession({required ApiClient? api, String? signInProblem})
+  ApiGameSession({required ApiClient? api, String? signInProblem, this.retryDelay = const Duration(milliseconds: 500)})
     : _api = api,
       _signInProblem = api == null ? signInProblem ?? 'Sign-in is not configured.' : signInProblem;
 
   final ApiClient? _api;
+
+  /// How long a drawing download waits before its first retry; each next
+  /// retry waits twice as long.
+  final Duration retryDelay;
 
   GamePhase _phase = GamePhase.loading;
   String? _signInProblem;
@@ -81,6 +89,31 @@ class ApiGameSession extends GameSession {
   }
 
   Future<Object?> _get(String path) => _guard(() => _api!.get(path));
+
+  /// [_get], tried up to [_retries] more times when the network or the API
+  /// hiccups. Loading the game downloads every drawing of the pool at once,
+  /// and one lost download shouldn't stop the whole game from loading.
+  Future<Object?> _getRetrying(String path) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _get(path);
+      } catch (error) {
+        if (attempt >= _retries || !_isTransient(error)) rethrow;
+        await Future<void>.delayed(retryDelay * (1 << attempt));
+      }
+    }
+  }
+
+  static const _retries = 2;
+
+  /// A failure that may well pass on a second try: no response at all (the
+  /// browser's "Failed to fetch"), a timeout, or the API being overloaded.
+  static bool _isTransient(Object error) => switch (error) {
+    SignInRequired() => false,
+    ApiException(:final statusCode) => statusCode >= 500 || statusCode == 429,
+    http.ClientException() || TimeoutException() => true,
+    _ => false,
+  };
 
   Future<Object?> _put(String path, Object body) => _guard(() => _api!.put(path, body));
 
@@ -519,7 +552,7 @@ class ApiGameSession extends GameSession {
 
   @override
   Future<Sketch> drawingSketch(AdminDrawing drawing) async =>
-      _sketches[drawing.id] ??= SketchJson.decode(await _get('/manage/characters/${drawing.id}/sketch'));
+      _sketches[drawing.id] ??= SketchJson.decode(await _getRetrying('/manage/characters/${drawing.id}/sketch'));
 
   @override
   Future<List<GiftServer>> giftServers() async => switch (await _get('/manage/servers')) {
@@ -864,7 +897,8 @@ class ApiGameSession extends GameSession {
       'artist_position': int artist,
       'subject_position': int subject,
     }) {
-      final sketch = _sketches[id] = known ?? _sketches[id] ?? SketchJson.decode(await _get('/characters/$id/sketch'));
+      final sketch = _sketches[id] =
+          known ?? _sketches[id] ?? SketchJson.decode(await _getRetrying('/characters/$id/sketch'));
       final theme = switch (json['theme']) {
         final String name => _theme(name),
         _ => null,

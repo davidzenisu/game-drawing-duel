@@ -134,6 +134,7 @@ void main() {
           auth: FakeAuthClient(token: token, profile: const AuthProfile()),
           httpClient: backend.client,
         ),
+        retryDelay: Duration.zero,
       );
       await session.start();
       return session;
@@ -302,6 +303,36 @@ void main() {
       expect(card.title, 'Basic');
       expect(card.sketch.strokes.single.points, doodle.strokes.single.points);
       expect(again.setupDrawing(again.assignments[1]), isNull);
+    });
+
+    test('a drawing that fails to download is tried again', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      final id = admin.setupDrawing(admin.assignments.first)!.id;
+      backend.failures['/characters/$id/sketch'] = [null, 503];
+
+      final again = await signedUpAgain('alex');
+      expect(again.phase, GamePhase.setup);
+      expect(again.setupDrawing(again.assignments.first)!.sketch.strokes, hasLength(1));
+      expect(backend.requests.where((r) => r.url.path == '/characters/$id/sketch'), hasLength(3));
+    });
+
+    test('a drawing download gives up after a few tries, or right away when it is gone', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await admin.submitSetupDrawing(admin.assignments.first, doodle, 'Basic');
+      final id = admin.setupDrawing(admin.assignments.first)!.id;
+      final path = '/characters/$id/sketch';
+
+      backend.failures[path] = [503, 503, 503];
+      expect((await signedUpAgain('alex')).phase, GamePhase.signIn);
+      expect(backend.requests.where((r) => r.url.path == path), hasLength(3));
+
+      backend.requests.clear();
+      backend.failures[path] = [404];
+      expect((await signedUpAgain('alex')).phase, GamePhase.signIn);
+      expect(backend.requests.where((r) => r.url.path == path), hasLength(1));
     });
 
     Future<void> drawAll(ApiGameSession player) async {
