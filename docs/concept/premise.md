@@ -32,10 +32,20 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 |---|---|
 | **Summon** (an animated banner with the pulls ready) | |
 | Hero List | Challengers |
-| Win rates | Fight replay (past days' fights) |
-| Week ranking | |
+| Rewards | Win rates |
+| Fight replay (past days' fights) | Week ranking |
 
 **Challengers** lists the challengers you drew (for now only your own, not the ones you fought or boosted), each with its record in its decided fights.
+
+**Rewards** lists your achievements, each with your progress (e.g. "2/5"), its reward in stars and, once reached, a **Collect** button; each is collected once, and celebrated like other stars. Ready ones come first, collected ones last. The Rewards button, and the Heroes button on the hub, count the ones to collect.
+
+| Achievement | Goal | Reward |
+|---|---|---|
+| *Sam's gallery* (one per other player) | Summon every starter hero (setup drawing) that player drew; your own are yours from the start | 15 − players ⭐: 10 with 5 players … 5 with 10 |
+| *Portraits of Sam* / *Your portraits* (one per player) | Summon every starter hero portraying that player | the same |
+| *Every starter Basic / Adventurer / Legend* | Summon every starter hero of that rarity | 10 / 15 / 20 ⭐ |
+| *First win*, *3 wins*, *10 wins* | Win fights you picked the fighters for (not chance's) | 5 ⭐ each |
+| *3 wins in a row*, *5 wins in a row* | Win that many of your fights in a row; a lost one starts over, days without one of your fights don't | 5 ⭐ each |
 
 **Fight replay** lists the days before today that had fights of yours, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). For now a player only sees their own fights: picking a day shows the fight they picked the fighters for (not one chance picked for them) and the fight against the challenger they drew, each by its challenger and highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen.
 
