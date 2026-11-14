@@ -275,6 +275,16 @@ MAX_FIGHTERS = 4
 # The stars of a challenger before boosts.
 CHALLENGER_STARS = 3
 
+# After a fight, a character rests this many days before it can fight again:
+# with 1, a character that fought on Monday rests on Tuesday and is back on
+# Wednesday.
+REST_DAYS = {
+    Rarity.BASIC: 1,
+    Rarity.ADVENTURER: 2,
+    Rarity.HERO: 3,
+    Rarity.LEGEND: 4,
+}
+
 # Every day, a player spreads this many boost stars across this many of the
 # day before's challengers, at most this many on one.
 BOOST_CHALLENGERS = 3

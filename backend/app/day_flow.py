@@ -46,8 +46,8 @@ def seat_done(session: Session, server: Server, day: int, seat: ServerSeat) -> b
         and sum(fights.given_boosts(session, seat, day).values()) < BOOST_STARS
     ):
         return False
-    can_fight = set(pulls.copies(session, seat)) - fights.resting(
-        session, server, seat, day
+    can_fight = set(pulls.copies(session, seat)) - set(
+        fights.resting(session, server, seat, day)
     )
     return not (
         fights.fight_challenger(session, server, day, seat) is not None

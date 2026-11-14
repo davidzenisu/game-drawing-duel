@@ -300,10 +300,11 @@ abstract class GameSession extends ChangeNotifier {
 
   FightSetup? get yourFight;
 
-  /// Ids of your characters that fought earlier this week. Every character
-  /// fights once a week, they're back on Monday (UTC); basic ones can fight
-  /// every day, so nobody runs out.
-  Set<String> get restingCharacterIds;
+  /// Your characters that rest today after a fight, by id, with how many
+  /// days each still rests from today on (1: back tomorrow). After a fight,
+  /// a character rests [Rarity.restDays] days, from 1 for a basic one to 4
+  /// for a legend.
+  Map<String, int> get restDays;
 
   /// Yesterday's challengers you may boost today, with the boost stars you
   /// gave them: up to [Boost.challengers], never the one you drew or the one
@@ -383,7 +384,10 @@ abstract class GameSession extends ChangeNotifier {
 
   bool get challengerDrawn => yourChallenger != null;
 
-  bool isResting(OwnedCard owned) => restingCharacterIds.contains(owned.card.id);
+  bool isResting(OwnedCard owned) => restDays.containsKey(owned.card.id);
+
+  /// How many days [owned] still rests from today on: 0 when it can fight.
+  int restDaysLeft(OwnedCard owned) => restDays[owned.card.id] ?? 0;
 
   /// Your characters that can fight today.
   List<OwnedCard> get availableFighters => collection.where((o) => !isResting(o)).toList();
@@ -597,3 +601,7 @@ abstract class GameSession extends ChangeNotifier {
   /// Reloads today: who ended the day, or a new day that started.
   Future<void> refreshDay();
 }
+
+/// When a character that rests [days] more days is back: "back tomorrow" or
+/// "back in 3 days".
+String backIn(int days) => days <= 1 ? 'back tomorrow' : 'back in $days days';

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
+import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/fight_setup_screen.dart';
 import 'package:frontend/game/widgets/fight_stage.dart';
@@ -55,6 +57,37 @@ void main() {
       find.text(change > 0 ? 'Win rates: your fighters +$change ★' : 'Win rates: the challenger +${-change} ★'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('resting characters show the days until they are back, last in the roster', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = await launchedGame(launchDate: firstMonday);
+    for (var day = 1; day < LoopStep.fight; day++) {
+      await controller.advanceDay();
+    }
+    final legend = controller.collection.firstWhere((o) => o.card.rarity == Rarity.legend);
+    final basic = controller.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
+    await controller.submitFighters([legend, basic]);
+    await controller.advanceDay();
+
+    await tester.pumpWidget(MaterialApp(home: FightSetupScreen(controller: controller)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Roster'));
+    await tester.pumpAndSettle();
+    final badges = find.byType(RestBadge, skipOffstage: false);
+    await tester.scrollUntilVisible(badges.last, 200, scrollable: find.byType(Scrollable).last);
+    expect(
+      [for (final badge in tester.widgetList<RestBadge>(badges)) badge.days],
+      [1, Rarity.legend.restDays],
+      reason: 'the one back soonest first',
+    );
+    expect(find.text('Resting, back tomorrow'), findsOneWidget);
+    expect(find.text('Resting, back in ${Rarity.legend.restDays} days'), findsOneWidget);
+    expect(find.text('${Rarity.legend.restDays}d'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     await tester.pumpWidget(const SizedBox());
   });

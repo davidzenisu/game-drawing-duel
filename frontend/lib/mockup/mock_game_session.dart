@@ -655,15 +655,20 @@ class MockGameSession extends GameSession {
   @override
   FightSetup? get yourFight => _yourFights[_day];
 
-  /// Like online: your characters that fought earlier this week, which
-  /// starts on Monday.
+  /// Like online: your characters that rest today after a fight, with the
+  /// days they still rest.
   @override
-  Set<String> get restingCharacterIds => {
-    for (final MapEntry(key: day, value: fight) in _yourFights.entries)
-      if (day >= _days.weekStart(_day) && day < _day)
-        for (final fighter in fight.fighters)
-          if (fighter.card.rarity != Rarity.basic) fighter.card.id,
-  };
+  Map<String, int> get restDays {
+    final left = <String, int>{};
+    for (final MapEntry(key: day, value: fight) in _yourFights.entries) {
+      if (day >= _day) continue;
+      for (final fighter in fight.fighters) {
+        final days = day + fighter.card.rarity.restDays + 1 - _day;
+        if (days > (left[fighter.card.id] ?? 0)) left[fighter.card.id] = days;
+      }
+    }
+    return left;
+  }
 
   // Game content -----------------------------------------------------------------
 
@@ -1090,7 +1095,7 @@ class MockGameSession extends GameSession {
     if (fighters.isEmpty || fighters.length > FightSetup.maxFighters) {
       throw ArgumentError('Pick between 1 and ${FightSetup.maxFighters} fighters.');
     }
-    if (fighters.any(isResting)) throw ArgumentError("Every character fights once a week; they're back on Monday.");
+    if (fighters.any(isResting)) throw ArgumentError('A character rests for a few days after a fight.');
     final rates = _days.winRates(_day, you);
     final against = challenger.subject;
     final fight = _yourFights[_day] = FightSetup(

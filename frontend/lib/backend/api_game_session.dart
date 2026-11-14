@@ -641,7 +641,7 @@ class ApiGameSession extends GameSession {
   Player? _hurrySentTo;
   List<HurryPlan> _incomingHurries = const [];
   FightSetup? _yourFight;
-  Set<String> _resting = const {};
+  Map<String, int> _restDays = const {};
   List<BoostTarget> _boostTargets = const [];
   bool _boostForfeited = false;
   WeeklyHero? _weeklyHero;
@@ -802,11 +802,11 @@ class ApiGameSession extends GameSession {
       _dayEnded = {for (final position in ended) _seat(server, position as int).id};
       _fightChallenger = null;
       _yourFight = null;
-      _resting = const {};
-      if (json['fight'] case {'challenger': final challenger, 'yours': final yours, 'resting': List resting}) {
+      _restDays = const {};
+      if (json['fight'] case {'challenger': final challenger, 'yours': final yours, 'rest_days': Map restDays}) {
         _fightChallenger = await _card(server, challenger);
         _yourFight = yours == null ? null : await _parseFight(server, yours);
-        _resting = {for (final id in resting) id as String};
+        _restDays = {for (final MapEntry(:key, :value) in restDays.entries) key as String: value as int};
       }
       _boostForfeited = json['boost_forfeited'] == true;
       _boostTargets = switch (json['boost']) {
@@ -1154,7 +1154,7 @@ class ApiGameSession extends GameSession {
   FightSetup? get yourFight => _yourFight;
 
   @override
-  Set<String> get restingCharacterIds => _resting;
+  Map<String, int> get restDays => _restDays;
 
   @override
   List<BoostTarget> get boostTargets => _boostTargets;

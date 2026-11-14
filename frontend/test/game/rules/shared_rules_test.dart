@@ -107,6 +107,7 @@ void main() {
     final fights = rules['fights'] as Map<String, dynamic>;
     expect(FightSetup.maxFighters, fights['max_fighters']);
     expect(Stars.challengerBase, fights['challenger_stars']);
+    expect({for (final rarity in Rarity.values) rarity.name: rarity.restDays}, fights['rest_days']);
     for (final [List team, int boostStars, bool fightersWin] in (fights['cases'] as List).cast<List>()) {
       final stars = Stars.ofTeam([for (final name in team) Rarity.values.byName(name as String)]);
       expect(Stars.fightersWin(stars, boostStars), fightersWin, reason: '$team with $boostStars boost stars');

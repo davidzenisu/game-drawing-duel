@@ -223,12 +223,14 @@ def _fight_step(
     if challenger is None:
         return None
     yours = fights.fight_of(session, seat, day)
+    rest_days = fights.resting(session, server, seat, day)
     return FightStep(
         challenger=character_response(challenger),
         yours=None
         if yours is None
         else _fight_response(session, server, yours),
-        resting=sorted(fights.resting(session, server, seat, day), key=str),
+        resting=sorted(rest_days, key=str),
+        rest_days=rest_days,
     )
 
 
@@ -344,7 +346,8 @@ def pick_fighters(
     challenger, boosted yesterday. The stars decide right away: a win earns
     a pull (`fight:day-N`), or in speed mode one per challenger star
     (`fight:day-N:1`, …), and the challenger's stars as stars (`app.stars`).
-    Once a day, and every character but the basic ones once a week."""
+    Once a day, with characters that don't rest after a fight
+    (`rules.REST_DAYS`)."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     fights.complete_boosts(session, server, day - 1)
@@ -364,10 +367,10 @@ def pick_fighters(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You can only send your own characters"
         )
-    if fights.resting(session, server, seat, day) & set(body.character_ids):
+    if fights.resting(session, server, seat, day).keys() & set(body.character_ids):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail="Every character fights once a week; they're back on Monday",
+            detail="A character rests for a few days after a fight",
         )
     fight = fights.new_fight(session, seat, day, challenger, fighters)
     if fight.fighters_win:

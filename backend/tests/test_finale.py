@@ -110,6 +110,7 @@ class FinaleTests(FightTestCase):
         self.assertFalse(pool & (week - {favourite}))
 
     def test_everyone_sees_the_ranking_of_every_challenger(self) -> None:
+        self.pull_launch_bonus()
         favourite = self.challengers(2)[0]
         self.boost(favourite, 2)
         # Day 7, a Sunday: challengers drawn today are boosted next week.

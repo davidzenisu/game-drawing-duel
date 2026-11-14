@@ -871,16 +871,13 @@ void main() {
       expect(backend.requests.last.url.path, '/servers/123456/gacha');
       expect(admin.stars - starsBefore, fight.fightersWin ? 5 : 0);
       expect(admin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)), reason: 'only the ones drawn');
-      expect(admin.restingCharacterIds, isEmpty);
+      expect(admin.restDays, isEmpty);
 
-      // Day 5: Alex's two fighters rest until Monday.
+      // Day 5: Alex's two fighters rest, by their rarity.
       await nextDay();
-      final rested = {
-        for (final o in admin.collection.take(2))
-          if (o.card.rarity != Rarity.basic) o.card.id,
-      };
-      expect(admin.restingCharacterIds, rested, reason: 'basic ones fight every day');
-      expect(admin.availableFighters, hasLength(admin.collection.length - rested.length));
+      final rested = {for (final o in admin.collection.take(2)) o.card.id: o.card.rarity.restDays};
+      expect(admin.restDays, rested);
+      expect(admin.availableFighters, hasLength(admin.collection.length - 2));
       // Sam drew it: its record, and if it won, Sam collects its 5 stars, once.
       await sam.refreshDay();
       final sams = sam.challengers.firstWhere((c) => c.card.id == samsChallenger);

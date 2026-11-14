@@ -5,15 +5,32 @@ import 'themes.dart';
 
 /// Rarity tiers of the gacha, which also define how long a drawing may take.
 enum Rarity {
-  basic(stars: 1, label: 'Basic', drawTime: Duration(seconds: 30), color: AppPalette.rarityBasic),
-  adventurer(stars: 2, label: 'Adventurer', drawTime: Duration(minutes: 1), color: AppPalette.rarityAdventurer),
-  hero(stars: 3, label: 'Hero', drawTime: Duration(minutes: 2), color: AppPalette.rarityHero),
-  legend(stars: 4, label: 'Legend', drawTime: null, color: AppPalette.rarityLegend);
+  basic(stars: 1, label: 'Basic', drawTime: Duration(seconds: 30), restDays: 1, color: AppPalette.rarityBasic),
+  adventurer(
+    stars: 2,
+    label: 'Adventurer',
+    drawTime: Duration(minutes: 1),
+    restDays: 2,
+    color: AppPalette.rarityAdventurer,
+  ),
+  hero(stars: 3, label: 'Hero', drawTime: Duration(minutes: 2), restDays: 3, color: AppPalette.rarityHero),
+  legend(stars: 4, label: 'Legend', drawTime: null, restDays: 4, color: AppPalette.rarityLegend);
 
-  const Rarity({required this.stars, required this.label, required this.drawTime, required this.color});
+  const Rarity({
+    required this.stars,
+    required this.label,
+    required this.drawTime,
+    required this.restDays,
+    required this.color,
+  });
 
   final int stars;
   final String label;
+
+  /// How many days a character of this tier rests after a fight before it
+  /// can fight again: with 1, one that fought on Monday rests on Tuesday and
+  /// is back on Wednesday. Checked against `shared/rules.json`.
+  final int restDays;
 
   /// Time limit for drawing a character of this tier; `null` means unlimited.
   final Duration? drawTime;
