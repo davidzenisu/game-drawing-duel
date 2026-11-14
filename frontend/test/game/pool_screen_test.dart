@@ -81,17 +81,22 @@ void main() {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final controller = await launchedGame(others: ['Alex', 'Sam', 'Robin', 'Kim']);
-    expect(controller.theme.isDark, isFalse, reason: 'a light scenery');
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.dark(),
-        home: GachaScreen(controller: controller),
-      ),
-    );
-    await tester.pump();
-    final description = tester.widget<Text>(find.textContaining('The characters drawn during the setup'));
-    expect(description.style?.color, Colors.black87, reason: 'dark text on the light scenery');
-    await tester.pumpWidget(const SizedBox());
+    // A Monday's forest is light, a Saturday's space is dark.
+    for (final (launchDate, color) in [
+      (firstMonday, Colors.black87),
+      (firstMonday.add(const Duration(days: 5)), Colors.white),
+    ]) {
+      final controller = await launchedGame(others: ['Alex', 'Sam', 'Robin', 'Kim'], launchDate: launchDate);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark(),
+          home: GachaScreen(controller: controller),
+        ),
+      );
+      await tester.pump();
+      final description = tester.widget<Text>(find.textContaining('The characters drawn during the setup'));
+      expect(description.style?.color, color, reason: controller.theme.label);
+      await tester.pumpWidget(const SizedBox());
+    }
   });
 }

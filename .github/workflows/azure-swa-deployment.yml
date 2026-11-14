@@ -11,6 +11,8 @@ on:
       - main
     paths:
       - 'frontend/**'
+      # The app bundles the release notes.
+      - 'CHANGELOG.md'
       - '.github/workflows/azure-swa-deployment.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
@@ -18,6 +20,8 @@ on:
       - main
     paths:
       - 'frontend/**'
+      # The app bundles the release notes.
+      - 'CHANGELOG.md'
       - '.github/workflows/azure-swa-deployment.yml'
 
 jobs:
