@@ -131,6 +131,56 @@ class FinaleTests(FightTestCase):
         for subject in PLAYERS:
             self.assertEqual(self.ranking(subject), ranking)
 
+    def test_the_ranking_tells_who_wrote_boosted_and_fought_each(self) -> None:
+        # Day 4: Alex writes a prompt; Sam, the next player, draws it.
+        written = self.post(
+            "today/prompt", ADMIN, {"subject_position": 2, "title": "Sauna Lord"}
+        )
+        self.assertEqual(written.status_code, 200, written.text)
+        favourite = self.challengers(3)[0]
+        self.boost(favourite, 2)
+        self.next_day()
+        self.draw_challengers()
+        with self.without_rest():
+            self.go_to_day(8)
+            self.today()
+        entries = {r["character"]["id"]: r for r in self.ranking()["challengers"]}
+
+        sams = entries[self.challengers(5)[1]]
+        self.assertEqual(sams["character"]["artist_position"], 1)
+        self.assertEqual((sams["prompt_author_position"], sams["default_prompt"]), (0, False))
+        others = [entries[c] for c in self.challengers(3)]
+        self.assertTrue(all(e["default_prompt"] for e in others), "nobody wrote one")
+        self.assertEqual(
+            [e["prompt_author_position"] for e in others],
+            [(e["character"]["artist_position"] - 1) % 3 for e in others],
+            "the player before the artist",
+        )
+        for entry in entries.values():
+            self.assertEqual(
+                sum(b["stars"] for b in entry["boosts"]), entry["stars"] - 3
+            )
+            self.assertEqual(len(entry["fought_by"]), entry["fights"])
+            self.assertEqual(
+                sum(f["challenger_won"] for f in entry["fought_by"]), entry["wins"]
+            )
+        # Alex's own 2 stars, and the ones chance spread for players.
+        self.assertIn(
+            {"booster_position": 0, "stars": 2, "by_chance": False},
+            entries[favourite]["boosts"],
+        )
+        self.assertTrue(
+            all(b["by_chance"] for e in others[1:] for b in e["boosts"]),
+            "nobody boosted themselves",
+        )
+        for entry in entries.values():
+            for fight in entry["fought_by"]:
+                self.assertNotEqual(
+                    fight["player_position"],
+                    entry["character"]["artist_position"],
+                    "never by its artist",
+                )
+
     def test_the_weekly_hero_and_their_legends_are_rate_up_for_a_week(
         self,
     ) -> None:

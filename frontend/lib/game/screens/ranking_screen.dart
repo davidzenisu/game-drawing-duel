@@ -6,9 +6,10 @@ import '../rules/daily_loop.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sketch_canvas.dart';
+import 'ranking_detail_screen.dart';
 
 /// The latest finished week's challengers, most stars first: the first
-/// joined the gacha pool as a hero.
+/// joined the gacha pool as a hero. Tapping one opens its details.
 class RankingScreen extends StatefulWidget {
   const RankingScreen({super.key, required this.controller});
 
@@ -99,34 +100,34 @@ class _RankTile extends StatelessWidget {
               side: const BorderSide(color: AppPalette.rarityHero, width: 2),
             )
           : null,
-      child: ListTile(
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 28,
-              child: Text('$place', style: textTheme.titleMedium, textAlign: TextAlign.center),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(width: 40, child: CardboardCard(child: SketchView(card.sketch))),
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => RankingDetailScreen(place: place, entry: entry),
+          ),
         ),
-        title: Text('${card.subject} · ${card.title}'),
-        subtitle: Text(
-          [
-            if (hero) 'Weekly hero',
-            'Drawn by ${card.artist}',
-            switch ((entry.fights, entry.wins)) {
-              (0, _) => 'not fought',
-              (1, 1) => 'won its fight',
-              (1, _) => 'lost its fight',
-              (final fights, final wins) => 'won $wins of $fights fights',
-            },
-          ].join(' · '),
-        ),
-        trailing: Text(
-          '${entry.stars} ★',
-          style: textTheme.titleMedium?.copyWith(color: hero ? AppPalette.rarityHero : null),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 28,
+                child: Text('$place', style: textTheme.titleMedium, textAlign: TextAlign.center),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(width: 44, child: CardboardCard(child: SketchView(card.sketch))),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${entry.stars} ★',
+                style: textTheme.titleMedium?.copyWith(color: hero ? AppPalette.rarityHero : null),
+              ),
+            ],
+          ),
         ),
       ),
     );

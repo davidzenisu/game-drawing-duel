@@ -9,6 +9,17 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.12.0] - 2026-11-15
+
+### Added
+- Tap a challenger in the week ranking for its details: its drawing full
+  screen, who drew it, who wrote its prompt, who boosted it with how many
+  stars, and who it won or lost against.
+
+### Changed
+- The week ranking shows each challenger's drawing, nameplate and stars
+  only.
+
 ## [0.11.1] - 2026-11-15
 
 ### Fixed

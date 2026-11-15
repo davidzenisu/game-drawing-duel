@@ -2,6 +2,7 @@
 
 import random
 import uuid
+from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import and_, or_, select
@@ -13,6 +14,7 @@ from app.auth import CurrentPlayer
 from app.deps import Code, DbSession, running_game
 from app.drawings import save_character
 from app.models import (
+    Boost,
     ChallengerPrompt,
     Character,
     DayEnd,
@@ -49,7 +51,9 @@ from app.schemas import (
     OutcomeResponse,
     PromptSubmit,
     PromptToDrawResponse,
+    RankedBoost,
     RankedChallenger,
+    RankedFight,
     RankingResponse,
     TodayResponse,
     WeeklyHeroResponse,
@@ -594,18 +598,48 @@ def get_ranking(
             return None
         last_day = week.day
         ranked = finale.ranking(session, server, week.day)
-    return RankingResponse(
-        day=last_day,
-        challengers=[
+    positions = {s.id: s.position for s in server.seats}
+    boosts: dict[uuid.UUID, list[Boost]] = defaultdict(list)
+    for boost in session.scalars(
+        select(Boost)
+        .where(Boost.challenger_id.in_([r.challenger.id for r in ranked]))
+        .order_by(Boost.by_chance, Boost.boosted_at)
+    ):
+        boosts[boost.challenger_id].append(boost)
+
+    def prompt_of(challenger: Character) -> tuple[int | None, bool]:
+        drawn = days.prompt_to_draw(session, server, challenger.day, challenger.artist)
+        if drawn is None:
+            return None, True
+        return drawn.author.position, drawn.premade
+
+    entries = []
+    for r in ranked:
+        author, premade = prompt_of(r.challenger)
+        entries.append(
             RankedChallenger(
                 character=character_response(r.challenger),
                 stars=r.stars,
                 fights=r.fights,
                 wins=r.wins,
+                prompt_author_position=author,
+                default_prompt=premade,
+                boosts=[
+                    RankedBoost(
+                        booster_position=positions[b.booster_seat_id],
+                        stars=b.stars,
+                        by_chance=b.by_chance,
+                    )
+                    for b in boosts[r.challenger.id]
+                    if b.stars > 0
+                ],
+                fought_by=[
+                    RankedFight(player_position=positions[seat], challenger_won=won)
+                    for seat, won in r.against
+                ],
             )
-            for r in ranked
-        ],
-    )
+        )
+    return RankingResponse(day=last_day, challengers=entries)
 
 
 @router.get("/{code}/win-rates", response_model=WinRatesResponse)
