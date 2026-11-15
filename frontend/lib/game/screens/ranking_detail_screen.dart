@@ -15,7 +15,8 @@ class RankingDetailScreen extends StatelessWidget {
   final int place;
   final RankedChallenger entry;
 
-  static String _fight(ChallengerFight fight) => '${fight.challengerWon ? 'Won' : 'Lost'} against ${fight.player.name}';
+  static String _fight(ChallengerFight fight) =>
+      "${fight.challengerWon ? 'Won' : 'Lost'} against ${fight.player.name}'s team of heroes";
 
   @override
   Widget build(BuildContext context) {

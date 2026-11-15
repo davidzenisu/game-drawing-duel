@@ -49,7 +49,10 @@ void main() {
       );
     }
     final fight = hero.foughtBy.single;
-    expect(find.text('${fight.challengerWon ? 'Won' : 'Lost'} against ${fight.player.name}'), findsOneWidget);
+    expect(
+      find.text("${fight.challengerWon ? 'Won' : 'Lost'} against ${fight.player.name}'s team of heroes"),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull, reason: 'fits a phone');
 
     // Its drawing, full screen.
