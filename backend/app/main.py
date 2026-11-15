@@ -1,12 +1,14 @@
+import logging
 import os
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from sqlalchemy.orm import Session
 
 from app.auth import get_auth0_subject
@@ -43,6 +45,33 @@ def running_commit() -> str:
         return "dev"
 
 
+logger = logging.getLogger("app")
+
+
+def configure_error_handling(application: FastAPI) -> None:
+    """Logs every unhandled error with its request, and answers it as JSON:
+    inside the CORS middleware, so the browser can still read the answer
+    instead of reporting "Failed to fetch". An overloaded database (no free
+    connection, or none to be had) is a 503: worth trying again."""
+
+    @application.middleware("http")
+    async def handle_errors(request: Request, call_next):
+        try:
+            return await call_next(request)
+        except (SQLAlchemyTimeoutError, OperationalError):
+            logger.exception("Database unavailable for %s %s", request.method, request.url.path)
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={"detail": "The server is busy, try again in a moment"},
+            )
+        except Exception:
+            logger.exception("Unhandled error in %s %s", request.method, request.url.path)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": "Something went wrong on the server"},
+            )
+
+
 def configure_frontend_cors(application: FastAPI) -> None:
     frontend_url = os.getenv("FRONTEND_URL")
     if frontend_url:
@@ -54,6 +83,8 @@ def configure_frontend_cors(application: FastAPI) -> None:
         )
 
 
+# Error handling first: middleware added later wraps it.
+configure_error_handling(app)
 configure_frontend_cors(app)
 
 

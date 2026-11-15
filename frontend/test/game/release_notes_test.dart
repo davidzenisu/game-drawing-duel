@@ -88,7 +88,8 @@ Intro text, skipped.
     await tester.pumpAndSettle();
     expect(find.byType(ReleaseNotesScreen), findsOneWidget);
     expect(find.text('Version ${latest.version}'), findsOneWidget);
-    expect(find.text(releaseDate(latest.date)), findsOneWidget);
+    // Several versions can share a day, one per pull request.
+    expect(find.text(releaseDate(latest.date)), findsWidgets);
     expect(find.text('Latest'), findsOneWidget);
     expect(find.text('New'), findsWidgets, reason: '"Added" as players read it');
     expect(tester.takeException(), isNull);

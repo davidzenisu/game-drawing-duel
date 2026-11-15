@@ -20,6 +20,12 @@ the game is in early development (0.x), versions stay below 1.0.
 - The week ranking shows each challenger's drawing, nameplate and stars
   only.
 
+## [0.11.1] - 2026-11-15
+
+### Fixed
+- Far fewer "Something went wrong" errors when several players play at
+  once, and a clear message instead of "Failed to fetch" when one happens.
+
 ## [0.11.0] - 2026-11-14
 
 ### Added
