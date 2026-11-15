@@ -419,8 +419,9 @@ The app settings are managed in the infrastructure repository. The API reads:
 
 | Setting | Value |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection string (same as the Key Vault secret `database-url`) |
-| `FRONTEND_URL` | Origin of the web app, allowed for CORS |
+| `DATABASE_URL` | PostgreSQL connection string (same as the Key Vault secret `database-url`): Supabase's transaction pooler, port 6543. The API prepares no statements, which that pooler can't keep (`app/database.py`) |
+| `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_TIMEOUT` | Optional: connections each instance keeps open (default 10), may open on top (20), and how many seconds a request waits for a free one before a 503 (10) |
+| `FRONTEND_URL` | Origin of the web app, allowed for CORS, errors included: unhandled errors are logged (logger `app`, with the request) and answered as JSON, a 500, or a 503 when the database is busy |
 | `AUTH0_DOMAIN` | Auth0 tenant domain without scheme, e.g. `your-tenant.eu.auth0.com` (same as `auth0-domain`) |
 | `AUTH0_AUDIENCE` | Identifier of the Auth0 API (same as `auth0-api-audience`) |
 | `AUTH0_DOCS_CLIENT_ID` | Optional: client id of the Auth0 application the API docs sign in with (see "Signing in to the API docs") |

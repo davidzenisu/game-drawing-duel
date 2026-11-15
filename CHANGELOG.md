@@ -9,6 +9,12 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.11.1] - 2026-11-15
+
+### Fixed
+- Far fewer "Something went wrong" errors when several players play at
+  once, and a clear message instead of "Failed to fetch" when one happens.
+
 ## [0.11.0] - 2026-11-14
 
 ### Added
