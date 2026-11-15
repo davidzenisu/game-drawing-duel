@@ -835,26 +835,49 @@ class MockGameSession extends GameSession {
   @override
   WeeklyHero? get weeklyHero => _weeklyHero;
 
+  /// A challenger in the ranking, with demo details: its prompt by the
+  /// player before its artist (premade now and then), the friends' boost
+  /// stars from two of them (the second's spread by chance), yours, and
+  /// one fight, won on even days, against the player after its artist.
+  RankedChallenger _rankedEntry(CharacterCard c) {
+    final players = server.players;
+    final artist = players.indexWhere((p) => p.name == c.artist).clamp(0, players.length - 1);
+    Player at(int offset) => players[(artist + offset) % players.length];
+    final boosters = [
+      for (var offset = 2; offset < players.length; offset++)
+        if (!at(offset).isYou) at(offset),
+    ];
+    final yours = _yourBoosts.values.fold(0, (sum, given) => sum + (given[c.id] ?? 0));
+    final friends = _days.friendsBoostStars(c);
+    final own = min(friends, Boost.maxPerChallenger);
+    final boosts = [
+      if (yours > 0) ChallengerBoost(booster: you, stars: yours),
+      if (own > 0 && boosters.isNotEmpty) ChallengerBoost(booster: boosters.first, stars: own),
+      if (friends > own && boosters.length > 1)
+        ChallengerBoost(booster: boosters[1], stars: friends - own, byChance: true),
+    ];
+    final won = c.day.isEven;
+    return RankedChallenger(
+      card: c,
+      stars: Stars.ofChallenger(_boostStars(c)),
+      fights: 1,
+      wins: won ? 1 : 0,
+      promptAuthor: at(players.length - 1),
+      defaultPrompt: (c.day + artist) % 4 == 0,
+      boosts: boosts,
+      foughtBy: [ChallengerFight(player: at(1), challengerWon: won)],
+    );
+  }
+
   /// The challengers drawn from [from] to [to], the friends' and yours, most
   /// stars first. Each had one fight: the even ones won it.
-  List<RankedChallenger> _ranked(int from, int to) =>
-      [
-            for (var day = from; day <= to; day++)
-              if (_drawnOn(day)) ...[
-                for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
-                ?_yourChallengers[day],
-              ],
-          ]
-          .map(
-            (c) => RankedChallenger(
-              card: c,
-              stars: Stars.ofChallenger(_boostStars(c)),
-              fights: 1,
-              wins: c.day.isEven ? 1 : 0,
-            ),
-          )
-          .toList()
-        ..sort((a, b) => b.stars.compareTo(a.stars));
+  List<RankedChallenger> _ranked(int from, int to) => [
+    for (var day = from; day <= to; day++)
+      if (_drawnOn(day)) ...[
+        for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
+        ?_yourChallengers[day],
+      ],
+  ].map(_rankedEntry).toList()..sort((a, b) => b.stars.compareTo(a.stars));
 
   /// The latest finished week's ranking: the challengers boosted that week.
   /// A speed session ranks all of its challengers once it's over.

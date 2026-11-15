@@ -8,6 +8,7 @@ first) joins the server's gacha pool as a hero, and everyone can see the
 ranking.
 """
 
+import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -31,6 +32,8 @@ class Ranked:
     # Its fights by the end of the week, and how many of them it won.
     fights: int
     wins: int
+    # Those fights: the seat that fought it, and whether it won.
+    against: tuple[tuple[uuid.UUID, bool], ...] = ()
 
 
 def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
@@ -55,9 +58,10 @@ def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
             .where(Fight.challenger_id == challenger.id, Fight.day <= day)
             .options(selectinload(Fight.fighters))
         ).all()
-        wins = sum(not fights.outcome(session, f).fighters_win for f in against)
+        won = [(f.owner_seat_id, not fights.outcome(session, f).fighters_win) for f in against]
+        wins = sum(w for _, w in won)
         stars = rules.challenger_stars(fights.boost_stars(session, challenger.id))
-        entries.append(Ranked(challenger, stars, len(against), wins))
+        entries.append(Ranked(challenger, stars, len(against), wins, tuple(won)))
     return sorted(
         entries,
         key=lambda r: (

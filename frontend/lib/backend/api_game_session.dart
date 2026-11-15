@@ -1286,7 +1286,27 @@ class ApiGameSession extends GameSession {
         challengers: [
           for (final entry in challengers)
             if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})
-              RankedChallenger(card: await _card(server, character), stars: stars, fights: fights, wins: wins)
+              RankedChallenger(
+                card: await _card(server, character),
+                stars: stars,
+                fights: fights,
+                wins: wins,
+                promptAuthor: switch (entry['prompt_author_position']) {
+                  final int position => _seat(server, position),
+                  _ => null,
+                },
+                defaultPrompt: entry['default_prompt'] == true,
+                boosts: [
+                  for (final boost in entry['boosts'] as List? ?? const [])
+                    if (boost case {'booster_position': int booster, 'stars': int stars, 'by_chance': bool byChance})
+                      ChallengerBoost(booster: _seat(server, booster), stars: stars, byChance: byChance),
+                ],
+                foughtBy: [
+                  for (final fight in entry['fought_by'] as List? ?? const [])
+                    if (fight case {'player_position': int player, 'challenger_won': bool won})
+                      ChallengerFight(player: _seat(server, player), challengerWon: won),
+                ],
+              )
             else
               throw const FormatException('Unexpected ranked challenger.'),
         ],

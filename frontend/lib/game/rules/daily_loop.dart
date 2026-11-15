@@ -383,7 +383,16 @@ class WeeklyHero {
 
 /// A challenger in a week's ranking.
 class RankedChallenger {
-  const RankedChallenger({required this.card, required this.stars, required this.fights, required this.wins});
+  const RankedChallenger({
+    required this.card,
+    required this.stars,
+    required this.fights,
+    required this.wins,
+    this.promptAuthor,
+    this.defaultPrompt = false,
+    this.boosts = const [],
+    this.foughtBy = const [],
+  });
 
   final CharacterCard card;
 
@@ -393,6 +402,38 @@ class RankedChallenger {
   /// Its fights by the end of the week, and how many of them it won.
   final int fights;
   final int wins;
+
+  /// Who wrote its prompt: the player before its artist. [defaultPrompt]
+  /// when they wrote none, so it was drawn from a premade title.
+  final Player? promptAuthor;
+  final bool defaultPrompt;
+
+  /// Its boost stars, by player.
+  final List<ChallengerBoost> boosts;
+
+  /// Its fights by the end of the week.
+  final List<ChallengerFight> foughtBy;
+
+  int get boostStars => stars - Stars.challengerBase;
+}
+
+/// Boost stars a player gave a challenger: their own, or spread by chance
+/// from the ones they didn't give ([byChance], shown as "default").
+class ChallengerBoost {
+  const ChallengerBoost({required this.booster, required this.stars, this.byChance = false});
+
+  final Player booster;
+  final int stars;
+  final bool byChance;
+}
+
+/// A fight of a challenger: who picked fighters against it, and whether it
+/// won.
+class ChallengerFight {
+  const ChallengerFight({required this.player, required this.challengerWon});
+
+  final Player player;
+  final bool challengerWon;
 }
 
 /// The latest finished week's challengers, most stars first; the first

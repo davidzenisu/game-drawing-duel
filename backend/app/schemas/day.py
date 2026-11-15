@@ -131,6 +131,22 @@ class WeeklyHeroResponse(BaseModel):
     stars: int
 
 
+class RankedBoost(BaseModel):
+    """Boost stars a player gave a ranked challenger."""
+
+    booster_position: int
+    stars: int
+    # Spread by chance, from the stars the player didn't give themselves.
+    by_chance: bool
+
+
+class RankedFight(BaseModel):
+    """A fight of a ranked challenger: who fought it, and whether it won."""
+
+    player_position: int
+    challenger_won: bool
+
+
 class RankedChallenger(BaseModel):
     character: CharacterResponse
     # Its own stars plus its boost stars.
@@ -138,6 +154,14 @@ class RankedChallenger(BaseModel):
     # Its fights by the end of the week, and how many of them it won.
     fights: int
     wins: int
+    # Who wrote its prompt: the player before its artist. `default_prompt`
+    # if they wrote none, so it was drawn from a premade title.
+    prompt_author_position: int | None = None
+    default_prompt: bool = False
+    # Its boosts, by player: theirs and the ones chance spread for them.
+    boosts: list[RankedBoost] = []
+    # Its fights by the end of the week.
+    fought_by: list[RankedFight] = []
 
 
 class RankingResponse(BaseModel):

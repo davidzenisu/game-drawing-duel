@@ -945,7 +945,21 @@ void main() {
       backend.rankings['123456'] = {
         'day': 7,
         'challengers': [
-          {'character': right, 'stars': 9, 'fights': 1, 'wins': 1},
+          {
+            'character': right,
+            'stars': 9,
+            'fights': 1,
+            'wins': 1,
+            'prompt_author_position': 2,
+            'default_prompt': true,
+            'boosts': [
+              {'booster_position': 1, 'stars': 3, 'by_chance': false},
+              {'booster_position': 3, 'stars': 3, 'by_chance': true},
+            ],
+            'fought_by': [
+              {'player_position': 4, 'challenger_won': true},
+            ],
+          },
           {'character': left, 'stars': 6, 'fights': 0, 'wins': 0},
         ],
       };
@@ -959,6 +973,19 @@ void main() {
         [for (final r in ranking.challengers) (r.card.id, r.stars, r.fights, r.wins)],
         [(right['id'], 9, 1, 1), (left['id'], 6, 0, 0)],
       );
+      // Who wrote, boosted and fought it, for its details.
+      final top = ranking.challengers.first;
+      expect((top.promptAuthor!.name, top.defaultPrompt), ('Robin', true));
+      expect(
+        [for (final b in top.boosts) (b.booster.name, b.stars, b.byChance)],
+        [('Sam', 3, false), ('Kim', 3, true)],
+      );
+      expect([for (final f in top.foughtBy) (f.player.name, f.challengerWon)], [('Jo', true)]);
+      expect(top.boostStars, 6);
+      final bottom = ranking.challengers.last;
+      expect(bottom.promptAuthor, isNull);
+      expect(bottom.boosts, isEmpty);
+      expect(bottom.foughtBy, isEmpty);
       // The hero is rate-up now, with the legends of the same player.
       expect(admin.rateUp, contains(right['id']));
       for (final id in admin.rateUp.difference({right['id']})) {
