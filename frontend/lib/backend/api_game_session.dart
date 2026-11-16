@@ -12,6 +12,7 @@ import '../game/rules/models.dart';
 import '../game/rules/setup_plan.dart';
 import '../game/rules/themes.dart';
 import '../game/rules/upgrades.dart';
+import '../platform/local_cache.dart';
 import '../platform/sketch_store.dart';
 import 'api_client.dart';
 import 'auth_client.dart';
@@ -24,8 +25,10 @@ class ApiGameSession extends GameSession {
     String? signInProblem,
     this.retryDelay = const Duration(milliseconds: 500),
     SketchStore? sketchStore,
+    LocalCache? localCache,
   }) : _api = api,
        _sketchStore = sketchStore ?? SketchStore(),
+       _localCache = localCache ?? LocalCache(),
        _signInProblem = api == null ? signInProblem ?? 'Sign-in is not configured.' : signInProblem;
 
   final ApiClient? _api;
@@ -36,6 +39,9 @@ class ApiGameSession extends GameSession {
 
   /// The drawings downloaded on earlier visits.
   final SketchStore _sketchStore;
+
+  /// Small answers kept between visits, like the week ranking.
+  final LocalCache _localCache;
 
   GamePhase _phase = GamePhase.loading;
   String? _signInProblem;
@@ -1052,6 +1058,7 @@ class ApiGameSession extends GameSession {
     _sketches.clear();
     try {
       await _sketchStore.clear();
+      _localCache.clear();
     } catch (_) {
       // Nothing kept, or storage unavailable.
     }
@@ -1277,9 +1284,25 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<WeekRanking?> weekRanking() async {
+  Future<WeekRanking?> weekRanking({bool refresh = false}) async {
     final server = this.server;
-    return switch (await _get('/servers/${server.code}/ranking')) {
+    final key = 'ranking:${server.code}';
+    Object? json;
+    if (!refresh) {
+      try {
+        if (_localCache.read(key) case final String kept) {
+          final cached = jsonDecode(kept);
+          if (_stillCurrent(server, cached)) json = cached;
+        }
+      } catch (_) {
+        // A broken copy: ask again.
+      }
+    }
+    if (json == null) {
+      json = await _get('/servers/${server.code}/ranking');
+      if (json != null) _localCache.write(key, jsonEncode(json));
+    }
+    return switch (json) {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
         day: day,
@@ -1314,6 +1337,12 @@ class ApiGameSession extends GameSession {
       _ => throw const FormatException('Unexpected ranking.'),
     };
   }
+
+  /// Whether a kept week ranking is still the latest: until the next week
+  /// is over, the day after its finale, a week later. A speed session's
+  /// ranking is final.
+  bool _stillCurrent(ServerSession server, Object? json) =>
+      json is Map && json['day'] is int && (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override
   Future<WeekWinRates?> winRates() async {

@@ -354,8 +354,9 @@ abstract class GameSession extends ChangeNotifier {
   WeeklyHero? get weeklyHero;
 
   /// Loads the latest finished week's ranking, see [Finale]; null before the
-  /// first week is over.
-  Future<WeekRanking?> weekRanking();
+  /// first week is over. Kept on the device until the next week is over,
+  /// unless [refresh].
+  Future<WeekRanking?> weekRanking({bool refresh = false});
 
   /// Loads this week's win rates, from last week's fights (see [WinRates]);
   /// null in speed mode, which has none.

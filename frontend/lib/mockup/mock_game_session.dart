@@ -883,7 +883,7 @@ class MockGameSession extends GameSession {
   /// drawn two days before.
   /// A speed session ranks all of its challengers once it's over.
   @override
-  Future<WeekRanking?> weekRanking() async {
+  Future<WeekRanking?> weekRanking({bool refresh = false}) async {
     if (server.isSpeed) {
       final lastDay = SpeedMode.days.length;
       return sessionOver ? WeekRanking(day: lastDay, challengers: _ranked(1, lastDay)) : null;

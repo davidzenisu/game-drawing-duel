@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:frontend/backend/auth_client.dart';
+import 'package:frontend/platform/local_cache.dart';
 import 'package:frontend/platform/sketch_store.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
@@ -56,6 +57,20 @@ class FakeAuthClient implements AuthClient {
 }
 
 /// An in-memory stand-in for the API. Callers are told apart by their token.
+/// A [LocalCache] in memory, like the browser's local storage across visits.
+class FakeLocalCache implements LocalCache {
+  final Map<String, String> entries = {};
+
+  @override
+  String? read(String key) => entries[key];
+
+  @override
+  void write(String key, String value) => entries[key] = value;
+
+  @override
+  void clear() => entries.clear();
+}
+
 /// A [SketchStore] in memory, like the browser's IndexedDB across visits.
 class FakeSketchStore implements SketchStore {
   final Map<String, String> sketches = {};

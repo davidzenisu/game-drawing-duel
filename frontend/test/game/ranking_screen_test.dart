@@ -29,11 +29,27 @@ void main() {
     final hero = ranking.challengers.first;
     expect(find.text(hero.card.title), findsWidgets, reason: 'in its nameplate');
     expect(find.text('${hero.stars} ★').first, findsOneWidget);
-    expect(find.text('1'), findsOneWidget, reason: 'places are numbered');
+    expect(find.text('#1 · Weekly hero'), findsOneWidget, reason: 'the winner on a bigger card');
+    expect(find.text('2'), findsOneWidget, reason: 'the others numbered below');
     expect(find.textContaining('Drawn by'), findsNothing, reason: 'details are on their own screen');
 
+    // How often each player was chosen as a challenger, as a pie and a legend.
+    expect(find.byType(PlayersDashboard), findsOneWidget);
+    final weeks = PlayerWeek.of(controller.server.players, ranking);
+    expect(weeks, hasLength(controller.server.players.length), reason: 'every player in the legend');
+    expect(weeks.map((w) => w.chosen).fold(0, (a, b) => a + b), ranking.challengers.length);
+    expect([for (final w in weeks) w.chosen], [...weeks.map((w) => w.chosen)]..sort((a, b) => b.compareTo(a)));
+    expect(find.text('Chosen as challenger'), findsOneWidget);
+    final top = weeks.first;
+    expect(find.text('${top.chosen} · ${(100 * top.chosen / ranking.challengers.length).round()}%'), findsWidgets);
+
+    // The refresh button asks again, and keeps the ranking shown.
+    await tester.tap(find.byTooltip('Refresh'));
+    await tester.pumpAndSettle();
+    expect(find.text('#1 · Weekly hero'), findsOneWidget);
+
     // The details of the weekly hero.
-    await tester.tap(find.text('1'));
+    await tester.tap(find.text('#1 · Weekly hero'));
     await tester.pumpAndSettle();
     expect(find.byType(RankingDetailScreen), findsOneWidget);
     expect(find.text('Weekly hero with ${hero.stars} ★'), findsOneWidget);

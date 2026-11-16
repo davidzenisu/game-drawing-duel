@@ -9,6 +9,18 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.13.0] - 2026-11-16
+
+### Added
+- The week ranking shows a pie of how often each player was chosen as a
+  challenger, with every player's count and share.
+- A refresh button on the week ranking.
+
+### Changed
+- The weekly hero sits on a big card of its own above the ranking.
+- The week ranking opens right away: it's kept on your device until the
+  next week is over.
+
 ## [0.12.1] - 2026-11-16
 
 ### Fixed
