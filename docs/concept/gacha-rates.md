@@ -31,6 +31,8 @@ The rates, with more 1 stars than 2 stars:
 
 Both banners pull from the same pool: the setup drawings and every weekly hero, the challenger that won its week's finale, as each week's new 3 star. The weekly banner (from the first finale on) adds this week's rate-up; the standard one has the beginner guarantee. Before the first finale there's no 3 star yet: their 8% goes to the 2 stars.
 
+Pulls come out of a cardboard **gacha box**, taped shut and stamped "Drawing Duel" (the weekly banner's is taped in gold and stamped "Weekly hero"). For a single pull the box shakes, harder and longer the rarer the card inside, and leaks light through its seams, climbing through the rarities' colours up to the card's. Then the tape tears, the flaps fold open and the light pours out, the card rises out of the box towards you while the box sinks away, and the card flips and bursts into its reveal. For several pulls the cards rise out of the box one after another and fan out into the carousel of glowing card backs, then each gets its reveal. A tap skips ahead, as before; with animations turned off on the device, the reveal shows straight away.
+
 Arknights original ratio was roughly:
 - 1 star: 21
 - 2 star: 24

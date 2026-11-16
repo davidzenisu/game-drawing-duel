@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_session.dart';
+import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/pull_reveal_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
+import 'package:frontend/game/widgets/gacha_box.dart';
 
 import '../helpers.dart';
 
@@ -42,6 +44,7 @@ Future<ValueNotifier<bool>> _open(
   WidgetTester tester,
   List<PullOutcome> outcomes, {
   Map<String, OwnedCard> owned = const {},
+  GachaBanner banner = GachaBanner.standard,
 }) async {
   tester.view.physicalSize = const Size(400, 800);
   tester.view.devicePixelRatio = 1;
@@ -54,7 +57,7 @@ Future<ValueNotifier<bool>> _open(
           onPressed: () async {
             await Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => PullRevealScreen(outcomes: outcomes, owned: owned),
+                builder: (_) => PullRevealScreen(outcomes: outcomes, owned: owned, banner: banner),
               ),
             );
             closed.value = true;
@@ -71,15 +74,24 @@ Future<ValueNotifier<bool>> _open(
 }
 
 void main() {
-  testWidgets('a single pull builds up longer the rarer it is, then flips and bursts', (tester) async {
+  testWidgets('a single pull builds up in its box longer the rarer it is, comes out, flips and bursts', (tester) async {
     final closed = await _open(tester, [_outcome('Sam', Rarity.legend)]);
-    // A legend builds up for 2 seconds; nothing shows before that.
+    // A legend's box builds up for 2 seconds, shut; nothing shows before that.
     await _wait(tester, const Duration(milliseconds: 1400));
     expect(find.text('Sam'), findsNothing);
     expect(find.text('Tap to skip'), findsOneWidget);
+    final boxes = tester.widgetList<GachaBox>(find.byType(GachaBox));
+    expect(boxes.map((b) => b.layer), [GachaBoxLayer.back, GachaBoxLayer.front]);
+    expect(boxes.first.open, 0);
+    expect(boxes.first.leak, greaterThan(0.5), reason: 'leaking light through its seams');
+    expect(find.byType(CardBack), findsNothing, reason: 'the card is still in the box');
 
+    // Then it opens and the card comes out.
     await _wait(tester, const Duration(seconds: 1));
-    await _wait(tester, const Duration(seconds: 2));
+    expect(tester.widget<GachaBox>(find.byType(GachaBox).first).open, greaterThan(0));
+    expect(find.byType(CardBack), findsOneWidget);
+    await _wait(tester, const Duration(seconds: 3));
+    expect(find.byType(GachaBox), findsNothing, reason: 'gone once the card is out');
     expect(find.text('Sam'), findsOneWidget);
     expect(find.text('New character!'), findsOneWidget);
     expect(find.byIcon(Icons.star_rounded), findsNWidgets(Rarity.legend.stars));
@@ -90,6 +102,17 @@ void main() {
     await tester.pump();
     await _wait(tester, const Duration(milliseconds: 400));
     expect(closed.value, isTrue);
+  });
+
+  testWidgets("the weekly rate-up's box is taped in gold", (tester) async {
+    await _open(tester, [_outcome('Sam', Rarity.hero)], banner: GachaBanner.weekly);
+    final box = tester.widget<GachaBox>(find.byType(GachaBox).first);
+    expect((box.tape, box.label), (Rarity.legend.color, 'WEEKLY HERO'));
+    await tester.pumpWidget(const SizedBox());
+
+    await _open(tester, [_outcome('Sam', Rarity.hero)]);
+    expect(tester.widget<GachaBox>(find.byType(GachaBox).first).tape, GachaBox.plainTape);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('a tap shows a single pull straight away', (tester) async {
@@ -111,8 +134,12 @@ void main() {
     final closed = await _open(tester, outcomes);
     expect(find.text('10 pulls'), findsOneWidget);
 
-    // The carousel only glows; no characters yet.
+    // The cards come out of the box, then the carousel only glows; no
+    // characters yet.
+    await _wait(tester, const Duration(milliseconds: 600));
+    expect(find.byType(GachaBox), findsNWidgets(2));
     await _wait(tester, const Duration(seconds: 3));
+    expect(find.byType(GachaBox), findsNothing, reason: 'it sinks away once empty');
     expect(tester.takeException(), isNull, reason: 'the carousel fits a phone');
     for (final outcome in outcomes) {
       expect(find.text(outcome.card.subject), findsNothing, reason: 'no characters in the carousel');

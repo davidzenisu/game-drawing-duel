@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../game_session.dart';
+import '../rules/gacha.dart';
 import '../rules/models.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
+import '../widgets/gacha_box.dart';
+import '../widgets/sketch_canvas.dart';
 
 /// How long a pull builds up before it flips: the rarer, the longer.
 Duration _buildUpFor(Rarity rarity) => Duration(milliseconds: 800 + 400 * rarity.index);
@@ -26,14 +29,46 @@ Color _climb(double t, Rarity rarity) {
   )!;
 }
 
-/// Full screen reveal of pulls. A single pull builds up, flips and bursts.
-/// A multi-pull spins its cards into a carousel face down, every back
-/// glowing in its rarity's colour, then reveals them one by one the same
-/// way, and ends on an overview of them all.
+/// How long a pull takes to come out of its box, from the flaps opening
+/// to the box sinking away.
+const _pullOutTime = Duration(milliseconds: 1300);
+
+/// The box a [banner]'s pulls come out of: the weekly rate-up's is taped in
+/// the legends' gold.
+GachaBox _box(
+  GachaBanner banner, {
+  required double width,
+  required GachaBoxLayer layer,
+  double open = 0,
+  double leak = 0,
+  Color glow = Colors.white,
+}) => GachaBox(
+  width: width,
+  layer: layer,
+  open: open,
+  leak: leak,
+  glow: glow,
+  tape: banner == GachaBanner.weekly ? Rarity.legend.color : GachaBox.plainTape,
+  label: banner == GachaBanner.weekly ? 'WEEKLY HERO' : 'DRAWING DUEL',
+);
+
+/// Full screen reveal of pulls, out of a cardboard box. A single pull's box
+/// shakes, leaking its rarity's light, opens, and the card rises out, flips
+/// and bursts. A multi-pull's cards fan out of the box into a carousel face
+/// down, every back glowing in its rarity's colour, then reveal one by one
+/// the same way, and it ends on an overview of them all.
 class PullRevealScreen extends StatefulWidget {
-  const PullRevealScreen({super.key, required this.outcomes, this.owned = const {}});
+  const PullRevealScreen({
+    super.key,
+    required this.outcomes,
+    this.owned = const {},
+    this.banner = GachaBanner.standard,
+  });
 
   final List<PullOutcome> outcomes;
+
+  /// The banner pulled on, for its box.
+  final GachaBanner banner;
 
   /// Your characters after the pulls, by card id: a duplicate tells
   /// whether its next upgrade is ready. Characters show plain here, so the
@@ -91,6 +126,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
               Positioned.fill(
                 child: _MultiPull(
                   outcomes: widget.outcomes,
+                  banner: widget.banner,
                   owned: widget.owned,
                   onReveal: _reveal,
                   onInspect: _inspect,
@@ -102,6 +138,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
                 child: _SingleReveal(
                   key: ObjectKey(spotlight),
                   outcome: spotlight,
+                  banner: widget.banner,
                   owned: widget.owned[spotlight.card.id],
                   // Cards shown again from the overview are face up already.
                   buildUp: _single || _next != null,
@@ -117,13 +154,15 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
   }
 }
 
-/// One character: the card back builds up, shaking harder and climbing
-/// through the rarities' colours, flips and bursts; legends flash. Its
-/// stars pop in one by one. Tap to see it all, then to move on.
+/// One character: its box builds up, shaking harder and leaking light that
+/// climbs through the rarities' colours, opens, and the card rises out of
+/// it towards you, flips and bursts; legends flash. Its stars pop in one by
+/// one. Tap to see it all, then to move on.
 class _SingleReveal extends StatefulWidget {
   const _SingleReveal({
     super.key,
     required this.outcome,
+    required this.banner,
     required this.buildUp,
     required this.onDone,
     this.owned,
@@ -132,6 +171,7 @@ class _SingleReveal extends StatefulWidget {
   });
 
   final PullOutcome outcome;
+  final GachaBanner banner;
 
   /// The pulled character as you own it now, for its upgrade points.
   final OwnedCard? owned;
@@ -151,6 +191,7 @@ class _SingleReveal extends StatefulWidget {
 class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMixin {
   late final _rarity = widget.outcome.card.rarity;
   late final _charge = AnimationController(vsync: this, duration: _buildUpFor(_rarity));
+  late final _pull = AnimationController(vsync: this, duration: _pullOutTime);
   late final _flip = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
   late final _burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
 
@@ -158,6 +199,9 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
   void initState() {
     super.initState();
     _charge.addStatusListener((status) {
+      if (status == AnimationStatus.completed && _pull.isDismissed) _pull.forward();
+    });
+    _pull.addStatusListener((status) {
       if (status == AnimationStatus.completed && _flip.isDismissed) _flip.forward();
     });
     _flip.addStatusListener((status) {
@@ -167,6 +211,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
       _charge.forward();
     } else {
       _charge.value = 1;
+      _pull.value = 1;
     }
   }
 
@@ -178,6 +223,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
 
   void _showAll() {
     _charge.value = 1;
+    _pull.value = 1;
     _flip.value = 1;
     _burst.value = 1;
   }
@@ -193,6 +239,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
   @override
   void dispose() {
     _charge.dispose();
+    _pull.dispose();
     _flip.dispose();
     _burst.dispose();
     super.dispose();
@@ -205,7 +252,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
       behavior: HitTestBehavior.opaque,
       onTap: _tap,
       child: AnimatedBuilder(
-        animation: Listenable.merge([_charge, _flip, _burst]),
+        animation: Listenable.merge([_charge, _pull, _flip, _burst]),
         builder: (context, _) {
           final charge = _charge.value;
           final burst = _burst.value;
@@ -228,7 +275,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
                   ),
                 ),
               ),
-              Center(child: _card(context, color)),
+              Center(child: _pull.isCompleted ? _card(context, color) : _outOfTheBox(color)),
               if (flash > 0)
                 Positioned.fill(
                   child: IgnorePointer(
@@ -275,20 +322,76 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     );
   }
 
-  Widget _card(BuildContext context, Color glow) {
+  /// The box shaking and leaking light, then opening, the card rising out
+  /// of it towards you while the box sinks away.
+  Widget _outOfTheBox(Color glow) {
+    const boxWidth = 260.0;
+    const cardWidth = 200.0;
+    final boxHeight = GachaBox.heightFor(boxWidth);
     final charge = _charge.value;
-    // The card shakes harder the further the build-up climbs.
-    final shake = _flip.value == 0 ? sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5) : 0.0;
+    final pull = _pull.value;
+    // The box shakes harder the further the build-up climbs.
+    final shake = pull == 0 ? sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5) : 0.0;
+    final tilt = pull == 0 ? sin(charge * pi * 13) * charge * 0.01 * (1 + _rarity.index) : 0.0;
+    final open = const Interval(0, 0.3).transform(pull);
+    final rise = const Interval(0.2, 0.8, curve: Curves.easeInOutCubic).transform(pull);
+    final sink = const Interval(0.55, 1, curve: Curves.easeInCubic).transform(pull);
+    // The box sits a little low, so the card has room to rise above it.
+    final boxAt = Offset(shake, boxHeight * 0.25 + sink * 600);
+    final opening = GachaBox.openingFor(boxWidth) - Offset(boxWidth / 2, boxHeight / 2) + Offset(0, boxHeight * 0.25);
+    // Small and deep inside at first, so the front wall hides it.
+    const startScale = 0.42;
+    final startAt = opening + const Offset(0, cardWidth / cardAspectRatio * startScale * 0.5 + 24);
+    final cardAt = Offset.lerp(startAt, Offset.zero, rise)!;
+    final scale = startScale + (1 - startScale) * rise;
+    Widget box(GachaBoxLayer layer) => Transform.translate(
+      offset: boxAt,
+      child: Transform.rotate(
+        angle: tilt,
+        child: Opacity(
+          opacity: 1 - sink,
+          child: _box(
+            widget.banner,
+            width: boxWidth,
+            layer: layer,
+            open: open,
+            leak: max(charge, pull > 0 ? 1 : 0),
+            glow: glow,
+          ),
+        ),
+      ),
+    );
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        box(GachaBoxLayer.back),
+        if (pull > 0.2)
+          Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.0012)
+              ..translateByDouble(cardAt.dx, cardAt.dy, 0, 1)
+              // Leaning back as it comes out, then turning to face you.
+              ..rotateX((1 - rise) * 0.9)
+              ..rotateZ(sin(rise * pi) * 0.12)
+              ..scaleByDouble(scale, scale, 1, 1),
+            child: CardBack(width: cardWidth, glow: glow),
+          ),
+        box(GachaBoxLayer.front),
+      ],
+    );
+  }
+
+  Widget _card(BuildContext context, Color glow) {
     final angle = Curves.easeInOut.transform(_flip.value) * pi;
     final showFront = angle > pi / 2;
     return Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
         ..setEntry(3, 2, 0.0012)
-        ..translateByDouble(shake, 0, 0, 1)
-        ..rotateY(showFront ? angle - pi : angle)
-        ..scaleByDouble(1 + 0.06 * charge * (1 - _flip.value), 1 + 0.06 * charge * (1 - _flip.value), 1, 1),
-      child: showFront ? _front(context) : CardBack(width: 200, glow: glow.withValues(alpha: charge)),
+        ..rotateY(showFront ? angle - pi : angle),
+      child: showFront ? _front(context) : CardBack(width: 200, glow: glow),
     );
   }
 
@@ -366,12 +469,14 @@ class _PoppingStars extends StatelessWidget {
 
 enum _Stage { carousel, reveal, results }
 
-/// Several pulls. They spin into a carousel face down, every back lighting
-/// up in its rarity's colour at once, then each one gets a reveal of its
-/// own in order, and the overview of them all comes last.
+/// Several pulls. They come out of their box one after another and spin
+/// into a carousel face down, every back lighting up in its rarity's colour
+/// at once, then each one gets a reveal of its own in order, and the
+/// overview of them all comes last.
 class _MultiPull extends StatefulWidget {
   const _MultiPull({
     required this.outcomes,
+    required this.banner,
     required this.owned,
     required this.onReveal,
     required this.onInspect,
@@ -379,6 +484,7 @@ class _MultiPull extends StatefulWidget {
   });
 
   final List<PullOutcome> outcomes;
+  final GachaBanner banner;
   final Map<String, OwnedCard> owned;
 
   /// Reveals one card, then calls `next`; `skip` skips the rest.
@@ -391,8 +497,9 @@ class _MultiPull extends StatefulWidget {
 }
 
 class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
-  /// The cards spread out and turn once round while their backs light up.
-  late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 3600));
+  /// The cards come out of the box, spread out and turn once round while
+  /// their backs light up.
+  late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 4400));
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
   var _stage = _Stage.carousel;
   Timer? _pause;
@@ -509,7 +616,13 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     final outcomes = widget.outcomes;
     final count = outcomes.length;
     final t = _carousel.value;
-    final spread = const Interval(0, 0.35, curve: Curves.easeOutBack).transform(t);
+    // The box opens, the cards rise out of it one after another, and it
+    // sinks away.
+    final open = const Interval(0, 0.08).transform(t);
+    double emerge(int i) =>
+        Interval(0.06 + 0.2 * i / count, 0.2 + 0.2 * i / count, curve: Curves.easeOutCubic).transform(t);
+    final sink = const Interval(0.32, 0.45, curve: Curves.easeInCubic).transform(t);
+    final spread = const Interval(0.1, 0.45, curve: Curves.easeOutBack).transform(t);
     // One turn round, slowing down until the first card is at the front.
     final position = -count * (1 - Curves.easeOutCubic.transform(t));
     // All backs light up together, then pulse gently.
@@ -523,12 +636,36 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
         double angle(int i) => 2 * pi * (i - position) / count;
         // Back cards first, so the front one is drawn on top.
         final order = [for (var i = 0; i < count; i++) i]..sort((a, b) => cos(angle(a)).compareTo(cos(angle(b))));
+        final boxWidth = width * 2;
+        final boxHeight = GachaBox.heightFor(boxWidth);
+        // Below the ring, and sinking out of sight once empty.
+        final boxAt = Offset(0, constraints.maxHeight / 2 - boxHeight / 2 - 8 + sink * constraints.maxHeight);
+        final opening = GachaBox.openingFor(boxWidth) - Offset(boxWidth / 2, boxHeight / 2) + boxAt;
+        Widget box(GachaBoxLayer layer) => Transform.translate(
+          offset: boxAt,
+          child: Opacity(
+            opacity: 1 - sink,
+            child: _box(widget.banner, width: boxWidth, layer: layer, open: open, leak: open, glow: Colors.white),
+          ),
+        );
         // Just the dark background, so the glows stand out.
         return Stack(
           alignment: Alignment.center,
+          clipBehavior: Clip.none,
           children: [
+            if (sink < 1) box(GachaBoxLayer.back),
             for (final i in order)
-              _ringCard(outcomes[i], width: width, angle: angle(i), radius: radius, glow: glow * pulse),
+              if (emerge(i) > 0)
+                Transform.translate(
+                  // From deep in the box up into the ring, growing as it
+                  // comes towards you.
+                  offset: Offset.lerp(opening + Offset(0, width * 0.5), Offset.zero, emerge(i))!,
+                  child: Transform.scale(
+                    scale: 0.45 + 0.55 * emerge(i),
+                    child: _ringCard(outcomes[i], width: width, angle: angle(i), radius: radius, glow: glow * pulse),
+                  ),
+                ),
+            if (sink < 1) box(GachaBoxLayer.front),
           ],
         );
       },
