@@ -131,6 +131,32 @@ class FinaleTests(FightTestCase):
         for subject in PLAYERS:
             self.assertEqual(self.ranking(subject), ranking)
 
+    def test_a_challenger_ranks_in_the_week_of_its_fight(self) -> None:
+        # Drawn on Friday (day 5), fought on Sunday: this week. Drawn on
+        # Saturday (day 6), boosted on Sunday and fought on Monday: next week.
+        with self.without_rest():
+            self.go_to_day(5)
+            self.draw_challengers()
+            self.next_day()
+            self.draw_challengers()
+            self.go_to_day(8)
+            self.today()
+        ranked = {r["character"]["id"] for r in self.ranking()["challengers"]}
+        self.assertTrue(set(self.challengers(5)) <= ranked)
+        self.assertFalse(set(self.challengers(6)) & ranked, "not fought yet")
+        self.assertTrue(set(self.challengers(2)) <= ranked)
+        entries = self.ranking()["challengers"]
+        self.assertEqual([e["fights"] for e in entries], [1] * len(entries), "all fought")
+
+        with self.without_rest():
+            self.go_to_day(15)
+            self.today()
+        next_week = self.ranking()
+        self.assertEqual(next_week["day"], 14)
+        ranked = {r["character"]["id"] for r in next_week["challengers"]}
+        self.assertTrue(set(self.challengers(6)) <= ranked, "fought on Monday")
+        self.assertFalse(set(self.challengers(5)) & ranked)
+
     def test_the_ranking_tells_who_wrote_boosted_and_fought_each(self) -> None:
         # Day 4: Alex writes a prompt; Sam, the next player, draws it.
         written = self.post(

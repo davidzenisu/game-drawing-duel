@@ -879,7 +879,8 @@ class MockGameSession extends GameSession {
       ],
   ].map(_rankedEntry).toList()..sort((a, b) => b.stars.compareTo(a.stars));
 
-  /// The latest finished week's ranking: the challengers boosted that week.
+  /// The latest finished week's ranking: the challengers fought that week,
+  /// drawn two days before.
   /// A speed session ranks all of its challengers once it's over.
   @override
   Future<WeekRanking?> weekRanking() async {
@@ -889,7 +890,7 @@ class MockGameSession extends GameSession {
     }
     final lastDay = _days.weekStart(_day) - 1;
     if (lastDay < 7) return null;
-    return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 7, lastDay - 1));
+    return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 8, lastDay - 2));
   }
 
   @override
@@ -910,7 +911,7 @@ class MockGameSession extends GameSession {
     _incomingHurries = promptToDraw == null ? const [] : _days.hurries(_day);
     // A new week: last week's best challenger joins the pool as its hero.
     if (!server.isSpeed && _days.weekStart(_day) == _day && _day > 7) {
-      final ranked = _ranked(_day - 8, _day - 2);
+      final ranked = _ranked(_day - 9, _day - 3);
       if (ranked.isNotEmpty) {
         final winner = ranked.first;
         if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);

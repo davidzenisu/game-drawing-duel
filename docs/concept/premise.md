@@ -74,6 +74,8 @@ The challenger with the most stars at the end of the week should be the winning 
 
 The full rank list of challengers in order (including the amount of stars) should also be visible to the players after the week.
 
+A challenger counts for the week of its fight, once it went through all four steps: titled on Monday, drawn on Tuesday, boosted on Wednesday and fought on Thursday, it's in that week's ranking; titled on Friday, it's fought on Monday and ranks the next week. Challengers still waiting for their fight on Sunday aren't ranked yet.
+
 **Week ranking** (in the heroes menu) lists them, most stars first: each with its place, a small drawing, its nameplate (the player it portrays and its title) and its stars at the end of the week; the weekly hero is framed. Tapping one opens its details: the drawing big (tap it for full screen, to zoom in), who drew it, who wrote its prompt ("(default)" when they wrote none and it was drawn from a premade title), its boost stars in total and by player ("(default)" for the stars chance spread for a player who didn't give them), and its fight: "Won against Sam's team of heroes" (or "Lost …"), Sam being the player who picked the fighters.
 
 *The section below is still in its concept phase, ignore for now!!*
