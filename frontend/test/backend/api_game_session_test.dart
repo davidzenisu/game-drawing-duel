@@ -1078,6 +1078,71 @@ void main() {
       expect((rates.extraStars('Sam', 'Robin'), rates.extraStars('Robin', 'Sam')), (2, 0));
     });
 
+    test('win rates are kept for the week, fight days for the day and past fights for good', () async {
+      final cache = FakeLocalCache();
+      final alex = ApiGameSession(
+        api: ApiClient(
+          baseUrl: 'https://api.example',
+          auth: FakeAuthClient(token: 'alex', profile: const AuthProfile()),
+          httpClient: backend.client,
+        ),
+        retryDelay: Duration.zero,
+        localCache: cache,
+      );
+      await alex.start();
+      await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await alex.startSetup();
+      await drawAll(alex);
+      await alex.launch();
+      int requests(String path) => backend.requests.where((r) => r.url.path == '/servers/123456$path').length;
+
+      // Win rates: kept until their week is over.
+      expect((await alex.winRates())!.rates, isEmpty);
+      expect((await alex.winRates())!.rates, isEmpty);
+      expect(requests('/win-rates'), 1, reason: 'from the device');
+      backend.days['123456'] = 7;
+      await alex.refreshDay();
+      expect((await alex.winRates())!.rates, isEmpty, reason: 'the week of days 1 to 7 is not over');
+      expect(requests('/win-rates'), 1);
+      expect((await alex.winRates(refresh: true))!.rates, isEmpty, reason: 'refreshed by hand');
+      expect(requests('/win-rates'), 2);
+      backend.winRates['123456'] = {
+        'from_day': 1,
+        'to_day': 7,
+        'min_fights': 3,
+        'win_rates': [
+          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 4, 'extra_stars': 2},
+        ],
+      };
+      backend.days['123456'] = 8;
+      await alex.refreshDay();
+      expect((await alex.winRates())!.rates, hasLength(1));
+      expect(requests('/win-rates'), 3, reason: 'a new week');
+      backend.days['123456'] = 14;
+      await alex.refreshDay();
+      expect((await alex.winRates())!.fromDay, 1);
+      expect(requests('/win-rates'), 3, reason: 'kept for the week of days 8 to 14');
+
+      // Fight days: kept for the day.
+      await alex.fightDays();
+      await alex.fightDays();
+      expect(requests('/fights'), 1);
+      await alex.fightDays(refresh: true);
+      expect(requests('/fights'), 2);
+      backend.days['123456'] = 9;
+      await alex.refreshDay();
+      await alex.fightDays();
+      expect(requests('/fights'), 3, reason: 'a new day');
+
+      // A past day's fights are over: kept for good.
+      await alex.fightsOn(4);
+      await alex.fightsOn(4);
+      expect(requests('/fights/4'), 1);
+
+      await alex.signOut();
+      expect(cache.entries, isEmpty);
+    });
+
     test('seen tutorials are stored with the account', () async {
       expect(admin.tutorialsSeen, isEmpty);
       await admin.markTutorialSeen('draw');

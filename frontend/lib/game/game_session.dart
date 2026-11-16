@@ -332,10 +332,12 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> collectAchievement(Achievement achievement);
 
   /// The days before today with fights of yours to replay, newest first.
-  Future<List<FightDay>> fightDays();
+  /// Kept on the device for the day, unless [refresh].
+  Future<List<FightDay>> fightDays({bool refresh = false});
 
   /// Your fights of [day], a day before today, to replay: the one you picked
-  /// the fighters for and the one against the challenger you drew.
+  /// the fighters for and the one against the challenger you drew. Kept on
+  /// the device, as they're over.
   Future<List<FightSetup>> fightsOn(int day);
 
   /// The hurries sent yesterday against your challenger drawing today, in the order
@@ -359,8 +361,9 @@ abstract class GameSession extends ChangeNotifier {
   Future<WeekRanking?> weekRanking({bool refresh = false});
 
   /// Loads this week's win rates, from last week's fights (see [WinRates]);
-  /// null in speed mode, which has none.
-  Future<WeekWinRates?> winRates();
+  /// null in speed mode, which has none. Kept on the device for the week,
+  /// unless [refresh].
+  Future<WeekWinRates?> winRates({bool refresh = false});
 
   /// The keys of the intros you saw (see `Tutorial`), so each shows once.
   /// Online they're kept with your account, on every device.

@@ -49,11 +49,13 @@ class _FightHistoryScreenState extends State<FightHistoryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _load() async {
-    final days = await runGameQuery(context, widget.controller.fightDays);
+  /// The fight replay kept on the device, or asked again with [refresh].
+  Future<void> _load({bool refresh = false}) async {
+    setState(() => _loading = true);
+    final days = await runGameQuery(context, () => widget.controller.fightDays(refresh: refresh));
     if (!mounted) return;
     setState(() {
-      _days = days;
+      _days = days ?? (refresh ? _days : null);
       _loading = false;
     });
   }
@@ -63,8 +65,17 @@ class _FightHistoryScreenState extends State<FightHistoryScreen> {
     final days = _days ?? const [];
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Fight replay')),
-      body: _loading
+      appBar: AppBar(
+        title: const Text('Fight replay'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _loading ? null : () => _load(refresh: true),
+          ),
+        ],
+      ),
+      body: _loading && _days == null
           ? const Center(child: CircularProgressIndicator())
           : days.isEmpty
           ? const Center(

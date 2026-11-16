@@ -9,6 +9,16 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.14.0] - 2026-11-16
+
+### Added
+- Refresh buttons on the win rates and the fight replay.
+
+### Changed
+- The win rates and the fight replay open right away: the win rates are
+  kept on your device for their week, the days with fights for the day,
+  and a past day's fights for good.
+
 ## [0.13.0] - 2026-11-16
 
 ### Added

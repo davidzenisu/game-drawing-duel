@@ -30,11 +30,13 @@ class _WinRatesScreenState extends State<WinRatesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  Future<void> _load() async {
-    final rates = await runGameQuery(context, widget.controller.winRates);
+  /// The win rates kept on the device, or asked again with [refresh].
+  Future<void> _load({bool refresh = false}) async {
+    setState(() => _loading = true);
+    final rates = await runGameQuery(context, () => widget.controller.winRates(refresh: refresh));
     if (!mounted) return;
     setState(() {
-      _rates = rates;
+      _rates = rates ?? (refresh ? _rates : null);
       _loading = false;
     });
   }
@@ -54,8 +56,17 @@ class _WinRatesScreenState extends State<WinRatesScreen> {
     final rates = _rates;
     final textTheme = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Win rates')),
-      body: _loading
+      appBar: AppBar(
+        title: const Text('Win rates'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _loading ? null : () => _load(refresh: true),
+          ),
+        ],
+      ),
+      body: _loading && _rates == null
           ? const Center(child: CircularProgressIndicator())
           : rates == null
           ? const Center(
