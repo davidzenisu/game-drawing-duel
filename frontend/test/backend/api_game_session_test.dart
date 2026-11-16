@@ -994,6 +994,64 @@ void main() {
       }
     });
 
+    test('the week ranking is kept on the device until the next week is over', () async {
+      final cache = FakeLocalCache();
+      final alex = ApiGameSession(
+        api: ApiClient(
+          baseUrl: 'https://api.example',
+          auth: FakeAuthClient(token: 'alex', profile: const AuthProfile()),
+          httpClient: backend.client,
+        ),
+        retryDelay: Duration.zero,
+        sketchStore: store,
+        localCache: cache,
+      );
+      await alex.start();
+      await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await alex.startSetup();
+      await drawAll(alex);
+      await alex.launch();
+      int rankingRequests() => backend.requests.where((r) => r.url.path.endsWith('/ranking')).length;
+
+      expect(await alex.weekRanking(), isNull);
+      expect(cache.entries, isEmpty, reason: 'nothing to keep before the first week is over');
+
+      final [card, ...] = [for (final d in backend.drawings.values) d.character];
+      backend.rankings['123456'] = {
+        'day': 7,
+        'challengers': [
+          {'character': card, 'stars': 6, 'fights': 1, 'wins': 1},
+        ],
+      };
+      backend.days['123456'] = 8;
+      await alex.refreshDay();
+      final before = rankingRequests();
+      expect((await alex.weekRanking())!.day, 7);
+      expect(rankingRequests(), before + 1);
+      expect((await alex.weekRanking())!.challengers.single.stars, 6, reason: 'from the device');
+      expect(rankingRequests(), before + 1, reason: 'kept until the next week is over');
+
+      // Refreshed by hand.
+      backend.rankings['123456'] = {
+        'day': 7,
+        'challengers': [
+          {'character': card, 'stars': 7, 'fights': 1, 'wins': 1},
+        ],
+      };
+      expect((await alex.weekRanking(refresh: true))!.challengers.single.stars, 7);
+      expect(rankingRequests(), before + 2);
+
+      // Day 15: the next week is over, so its ranking is asked for.
+      backend.rankings['123456'] = {'day': 14, 'challengers': backend.rankings['123456']!['challengers']};
+      backend.days['123456'] = 15;
+      await alex.refreshDay();
+      expect((await alex.weekRanking())!.day, 14);
+      expect(rankingRequests(), before + 3);
+
+      await alex.signOut();
+      expect(cache.entries, isEmpty, reason: 'the next player on this device starts fresh');
+    });
+
     test("this week's win rates, from last week's fights", () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
