@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -105,110 +107,185 @@ void _openDetails(BuildContext context, int place, RankedChallenger entry) => Na
   ),
 );
 
-/// How a player did in a week's ranking: the challengers portraying them,
-/// the ones they drew, and the best place of either.
+/// How often a player was chosen as a challenger in a week's ranking: the
+/// challengers portraying them.
 class PlayerWeek {
-  const PlayerWeek({required this.name, required this.portrayed, required this.drew, this.bestPlace});
+  const PlayerWeek({required this.name, required this.position, required this.chosen});
 
   final String name;
-  final int portrayed;
-  final int drew;
-  final int? bestPlace;
 
-  /// Every player of the roster, most portrayed first.
+  /// Their place in the roster, which picks their color.
+  final int position;
+  final int chosen;
+
+  /// Every player of the roster, most chosen first.
   static List<PlayerWeek> of(List<Player> players, WeekRanking ranking) {
     final entries = [
-      for (final player in players)
+      for (final (position, player) in players.indexed)
         PlayerWeek(
           name: player.name,
-          portrayed: ranking.challengers.where((c) => c.card.subject == player.name).length,
-          drew: ranking.challengers.where((c) => c.card.artist == player.name).length,
-          bestPlace: switch (ranking.challengers.indexWhere(
-            (c) => c.card.subject == player.name || c.card.artist == player.name,
-          )) {
-            -1 => null,
-            final index => index + 1,
-          },
+          position: position,
+          chosen: ranking.challengers.where((c) => c.card.subject == player.name).length,
         ),
     ];
     return entries..sort((a, b) {
-      final byPortrayed = b.portrayed.compareTo(a.portrayed);
-      return byPortrayed != 0 ? byPortrayed : a.name.compareTo(b.name);
+      final byChosen = b.chosen.compareTo(a.chosen);
+      return byChosen != 0 ? byChosen : a.position.compareTo(b.position);
     });
   }
 }
 
-/// The week at a glance: how often each player was portrayed by the
-/// challengers, as a bar, with how many they drew and their best place.
+/// The week at a glance: a pie of how often each player was chosen as a
+/// challenger, with a legend of every player, their count and share.
+///
+/// Each player keeps their color by roster position, from eight validated
+/// categorical hues (stepped for dark mode); a roster of nine or ten shares
+/// one grey slice for the players past the eighth. Slices are split by a
+/// thin gap of the card's color.
 class PlayersDashboard extends StatelessWidget {
   const PlayersDashboard({super.key, required this.players, required this.ranking});
 
   final List<Player> players;
   final WeekRanking ranking;
 
+  static const _light = [
+    Color(0xFF2A78D6),
+    Color(0xFFEB6834),
+    Color(0xFF1BAF7A),
+    Color(0xFFEDA100),
+    Color(0xFFE87BA4),
+    Color(0xFF008300),
+    Color(0xFF6250D6),
+    Color(0xFFE34948),
+  ];
+  static const _dark = [
+    Color(0xFF3987E5),
+    Color(0xFFD95926),
+    Color(0xFF199E70),
+    Color(0xFFC98500),
+    Color(0xFFD55181),
+    Color(0xFF0CA30C),
+    Color(0xFF9085E9),
+    Color(0xFFE66767),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final weeks = PlayerWeek.of(players, ranking);
-    final most = weeks.fold(1, (most, w) => w.portrayed > most ? w.portrayed : most);
     final theme = Theme.of(context);
     final text = theme.textTheme;
+    final hues = theme.brightness == Brightness.dark ? _dark : _light;
+    final others = theme.colorScheme.outline;
+    Color colorOf(PlayerWeek week) => week.position < hues.length ? hues[week.position] : others;
+
+    final weeks = PlayerWeek.of(players, ranking);
+    final total = weeks.fold(0, (sum, w) => sum + w.chosen);
+    final slices = <(Color, int)>[
+      for (final week in weeks)
+        if (week.chosen > 0 && week.position < hues.length) (colorOf(week), week.chosen),
+      if (weeks.where((w) => w.position >= hues.length).fold(0, (sum, w) => sum + w.chosen) case final rest
+          when rest > 0)
+        (others, rest),
+    ];
+    final cardColor = theme.cardTheme.color ?? theme.colorScheme.surfaceContainerLow;
+
+    final pie = Semantics(
+      label: [for (final w in weeks) '${w.name} ${w.chosen}'].join(', '),
+      child: SizedBox.square(
+        dimension: 132,
+        child: CustomPaint(
+          painter: _PiePainter(slices: slices, gap: cardColor),
+        ),
+      ),
+    );
+    final legend = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final week in weeks)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: colorOf(week), shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 96),
+                  child: Text(week.name, style: text.labelLarge, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${week.chosen}${total == 0 ? '' : ' · ${(100 * week.chosen / total).round()}%'}',
+                  style: text.bodySmall,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
     return Card(
+      // The same color as the gaps between the slices.
+      color: cardColor,
+      surfaceTintColor: Colors.transparent,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("This week's players", style: text.titleMedium),
-            Text('Challengers portraying each player', style: text.bodySmall),
-            const SizedBox(height: 8),
-            for (final week in weeks)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Tooltip(
-                  message:
-                      '${week.name}: portrayed ${week.portrayed}×, drew ${week.drew}'
-                      '${week.bestPlace == null ? '' : ', best place #${week.bestPlace}'}',
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 72,
-                        child: Text(week.name, style: text.labelLarge, overflow: TextOverflow.ellipsis),
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) => Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              height: 12,
-                              width: week.portrayed == 0 ? 2 : constraints.maxWidth * week.portrayed / most,
-                              decoration: BoxDecoration(
-                                color: week.portrayed == 0
-                                    ? theme.colorScheme.outlineVariant
-                                    : theme.colorScheme.primary,
-                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 112,
-                        child: Text(
-                          '${week.portrayed} · drew ${week.drew}${week.bestPlace == null ? '' : ' · #${week.bestPlace}'}',
-                          style: text.bodySmall,
-                          textAlign: TextAlign.end,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            Text('Chosen as challenger', style: text.titleMedium),
+            Text("How many of the week's challengers portray each player", style: text.bodySmall),
+            const SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 24,
+              runSpacing: 12,
+              children: [pie, legend],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+/// A pie of [slices] (color and value), clockwise from the top, each split
+/// from the next by a [gap] colored line.
+class _PiePainter extends CustomPainter {
+  const _PiePainter({required this.slices, required this.gap});
+
+  final List<(Color, int)> slices;
+  final Color gap;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final total = slices.fold(0, (sum, s) => sum + s.$2);
+    if (total == 0) return;
+    final rect = Offset.zero & size;
+    final center = rect.center;
+    final radius = size.shortestSide / 2;
+    var start = -math.pi / 2;
+    final edges = <double>[];
+    for (final (color, value) in slices) {
+      final sweep = 2 * math.pi * value / total;
+      canvas.drawArc(rect, start, sweep, true, Paint()..color = color);
+      edges.add(start);
+      start += sweep;
+    }
+    if (slices.length < 2) return;
+    final line = Paint()
+      ..color = gap
+      ..strokeWidth = 2;
+    for (final angle in edges) {
+      canvas.drawLine(center, center + Offset(math.cos(angle), math.sin(angle)) * radius, line);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PiePainter old) => old.slices != slices || old.gap != gap;
 }
 
 /// The weekly hero, first and bigger than the others: its drawing large,

@@ -12,8 +12,8 @@ the game is in early development (0.x), versions stay below 1.0.
 ## [0.13.0] - 2026-11-16
 
 ### Added
-- The week ranking shows how each player was represented: how many
-  challengers portrayed them, how many they drew, and their best place.
+- The week ranking shows a pie of how often each player was chosen as a
+  challenger, with every player's count and share.
 - A refresh button on the week ranking.
 
 ### Changed
