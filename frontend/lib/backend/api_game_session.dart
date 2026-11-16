@@ -1283,25 +1283,44 @@ class ApiGameSession extends GameSession {
     notifyListeners();
   }
 
-  @override
-  Future<WeekRanking?> weekRanking({bool refresh = false}) async {
-    final server = this.server;
-    final key = 'ranking:${server.code}';
-    Object? json;
+  /// The answer to GET [path], kept on the device under [key] while
+  /// [stillCurrent] holds for it and the [day] it was asked on, unless
+  /// [refresh]. Nothing is kept for a null answer.
+  Future<Object?> _kept(
+    String key,
+    String path, {
+    required bool refresh,
+    required bool Function(Object? json, int askedOn) stillCurrent,
+  }) async {
     if (!refresh) {
       try {
         if (_localCache.read(key) case final String kept) {
-          final cached = jsonDecode(kept);
-          if (_stillCurrent(server, cached)) json = cached;
+          if (jsonDecode(kept) case {
+            'asked_on': int askedOn,
+            'json': final cached,
+          } when stillCurrent(cached, askedOn)) {
+            return cached;
+          }
         }
       } catch (_) {
         // A broken copy: ask again.
       }
     }
-    if (json == null) {
-      json = await _get('/servers/${server.code}/ranking');
-      if (json != null) _localCache.write(key, jsonEncode(json));
-    }
+    final askedOn = day;
+    final json = await _get(path);
+    if (json != null) _localCache.write(key, jsonEncode({'asked_on': askedOn, 'json': json}));
+    return json;
+  }
+
+  @override
+  Future<WeekRanking?> weekRanking({bool refresh = false}) async {
+    final server = this.server;
+    final json = await _kept(
+      'ranking:${server.code}',
+      '/servers/${server.code}/ranking',
+      refresh: refresh,
+      stillCurrent: (json, _) => _stillCurrent(server, json),
+    );
     return switch (json) {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
@@ -1345,10 +1364,17 @@ class ApiGameSession extends GameSession {
       json is Map && json['day'] is int && (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override
-  Future<WeekWinRates?> winRates() async {
+  Future<WeekWinRates?> winRates({bool refresh = false}) async {
     final server = this.server;
     if (server.isSpeed) return null;
-    return switch (await _get('/servers/${server.code}/win-rates')) {
+    final json = await _kept(
+      'win-rates:${server.code}',
+      '/servers/${server.code}/win-rates',
+      refresh: refresh,
+      // They hold for the week after the one they count.
+      stillCurrent: (json, _) => json is Map && json['to_day'] is int && day <= (json['to_day'] as int) + 7,
+    );
+    return switch (json) {
       {'from_day': int fromDay, 'to_day': int toDay, 'win_rates': List rates} => WeekWinRates(
         fromDay: fromDay,
         toDay: toDay,
@@ -1370,21 +1396,38 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<List<FightDay>> fightDays() async => switch (await _get('/servers/${server.code}/fights')) {
-    List days => [
-      for (final day in days)
-        if (day case {'day': int number, 'date': String date})
-          FightDay(day: number, date: DateTime.parse('${date}T00:00:00Z'))
-        else
-          throw const FormatException('Unexpected fight day.'),
-    ],
-    _ => throw const FormatException('Unexpected fight days.'),
-  };
+  Future<List<FightDay>> fightDays({bool refresh = false}) async {
+    final server = this.server;
+    final json = await _kept(
+      'fight-days:${server.code}',
+      '/servers/${server.code}/fights',
+      refresh: refresh,
+      // Kept for the day: tomorrow, today's fights join them.
+      stillCurrent: (_, askedOn) => askedOn == day,
+    );
+    return switch (json) {
+      List days => [
+        for (final day in days)
+          if (day case {'day': int number, 'date': String date})
+            FightDay(day: number, date: DateTime.parse('${date}T00:00:00Z'))
+          else
+            throw const FormatException('Unexpected fight day.'),
+      ],
+      _ => throw const FormatException('Unexpected fight days.'),
+    };
+  }
 
   @override
   Future<List<FightSetup>> fightsOn(int day) async {
     final server = this.server;
-    return switch (await _get('/servers/${server.code}/fights/$day')) {
+    // A past day's fights are over: kept for good.
+    final json = await _kept(
+      'fights:${server.code}:$day',
+      '/servers/${server.code}/fights/$day',
+      refresh: false,
+      stillCurrent: (_, _) => true,
+    );
+    return switch (json) {
       List fights => [for (final fight in fights) await _parseFight(server, fight)],
       _ => throw const FormatException('Unexpected fights.'),
     };

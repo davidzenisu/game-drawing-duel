@@ -894,7 +894,7 @@ class MockGameSession extends GameSession {
   }
 
   @override
-  Future<WeekWinRates?> winRates() async => server.isSpeed ? null : _days.winRates(_day, you);
+  Future<WeekWinRates?> winRates({bool refresh = false}) async => server.isSpeed ? null : _days.winRates(_day, you);
 
   List<HurryPlan> _incomingHurries = const [];
   @override
@@ -992,7 +992,7 @@ class MockGameSession extends GameSession {
   /// friends drew challengers. A speed session plays them all on its
   /// launch date.
   @override
-  Future<List<FightDay>> fightDays() async => [
+  Future<List<FightDay>> fightDays({bool refresh = false}) async => [
     for (var day = _day - 1; day >= LoopStep.fight; day--)
       if (_drawnOn(day - 2) && (await fightsOn(day)).isNotEmpty)
         FightDay(day: day, date: server.isSpeed ? _days.dateOf(1) : _days.dateOf(day)),
