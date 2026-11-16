@@ -361,8 +361,10 @@ abstract final class FightScript {
 
 /// Once a week, the finale: the week's challengers are ranked by their
 /// stars, their own and their boost stars. A challenger counts for the week
-/// of its boosting day, so its stars are final once the week is over (Sunday,
-/// UTC); then the one with the most stars joins the gacha pool as a hero.
+/// of its fight, two days after it was drawn (titled on Monday, it's fought
+/// on Thursday; titled on Friday, it's fought on Monday and counts for the
+/// next week). Once the week is over (Sunday, UTC), the one with the most
+/// stars joins the gacha pool as a hero.
 abstract final class Finale {
   /// Whether [date] (UTC) is the last day of its week, the finale's.
   static bool isFinaleDate(DateTime date) => date.weekday == DateTime.sunday;

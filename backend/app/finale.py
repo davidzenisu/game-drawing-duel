@@ -1,9 +1,12 @@
 """Once a week, the finale: the week's challengers ranked by their stars.
 
-A challenger counts for the week of its boosting day, the day after it was
-drawn, so its stars are final once the week is over: its own 3 plus the
-boost stars it got. Every challenger is ranked; once the week is over, the
-one with the most stars (then the most fights won, then the one drawn
+A challenger counts for the week of its fight, once its whole lifecycle
+is through: title, drawing the day after, boosting the next day and the
+fight the day after that, two days after it was drawn. A challenger titled
+on a Monday is fought on Thursday and ranks that week; one titled on a
+Friday is fought on Monday and ranks the next. Its stars are final by its
+fight: its own 3 plus the boost stars it got. Every challenger is ranked;
+once the week is over, the one with the most stars (then the most fights won, then the one drawn
 first) joins the server's gacha pool as a hero, and everyone can see the
 ranking.
 """
@@ -17,6 +20,10 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import days, fights, rules, speed
 from app.models import Character, Fight, Server, WeeklyHero
+
+# A challenger is fought this many days after it was drawn (its prompt is
+# written the day before): boosted the day after, fought the day after that.
+FIGHT_AFTER_DRAWING = days.FIGHT_DAY_OFFSET - 1
 
 
 def finale_day(server: Server, day: int) -> int:
@@ -38,16 +45,16 @@ class Ranked:
 
 def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
     """The challengers of the week that ends on `day`, its last day, most
-    stars first: the ones boosted that week. Their boosts must be complete
-    (`app.fights.complete_boosts`)."""
+    stars first: the ones fought that week. Their boosts and fights must be
+    complete (`app.fights.complete_boosts`, `app.fights.complete_fights`)."""
     challengers = session.scalars(
         select(Character)
         .where(
             Character.server_id == server.id,
             Character.assignment_id.is_(None),
-            # Boosted the day after they were drawn.
-            Character.day >= day - 7,
-            Character.day <= day - 1,
+            # Fought two days after they were drawn.
+            Character.day >= day - 6 - FIGHT_AFTER_DRAWING,
+            Character.day <= day - FIGHT_AFTER_DRAWING,
         )
         .options(selectinload(Character.artist), selectinload(Character.subject))
     ).all()
@@ -98,8 +105,10 @@ def settle(session: Session, server: Server) -> None:
     heroes = []
     while day < today:
         if day not in decided:
-            # The boost stars nobody gave on the last day count too.
+            # The boosts and fights nobody finished on the last day count
+            # too: the fights' wins break ties.
             fights.complete_boosts(session, server, day)
+            fights.complete_fights(session, server, day)
             heroes.append(_decide(session, server, day))
         day += 7
     if not heroes:

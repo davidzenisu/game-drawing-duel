@@ -9,6 +9,12 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.12.1] - 2026-11-16
+
+### Fixed
+- The week ranking only has challengers whose fight was that week: one
+  titled on Friday or later is fought the next week, and ranks there.
+
 ## [0.12.0] - 2026-11-15
 
 ### Added

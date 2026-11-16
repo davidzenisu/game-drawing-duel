@@ -596,8 +596,9 @@ void main() {
     expect(ranking.day, 7);
     final ranked = ranking.challengers;
     expect(ranked, isNotEmpty);
-    // The ones boosted that week: drawn on days 2 to 6 (nobody draws on day 1).
-    expect(ranked.map((r) => r.card.day).toSet(), {2, 3, 4, 5, 6});
+    // The ones fought that week: drawn on days 2 to 5 (nobody draws on day
+    // 1); day 6's are fought on Monday, next week.
+    expect(ranked.map((r) => r.card.day).toSet(), {2, 3, 4, 5});
     expect([for (final r in ranked) r.stars], [...ranked.map((r) => r.stars)]..sort((a, b) => b.compareTo(a)));
     expect(ranked.first.stars, greaterThan(Stars.challengerBase), reason: 'everyone spreads their stars');
 
