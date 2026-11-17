@@ -91,8 +91,14 @@ Intro text, skipped.
     // Several versions can share a day, one per pull request.
     expect(find.text(releaseDate(latest.date)), findsWidgets);
     expect(find.text('Latest'), findsOneWidget);
-    expect(find.text('New'), findsWidgets, reason: '"Added" as players read it');
     expect(tester.takeException(), isNull);
+    // "Added" as players read it, in whichever version has it first.
+    for (var i = 0; i < 20 && find.text('New').evaluate().isEmpty; i++) {
+      await tester.drag(find.byType(Scrollable).last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('New'), findsWidgets);
+    expect(find.text('Added'), findsNothing);
     await tester.pumpWidget(const SizedBox());
   });
 }

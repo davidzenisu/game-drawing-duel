@@ -9,6 +9,14 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.16.0] - 2026-11-17
+
+### Changed
+- Who draws your prompt, whose challengers you boost and whose you fight
+  are now shuffled afresh every day, instead of always the same players.
+  You never draw your own prompt, nor one of yourself. Running games
+  switch from tomorrow on.
+
 ## [0.15.0] - 2026-11-17
 
 ### Changed

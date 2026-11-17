@@ -57,17 +57,29 @@ def _fight_offset(server: Server, day: int, players: int) -> int:
     return _rng(server.id, day, "fight-offset").randint(1, players - 1)
 
 
+def _circle(server: Server, drawn_day: int) -> list[ServerSeat]:
+    """The players in the order the boosts and fights of the challengers
+    drawn on `drawn_day` go round: shuffled afresh for every day's
+    challengers (`days.shuffled`), the same for their boosts and their
+    fights, so nobody boosts the one they fight; the roster order before."""
+    seats = days.active_seats(server)
+    if days.shuffled(server, drawn_day - 1):
+        _rng(server.id, drawn_day, "circle").shuffle(seats)
+    return seats
+
+
 def fight_challenger(
     session: Session, server: Server, day: int, seat: ServerSeat
 ) -> Character | None:
     """The challenger `seat` picks fighters against on `day`, one drawn two
-    days before: the one of the player `offset` seats on in the roster,
-    `offset` being picked per server and day. So when everyone drew one,
-    every challenger has exactly one fight and nobody fights their own. If
-    that player drew none, the next one on who did stands in."""
+    days before: the one of the player `offset` seats on round the day's
+    shuffled circle of players (`_circle`), `offset` being picked per server
+    and day. So when everyone drew one, every challenger has exactly one
+    fight and nobody fights their own. If that player drew none, the next
+    one on who did stands in."""
     if day < FIRST_FIGHT_DAY:
         return None
-    seats = days.active_seats(server)
+    seats = _circle(server, day - 2)
     if len(seats) < 2 or seat not in seats:
         return None
     drawn = _drawn(session, server, day - 2)
@@ -98,14 +110,15 @@ def boost_targets(
     """The challengers `seat` may boost on `day`, in the order they see them:
     up to `rules.BOOST_CHALLENGERS` of yesterday's, never the one they drew
     or the one they fight tomorrow. Everyone gets the challengers of the
-    players the same offsets on in the roster, offsets picked per server and
-    day, so when everyone drew one, every challenger is boosted by the same
-    number of players and comes first for one of them. Drawers who drew
-    none are made up for by the next offsets. A seat that skipped
-    yesterday's drawing boosts none (`missed_drawing`)."""
+    players the same offsets on round the shuffled circle of players of
+    those challengers (`_circle`), offsets picked per server and day, so
+    when everyone drew one, every challenger is boosted by the same number
+    of players and comes first for one of them. Drawers who drew none are
+    made up for by the next offsets. A seat that skipped yesterday's drawing
+    boosts none (`missed_drawing`)."""
     if day < FIRST_BOOST_DAY:
         return []
-    seats = days.active_seats(server)
+    seats = _circle(server, day - 1)
     if len(seats) < 2 or seat not in seats:
         return []
     if missed_drawing(session, server, day, seat):

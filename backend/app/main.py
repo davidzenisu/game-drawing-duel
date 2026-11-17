@@ -30,7 +30,7 @@ from app.routers import (
 )
 
 # The docs page is served by `configure_docs_page`, with the game's logo.
-app = FastAPI(title="Game Drawing Duel API", version="0.15.0", docs_url=None)
+app = FastAPI(title="Game Drawing Duel API", version="0.16.0", docs_url=None)
 
 # The backend deployment writes the commit it deploys into this file; local
 # runs and tests have none.

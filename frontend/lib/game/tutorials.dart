@@ -84,7 +84,7 @@ enum Tutorial {
         title: 'Give them a title',
         text:
             'Up to ${CharacterCard.maxTitleLength} characters, for ${StarRewards.prompt} stars. Tomorrow the '
-            'next player draws your challenger. If you skip, a premade title stands in.',
+            'another player, picked at random, draws your challenger. If you skip, a premade title stands in.',
       ),
     ],
     draw => [

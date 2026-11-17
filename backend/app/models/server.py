@@ -50,6 +50,12 @@ class Server(Base):
     # The current day of a test session, which advances on demand. Regular
     # servers count days from the launch, at midnight UTC.
     test_day: Mapped[int | None] = mapped_column(Integer)
+    # The first day whose prompts, and so their challengers' boosts and
+    # fights, are handed round at random (`app.days.shuffled`): day 1 for
+    # games launched since, the day after the change went live for the ones
+    # running then; null keeps the roster order (speed sessions running
+    # then, which were over within days).
+    shuffled_from_day: Mapped[int | None] = mapped_column(Integer)
     # Speed mode: the latest day that started early, once everyone was done,
     # and when; later days follow on their timers (`app.speed`). Day 1 from
     # the launch on.
