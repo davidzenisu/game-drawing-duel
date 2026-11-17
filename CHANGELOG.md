@@ -9,6 +9,13 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.16.1] - 2026-11-17
+
+### Fixed
+- The app is called Drawing Duel from the start: in the browser tab while
+  it loads, and when you install it on your phone or computer, instead of
+  "frontend".
+
 ## [0.16.0] - 2026-11-17
 
 ### Changed
