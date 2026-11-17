@@ -9,6 +9,17 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.15.0] - 2026-11-17
+
+### Changed
+- Pulls come out of a cardboard gacha box in 3D, the camera swaying round
+  it. Swipe along its tape to cut it open: the phone buzzes and light
+  shines out of the cut, white at first, then in the colour of the rarest
+  pull inside. Nine tenths of the way is enough. The box then shakes and opens with a heavy buzz, heavier
+  the rarer the pull, and the card rises out of it before it flips. A 10-pull
+  has one box: its cards fan out of it into the carousel. The weekly hero
+  banner's box is taped in gold.
+
 ## [0.14.0] - 2026-11-16
 
 ### Added
