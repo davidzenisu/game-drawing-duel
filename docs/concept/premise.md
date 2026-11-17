@@ -89,19 +89,15 @@ A challenger counts for the week of its fight, once it went through all four ste
 
 **Week ranking** (in the heroes menu) opens with a dashboard of how often each player was chosen as a challenger that week: a pie of the challengers portraying each player, every player keeping their color (by roster position; a roster of nine or ten shares one grey slice for the players past the eighth), and a legend of every player, most chosen first, with their count and share. Below it, a **Player stats** button opens last week's player stats (see below). Then the weekly hero on a big card of its own (its drawing large, its nameplate and stars, framed in hero gold), then the others, most stars first: each with its place, a small drawing, its nameplate (the player it portrays and its title) and its stars at the end of the week. The ranking is kept on the device until the next week is over, so it opens without asking the server again; the refresh button in the top right asks anyway. Tapping one opens its details: the drawing big (tap it for full screen, to zoom in), who drew it, who wrote its prompt ("(default)" when they wrote none and it was drawn from a premade title), its boost stars in total and by player ("(default)" for the stars chance spread for a player who didn't give them), and its fight: "Won against Sam's team of heroes" (or "Lost …"), Sam being the player who picked the fighters.
 
-**Player stats** (in the heroes menu, and from the week ranking) rank every player who joined by one stat at a time, for **This week** (up to today), **Last week** (the latest finished one, Monday to Sunday) or **All time**. Chips pick the stat:
+**Player stats** (in the heroes menu, and from the week ranking) rank every player who joined in three categories, one at a time (chips pick it), for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday):
 
-| Stat | What counts |
+| Category | What counts |
 |---|---|
-| Stars earned | stars from titles, drawings, wins, their challengers' wins and achievements, spent ones too; not gifts. Each counts on the day it was earned (a challenger's win on the day it's collected). |
-| Hot streak | most fights won in a row, of the ones they picked the fighters for (chance's don't count); a lost one starts over |
-| Most wins | fights won, of the ones they picked the fighters for |
-| Best artist | the stars (own and boost stars) of the challengers they drew, in the week of their fight, like the week ranking |
-| Giant slayer | the stars of the challengers they beat, added up |
-| Most boosts | the boost stars they gave themselves (not chance's) |
-| Busiest | the daily steps they did themselves: titles written, challengers drawn, days they boosted and fights they picked |
+| Most fights won | fights won, of the ones the player picked the fighters for (chance's don't count) |
+| Most boosted | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the week ranking. **Secret** during the ongoing week ("Secret until the week is over"), as it would tell how strong a drawing is; last week's is shown. |
+| Busy streak | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. This week's counts today once it's done, and today doesn't break it before. |
 
-Every player is listed best first, with their place and value; tied players share a place (two firsts, then a third). First places show a trophy, and your own row is highlighted. Once a week is over, the first place of each stat gets **3 stars** as a gift on the notification board ("First place in Hot streak in the week up to day 7!"); tied first places all get them, and a first place of 0 gets nothing. Last week's stats are kept on the device until the next week is over, like the ranking; this week's and all time's are asked for every time the screen opens, and the refresh button asks again. Speed mode has no player stats.
+Every player is listed best first, with their place and value; tied players share a place (two firsts, then a third). First places show a trophy, and your own row is highlighted. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Busy streak in the week up to day 7!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept: every player shows the trophies they won in a category so far ("×2"). Last week's stats are kept on the device until the next week is over, like the ranking; this week's are asked for every time the screen opens, and the refresh button asks again. Speed mode has no player stats.
 
 *The section below is still in its concept phase, ignore for now!!*
 

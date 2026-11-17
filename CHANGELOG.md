@@ -13,10 +13,15 @@ the game is in early development (0.x), versions stay below 1.0.
 
 ### Added
 - **Player stats**, in the Heroes menu and the week ranking: every player
-  ranked by stars earned, hot streak, most wins, best artist, giant slayer,
-  most boosts or busiest, for this week so far, last week or all time.
-- Once a week is over, the first place of each stat gets 3 stars as a gift
-  on the notification board. Tied first places all get them.
+  ranked in three categories, for this week so far or last week:
+  - **Most fights won**: fights won with the fighters you picked.
+  - **Most boosted**: the boost stars your challengers got. It stays secret
+    until the week is over, so it doesn't give away how strong a drawing is.
+  - **Busy streak**: the days in a row, even across weeks, you did every
+    step you could: your title, drawing, boosts and fight.
+- When a new week begins, the first place of each category wins a
+  **trophy** worth 3 stars, as a gift on the notification board. Tied
+  first places each win one. The player stats show everyone's trophies.
 
 ## [0.18.0] - 2026-11-17
 

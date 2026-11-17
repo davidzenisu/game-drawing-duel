@@ -90,7 +90,7 @@ class _RankingScreenState extends State<RankingScreen> {
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
                           icon: const Icon(Icons.leaderboard_rounded),
-                          label: const Text("Player stats: who did best last week"),
+                          label: const Text("Player stats: last week's trophies"),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) =>

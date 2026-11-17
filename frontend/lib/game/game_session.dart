@@ -393,10 +393,11 @@ abstract class GameSession extends ChangeNotifier {
   /// unless [refresh].
   Future<WeekRanking?> weekRanking({bool refresh = false});
 
-  /// Loads every player's stats over [period], see [PlayerStats]; null in
-  /// speed mode, which has none, and for last week before the first week is
-  /// over. Last week's are kept on the device until the next week is over,
-  /// unless [refresh]; the others are asked for every time.
+  /// Loads every player's stats and trophies for [period], see
+  /// [PlayerStats]; null in speed mode, which has none, and for last week
+  /// before the first week is over. Last week's are kept on the device until
+  /// the next week is over, unless [refresh]; this week's are asked for every
+  /// time.
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false});
 
   /// Loads this week's win rates, from last week's fights (see [WinRates]);

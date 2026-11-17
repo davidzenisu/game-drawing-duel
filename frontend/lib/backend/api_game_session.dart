@@ -1394,22 +1394,28 @@ class ApiGameSession extends GameSession {
         : await _get(path);
     return switch (json) {
       null => null,
-      {'from_day': int fromDay, 'to_day': int toDay, 'reward_stars': int rewardStars, 'stats': List stats} =>
+      {'from_day': int fromDay, 'to_day': int toDay, 'trophy_stars': int trophyStars, 'stats': List stats} =>
         PlayerStats(
           period: period,
           fromDay: fromDay,
           toDay: toDay,
-          rewardStars: rewardStars,
+          trophyStars: trophyStars,
           stats: [
             for (final stat in stats)
               if (stat case {'key': String key, 'players': List players})
                 if (PlayerStatKind.byKey(key) case final kind?)
                   PlayerStat(
                     kind: kind,
+                    secret: stat['secret'] == true,
                     players: [
                       for (final placed in players)
-                        if (placed case {'player_position': int position, 'value': int value, 'place': int place})
-                          PlacedPlayer(player: _seat(server, position), value: value, place: place)
+                        if (placed case {'player_position': int position, 'trophies': int trophies})
+                          PlacedPlayer(
+                            player: _seat(server, position),
+                            value: placed['value'] as int?,
+                            place: placed['place'] as int?,
+                            trophies: trophies,
+                          )
                         else
                           throw const FormatException('Unexpected placed player.'),
                     ],
