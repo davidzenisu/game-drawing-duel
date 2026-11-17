@@ -349,7 +349,7 @@ HURRY_LAST_LEFT_SECONDS = 15.0
 # challenger's stars.
 STARS_FOR_PROMPT = 3
 STARS_FOR_CHALLENGER = 3
-# Stars buy a pull for this many, once a player's pulls are used up.
+# Stars buy a pull for this many, any time.
 STARS_PER_PULL = 10
 
 # Achievements (`app.achievements`), each rewarded once with stars:

@@ -752,12 +752,6 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<void> buyPullWithStars() async {
-    _setGacha(await _post('/servers/${server.code}/stars/pull'));
-    notifyListeners();
-  }
-
-  @override
   Future<void> collectChallengerStars(ChallengerRecord challenger) async {
     final server = this.server;
     await _setChallengers(server, await _post('/servers/${server.code}/challengers/${challenger.card.id}/stars'));
@@ -1469,8 +1463,12 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard}) async {
-    final json = await _post('/servers/${server.code}/pulls', {'count': count, 'banner': banner.name});
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard, bool topUp = false}) async {
+    final json = await _post('/servers/${server.code}/pulls', {
+      'count': count,
+      'banner': banner.name,
+      if (topUp) 'top_up': true,
+    });
     if (json case {'outcomes': List outcomes, 'gacha': final gacha}) {
       final byId = {for (final card in _pool) card.id: card};
       final results = [

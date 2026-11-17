@@ -2,9 +2,11 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 
+import '../rules/daily_loop.dart';
 import '../rules/gacha.dart';
 import '../game_session.dart';
 import '../rules/models.dart';
+import '../../theme/palette.dart';
 import '../widgets/banner_art.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
@@ -77,9 +79,17 @@ class _GachaScreenState extends State<GachaScreen> {
     };
   }
 
+  /// Asks before every pull, with what it spends: your pulls, and the stars
+  /// that buy the ones you're short of.
   Future<void> _pull(BuildContext context, int count) async {
     final banner = _banner;
-    final outcomes = await runGameQuery(context, () => controller.pull(count, banner: banner));
+    final buy = controller.pullsToBuy(count);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => PullConfirmDialog(count: count, buy: buy),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final outcomes = await runGameQuery(context, () => controller.pull(count, banner: banner, topUp: buy > 0));
     if (outcomes == null || !context.mounted) return;
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
@@ -116,11 +126,7 @@ class _GachaScreenState extends State<GachaScreen> {
           appBar: AppBar(
             title: const Text('Summon'),
             actions: [
-              TicketChip(
-                tickets: controller.tickets,
-                stars: controller.stars,
-                onBuyPull: () => runGameAction(context, controller.buyPullWithStars),
-              ),
+              TicketChip(tickets: controller.tickets, stars: controller.stars),
               const SizedBox(width: 12),
             ],
           ),
@@ -260,7 +266,7 @@ class _GachaScreenState extends State<GachaScreen> {
                           children: [
                             Expanded(
                               child: FilledButton.tonalIcon(
-                                onPressed: canPull && controller.tickets >= 1 ? () => _pull(context, 1) : null,
+                                onPressed: canPull && controller.canAffordPull(1) ? () => _pull(context, 1) : null,
                                 icon: const Icon(Icons.auto_awesome_outlined),
                                 label: const Text('Pull ×1'),
                               ),
@@ -268,7 +274,7 @@ class _GachaScreenState extends State<GachaScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: FilledButton.icon(
-                                onPressed: canPull && controller.tickets >= 10 ? () => _pull(context, 10) : null,
+                                onPressed: canPull && controller.canAffordPull(10) ? () => _pull(context, 10) : null,
                                 icon: const Icon(Icons.auto_awesome_rounded),
                                 label: const Text('Pull ×10'),
                               ),
@@ -340,6 +346,56 @@ class _RateUpBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Asks before a pull of [count], with what it spends: your pulls, and
+/// the stars that buy the [buy] you're short of ([StarRewards.pullPrice]
+/// stars a pull).
+class PullConfirmDialog extends StatelessWidget {
+  const PullConfirmDialog({super.key, required this.count, required this.buy});
+
+  final int count;
+  final int buy;
+
+  /// The pulls it spends out of yours.
+  int get pulls => count - buy;
+
+  /// The stars it spends.
+  int get stars => buy * StarRewards.pullPrice;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    Widget cost(int amount, IconData icon, Color color) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$amount', style: textTheme.titleLarge),
+          const SizedBox(width: 8),
+          Icon(icon, color: color, semanticLabel: icon == Icons.star_rounded ? 'stars' : 'pulls'),
+        ],
+      ),
+    );
+    return AlertDialog(
+      title: const Text('Pull heroes'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Do you want to use'),
+          const SizedBox(height: 12),
+          if (pulls > 0) cost(pulls, Icons.confirmation_number_rounded, AppPalette.ticket),
+          if (stars > 0) cost(stars, Icons.star_rounded, AppPalette.star),
+          const SizedBox(height: 12),
+          Text('to pull $count ${count == 1 ? 'hero' : 'heroes'}?'),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Pull')),
+      ],
     );
   }
 }

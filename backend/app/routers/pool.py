@@ -19,6 +19,7 @@ from app.deps import (
 from app.models import Character, ServerSeat
 from app.responses import character_response
 from app.schemas import (
+    BuyPullsRequest,
     CharacterResponse,
     EffectsRequest,
     ElementRequest,
@@ -81,14 +82,23 @@ def get_gacha(code: Code, player: CurrentPlayer, session: DbSession) -> GachaRes
 
 
 @router.post("/{code}/stars/pull", response_model=GachaResponse)
-def buy_pull(code: Code, player: CurrentPlayer, session: DbSession) -> GachaResponse:
-    """Spends `rules.STARS_PER_PULL` of your stars on a pull, once your pulls
-    are used up. Returns your pulls and stars."""
+def buy_pulls(
+    code: Code,
+    player: CurrentPlayer,
+    session: DbSession,
+    body: BuyPullsRequest | None = None,
+) -> GachaResponse:
+    """Spends `rules.STARS_PER_PULL` of your stars on each of `count` pulls
+    (one without a body), pulls left or not. Pulling with `top_up` does the
+    same for the pulls you're short of. Returns your pulls and stars."""
     _, seat = running_game(session, code, player.id)
+    pulls.lock(session, seat.id)
     try:
-        stars.buy_pull(session, seat.id)
+        stars.buy_pulls(session, seat.id, body.count if body else 1)
     except stars.CantBuyPull as error:
+        session.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
+    session.commit()
     return _gacha(session, seat)
 
 
@@ -101,7 +111,12 @@ def pull(
     # A week's hero joins the pool once its finale is over.
     finale.settle(session, seat.server)
     try:
-        outcomes = pulls.pull(session, seat, body.count, body.banner)
+        outcomes = pulls.pull(
+            session, seat, body.count, body.banner, top_up=body.top_up
+        )
+    except stars.CantBuyPull as error:
+        session.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
     except pulls.NotEnoughPulls as error:
         session.rollback()
         raise HTTPException(

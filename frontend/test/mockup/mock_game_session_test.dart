@@ -575,7 +575,7 @@ void main() {
     expect(game.stars, before + record.starsToCollect, reason: 'once');
   });
 
-  test('ten stars buy a pull once the pulls are used up', () async {
+  test('a pull tops up the pulls it is short of with ten stars each', () async {
     final game = await launchedGame(day: 2);
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     await game.submitChallenger(doodle);
@@ -583,15 +583,17 @@ void main() {
     await game.submitPrompt('Sunburnt', game.promptCandidates.first);
     await game.submitChallenger(doodle);
     expect(game.stars, 4 * 3);
-    expect(game.canBuyPullWithStars, isFalse, reason: 'pulls left');
-    await expectLater(game.buyPullWithStars(), throwsStateError);
-    while (game.tickets > 0) {
-      await game.pull(min(game.tickets, 10));
+    while (game.tickets > 1) {
+      await game.pull(min(game.tickets - 1, 10));
     }
-    expect(game.canBuyPullWithStars, isTrue);
-    await game.buyPullWithStars();
-    expect((game.tickets, game.stars), (1, 2));
-    expect(game.canBuyPullWithStars, isFalse);
+    expect((game.pullsToBuy(1), game.pullsToBuy(2), game.pullsToBuy(10)), (0, 1, 9));
+    expect((game.canAffordPull(2), game.canAffordPull(3)), (true, false));
+    await expectLater(game.pull(2), throwsStateError, reason: 'only when asked');
+    await expectLater(game.pull(3, topUp: true), throwsStateError, reason: 'too few stars');
+    expect((game.tickets, game.stars), (1, 12));
+    final outcomes = await game.pull(2, topUp: true);
+    expect(outcomes, hasLength(2));
+    expect((game.tickets, game.stars), (0, 2));
   });
 
   test('a hurry is free and can be sent once per day', () async {

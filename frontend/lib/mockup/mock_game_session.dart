@@ -973,15 +973,6 @@ class MockGameSession extends GameSession {
     return [for (final card in encountered.toList()..sort((a, b) => b.day.compareTo(a.day))) record(card)];
   }
 
-  @override
-  Future<void> buyPullWithStars() async {
-    if (tickets > 0) throw StateError('Use your pulls first.');
-    if (stars < StarRewards.pullPrice) throw StateError('A pull costs ${StarRewards.pullPrice} stars.');
-    _stars -= StarRewards.pullPrice;
-    _tickets++;
-    notifyListeners();
-  }
-
   /// Your challengers whose stars you collected.
   final Set<String> _collectedChallengers = {};
 
@@ -1206,11 +1197,15 @@ class MockGameSession extends GameSession {
   // Gacha -----------------------------------------------------------------------
 
   @override
-  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard}) async {
-    if (count > _tickets) throw StateError('Not enough pulls.');
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard, bool topUp = false}) async {
+    final buy = topUp ? pullsToBuy(count) : 0;
+    if (buy * StarRewards.pullPrice > _stars) throw StateError('Not enough stars.');
+    if (count > _tickets + buy) throw StateError('Not enough pulls.');
     if (banner == GachaBanner.weekly && rateUp.isEmpty) {
       throw StateError('The weekly banner opens with the first finale.');
     }
+    _stars -= buy * StarRewards.pullPrice;
+    _tickets += buy;
     _tickets -= count;
     final outcomes = <PullOutcome>[];
     for (var i = 0; i < count; i++) {

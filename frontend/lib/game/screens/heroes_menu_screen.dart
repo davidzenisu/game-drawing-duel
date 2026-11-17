@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../game_session.dart';
 import '../tutorials.dart';
 import '../unavailable.dart';
-import '../widgets/game_action.dart';
 import '../widgets/hub_tile.dart';
 import '../widgets/notification_board.dart';
 import '../widgets/ticket_chip.dart';
@@ -41,11 +40,7 @@ class HeroesMenuScreen extends StatelessWidget {
             title: const Text('Heroes'),
             actions: [
               NotificationBoardButton(session: c),
-              TicketChip(
-                tickets: c.tickets,
-                stars: c.stars,
-                onBuyPull: () => runGameAction(context, c.buyPullWithStars),
-              ),
+              TicketChip(tickets: c.tickets, stars: c.stars),
               const SizedBox(width: 12),
             ],
           ),

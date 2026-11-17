@@ -9,6 +9,20 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.18.0] - 2026-11-17
+
+### Changed
+- Stars now buy pulls any time, not only once your pulls are used up, and
+  right where you summon: short of pulls for a Pull ×1 or Pull ×10, the
+  missing ones are bought with your stars (10 stars a pull) in the same
+  step. A ×10 with 3 pulls left and 70 stars just works.
+- Every pull asks first, showing what it spends: your pulls, and the stars
+  for the ones you're short of.
+
+### Removed
+- The **Buy a pull** button in the menu under your pulls: summoning tops up
+  your pulls instead.
+
 ## [0.17.0] - 2026-11-17
 
 ### Added
