@@ -142,8 +142,8 @@ void main() {
     await tester.tap(pull);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Pull ×1 on the standard banner?'), findsOneWidget, reason: 'asks first');
-    expect(find.textContaining('Uses 1 pull of your'), findsOneWidget);
+    expect(find.text('Pull heroes'), findsOneWidget, reason: 'asks first');
+    expect(find.text('to pull 1 hero?'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Pull'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));

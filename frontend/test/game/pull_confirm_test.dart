@@ -1,40 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/screens/gacha_screen.dart';
 
 void main() {
-  String spending({required int count, required int tickets, required int stars, required int buy}) =>
-      PullConfirmDialog(count: count, banner: GachaBanner.standard, tickets: tickets, stars: stars, buy: buy).spending;
-
-  test('the confirmation says what a pull spends', () {
-    expect(spending(count: 10, tickets: 14, stars: 50, buy: 0), 'Uses 10 pulls of your 14.');
-    expect(spending(count: 1, tickets: 1, stars: 0, buy: 0), 'Uses 1 pull of your 1.');
-    expect(
-      spending(count: 10, tickets: 3, stars: 80, buy: 7),
-      'Uses your 3 pulls, and 70 of your 80 stars buy the other 7 (10 stars a pull).',
-    );
-    expect(
-      spending(count: 1, tickets: 0, stars: 25, buy: 1),
-      "You're out of pulls: 10 of your 25 stars buy this one (10 stars a pull).",
-    );
-    expect(
-      spending(count: 10, tickets: 0, stars: 100, buy: 10),
-      "You're out of pulls: 100 of your 100 stars buy all 10 (10 stars a pull).",
-    );
-  });
-
-  testWidgets('the confirmation shows the stars on its button, and says yes or no', (tester) async {
-    bool? answer;
+  Future<void> open(WidgetTester tester, PullConfirmDialog dialog) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (context) => TextButton(
-            onPressed: () async => answer = await showDialog<bool>(
-              context: context,
-              builder: (_) =>
-                  const PullConfirmDialog(count: 10, banner: GachaBanner.weekly, tickets: 3, stars: 80, buy: 7),
-            ),
+            onPressed: () => showDialog<bool>(context: context, builder: (_) => dialog),
             child: const Text('open'),
           ),
         ),
@@ -42,14 +16,52 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    expect(find.text('Pull ×10 on the weekly banner?'), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(answer, isFalse);
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Pull · 70 ★'));
-    await tester.pumpAndSettle();
-    expect(answer, isTrue);
+  }
+
+  testWidgets('the confirmation shows the pulls and stars a pull spends', (tester) async {
+    await open(tester, const PullConfirmDialog(count: 10, buy: 2));
+    expect(find.text('Pull heroes'), findsOneWidget);
+    expect(find.text('Do you want to use'), findsOneWidget);
+    expect(find.text('8'), findsOneWidget);
+    expect(find.byIcon(Icons.confirmation_number_rounded), findsOneWidget);
+    expect(find.text('20'), findsOneWidget);
+    expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+    expect(find.text('to pull 10 heroes?'), findsOneWidget);
+  });
+
+  testWidgets('without stars to spend, only the pulls', (tester) async {
+    await open(tester, const PullConfirmDialog(count: 1, buy: 0));
+    expect(find.text('1'), findsOneWidget);
+    expect(find.byIcon(Icons.star_rounded), findsNothing);
+    expect(find.text('to pull 1 hero?'), findsOneWidget);
+  });
+
+  testWidgets('out of pulls, only the stars', (tester) async {
+    await open(tester, const PullConfirmDialog(count: 1, buy: 1));
+    expect(find.text('10'), findsOneWidget);
+    expect(find.byIcon(Icons.confirmation_number_rounded), findsNothing);
+  });
+
+  testWidgets('it says yes or no', (tester) async {
+    final answers = <bool?>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => answers.add(
+              await showDialog<bool>(context: context, builder: (_) => const PullConfirmDialog(count: 10, buy: 0)),
+            ),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    for (final button in ['Cancel', 'Pull']) {
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(button));
+      await tester.pumpAndSettle();
+    }
+    expect(answers, [false, true]);
   });
 }

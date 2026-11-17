@@ -6,6 +6,7 @@ import '../rules/daily_loop.dart';
 import '../rules/gacha.dart';
 import '../game_session.dart';
 import '../rules/models.dart';
+import '../../theme/palette.dart';
 import '../widgets/banner_art.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
@@ -78,20 +79,14 @@ class _GachaScreenState extends State<GachaScreen> {
     };
   }
 
-  /// Asks before every pull, saying what it spends: your pulls, and the
-  /// stars that buy the ones you're short of.
+  /// Asks before every pull, with what it spends: your pulls, and the stars
+  /// that buy the ones you're short of.
   Future<void> _pull(BuildContext context, int count) async {
     final banner = _banner;
     final buy = controller.pullsToBuy(count);
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => PullConfirmDialog(
-        count: count,
-        banner: banner,
-        tickets: controller.tickets,
-        stars: controller.stars,
-        buy: buy,
-      ),
+      builder: (context) => PullConfirmDialog(count: count, buy: buy),
     );
     if (confirmed != true || !context.mounted) return;
     final outcomes = await runGameQuery(context, () => controller.pull(count, banner: banner, topUp: buy > 0));
@@ -355,48 +350,51 @@ class _RateUpBanner extends StatelessWidget {
   }
 }
 
-/// Asks before a pull of [count] on [banner], saying what it spends: your
-/// pulls, and, when you're short of them, the stars that buy the [buy]
-/// others ([StarRewards.pullPrice] stars a pull).
+/// Asks before a pull of [count], with what it spends: your pulls, and
+/// the stars that buy the [buy] you're short of ([StarRewards.pullPrice]
+/// stars a pull).
 class PullConfirmDialog extends StatelessWidget {
-  const PullConfirmDialog({
-    super.key,
-    required this.count,
-    required this.banner,
-    required this.tickets,
-    required this.stars,
-    required this.buy,
-  });
+  const PullConfirmDialog({super.key, required this.count, required this.buy});
 
   final int count;
-  final GachaBanner banner;
-  final int tickets;
-  final int stars;
   final int buy;
 
-  static String _pulls(int n) => '$n ${n == 1 ? 'pull' : 'pulls'}';
+  /// The pulls it spends out of yours.
+  int get pulls => count - buy;
 
-  /// What the pull spends, in words.
-  String get spending {
-    if (buy == 0) return 'Uses ${_pulls(count)} of your $tickets.';
-    final price = buy * StarRewards.pullPrice;
-    final buys = '$price of your $stars stars buy';
-    final rate = '(${StarRewards.pullPrice} stars a pull)';
-    if (tickets == 0) return "You're out of pulls: $buys ${count == 1 ? 'this one' : 'all $count'} $rate.";
-    return 'Uses your ${_pulls(tickets)}, and $buys the other $buy $rate.';
-  }
+  /// The stars it spends.
+  int get stars => buy * StarRewards.pullPrice;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    Widget cost(int amount, IconData icon, Color color) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$amount', style: textTheme.titleLarge),
+          const SizedBox(width: 8),
+          Icon(icon, color: color, semanticLabel: icon == Icons.star_rounded ? 'stars' : 'pulls'),
+        ],
+      ),
+    );
     return AlertDialog(
-      title: Text('Pull ×$count on the ${banner.label.toLowerCase()} banner?'),
-      content: Text(spending),
+      title: const Text('Pull heroes'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Do you want to use'),
+          const SizedBox(height: 12),
+          if (pulls > 0) cost(pulls, Icons.confirmation_number_rounded, AppPalette.ticket),
+          if (stars > 0) cost(stars, Icons.star_rounded, AppPalette.star),
+          const SizedBox(height: 12),
+          Text('to pull $count ${count == 1 ? 'hero' : 'heroes'}?'),
+        ],
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(buy > 0 ? 'Pull · ${buy * StarRewards.pullPrice} ★' : 'Pull'),
-        ),
+        FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Pull')),
       ],
     );
   }

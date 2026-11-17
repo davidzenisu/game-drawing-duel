@@ -155,7 +155,7 @@ void main() {
     );
   });
 
-  testWidgets('the menu says stars top up a pull you\'re short of pulls for', (tester) async {
+  testWidgets('the menu only shows your stars', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(appBar: AppBar(actions: const [TicketChip(tickets: 2, stars: 30)])),
@@ -163,7 +163,8 @@ void main() {
     );
     await tester.tap(find.byType(TicketChip));
     await tester.pumpAndSettle();
-    expect(find.text('Short of pulls when you summon? Stars top them up, 10 stars a pull.'), findsOneWidget);
+    expect(find.text('30 stars'), findsOneWidget);
+    expect(find.byType(PopupMenuDivider), findsNothing);
     expect(find.textContaining('Buy a pull'), findsNothing);
   });
 

@@ -16,7 +16,7 @@ the game is in early development (0.x), versions stay below 1.0.
   right where you summon: short of pulls for a Pull ×1 or Pull ×10, the
   missing ones are bought with your stars (10 stars a pull) in the same
   step. A ×10 with 3 pulls left and 70 stars just works.
-- Every pull asks first, saying what it spends: your pulls, and the stars
+- Every pull asks first, showing what it spends: your pulls, and the stars
   for the ones you're short of.
 
 ### Removed

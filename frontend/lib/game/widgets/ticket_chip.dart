@@ -4,11 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
-import '../rules/daily_loop.dart';
 
 /// Shows the number of available gacha pulls and pops when it changes. A
-/// tap opens a menu under it with your [stars], the currency, and how they
-/// top up a pull you're short of pulls for.
+/// tap opens a menu under it with your [stars], the currency.
 ///
 /// New pulls and stars are celebrated: a big ticket (or star) with what was
 /// received rises in the middle of a darkened screen, then flies into the
@@ -201,17 +199,7 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
       tooltip: 'Pulls and stars',
       position: PopupMenuPosition.under,
       // A tap on an item just closes the menu.
-      itemBuilder: (context) => [
-        PopupMenuItem<void>(child: _StarsInfo(stars: widget.stars)),
-        const PopupMenuDivider(),
-        PopupMenuItem<void>(
-          child: Text(
-            'Short of pulls when you summon? Stars top them up, '
-            '${StarRewards.pullPrice} stars a pull.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-      ],
+      itemBuilder: (_) => [PopupMenuItem<void>(child: _StarsInfo(stars: widget.stars))],
       child: _chip(),
     );
   }
