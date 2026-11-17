@@ -4,6 +4,7 @@ to draw (#239)."""
 
 import random
 import unittest
+import uuid
 from collections import Counter
 from datetime import UTC, datetime
 
@@ -16,6 +17,26 @@ from app.database import SCHEMA, Base
 from app.models import ChallengerPrompt, Character, Player, Server, ServerSeat
 
 NAMES = ["Alex", "Sam", "Robin", "Kim", "Jo", "Max", "Lou", "Ari", "Noa", "Eli"]
+
+
+def unavoidable_clashes(subjects: dict[str, str]) -> int:
+    """How many players must draw a prompt of themselves at least, with
+    nobody drawing their own: the prompts left over by the biggest hand-out
+    avoiding both (Kuhn's matching of authors to drawers)."""
+    players = list(subjects)
+    drawer_of: dict[str, str] = {}
+
+    def place(author: str, seen: set[str]) -> bool:
+        for drawer in players:
+            if drawer in (author, subjects[author]) or drawer in seen:
+                continue
+            seen.add(drawer)
+            if drawer not in drawer_of or place(drawer_of[drawer], seen):
+                drawer_of[drawer] = author
+                return True
+        return False
+
+    return sum(not place(author, set()) for author in players)
 
 
 class ShuffleTests(unittest.TestCase):
@@ -41,6 +62,8 @@ class ShuffleTests(unittest.TestCase):
         self.session.add_all(accounts)
         self.session.flush()
         server = Server(
+            # Fixed, so the shuffles (seeded by it) are the same every run.
+            id=uuid.UUID(int=n),
             code=f"{n:06d}",
             admin_id=accounts[0].id,
             launched_at=datetime(2026, 11, 2, tzinfo=UTC),
@@ -48,7 +71,7 @@ class ShuffleTests(unittest.TestCase):
             test_day=40,
             shuffled_from_day=shuffled_from_day,
             seats=[
-                ServerSeat(position=i, name=a.first_name, player_id=a.id)
+                ServerSeat(id=uuid.UUID(int=n * 100 + i), position=i, name=a.first_name, player_id=a.id)
                 for i, a in enumerate(accounts)
             ],
         )
@@ -99,9 +122,13 @@ class ShuffleTests(unittest.TestCase):
                 handout = self.handout(server, day)
                 authors = [author for author, _ in handout.values()]
                 self.assertEqual(sorted(authors), sorted(handout), "every prompt drawn once")
-                for drawer, (author, subject) in handout.items():
+                for drawer, (author, _) in handout.items():
                     self.assertNotEqual(drawer, author, (players, day))
-                    self.assertNotEqual(drawer, subject, (players, day))
+                # Drawers of themselves only as many as can't be avoided: none
+                # unless, say, everyone else wrote a prompt of the same player.
+                subjects = {author: subject for author, subject in handout.values()}
+                clashes = [d for d, (_, subject) in handout.items() if d == subject]
+                self.assertEqual(len(clashes), unavoidable_clashes(subjects), (players, day))
 
     def test_the_handout_is_fresh_every_day(self) -> None:
         server = self.server(6)
@@ -177,10 +204,13 @@ class ShuffleTests(unittest.TestCase):
             for fighter, artist in fought_by[-1].items():
                 self.assertNotEqual(fighter, artist)
         # Not one shift of the roster for everyone, as before: within a day,
-        # players fight challengers of players different seats on.
-        for day in fought_by:
-            offsets = {(NAMES.index(a) - NAMES.index(f)) % players for f, a in day.items()}
-            self.assertGreater(len(offsets), 1)
+        # players fight challengers of players different seats on. (A shuffle
+        # can happen to be a shift, about one day in 120 with 7 players.)
+        shifted = [
+            len({(NAMES.index(a) - NAMES.index(f)) % players for f, a in day.items()}) == 1
+            for day in fought_by
+        ]
+        self.assertLessEqual(sum(shifted), 1)
         alexs = {day["Alex"] for day in fought_by}
         self.assertGreater(len(alexs), 3, "Alex fights different players' challengers")
 
