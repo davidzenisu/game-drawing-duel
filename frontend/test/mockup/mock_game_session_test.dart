@@ -532,6 +532,28 @@ void main() {
     expect((await game.suggestions()).map((s) => s.title), isNot(contains('Oops')));
   });
 
+  test('in the mockup you set statuses like a server admin, and confirm your own fixed for a pull', () async {
+    final game = await launchedGame();
+    final board = await game.suggestions();
+    expect(board.map((s) => s.status), [SuggestionStatus.open, SuggestionStatus.inProgress]);
+    final mine = await game.suggest(kind: SuggestionKind.bug, title: 'Oops', description: 'Something broke.');
+    expect(mine.confirmable, isFalse);
+    await expectLater(game.confirmFixed(mine), throwsStateError, reason: 'not in review yet');
+    await expectLater(game.setSuggestionStatus(mine, SuggestionStatus.done), throwsArgumentError);
+    final inReview = await game.setSuggestionStatus(mine, SuggestionStatus.inReview);
+    expect(inReview.confirmable, isTrue);
+    final giftsBefore = game.gifts.length;
+    final done = await game.confirmFixed(inReview);
+    expect(done.status, SuggestionStatus.done);
+    expect(game.gifts, hasLength(giftsBefore + 1));
+    expect((game.gifts.last.message, game.gifts.last.pulls), ('Oops has been fixed. Thank you for reporting it.', 1));
+    await expectLater(
+      game.setSuggestionStatus(done, SuggestionStatus.open),
+      throwsStateError,
+      reason: 'done stays done',
+    );
+  });
+
   test('your challenger that won its fight has its stars for you to collect, once', () async {
     // Day 2's challenger is fought on day 4; the mockup's even-day ones win.
     final game = await launchedGame(day: 2);

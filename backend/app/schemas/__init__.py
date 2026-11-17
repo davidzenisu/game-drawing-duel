@@ -65,7 +65,11 @@ from app.schemas.server import (
     ServerCreate,
     ServerResponse,
 )
-from app.schemas.suggestion import SuggestionResponse, SuggestionSubmit
+from app.schemas.suggestion import (
+    SuggestionResponse,
+    SuggestionStatusChange,
+    SuggestionSubmit,
+)
 
 __all__ = [
     "AchievementResponse",
@@ -120,6 +124,7 @@ __all__ = [
     "SetupHintItem",
     "SketchData",
     "SuggestionResponse",
+    "SuggestionStatusChange",
     "SuggestionSubmit",
     "TodayResponse",
     "UpgradeRequest",

@@ -106,6 +106,32 @@ enum SuggestionKind {
   final String label;
 }
 
+/// Where a [Suggestion] stands: server admins set it (see
+/// [GameSession.setSuggestionStatus]), but [done] is up to its author
+/// ([GameSession.confirmFixed]).
+enum SuggestionStatus {
+  open(label: 'Open', apiName: 'open'),
+  inProgress(label: 'In progress', apiName: 'in_progress'),
+  inReview(label: 'In review', apiName: 'in_review'),
+  rejected(label: 'Rejected', apiName: 'rejected'),
+  done(label: 'Done', apiName: 'done');
+
+  const SuggestionStatus({required this.label, required this.apiName});
+
+  final String label;
+
+  /// Its name in the backend's API.
+  final String apiName;
+
+  /// The statuses server admins can pick.
+  static const settable = [open, inProgress, inReview, rejected];
+
+  /// The ones the board shows unless you ask for all.
+  bool get active => this == open || this == inProgress || this == inReview;
+
+  static SuggestionStatus fromApi(String name) => values.firstWhere((s) => s.apiName == name);
+}
+
 /// An idea or a bug report on the feedback board of the server you're on
 /// ([GameSession.suggestions]): only its players see it, and upvote it.
 class Suggestion {
@@ -120,6 +146,7 @@ class Suggestion {
     required this.voted,
     required this.yours,
     this.removable = false,
+    this.status = SuggestionStatus.open,
   });
 
   final String id;
@@ -140,6 +167,12 @@ class Suggestion {
 
   /// Whether you can remove it: your own, or any for server admins.
   final bool removable;
+
+  /// Where it stands; open until a server admin sets it.
+  final SuggestionStatus status;
+
+  /// Whether you can confirm it's fixed: your own, in review.
+  bool get confirmable => yours && status == SuggestionStatus.inReview;
 
   /// The most a title and a description can hold, as the backend allows.
   static const maxTitleLength = 80;
@@ -539,6 +572,17 @@ abstract class GameSession extends ChangeNotifier {
   /// Removes [suggestion] and its upvotes: your own, or any for server
   /// admins (see [Suggestion.removable]).
   Future<void> removeSuggestion(Suggestion suggestion);
+
+  /// Sets [suggestion]'s status, for server admins (see [canManageServers]):
+  /// one of [SuggestionStatus.settable]; a done one keeps its status.
+  /// Completes with it updated.
+  Future<Suggestion> setSuggestionStatus(Suggestion suggestion, SuggestionStatus status) =>
+      Future.error(UnsupportedError("Only server admins can set a suggestion's status."));
+
+  /// Confirms your [suggestion] in review is fixed ([Suggestion.confirmable]):
+  /// it's done, and you get a pull as a gift to accept. Completes with it
+  /// updated.
+  Future<Suggestion> confirmFixed(Suggestion suggestion);
 
   /// The servers a gift can go to, see [canManageServers].
   Future<List<GiftServer>> giftServers() => Future.error(UnsupportedError('Only server admins can send gifts.'));

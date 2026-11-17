@@ -6,6 +6,8 @@ import '../widgets/game_action.dart';
 /// The feedback board of the server you're on: ideas and bug reports its
 /// players posted, most upvoted first. Post your own, open one for its
 /// details, and upvote the ones you'd like to see done (not your own).
+/// Open, in progress and in review ones show; a toggle shows them all.
+/// Server admins set their status; their authors confirm them fixed.
 class SuggestionsScreen extends StatefulWidget {
   const SuggestionsScreen({super.key, required this.session});
 
@@ -19,6 +21,9 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   List<Suggestion>? _suggestions;
   bool _loading = true;
   bool _failed = false;
+
+  /// Whether rejected and done ones show too.
+  bool _showAll = false;
 
   @override
   void initState() {
@@ -52,6 +57,27 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
   Future<Suggestion?> _vote(Suggestion suggestion) async {
     final updated = await runGameQuery(context, () => widget.session.voteOn(suggestion, up: !suggestion.voted));
     if (updated != null && mounted) _replace(updated);
+    return updated;
+  }
+
+  Future<Suggestion?> _setStatus(Suggestion suggestion, SuggestionStatus status) async {
+    final updated = await runGameQuery(context, () => widget.session.setSuggestionStatus(suggestion, status));
+    if (updated != null && mounted) _replace(updated);
+    return updated;
+  }
+
+  Future<Suggestion?> _confirmFixed(Suggestion suggestion) async {
+    final updated = await runGameQuery(context, () => widget.session.confirmFixed(suggestion));
+    if (updated == null || !mounted) return null;
+    _replace(updated);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Thank you! A pull is waiting for you on the notification board.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     return updated;
   }
 
@@ -111,12 +137,23 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => _SuggestionDetails(suggestion: suggestion, onVote: _vote, onRemove: _remove),
+    builder: (_) => _SuggestionDetails(
+      suggestion: suggestion,
+      canSetStatus: widget.session.canManageServers,
+      onVote: _vote,
+      onRemove: _remove,
+      onSetStatus: _setStatus,
+      onConfirmFixed: _confirmFixed,
+    ),
   );
 
   @override
   Widget build(BuildContext context) {
     final suggestions = _suggestions;
+    final shown = [
+      for (final s in suggestions ?? const <Suggestion>[])
+        if (_showAll || s.status.active) s,
+    ];
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ideas & bugs'),
@@ -157,12 +194,33 @@ class _SuggestionsScreenState extends State<SuggestionsScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                  child: Text(
-                    'Only the players of this server see these. Upvote what you\'d like to see done.',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Only the players of this server see these. Upvote what you\'d like to see done.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        label: const Text('Show all'),
+                        tooltip: 'Also show rejected and done ones',
+                        selected: _showAll,
+                        onSelected: (showAll) => setState(() => _showAll = showAll),
+                      ),
+                    ],
                   ),
                 ),
-                for (final suggestion in suggestions)
+                if (shown.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Nothing open, in progress or in review. "Show all" shows the rejected and done ones.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                for (final suggestion in shown)
                   _SuggestionTile(
                     key: ValueKey(suggestion.id),
                     suggestion: suggestion,
@@ -218,6 +276,35 @@ class _KindIcon extends StatelessWidget {
   }
 }
 
+/// A suggestion's status, as a small coloured label.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge(this.status);
+
+  final SuggestionStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final (background, foreground) = switch (status) {
+      SuggestionStatus.open => (colors.surfaceContainerHighest, colors.onSurfaceVariant),
+      SuggestionStatus.inProgress => (colors.secondaryContainer, colors.onSecondaryContainer),
+      SuggestionStatus.inReview => (colors.tertiaryContainer, colors.onTertiaryContainer),
+      SuggestionStatus.rejected => (colors.errorContainer, colors.onErrorContainer),
+      SuggestionStatus.done => (colors.primaryContainer, colors.onPrimaryContainer),
+    };
+    return DecoratedBox(
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          status.label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(color: foreground, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+}
+
 /// E.g. "today", "yesterday" or "3 days ago".
 String _ago(DateTime at) {
   final now = DateTime.now();
@@ -245,8 +332,15 @@ class _SuggestionTile extends StatelessWidget {
         onTap: onTap,
         leading: _KindIcon(suggestion.kind),
         title: Text(suggestion.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${suggestion.kind.label} · ${suggestion.yours ? 'by you' : 'by ${suggestion.author}'} · ${_ago(suggestion.createdAt)}',
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${suggestion.kind.label} · ${suggestion.yours ? 'by you' : 'by ${suggestion.author}'} · ${_ago(suggestion.createdAt)}',
+            ),
+            const SizedBox(height: 4),
+            _StatusBadge(suggestion.status),
+          ],
         ),
         trailing: _VoteButton(suggestion: suggestion, onVote: onVote),
       ),
@@ -293,12 +387,25 @@ class _VoteButton extends StatelessWidget {
   }
 }
 
-/// A suggestion's details, with its upvote button.
+/// A suggestion's details, with its upvote button, its status (to set, for
+/// server admins) and, for its author once in review, "It's fixed now".
 class _SuggestionDetails extends StatefulWidget {
-  const _SuggestionDetails({required this.suggestion, required this.onVote, required this.onRemove});
+  const _SuggestionDetails({
+    required this.suggestion,
+    required this.canSetStatus,
+    required this.onVote,
+    required this.onRemove,
+    required this.onSetStatus,
+    required this.onConfirmFixed,
+  });
 
   final Suggestion suggestion;
+
+  /// Whether you're a server admin, who sets its status.
+  final bool canSetStatus;
   final Future<Suggestion?> Function(Suggestion) onVote;
+  final Future<Suggestion?> Function(Suggestion, SuggestionStatus) onSetStatus;
+  final Future<Suggestion?> Function(Suggestion) onConfirmFixed;
 
   /// Asks first; completes with whether it was removed.
   final Future<bool> Function(Suggestion) onRemove;
@@ -315,9 +422,19 @@ class _SuggestionDetailsState extends State<_SuggestionDetails> {
     if (await widget.onRemove(_suggestion) && mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _vote() async {
+  Future<void> _vote() => _update(widget.onVote);
+
+  Future<void> _setStatus(SuggestionStatus? status) async {
+    if (status == null || status == _suggestion.status) return;
+    await _update((s) => widget.onSetStatus(s, status));
+  }
+
+  Future<void> _confirmFixed() => _update(widget.onConfirmFixed);
+
+  /// Runs [change], one at a time, and shows the suggestion it updated.
+  Future<void> _update(Future<Suggestion?> Function(Suggestion) change) async {
     setState(() => _voting = true);
-    final updated = await widget.onVote(_suggestion);
+    final updated = await change(_suggestion);
     if (!mounted) return;
     setState(() {
       _voting = false;
@@ -347,9 +464,37 @@ class _SuggestionDetailsState extends State<_SuggestionDetails> {
             Text(s.title, style: textTheme.titleLarge),
             const SizedBox(height: 4),
             Text('${s.yours ? 'By you' : 'By ${s.author}'} · ${_ago(s.createdAt)}', style: textTheme.bodySmall),
+            const SizedBox(height: 12),
+            if (widget.canSetStatus && s.status != SuggestionStatus.done)
+              DropdownMenu<SuggestionStatus>(
+                key: ValueKey(s.status),
+                initialSelection: s.status,
+                enabled: !_voting,
+                label: const Text('Status'),
+                onSelected: _setStatus,
+                dropdownMenuEntries: [
+                  for (final status in SuggestionStatus.settable) DropdownMenuEntry(value: status, label: status.label),
+                ],
+              )
+            else
+              _StatusBadge(s.status),
             const SizedBox(height: 16),
             SelectableText(s.description, style: textTheme.bodyLarge),
             const SizedBox(height: 24),
+            if (s.confirmable) ...[
+              Text(
+                'It\'s ready for your review. Once it works for you, confirm it: '
+                'you get a pull as a thank you. Something still wrong? Tell a server admin.',
+                style: textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: _voting ? null : _confirmFixed,
+                icon: const Icon(Icons.check_circle_rounded),
+                label: const Text("It's fixed now"),
+              ),
+              const SizedBox(height: 16),
+            ],
             if (s.yours)
               Text(votes, style: textTheme.titleMedium)
             else

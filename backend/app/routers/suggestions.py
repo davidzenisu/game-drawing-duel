@@ -1,19 +1,36 @@
 """Your server's feedback board: ideas and bug reports the players post,
 and upvote. Only the players of the same server see them. Authors remove
-their own; server admins (`auth.ADMIN_PERMISSION`) remove any."""
+their own; server admins (`auth.ADMIN_PERMISSION`) remove any.
+
+Server admins also set a suggestion's status: open (the default), in
+progress, rejected or in review. Once in review, its author confirms it's
+fixed: it's done, and they get a pull as a gift (`app.gifts`)."""
 
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
+from app import gifts
 from app.auth import ADMIN_PERMISSION, CurrentPlayer, TokenClaims
 from app.deps import Code, DbSession, load_server, your_seat
 from app.models import Server, ServerSeat, Suggestion, SuggestionVote
-from app.schemas import SuggestionResponse, SuggestionSubmit
+from app.schemas import (
+    SuggestionResponse,
+    SuggestionStatusChange,
+    SuggestionSubmit,
+)
 
 router = APIRouter(prefix="/servers", tags=["suggestions"])
+
+# The pulls its author gets once they confirm their suggestion is fixed.
+FIXED_REWARD_PULLS = 1
+
+
+def fixed_message(title: str) -> str:
+    """The message of the gift for a suggestion its author confirmed."""
+    return f"{title} has been fixed. Thank you for reporting it."
 
 
 def _response(
@@ -25,6 +42,7 @@ def _response(
         kind=suggestion.kind,
         title=suggestion.title,
         description=suggestion.description,
+        status=suggestion.status,
         author=names.get(suggestion.author_seat_id, "?"),
         created_at=suggestion.created_at,
         votes=len(suggestion.votes),
@@ -165,3 +183,75 @@ def remove_suggestion(
         )
     session.delete(suggestion)
     session.commit()
+
+
+@router.put(
+    "/{code}/suggestions/{suggestion_id}/status", response_model=SuggestionResponse
+)
+def set_status(
+    code: Code,
+    suggestion_id: uuid.UUID,
+    body: SuggestionStatusChange,
+    player: CurrentPlayer,
+    claims: TokenClaims,
+    session: DbSession,
+) -> SuggestionResponse:
+    """Sets a suggestion's status, for server admins: open, in progress,
+    rejected or in review. A done one keeps its status."""
+    server, seat = _board(code, player, session)
+    if ADMIN_PERMISSION not in claims["permissions"]:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Only a server admin can set a suggestion's status",
+        )
+    suggestion = _suggestion(session, server, suggestion_id)
+    if suggestion.status == "done":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="This suggestion is done already"
+        )
+    suggestion.status = body.status
+    session.commit()
+    return _response(_suggestion(session, server, suggestion_id), server, seat, claims)
+
+
+@router.post(
+    "/{code}/suggestions/{suggestion_id}/fixed", response_model=SuggestionResponse
+)
+def confirm_fixed(
+    code: Code,
+    suggestion_id: uuid.UUID,
+    player: CurrentPlayer,
+    claims: TokenClaims,
+    session: DbSession,
+) -> SuggestionResponse:
+    """Confirms your suggestion in review is fixed: it's done, and you get
+    a pull as a gift to accept. Only once."""
+    server, seat = _board(code, player, session)
+    suggestion = _suggestion(session, server, suggestion_id)
+    if suggestion.author_seat_id != seat.id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Only its author can confirm a suggestion is fixed",
+        )
+    # Only from in review, and once, even on two devices at once.
+    done = session.execute(
+        update(Suggestion)
+        .where(Suggestion.id == suggestion.id, Suggestion.status == "in_review")
+        .values(status="done")
+    )
+    if done.rowcount == 0:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="This suggestion isn't in review"
+        )
+    # Commits the status with the gift.
+    gifts.send(
+        session,
+        sender_id=None,
+        message=fixed_message(suggestion.title),
+        pulls=FIXED_REWARD_PULLS,
+        server=server,
+        positions=[seat.position],
+    )
+    session.expire_all()
+    return _response(_suggestion(session, server, suggestion_id), server, seat, claims)
