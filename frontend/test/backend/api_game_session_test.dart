@@ -745,6 +745,7 @@ void main() {
       expect(admin.sessionOver, isFalse);
       final requests = backend.requests.length;
       expect(await admin.winRates(), isNull, reason: 'speed mode has no win rates');
+      expect(await admin.playerStats(StatPeriod.week), isNull, reason: 'nor player stats');
       expect(backend.requests, hasLength(requests), reason: 'without asking');
     });
 
@@ -1080,6 +1081,74 @@ void main() {
 
       await alex.signOut();
       expect(cache.entries, isEmpty, reason: 'the next player on this device starts fresh');
+    });
+
+    test('player stats: every player ranked, last week kept on the device', () async {
+      final cache = FakeLocalCache();
+      final alex = ApiGameSession(
+        api: ApiClient(
+          baseUrl: 'https://api.example',
+          auth: FakeAuthClient(token: 'alex', profile: const AuthProfile()),
+          httpClient: backend.client,
+        ),
+        retryDelay: Duration.zero,
+        sketchStore: store,
+        localCache: cache,
+      );
+      await alex.start();
+      await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await alex.startSetup();
+      await drawAll(alex);
+      await alex.launch();
+      int statsRequests() => backend.requests.where((r) => r.url.path.endsWith('/player-stats')).length;
+      Map<String, Object?> answer(String period, int from, int to, int reward, int alexValue) => {
+        'period': period,
+        'from_day': from,
+        'to_day': to,
+        'reward_stars': reward,
+        'stats': [
+          {
+            'key': 'stars-earned',
+            'players': [
+              {'player_position': 0, 'value': alexValue, 'place': 1},
+              {'player_position': 1, 'value': alexValue, 'place': 1},
+              {'player_position': 2, 'value': 1, 'place': 3},
+            ],
+          },
+          {'key': 'a-stat-from-the-future', 'players': const []},
+        ],
+      };
+
+      expect(await alex.playerStats(StatPeriod.lastWeek), isNull, reason: 'before the first week is over');
+      expect(cache.entries, isEmpty);
+      backend.playerStats[('123456', 'week')] = answer('week', 1, 1, 0, 6);
+      final week = (await alex.playerStats(StatPeriod.week))!;
+      expect(backend.requests.last.url.queryParameters['period'], 'week');
+      expect((week.period, week.fromDay, week.toDay, week.rewardStars), (StatPeriod.week, 1, 1, 0));
+      final stat = week.stats.single;
+      expect(stat.kind, PlayerStatKind.starsEarned, reason: "a stat it doesn't know is left out");
+      expect(
+        [for (final p in stat.players) (p.player.name, p.value, p.place)],
+        [('Alex', 6, 1), ('Sam', 6, 1), ('Robin', 1, 3)],
+      );
+      expect(stat.players.first.player.isYou, isTrue);
+      final before = statsRequests();
+      await alex.playerStats(StatPeriod.week);
+      expect(statsRequests(), before + 1, reason: 'the ongoing week is asked for every time');
+
+      backend.playerStats[('123456', 'last-week')] = answer('last-week', 1, 7, 3, 9);
+      backend.days['123456'] = 8;
+      await alex.refreshDay();
+      expect((await alex.playerStats(StatPeriod.lastWeek))!.rewardStars, 3);
+      expect(statsRequests(), before + 2);
+      backend.playerStats[('123456', 'last-week')] = answer('last-week', 1, 7, 3, 10);
+      expect((await alex.playerStats(StatPeriod.lastWeek))!.stats.single.players.first.value, 9, reason: 'kept');
+      expect(statsRequests(), before + 2);
+      expect((await alex.playerStats(StatPeriod.lastWeek, refresh: true))!.stats.single.players.first.value, 10);
+      backend.days['123456'] = 15;
+      await alex.refreshDay();
+      await alex.playerStats(StatPeriod.lastWeek);
+      expect(statsRequests(), before + 4, reason: 'the next week is over');
     });
 
     test("this week's win rates, from last week's fights", () async {

@@ -921,6 +921,45 @@ class MockGameSession extends GameSession {
     return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 8, lastDay - 2));
   }
 
+  /// Made-up player stats: at random, but the same for a period and day.
+  /// Last week's once the first week is over, as the week ranking.
+  @override
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
+    if (server.isSpeed) return null;
+    final weekStart = _days.weekStart(_day);
+    final (from, to) = switch (period) {
+      StatPeriod.week => (max(weekStart, 1), _day),
+      StatPeriod.lastWeek => (max(weekStart - 7, 1), weekStart - 1),
+      StatPeriod.all => (1, _day),
+    };
+    if (period == StatPeriod.lastWeek && to < 7) return null;
+    final days = to - from + 1;
+    int perDay(PlayerStatKind kind) => switch (kind) {
+      PlayerStatKind.starsEarned => 9,
+      PlayerStatKind.bestArtist => 6,
+      PlayerStatKind.giantSlayer => 5,
+      PlayerStatKind.busiest => 4,
+      PlayerStatKind.mostBoosts => 3,
+      PlayerStatKind.hotStreak || PlayerStatKind.mostWins => 1,
+    };
+    return PlayerStats(
+      period: period,
+      fromDay: from,
+      toDay: to,
+      rewardStars: period == StatPeriod.lastWeek ? StarRewards.weekStat : 0,
+      stats: [
+        for (final kind in PlayerStatKind.values)
+          PlayerStat.rank(kind, [
+            for (final (i, player) in server.players.indexed)
+              (
+                player,
+                Random(period.index * 1000003 + to * 1009 + i * 31 + kind.index).nextInt(days * perDay(kind) + 1),
+              ),
+          ]),
+      ],
+    );
+  }
+
   @override
   Future<WeekWinRates?> winRates({bool refresh = false}) async => server.isSpeed ? null : _days.winRates(_day, you);
 

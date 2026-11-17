@@ -9,6 +9,15 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.19.0] - 2026-11-17
+
+### Added
+- **Player stats**, in the Heroes menu and the week ranking: every player
+  ranked by stars earned, hot streak, most wins, best artist, giant slayer,
+  most boosts or busiest, for this week so far, last week or all time.
+- Once a week is over, the first place of each stat gets 3 stars as a gift
+  on the notification board. Tied first places all get them.
+
 ## [0.18.0] - 2026-11-17
 
 ### Changed

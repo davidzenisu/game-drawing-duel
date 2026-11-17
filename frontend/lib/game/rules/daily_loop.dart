@@ -105,6 +105,10 @@ abstract final class StarRewards {
   /// Stars buy a pull for this many: a pull tops up the pulls you're short
   /// of with them.
   static const pullPrice = 10;
+
+  /// Once a week is over, the first place of each player stat gets these
+  /// stars as a gift; tied first places all of them.
+  static const weekStat = 3;
 }
 
 abstract final class Hurries {
@@ -447,6 +451,102 @@ class WeekRanking {
   /// The last day of the week.
   final int day;
   final List<RankedChallenger> challengers;
+}
+
+/// The span of days the player stats count (see [PlayerStats]).
+enum StatPeriod {
+  week('week', 'This week'),
+  lastWeek('last-week', 'Last week'),
+  all('all', 'All time');
+
+  const StatPeriod(this.key, this.label);
+
+  /// Its name in the API.
+  final String key;
+  final String label;
+}
+
+/// A player stat of the week ranking: every player ranked by it.
+enum PlayerStatKind {
+  starsEarned(
+    'stars-earned',
+    'Stars earned',
+    'Stars from titles, drawings, wins and achievements, spent ones too; not gifts',
+    '★',
+  ),
+  hotStreak(
+    'hot-streak',
+    'Hot streak',
+    'Most fights won in a row, of the ones they picked the fighters for',
+    'in a row',
+  ),
+  mostWins('most-wins', 'Most wins', 'Fights won, of the ones they picked the fighters for', 'wins'),
+  bestArtist('best-artist', 'Best artist', 'Stars of the challengers they drew, in the week of their fight', '★'),
+  giantSlayer('giant-slayer', 'Giant slayer', 'Stars of the challengers they beat, added up', '★'),
+  mostBoosts('most-boosts', 'Most boosts', 'Boost stars they gave', '★'),
+  busiest('busiest', 'Busiest', 'Daily steps they did themselves: titles, drawings, boosts and fights', 'steps');
+
+  const PlayerStatKind(this.key, this.label, this.description, this.unit);
+
+  /// Its name in the API.
+  final String key;
+  final String label;
+  final String description;
+  final String unit;
+
+  static PlayerStatKind? byKey(String key) => values.where((k) => k.key == key).firstOrNull;
+}
+
+/// A player's value of a stat, and their place: tied players share one.
+class PlacedPlayer {
+  const PlacedPlayer({required this.player, required this.value, required this.place});
+
+  final Player player;
+  final int value;
+  final int place;
+}
+
+/// A player stat, with every player best first.
+class PlayerStat {
+  const PlayerStat({required this.kind, required this.players});
+
+  final PlayerStatKind kind;
+  final List<PlacedPlayer> players;
+
+  /// [values] ranked best first, then in the order given; tied players
+  /// share a place, the next one skips theirs.
+  static PlayerStat rank(PlayerStatKind kind, List<(Player, int)> values) {
+    final sorted = [...values.indexed]
+      ..sort((a, b) {
+        final byValue = b.$2.$2.compareTo(a.$2.$2);
+        return byValue != 0 ? byValue : a.$1.compareTo(b.$1);
+      });
+    final placed = <PlacedPlayer>[];
+    for (final (i, (_, (player, value))) in sorted.indexed) {
+      final place = placed.isNotEmpty && placed.last.value == value ? placed.last.place : i + 1;
+      placed.add(PlacedPlayer(player: player, value: value, place: place));
+    }
+    return PlayerStat(kind: kind, players: placed);
+  }
+}
+
+/// How the players did from [fromDay] to [toDay], a stat at a time. Once a
+/// week is over, each stat's first places get [rewardStars] as a gift
+/// ([StarRewards.weekStat]); 0 for the ongoing week and all time.
+class PlayerStats {
+  const PlayerStats({
+    required this.period,
+    required this.fromDay,
+    required this.toDay,
+    required this.rewardStars,
+    required this.stats,
+  });
+
+  final StatPeriod period;
+  final int fromDay;
+  final int toDay;
+  final int rewardStars;
+  final List<PlayerStat> stats;
 }
 
 /// How [player]'s characters did against [against]'s last week, and the

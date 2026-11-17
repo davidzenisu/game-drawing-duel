@@ -9,6 +9,7 @@ import '../rules/models.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sketch_canvas.dart';
+import 'player_stats_screen.dart';
 import 'ranking_detail_screen.dart';
 
 /// The latest finished week's challengers, most stars first: the first
@@ -86,6 +87,17 @@ class _RankingScreenState extends State<RankingScreen> {
                         ),
                         const SizedBox(height: 12),
                         PlayersDashboard(players: widget.controller.server.players, ranking: ranking),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.leaderboard_rounded),
+                          label: const Text("Player stats: who did best last week"),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  PlayerStatsScreen(controller: widget.controller, period: StatPeriod.lastWeek),
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         _WinnerCard(entry: ranking.challengers.first),
                         const SizedBox(height: 8),

@@ -64,6 +64,8 @@ abstract final class Unavailable {
       ? 'Speed mode ranks all of its challengers at the end instead.'
       : 'The first ranking comes once the first week is over, on Monday.';
 
+  static String? playerStats(GameSession c) => c.server.isSpeed ? 'Speed mode has no player stats.' : null;
+
   static String? hurry(GameSession c) {
     if (c.hurrySentTo case final target?) return "Done: you sent today's hurry to ${target.name}.";
     if (c.sessionOver) return _over;

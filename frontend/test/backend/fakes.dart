@@ -178,6 +178,9 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
+  /// The player stats by server code and period, as the API answers them.
+  final Map<(String, String), Map<String, Object?>> playerStats = {};
+
   /// Hurries by server code, the day they hit (the day after they were
   /// sent) and sender seat: the target seat.
   final Map<(String, int, int), int> hurries = {};
@@ -542,6 +545,10 @@ class FakeBackend {
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
         return _json(200, rankings[code]);
+      }
+      if (request.method == 'GET' && path.length == 3 && path[2] == 'player-stats') {
+        if (speedServers.contains(code)) return _json(404, {'detail': 'Speed mode has no player stats'});
+        return _json(200, playerStats[(code, request.url.queryParameters['period'] ?? 'week')]);
       }
       // Day 1 is a Monday in the fake: 2026-10-05.
       if (request.method == 'GET' && path.length == 3 && path[2] == 'fights') {

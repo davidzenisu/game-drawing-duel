@@ -351,6 +351,9 @@ STARS_FOR_PROMPT = 3
 STARS_FOR_CHALLENGER = 3
 # Stars buy a pull for this many, any time.
 STARS_PER_PULL = 10
+# Once a week is over, the first place of each player stat (`app.player_stats`)
+# gets these stars as a gift; tied first places all of them.
+STARS_FOR_WEEK_STAT = 3
 
 # Achievements (`app.achievements`), each rewarded once with stars:
 # - owning every starter hero of another player's, or portraying a player,
