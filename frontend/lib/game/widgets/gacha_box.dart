@@ -1,20 +1,91 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// The two halves of a [GachaBox], so a card can be drawn coming out of it:
-/// the [back] (its inside, the top and the flaps behind) under the card, the
-/// [front] (its outer walls and the front flap) over it.
+/// A point or direction in the box's space: x to the right, y down, z away
+/// from you, with the box standing around the origin.
+typedef BoxPoint = ({double x, double y, double z});
+
+/// The camera looking at a [GachaBox]: turned round it by [yaw], looking
+/// down on it by [pitch], tilted by [roll], [zoom]ed in and the picture
+/// [shift]ed, all in perspective.
+class BoxCamera {
+  const BoxCamera({this.yaw = -0.5, this.pitch = 0.6, this.roll = 0, this.zoom = 1, this.shift = Offset.zero});
+
+  final double yaw;
+  final double pitch;
+  final double roll;
+  final double zoom;
+  final Offset shift;
+
+  /// How far the eye is from the box, in its units.
+  static const distance = 720.0;
+
+  /// [p] turned to face the camera, the camera looking along z.
+  BoxPoint turn(BoxPoint p) {
+    final (cy, sy) = (cos(yaw), sin(yaw));
+    final x1 = p.x * cy + p.z * sy;
+    final z1 = -p.x * sy + p.z * cy;
+    final (cp, sp) = (cos(pitch), sin(pitch));
+    return (x: x1, y: p.y * cp - z1 * sp, z: p.y * sp + z1 * cp);
+  }
+
+  /// How much bigger than its size [p] shows, the nearer the bigger.
+  double scaleAt(BoxPoint p) => zoom * distance / (distance + turn(p).z);
+
+  /// Where [p] shows, from the middle of the picture.
+  Offset project(BoxPoint p) {
+    final t = turn(p);
+    final s = zoom * distance / (distance + t.z);
+    final (cr, sr) = (cos(roll), sin(roll));
+    return Offset((t.x * cr - t.y * sr) * s, (t.x * sr + t.y * cr) * s) + shift;
+  }
+
+  /// Whether a face at [center] with [normal] (pointing out of its visible
+  /// side) faces the camera.
+  bool faces(BoxPoint center, BoxPoint normal) {
+    final c = turn(center);
+    final n = turn(normal);
+    return n.x * c.x + n.y * c.y + n.z * (c.z + distance) < 0;
+  }
+
+  /// How far [p] is from the camera, to draw the far things first.
+  double depth(BoxPoint p) => turn(p).z;
+
+  static BoxCamera lerp(BoxCamera a, BoxCamera b, double t) => BoxCamera(
+    yaw: a.yaw + (b.yaw - a.yaw) * t,
+    pitch: a.pitch + (b.pitch - a.pitch) * t,
+    roll: a.roll + (b.roll - a.roll) * t,
+    zoom: a.zoom + (b.zoom - a.zoom) * t,
+    shift: Offset.lerp(a.shift, b.shift, t)!,
+  );
+
+  BoxCamera copyWith({double? yaw, double? pitch, double? roll, double? zoom, Offset? shift}) => BoxCamera(
+    yaw: yaw ?? this.yaw,
+    pitch: pitch ?? this.pitch,
+    roll: roll ?? this.roll,
+    zoom: zoom ?? this.zoom,
+    shift: shift ?? this.shift,
+  );
+}
+
+/// The two halves of a [GachaBox], so cards can be drawn coming out of it:
+/// the [back] (its inside and its flaps) under the cards, the [front] (its
+/// outer walls and, once open, the front flap) over them.
 enum GachaBoxLayer { back, front }
 
-/// The cardboard box pulls come out of, seen from a little above and to the
-/// left. Its four flaps fold open with [open]; until then, taped shut, it
-/// leaks [leak] of [glow]'s light through its seams.
+/// The cardboard box pulls come out of, in 3D, as [camera] sees it from the
+/// middle of the space it fills. Taped shut along the seam of its two top
+/// flaps, the tape is [cut] from left to right, the cut and then the seams
+/// leaking [leak] of [glow]'s light; its flaps then fold [open] and the
+/// light pours out.
 class GachaBox extends StatelessWidget {
   const GachaBox({
     super.key,
-    required this.width,
+    required this.camera,
     required this.layer,
+    this.cut = 0,
     this.open = 0,
     this.leak = 0,
     this.glow = Colors.white,
@@ -22,20 +93,27 @@ class GachaBox extends StatelessWidget {
     this.label = 'DRAWING DUEL',
   });
 
-  /// Its height for a [width].
-  static double heightFor(double width) => width * 0.92;
-
-  /// Where the middle of its opening is, from its top left corner, for a
-  /// [width]: where cards come out.
-  static Offset openingFor(double width) {
-    final g = _Geometry(Size(width, heightFor(width)));
-    return g.top(g.frontWidth / 2, g.depth / 2);
-  }
+  /// Its width (left to right), height and depth.
+  static const width = 240.0;
+  static const height = 170.0;
+  static const depth = 170.0;
 
   static const plainTape = Color(0xFFE6D3A8);
 
-  final double width;
+  /// Where a point [below] the top of its opening, in its middle, shows:
+  /// where cards come out.
+  static Offset inside(BoxCamera camera, {double below = 0}) => camera.project((x: 0, y: -height / 2 + below, z: 0));
+
+  /// Where the tape is cut up to, for a [cut] from 0 (its left end) to 1.
+  static Offset cutAt(BoxCamera camera, double cut) =>
+      camera.project((x: -width / 2 + width * cut, y: -height / 2 - 1, z: 0));
+
+  /// How long the tape shows across the top.
+  static double tapeLength(BoxCamera camera) => (cutAt(camera, 1) - cutAt(camera, 0)).distance;
+
+  final BoxCamera camera;
   final GachaBoxLayer layer;
+  final double cut;
   final double open;
   final double leak;
   final Color glow;
@@ -44,46 +122,60 @@ class GachaBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => CustomPaint(
-    size: Size(width, heightFor(width)),
-    painter: _BoxPainter(layer: layer, open: open, leak: leak, glow: glow, tape: tape, label: label),
+    painter: _BoxPainter(
+      camera: camera,
+      layer: layer,
+      cut: cut,
+      open: open,
+      leak: leak,
+      glow: glow,
+      tape: tape,
+      label: label,
+    ),
+    child: const SizedBox.expand(),
   );
 }
 
 const _kraft = Color(0xFFC8955A);
-const _kraftSide = Color(0xFFA9773F);
-const _kraftShade = Color(0xFF8E6131);
-const _inside = Color(0xFF5A3A1C);
-const _edge = Color(0xFF6B4520);
+const _kraftDark = Color(0xFF5E3D1C);
+const _inside = Color(0xFF9C7446);
+const _insideDark = Color(0xFF3A2410);
+const _edge = Color(0xFF5A3816);
 
-/// The box in its own space: x along its front (0 to [frontWidth]), y up
-/// from the floor (0 to [height]), z into the screen (0 to [depth]), drawn
-/// with an oblique projection.
-class _Geometry {
-  _Geometry(this.size)
-    : shiftX = size.width * 0.2,
-      shiftY = size.height * 0.18,
-      frontWidth = size.width * 0.8,
-      height = size.height * 0.82,
-      depth = size.width * 0.45;
+/// Towards the light: above, to the left and in front.
+final BoxPoint _light = _normalize((x: -0.45, y: -1, z: -0.7));
 
-  final Size size;
+BoxPoint _normalize(BoxPoint v) {
+  final l = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+  return (x: v.x / l, y: v.y / l, z: v.z / l);
+}
 
-  /// How far the back is drawn to the right of and above the front.
-  final double shiftX;
-  final double shiftY;
-  final double frontWidth;
-  final double height;
-  final double depth;
+BoxPoint _add(BoxPoint a, BoxPoint b) => (x: a.x + b.x, y: a.y + b.y, z: a.z + b.z);
+BoxPoint _scale(BoxPoint a, double s) => (x: a.x * s, y: a.y * s, z: a.z * s);
+BoxPoint _neg(BoxPoint a) => _scale(a, -1);
+double _dot(BoxPoint a, BoxPoint b) => a.x * b.x + a.y * b.y + a.z * b.z;
+BoxPoint _mid(List<BoxPoint> ps) => _scale(ps.reduce(_add), 1 / ps.length);
 
-  Offset at(double x, double y, double z) => Offset(x + z / depth * shiftX, size.height - y - z / depth * shiftY);
+/// [base] lit from [_light] on a face turned to [normal].
+Color _lit(Color base, Color shade, BoxPoint normal) =>
+    Color.lerp(shade, base, 0.35 + 0.65 * max(0, _dot(normal, _light)))!;
 
-  /// A point of its open top.
-  Offset top(double x, double z) => at(x, height, z);
+/// A flat face: its corners in order and which way it faces.
+class _Face {
+  const _Face(this.corners, this.normal, {this.name = ''});
+
+  final List<BoxPoint> corners;
+  final BoxPoint normal;
+  final String name;
+
+  BoxPoint get center => _mid(corners);
 }
 
 class _BoxPainter extends CustomPainter {
   _BoxPainter({
+    required this.camera,
     required this.layer,
+    required this.cut,
     required this.open,
     required this.leak,
     required this.glow,
@@ -91,190 +183,323 @@ class _BoxPainter extends CustomPainter {
     required this.label,
   });
 
+  final BoxCamera camera;
   final GachaBoxLayer layer;
+  final double cut;
   final double open;
   final double leak;
   final Color glow;
   final Color tape;
   final String label;
 
-  /// The side flaps open first, the front and back ones after: each turns
-  /// up and over, past upright; the front and back ones fall further, so the
-  /// front one doesn't hide what comes out.
-  double get _sideTurn => Curves.easeOutBack.transform(const Interval(0, 0.6).transform(open)) * (pi / 2 + 0.55);
-  double get _endTurn => Curves.easeOutBack.transform(const Interval(0.3, 1).transform(open)) * pi * 0.86;
+  static const _w = GachaBox.width / 2;
+  static const _h = GachaBox.height / 2;
+  static const _d = GachaBox.depth / 2;
+
+  /// Half the tape's width.
+  static const _tape = 13.0;
+
+  static const _up = (x: 0.0, y: -1.0, z: 0.0);
+
+  /// The top flaps (front and back, meeting under the tape) open first,
+  /// the side ones after; each turns up and over, past upright.
+  double get _topTurn => Curves.easeOutBack.transform(const Interval(0, 0.65).transform(open)) * pi * 0.82;
+  double get _sideTurn => Curves.easeOutBack.transform(const Interval(0.3, 1).transform(open)) * (pi / 2 + 0.5);
+
+  late Offset _center;
+
+  Offset _p(BoxPoint p) => _center + camera.project(p);
+
+  Path _path(List<BoxPoint> corners) => Path()..addPolygon([for (final c in corners) _p(c)], true);
+
+  /// The walls, facing out.
+  static const _walls = [
+    _Face(
+      [(x: -_w, y: -_h, z: -_d), (x: _w, y: -_h, z: -_d), (x: _w, y: _h, z: -_d), (x: -_w, y: _h, z: -_d)],
+      (x: 0.0, y: 0.0, z: -1.0),
+      name: 'front',
+    ),
+    _Face(
+      [(x: _w, y: -_h, z: _d), (x: -_w, y: -_h, z: _d), (x: -_w, y: _h, z: _d), (x: _w, y: _h, z: _d)],
+      (x: 0.0, y: 0.0, z: 1.0),
+      name: 'back',
+    ),
+    _Face(
+      [(x: -_w, y: -_h, z: _d), (x: -_w, y: -_h, z: -_d), (x: -_w, y: _h, z: -_d), (x: -_w, y: _h, z: _d)],
+      (x: -1.0, y: 0.0, z: 0.0),
+      name: 'left',
+    ),
+    _Face(
+      [(x: _w, y: -_h, z: -_d), (x: _w, y: -_h, z: _d), (x: _w, y: _h, z: _d), (x: _w, y: _h, z: -_d)],
+      (x: 1.0, y: 0.0, z: 0.0),
+      name: 'right',
+    ),
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
-    final g = _Geometry(size);
+    _center = size.center(Offset.zero);
     switch (layer) {
       case GachaBoxLayer.back:
-        _paintBack(canvas, g);
+        _paintBack(canvas);
       case GachaBoxLayer.front:
-        _paintFront(canvas, g);
+        _paintFront(canvas);
     }
   }
 
-  void _paintBack(Canvas canvas, _Geometry g) {
-    final w = g.frontWidth;
-    final d = g.depth;
-    // Its shadow on the floor.
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: g.at(w / 2, 0, d / 2) + Offset(0, g.shiftY * 0.2),
-        width: w * 1.5,
-        height: g.shiftY * 1.6,
-      ),
+  void _paintBack(Canvas canvas) {
+    // Its shadow on the floor, cast away from the light.
+    final floor = [(x: -_w, y: _h, z: -_d), (x: _w, y: _h, z: -_d), (x: _w, y: _h, z: _d), (x: -_w, y: _h, z: _d)];
+    canvas.drawPath(
+      _path([for (final c in floor) _add(c, (x: c.x * 0.15 + 18, y: 0, z: c.z * 0.15 + 22))]),
       Paint()
-        ..color = Colors.black.withValues(alpha: 0.45)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+        ..color = Colors.black.withValues(alpha: 0.55)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 14 * camera.zoom),
     );
-    // The inside, dark towards the bottom.
-    final opening = _polygon([g.top(0, 0), g.top(w, 0), g.top(w, d), g.top(0, d)]);
-    canvas.drawPath(opening, Paint()..color = _inside);
-    // Light pours out once it opens.
-    if (open > 0 && leak > 0) {
-      final center = g.top(w / 2, d / 2);
-      final radius = w * (0.4 + 0.5 * open);
-      canvas.drawCircle(
-        center,
-        radius,
+    // The inside: the floor and the far walls, seen through the top.
+    final inner =
+        [
+            _Face([...floor.reversed], _up),
+            for (final wall in _walls) _Face([...wall.corners.reversed], _neg(wall.normal)),
+          ].where((f) => camera.faces(f.center, f.normal)).toList()
+          ..sort((a, b) => camera.depth(b.center).compareTo(camera.depth(a.center)));
+    for (final face in inner) {
+      final path = _path(face.corners);
+      // Darker the deeper down.
+      canvas.drawPath(path, Paint()..color = _lit(_inside, _insideDark, face.normal));
+      canvas.drawPath(
+        path,
         Paint()
-          ..shader = RadialGradient(
-            colors: [
-              glow.withValues(alpha: leak * open),
-              glow.withValues(alpha: 0),
-            ],
-          ).createShader(Rect.fromCircle(center: center, radius: radius)),
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.transparent, _insideDark.withValues(alpha: 0.7)],
+          ).createShader(path.getBounds()),
       );
-    }
-    final endTurn = _endTurn;
-    // The back flap, then the side ones on top of it, and the front one
-    // while it's still shut (once it opens, it falls in front of the card).
-    _flap(canvas, g, hinge: (Offset(0, d), Offset(w, d)), turn: endTurn, outward: const _Out(0, 1), length: d / 2);
-    if (endTurn == 0) {
-      _flap(canvas, g, hinge: (Offset.zero, Offset(w, 0)), turn: 0, outward: const _Out(0, -1), length: d / 2);
     }
     final sideTurn = _sideTurn;
-    _flap(canvas, g, hinge: (Offset.zero, Offset(0, d)), turn: sideTurn, outward: const _Out(-1, 0), length: w / 2);
-    _flap(canvas, g, hinge: (Offset(w, 0), Offset(w, d)), turn: sideTurn, outward: const _Out(1, 0), length: w / 2);
-    // Taped shut down the middle, the tape tearing as it opens.
-    final tapeLeft = 1 - const Interval(0, 0.2).transform(open);
-    if (tapeLeft > 0) {
-      final half = w * 0.08;
-      canvas.drawPath(
-        _polygon([g.top(w / 2 - half, 0), g.top(w / 2 + half, 0), g.top(w / 2 + half, d), g.top(w / 2 - half, d)]),
-        Paint()..color = tape.withValues(alpha: 0.9 * tapeLeft),
+    final topTurn = _topTurn;
+    // The side flaps under the top ones, then the back top flap, and the
+    // front one while still shut (once it opens, it falls in front of the
+    // cards).
+    _flap(
+      canvas,
+      hinge: ((x: -_w, y: -_h, z: _d), (x: -_w, y: -_h, z: -_d)),
+      inward: (x: 1, y: 0, z: 0),
+      length: _w * 0.9,
+      turn: sideTurn,
+    );
+    _flap(
+      canvas,
+      hinge: ((x: _w, y: -_h, z: -_d), (x: _w, y: -_h, z: _d)),
+      inward: (x: -1, y: 0, z: 0),
+      length: _w * 0.9,
+      turn: sideTurn,
+    );
+    _flap(
+      canvas,
+      hinge: ((x: _w, y: -_h, z: _d), (x: -_w, y: -_h, z: _d)),
+      inward: (x: 0, y: 0, z: -1),
+      length: _d,
+      turn: topTurn,
+      taped: true,
+    );
+    if (topTurn == 0) {
+      _flap(
+        canvas,
+        hinge: ((x: -_w, y: -_h, z: -_d), (x: _w, y: -_h, z: -_d)),
+        inward: (x: 0, y: 0, z: 1),
+        length: _d,
+        turn: 0,
+        taped: true,
       );
     }
-    // Shut, it leaks light through its seams.
-    if (open == 0 && leak > 0) {
-      final seams = Path()
-        ..moveTo(g.top(w / 2, 0).dx, g.top(w / 2, 0).dy)
-        ..lineTo(g.top(w / 2, d).dx, g.top(w / 2, d).dy)
-        ..addPath(_polygon([g.top(0, 0), g.top(w, 0), g.top(w, d), g.top(0, d)]), Offset.zero);
-      canvas.drawPath(
-        seams,
-        Paint()
-          ..color = glow.withValues(alpha: leak)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4 + 10 * leak
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4 + 8 * leak),
-      );
-      canvas.drawPath(
-        seams,
-        Paint()
-          ..color = Color.lerp(glow, Colors.white, 0.6)!.withValues(alpha: leak)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
+    if (open == 0) {
+      _paintCut(canvas);
+    } else if (leak > 0) {
+      _paintBeam(canvas);
     }
   }
 
-  void _paintFront(Canvas canvas, _Geometry g) {
-    final w = g.frontWidth;
-    final d = g.depth;
-    final h = g.height;
+  /// The cut along the tape, and once it's through the seams, glowing.
+  void _paintCut(Canvas canvas) {
+    if (leak <= 0) return;
+    final seam = Path();
+    final from = _p((x: -_w, y: -_h - 0.5, z: 0));
+    final to = _p((x: -_w + 2 * _w * cut, y: -_h - 0.5, z: 0));
+    seam
+      ..moveTo(from.dx, from.dy)
+      ..lineTo(to.dx, to.dy);
+    if (cut >= 1) {
+      // Light leaks round the flaps too.
+      seam.addPath(
+        _path([(x: -_w, y: -_h, z: -_d), (x: _w, y: -_h, z: -_d), (x: _w, y: -_h, z: _d), (x: -_w, y: -_h, z: _d)]),
+        Offset.zero,
+      );
+    }
+    final z = camera.zoom;
+    // A dark gap in the tape, the light inside welling up out of it: the
+    // further the cut, the brighter.
+    final bright = 0.45 + 0.55 * leak;
+    if (cut < 1) {
+      canvas.drawPath(
+        seam,
+        Paint()
+          ..color = _insideDark
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5 * z
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    canvas.drawPath(
+      seam,
+      Paint()
+        ..color = glow.withValues(alpha: bright)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (6 + 14 * leak) * z
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, (5 + 10 * leak) * z),
+    );
+    canvas.drawPath(
+      seam,
+      Paint()
+        ..color = glow
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3 * z
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawPath(
+      seam,
+      Paint()
+        ..color = Color.lerp(glow, Colors.white, 0.7)!.withValues(alpha: bright)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2 * z
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  /// Light pouring up out of the open box.
+  void _paintBeam(Canvas canvas) {
+    final strength = leak * Curves.easeOut.transform(min(1, open * 2));
+    final rim = [(x: -_w, y: -_h, z: -_d), (x: _w, y: -_h, z: -_d), (x: _w, y: -_h, z: _d), (x: -_w, y: -_h, z: _d)];
+    final rise = 260.0 * strength;
+    final top = [for (final c in rim) (x: c.x * 1.5, y: c.y - rise, z: c.z * 1.5)];
+    final bottomAt = _p((x: 0, y: -_h, z: 0));
+    final topAt = _p((x: 0, y: -_h - rise, z: 0));
+    final beam = Paint()
+      ..blendMode = BlendMode.screen
+      ..shader = ui.Gradient.linear(bottomAt, topAt == bottomAt ? bottomAt + const Offset(0, -1) : topAt, [
+        glow.withValues(alpha: 0.85 * strength),
+        glow.withValues(alpha: 0),
+      ])
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 10 * camera.zoom);
+    // Each side of the beam, from the rim up and out.
+    for (var i = 0; i < 4; i++) {
+      final j = (i + 1) % 4;
+      canvas.drawPath(_path([rim[i], rim[j], top[j], top[i]]), beam);
+    }
+    final glowAt = _p((x: 0, y: -_h - 20, z: 0));
+    final radius = GachaBox.width * 0.8 * camera.zoom;
+    canvas.drawCircle(
+      glowAt,
+      radius,
+      Paint()
+        ..blendMode = BlendMode.screen
+        ..shader = RadialGradient(
+          colors: [
+            Color.lerp(glow, Colors.white, 0.5)!.withValues(alpha: strength),
+            glow.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: glowAt, radius: radius)),
+    );
+  }
+
+  void _paintFront(Canvas canvas) {
+    final walls = _walls.where((f) => camera.faces(f.center, f.normal)).toList()
+      ..sort((a, b) => camera.depth(b.center).compareTo(camera.depth(a.center)));
     final outline = Paint()
       ..color = _edge
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
+      ..strokeWidth = 1.8 * camera.zoom
       ..strokeJoin = StrokeJoin.round;
-    // The right wall, in the shade.
-    final side = _polygon([g.at(w, 0, 0), g.at(w, h, 0), g.at(w, h, d), g.at(w, 0, d)]);
-    canvas.drawPath(side, Paint()..color = _kraftSide);
-    // The front wall, lit from above.
-    final frontRect = Rect.fromPoints(g.at(0, h, 0), g.at(w, 0, 0));
-    final front = Path()..addRect(frontRect);
-    canvas.drawPath(
-      front,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_kraft, _kraftShade],
-          stops: [0.4, 1],
-        ).createShader(frontRect),
-    );
-    // A carry handle cut into the side.
-    final handle = g.at(w, h * 0.72, d / 2);
-    canvas.drawPath(
-      _polygon([
-        handle + Offset(-g.shiftX * 0.3, g.shiftY * 0.28 - 4),
-        handle + Offset(g.shiftX * 0.3, -g.shiftY * 0.28 - 4),
-        handle + Offset(g.shiftX * 0.3, -g.shiftY * 0.28 + 4),
-        handle + Offset(-g.shiftX * 0.3, g.shiftY * 0.28 + 4),
-      ]),
-      Paint()..color = _inside,
-    );
-    // The tape runs down the front too.
-    final tapeLeft = 1 - const Interval(0, 0.2).transform(open);
-    if (tapeLeft > 0) {
-      final half = w * 0.08;
-      canvas.drawRect(
-        Rect.fromLTRB(w / 2 - half, frontRect.top, w / 2 + half, frontRect.top + h * 0.28),
-        Paint()..color = tape.withValues(alpha: 0.9 * tapeLeft),
-      );
-    }
-    _stamp(canvas, frontRect);
-    // Sketchy outlines: each line drawn twice, a little off.
-    for (final path in [side, front]) {
-      canvas.drawPath(path, outline);
+    for (final wall in walls) {
+      final path = _path(wall.corners);
+      final rect = path.getBounds();
+      canvas.drawPath(path, Paint()..color = _lit(_kraft, _kraftDark, wall.normal));
+      // A little darker towards the floor.
       canvas.drawPath(
-        path.shift(const Offset(1.2, -0.8)),
+        path,
         Paint()
-          ..color = _edge.withValues(alpha: 0.35)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white.withValues(alpha: 0.08), Colors.black.withValues(alpha: 0.18)],
+          ).createShader(rect),
       );
+      _onFace(canvas, wall, (canvas, size) {
+        if (wall.name == 'front') {
+          _stamp(canvas, size);
+        } else {
+          _sideDetails(canvas, size);
+        }
+        // The corrugated edge along the top.
+        canvas.drawLine(
+          const Offset(0, 3),
+          Offset(size.width, 3),
+          Paint()
+            ..color = Colors.white.withValues(alpha: 0.18)
+            ..strokeWidth = 2,
+        );
+      });
+      canvas.drawPath(path, outline);
     }
-    // The front flap falls forward over the front wall once it opens.
-    final endTurn = _endTurn;
-    if (endTurn > 0) {
-      _flap(canvas, g, hinge: (Offset.zero, Offset(w, 0)), turn: endTurn, outward: const _Out(0, -1), length: d / 2);
+    final topTurn = _topTurn;
+    if (topTurn > 0) {
+      _flap(
+        canvas,
+        hinge: ((x: -_w, y: -_h, z: -_d), (x: _w, y: -_h, z: -_d)),
+        inward: (x: 0, y: 0, z: 1),
+        length: _d,
+        turn: topTurn,
+        taped: true,
+      );
     }
   }
 
+  /// Draws on [face] as if it were a flat [Size] of its own, its top left
+  /// at its first corner.
+  void _onFace(Canvas canvas, _Face face, void Function(Canvas canvas, Size size) draw) {
+    final [a, b, _, d] = face.corners;
+    final size = Size(
+      sqrt(pow(b.x - a.x, 2) + pow(b.y - a.y, 2) + pow(b.z - a.z, 2)),
+      sqrt(pow(d.x - a.x, 2) + pow(d.y - a.y, 2) + pow(d.z - a.z, 2)),
+    );
+    final (pa, pb, pd) = (_p(a), _p(b), _p(d));
+    final across = (pb - pa) / size.width;
+    final down = (pd - pa) / size.height;
+    canvas.save();
+    canvas.clipPath(_path(face.corners));
+    canvas.transform(
+      Matrix4(across.dx, across.dy, 0, 0, down.dx, down.dy, 0, 0, 0, 0, 1, 0, pa.dx, pa.dy, 0, 1).storage,
+    );
+    draw(canvas, size);
+    canvas.restore();
+  }
+
   /// "DRAWING DUEL" stamped on the front, a little askew.
-  void _stamp(Canvas canvas, Rect front) {
+  void _stamp(Canvas canvas, Size size) {
     final ink = _edge.withValues(alpha: 0.75);
     final text = TextPainter(
       text: TextSpan(
         text: label,
-        style: TextStyle(
-          color: ink,
-          fontSize: front.width * 0.09,
-          fontWeight: FontWeight.w900,
-          letterSpacing: front.width * 0.008,
-        ),
+        style: TextStyle(color: ink, fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: 2),
       ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: front.width * 0.8);
-    final center = front.center + Offset(0, front.height * 0.12);
+    )..layout(maxWidth: size.width * 0.8);
     canvas.save();
-    canvas.translate(center.dx, center.dy);
+    canvas.translate(size.width / 2, size.height * 0.56);
     canvas.rotate(-0.07);
-    final badge = Rect.fromCenter(center: Offset.zero, width: text.width + 20, height: text.height + 34);
+    final badge = Rect.fromCenter(center: Offset.zero, width: text.width + 24, height: text.height + 36);
     canvas.drawRRect(
       RRect.fromRectAndRadius(badge, const Radius.circular(6)),
       Paint()
@@ -285,61 +510,94 @@ class _BoxPainter extends CustomPainter {
     final brush = TextPainter(
       text: TextSpan(
         text: String.fromCharCode(Icons.brush_rounded.codePoint),
-        style: TextStyle(fontFamily: Icons.brush_rounded.fontFamily, fontSize: 14, color: ink),
+        style: TextStyle(fontFamily: Icons.brush_rounded.fontFamily, fontSize: 16, color: ink),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
     brush.paint(canvas, Offset(-brush.width / 2, badge.top + 3));
-    text.paint(canvas, Offset(-text.width / 2, -text.height / 2 + 6));
+    text.paint(canvas, Offset(-text.width / 2, -text.height / 2 + 7));
     canvas.restore();
+    // "This side up" arrows in a corner.
+    final arrows = Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (final x in [size.width - 34, size.width - 22]) {
+      canvas.drawLine(Offset(x, 34), Offset(x, 18), arrows);
+      canvas.drawPath(
+        Path()
+          ..moveTo(x - 4, 23)
+          ..lineTo(x, 18)
+          ..lineTo(x + 4, 23),
+        arrows,
+      );
+    }
   }
 
-  /// A flap along [hinge] (two points of the top, as x and z), [length]
-  /// long, turned up by [turn] from lying flat across the top, towards
-  /// [outward] past upright.
+  /// A side wall's carry handle and the tape's end running down it.
+  void _sideDetails(Canvas canvas, Size size) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(size.width / 2, size.height * 0.28), width: size.width * 0.38, height: 13),
+        const Radius.circular(7),
+      ),
+      Paint()..color = _insideDark,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(size.width / 2 - _tape, 0, 2 * _tape, size.height * 0.16),
+      Paint()..color = tape.withValues(alpha: 0.92),
+    );
+  }
+
+  /// A flap along [hinge], [length] long, lying flat across the top towards
+  /// [inward] when shut and turned up and over by [turn]. The top ones
+  /// carry half of the tape each, at their edge.
   void _flap(
-    Canvas canvas,
-    _Geometry g, {
-    required (Offset, Offset) hinge,
-    required double turn,
-    required _Out outward,
+    Canvas canvas, {
+    required (BoxPoint, BoxPoint) hinge,
+    required BoxPoint inward,
     required double length,
+    required double turn,
+    bool taped = false,
   }) {
     final (a, b) = hinge;
-    // Flat, it lies across the top, away from [outward]; turned, it rises
-    // and falls outward.
-    final across = -cos(turn) * length;
-    final up = sin(turn) * length;
-    Offset far(Offset p) => g.at(p.dx + outward.x * across, g.height + up, p.dy + outward.z * across);
-    final flap = _polygon([g.top(a.dx, a.dy), g.top(b.dx, b.dy), far(b), far(a)]);
-    // Lit flat on top, darker the more it stands up and turns away.
-    canvas.drawPath(flap, Paint()..color = Color.lerp(_kraft, _kraftSide, (sin(turn) * 0.8).clamp(0, 1))!);
+    final along = _add(_scale(inward, cos(turn)), _scale(_up, sin(turn)));
+    BoxPoint at(BoxPoint p, double reach) => _add(p, _scale(along, reach));
+    final corners = [a, b, at(b, length), at(a, length)];
+    // The outside faces up when shut, then turns away.
+    final outside = _add(_scale(inward, -sin(turn)), _scale(_up, cos(turn)));
+    final center = _mid(corners);
+    final showsOutside = camera.faces(center, outside);
+    final path = _path(corners);
     canvas.drawPath(
-      flap,
+      path,
+      Paint()..color = showsOutside ? _lit(_kraft, _kraftDark, outside) : _lit(_inside, _insideDark, _neg(outside)),
+    );
+    if (taped && showsOutside) {
+      canvas.drawPath(
+        _path([at(a, length - _tape), at(b, length - _tape), at(b, length), at(a, length)]),
+        Paint()..color = Color.lerp(tape, Colors.white, 0.15 * max(0, _dot(outside, _light)))!.withValues(alpha: 0.95),
+      );
+    }
+    canvas.drawPath(
+      path,
       Paint()
         ..color = _edge
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
+        ..strokeWidth = 1.5 * camera.zoom
         ..strokeJoin = StrokeJoin.round,
     );
   }
 
-  static Path _polygon(List<Offset> points) => Path()..addPolygon(points, true);
-
   @override
   bool shouldRepaint(_BoxPainter old) =>
+      old.camera != camera ||
       old.layer != layer ||
+      old.cut != cut ||
       old.open != open ||
       old.leak != leak ||
       old.glow != glow ||
       old.tape != tape ||
       old.label != label;
-}
-
-/// Which way a flap falls once open: along x or z.
-class _Out {
-  const _Out(this.x, this.z);
-
-  final double x;
-  final double z;
 }

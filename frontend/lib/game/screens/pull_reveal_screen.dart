@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../theme/palette.dart';
 import '../game_session.dart';
@@ -10,10 +11,20 @@ import '../rules/models.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/gacha_box.dart';
-import '../widgets/sketch_canvas.dart';
 
-/// How long a pull builds up before it flips: the rarer, the longer.
+/// How long a card on its own builds up before it flips: the rarer, the
+/// longer.
 Duration _buildUpFor(Rarity rarity) => Duration(milliseconds: 800 + 400 * rarity.index);
+
+/// How long a cut open box shakes before it opens: the rarer, the longer.
+Duration _boxBuildUpFor(Rarity rarity) => Duration(milliseconds: 500 + 350 * rarity.index);
+
+/// How long a pull takes to come out of its box, from the flaps opening
+/// to the box sinking away.
+const _pullOutTime = Duration(milliseconds: 1300);
+
+/// What to do while the tape is still whole.
+const _cutHint = 'Swipe along the tape to cut it open';
 
 /// The build-up's colour at [t]: it climbs through the rarities' colours up
 /// to [rarity]'s, so the rarer the pull, the further it climbs.
@@ -29,22 +40,20 @@ Color _climb(double t, Rarity rarity) {
   )!;
 }
 
-/// How long a pull takes to come out of its box, from the flaps opening
-/// to the box sinking away.
-const _pullOutTime = Duration(milliseconds: 1300);
-
 /// The box a [banner]'s pulls come out of: the weekly rate-up's is taped in
 /// the legends' gold.
 GachaBox _box(
   GachaBanner banner, {
-  required double width,
+  required BoxCamera camera,
   required GachaBoxLayer layer,
-  double open = 0,
-  double leak = 0,
-  Color glow = Colors.white,
+  required double cut,
+  required double open,
+  required double leak,
+  required Color glow,
 }) => GachaBox(
-  width: width,
+  camera: camera,
   layer: layer,
+  cut: cut,
   open: open,
   leak: leak,
   glow: glow,
@@ -52,11 +61,79 @@ GachaBox _box(
   label: banner == GachaBanner.weekly ? 'WEEKLY HERO' : 'DRAWING DUEL',
 );
 
-/// Full screen reveal of pulls, out of a cardboard box. A single pull's box
-/// shakes, leaking its rarity's light, opens, and the card rises out, flips
-/// and bursts. A multi-pull's cards fan out of the box into a carousel face
-/// down, every back glowing in its rarity's colour, then reveal one by one
-/// the same way, and it ends on an overview of them all.
+/// Cutting a box's tape open by swiping along it, left to right: the phone
+/// buzzes as the cut starts and runs, and once it's through, [onCut].
+class _TapeCut {
+  _TapeCut(this.onCut);
+
+  final VoidCallback onCut;
+  double progress = 0;
+
+  /// Whether a finger is on the tape.
+  bool cutting = false;
+
+  bool get done => progress >= 1;
+
+  /// Cuts [dx] further along a tape [length] long on screen.
+  void drag(double dx, double length) {
+    if (done || dx <= 0) return;
+    final before = progress;
+    progress = min(1, progress + dx / length);
+    if (before == 0) {
+      HapticFeedback.heavyImpact();
+    } else if ((progress * 8).floor() > (before * 8).floor()) {
+      HapticFeedback.vibrate();
+    }
+    if (done) {
+      cutting = false;
+      HapticFeedback.mediumImpact();
+      onCut();
+    }
+  }
+
+  /// Skips the cutting.
+  void skip() => progress = 1;
+}
+
+/// The scissors on the tape: sliding along it to show what to do until the
+/// cut starts, then at the cut.
+Widget _scissors(BoxCamera camera, _TapeCut cut, double hint) {
+  final at = cut.progress > 0 ? cut.progress : Curves.easeInOut.transform(hint);
+  return IgnorePointer(
+    child: Transform.translate(
+      offset: GachaBox.cutAt(camera, at) + const Offset(0, -18),
+      child: Opacity(
+        opacity: cut.progress > 0 || cut.cutting ? 1 : 0.85 * sin(hint * pi),
+        child: Icon(
+          Icons.content_cut_rounded,
+          size: 34,
+          color: Colors.white,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 8)],
+        ),
+      ),
+    ),
+  );
+}
+
+/// The camera on a box, swaying gently round it as [sway] runs from 0 to
+/// 1, and shaking by [shake].
+BoxCamera _swaying(double sway, {double zoom = 1, Offset shift = Offset.zero, double shake = 0}) {
+  final t = sway * 2 * pi;
+  return BoxCamera(
+    yaw: -0.5 + 0.12 * sin(t),
+    pitch: 0.6 + 0.05 * sin(2 * t),
+    roll: shake * 0.004,
+    zoom: zoom,
+    shift: shift + Offset(shake, 0),
+  );
+}
+
+/// Full screen reveal of pulls, out of a cardboard box in 3D. The player
+/// cuts its tape open with a swipe, the light of the rarest pull inside
+/// peeking out of the cut. A single pull's box then shakes, opens, and the
+/// card rises out of it, flips and bursts. A multi-pull's cards fan out of
+/// the box into a carousel face down, every back glowing in its rarity's
+/// colour, then reveal one by one, and it ends on an overview of them all.
 class PullRevealScreen extends StatefulWidget {
   const PullRevealScreen({
     super.key,
@@ -140,6 +217,9 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
                   outcome: spotlight,
                   banner: widget.banner,
                   owned: widget.owned[spotlight.card.id],
+                  // A single pull comes out of its own box; a multi-pull's
+                  // cards came out of theirs already.
+                  boxed: _single,
                   // Cards shown again from the overview are face up already.
                   buildUp: _single || _next != null,
                   progress: _progress,
@@ -154,15 +234,19 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
   }
 }
 
-/// One character: its box builds up, shaking harder and leaking light that
-/// climbs through the rarities' colours, opens, and the card rises out of
-/// it towards you, flips and bursts; legends flash. Its stars pop in one by
-/// one. Tap to see it all, then to move on.
+/// One character. A single pull's comes out of its box: you cut the tape,
+/// the light of its rarity peeking out of the cut, the box shakes harder
+/// the rarer it is, opens, and the card rises out of it towards you. A card
+/// of several pulls builds up on its own instead, shaking harder and
+/// climbing through the rarities' colours. Then it flips and bursts;
+/// legends flash. Its stars pop in one by one. Tap to see it all, then to
+/// move on.
 class _SingleReveal extends StatefulWidget {
   const _SingleReveal({
     super.key,
     required this.outcome,
     required this.banner,
+    required this.boxed,
     required this.buildUp,
     required this.onDone,
     this.owned,
@@ -172,6 +256,7 @@ class _SingleReveal extends StatefulWidget {
 
   final PullOutcome outcome;
   final GachaBanner banner;
+  final bool boxed;
 
   /// The pulled character as you own it now, for its upgrade points.
   final OwnedCard? owned;
@@ -190,28 +275,52 @@ class _SingleReveal extends StatefulWidget {
 
 class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMixin {
   late final _rarity = widget.outcome.card.rarity;
-  late final _charge = AnimationController(vsync: this, duration: _buildUpFor(_rarity));
+  late final _boxed = widget.boxed && widget.buildUp;
+  late final _cut = _TapeCut(() => _charge.forward());
+
+  /// The camera swaying round the box, and the scissors' hint.
+  late final _sway = AnimationController(vsync: this, duration: const Duration(seconds: 6));
+  late final _charge = AnimationController(
+    vsync: this,
+    duration: _boxed ? _boxBuildUpFor(_rarity) : _buildUpFor(_rarity),
+  );
   late final _pull = AnimationController(vsync: this, duration: _pullOutTime);
   late final _flip = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
   late final _burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+
+  /// How long the tape shows, to cut it as far as the finger goes.
+  double _tapeLength = GachaBox.width;
 
   @override
   void initState() {
     super.initState();
     _charge.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _pull.isDismissed) _pull.forward();
+      if (status != AnimationStatus.completed) return;
+      if (_boxed && _pull.isDismissed) {
+        _pull.forward();
+      } else if (!_boxed && _flip.isDismissed) {
+        _flip.forward();
+      }
     });
     _pull.addStatusListener((status) {
       if (status == AnimationStatus.completed && _flip.isDismissed) _flip.forward();
     });
     _flip.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _burst.isDismissed) _burst.forward();
+      if (status == AnimationStatus.completed && _burst.isDismissed) {
+        _sway.stop();
+        _burst.forward();
+      }
     });
-    if (widget.buildUp) {
-      _charge.forward();
+    if (_boxed) {
+      _sway.repeat();
     } else {
-      _charge.value = 1;
+      _cut.skip();
       _pull.value = 1;
+      if (widget.buildUp) {
+        _charge.forward();
+      } else {
+        _charge.value = 1;
+      }
     }
   }
 
@@ -222,6 +331,8 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
   }
 
   void _showAll() {
+    _cut.skip();
+    _sway.stop();
     _charge.value = 1;
     _pull.value = 1;
     _flip.value = 1;
@@ -229,6 +340,8 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
   }
 
   void _tap() {
+    // Swipes cut the tape; taps only skip once it's cut.
+    if (!_cut.done) return;
     if (_burst.isCompleted) {
       widget.onDone();
     } else {
@@ -238,6 +351,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
 
   @override
   void dispose() {
+    _sway.dispose();
     _charge.dispose();
     _pull.dispose();
     _flip.dispose();
@@ -251,16 +365,27 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _tap,
+      onHorizontalDragStart: _cut.done ? null : (_) => setState(() => _cut.cutting = true),
+      onHorizontalDragUpdate: _cut.done ? null : (details) => setState(() => _cut.drag(details.delta.dx, _tapeLength)),
+      onHorizontalDragEnd: _cut.done ? null : (_) => setState(() => _cut.cutting = false),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_charge, _pull, _flip, _burst]),
+        animation: Listenable.merge([_sway, _charge, _pull, _flip, _burst]),
         builder: (context, _) {
           final charge = _charge.value;
           final burst = _burst.value;
-          final color = _flip.value < 0.5 ? _climb(charge, rarity) : rarity.color;
+          // Out of a box, the rarity's own light peeks out; on its own, the
+          // card climbs through the rarities' colours up to it.
+          final color = _boxed || _flip.value >= 0.5 ? rarity.color : _climb(charge, rarity);
+          final rise = const Interval(0.2, 0.8).transform(_pull.value);
           // Legends burst out of a white flash.
           final flash = rarity == Rarity.legend && burst > 0
               ? 0.9 * (1 - const Interval(0, 0.35).transform(burst))
               : 0.0;
+          final hint = !_cut.done
+              ? _cutHint
+              : _burst.isCompleted
+              ? 'Tap to continue'
+              : 'Tap to skip';
           return Stack(
             children: [
               // Opaque, so nothing of a multi-pull underneath shows through.
@@ -269,20 +394,20 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
                 child: CustomPaint(
                   painter: _GlowPainter(
                     color: color,
-                    intensity: charge * 0.5 + burst * 0.5,
+                    intensity: (_boxed ? rise : charge) * 0.5 + burst * 0.5,
                     burst: Curves.easeOut.transform(const Interval(0, 0.6).transform(burst)),
                     sparkle: rarity.stars >= Rarity.hero.stars,
                   ),
                 ),
               ),
-              Center(child: _pull.isCompleted ? _card(context, color) : _outOfTheBox(color)),
+              Positioned.fill(child: _pull.isCompleted ? Center(child: _card(context, color)) : _outOfTheBox(color)),
               if (flash > 0)
                 Positioned.fill(
                   child: IgnorePointer(
                     child: ColoredBox(color: Colors.white.withValues(alpha: flash)),
                   ),
                 ),
-              if (widget.progress != null || widget.onSkip != null)
+              if (widget.progress != null || widget.onSkip != null || !_cut.done)
                 Positioned(
                   top: 8,
                   left: 16,
@@ -294,9 +419,9 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
                         style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
-                      if (widget.onSkip != null)
+                      if (widget.onSkip != null || !_cut.done)
                         TextButton(
-                          onPressed: widget.onSkip,
+                          onPressed: widget.onSkip ?? () => setState(_showAll),
                           child: const Text('Skip', style: TextStyle(color: Colors.white)),
                         ),
                     ],
@@ -307,11 +432,11 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
                 left: 0,
                 right: 0,
                 child: Opacity(
-                  opacity: _burst.isCompleted ? 1 : 0.4,
+                  opacity: _burst.isCompleted || !_cut.done ? 1 : 0.4,
                   child: Text(
-                    _burst.isCompleted ? 'Tap to continue' : 'Tap to skip',
+                    hint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                   ),
                 ),
               ),
@@ -322,42 +447,51 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     );
   }
 
-  /// The box shaking and leaking light, then opening, the card rising out
-  /// of it towards you while the box sinks away.
+  /// The box: swaying while you cut its tape, shaking once it's cut, the
+  /// camera pushing in, then opening, the card rising out of it towards you
+  /// as the camera tilts up after it, and the box sinking away.
   Widget _outOfTheBox(Color glow) {
-    const boxWidth = 260.0;
     const cardWidth = 200.0;
-    final boxHeight = GachaBox.heightFor(boxWidth);
+    final cut = _cut.progress;
     final charge = _charge.value;
     final pull = _pull.value;
-    // The box shakes harder the further the build-up climbs.
-    final shake = pull == 0 ? sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5) : 0.0;
-    final tilt = pull == 0 ? sin(charge * pi * 13) * charge * 0.01 * (1 + _rarity.index) : 0.0;
     final open = const Interval(0, 0.3).transform(pull);
     final rise = const Interval(0.2, 0.8, curve: Curves.easeInOutCubic).transform(pull);
     final sink = const Interval(0.55, 1, curve: Curves.easeInCubic).transform(pull);
-    // The box sits a little low, so the card has room to rise above it.
-    final boxAt = Offset(shake, boxHeight * 0.25 + sink * 600);
-    final opening = GachaBox.openingFor(boxWidth) - Offset(boxWidth / 2, boxHeight / 2) + Offset(0, boxHeight * 0.25);
-    // Small and deep inside at first, so the front wall hides it.
-    const startScale = 0.42;
-    final startAt = opening + const Offset(0, cardWidth / cardAspectRatio * startScale * 0.5 + 24);
+    final sway = _sway.value;
+    // It trembles while you cut, then shakes harder the rarer the card.
+    final shake = pull > 0
+        ? 0.0
+        : (_cut.cutting ? sin(sway * 2 * pi * 90) * (1 + 2 * cut) : 0) +
+              sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5);
+    final swaying = _swaying(sway, shift: const Offset(0, 70), shake: shake);
+    final pushedIn = BoxCamera.lerp(
+      swaying,
+      swaying.copyWith(yaw: -0.3, zoom: 1.12),
+      Curves.easeInOut.transform(charge),
+    );
+    final camera = BoxCamera.lerp(
+      pushedIn,
+      pushedIn.copyWith(yaw: -0.12, pitch: 0.25, zoom: 1.2),
+      rise,
+    ).copyWith(shift: pushedIn.shift + Offset(0, sink * 700));
+    _tapeLength = max(1, GachaBox.tapeLength(camera));
+    // Small and deep inside at first, so the walls hide it.
+    final startScale = 0.36 * camera.scaleAt((x: 0, y: -GachaBox.height / 2 + 70, z: 0));
+    final startAt = GachaBox.inside(camera, below: 70);
     final cardAt = Offset.lerp(startAt, Offset.zero, rise)!;
     final scale = startScale + (1 - startScale) * rise;
-    Widget box(GachaBoxLayer layer) => Transform.translate(
-      offset: boxAt,
-      child: Transform.rotate(
-        angle: tilt,
-        child: Opacity(
-          opacity: 1 - sink,
-          child: _box(
-            widget.banner,
-            width: boxWidth,
-            layer: layer,
-            open: open,
-            leak: max(charge, pull > 0 ? 1 : 0),
-            glow: glow,
-          ),
+    Widget box(GachaBoxLayer layer) => Positioned.fill(
+      child: Opacity(
+        opacity: 1 - sink,
+        child: _box(
+          widget.banner,
+          camera: camera,
+          layer: layer,
+          cut: cut,
+          open: open,
+          leak: _cut.done ? 1 : cut,
+          glow: glow,
         ),
       ),
     );
@@ -379,19 +513,26 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
             child: CardBack(width: cardWidth, glow: glow),
           ),
         box(GachaBoxLayer.front),
+        if (!_cut.done) _scissors(camera, _cut, (sway * 4) % 1),
       ],
     );
   }
 
   Widget _card(BuildContext context, Color glow) {
+    final charge = _charge.value;
+    // On its own, the card shakes harder the further the build-up climbs.
+    final shake = !_boxed && _flip.value == 0 ? sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5) : 0.0;
+    final grow = _boxed ? 0.0 : 0.06 * charge * (1 - _flip.value);
     final angle = Curves.easeInOut.transform(_flip.value) * pi;
     final showFront = angle > pi / 2;
     return Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
         ..setEntry(3, 2, 0.0012)
-        ..rotateY(showFront ? angle - pi : angle),
-      child: showFront ? _front(context) : CardBack(width: 200, glow: glow),
+        ..translateByDouble(shake, 0, 0, 1)
+        ..rotateY(showFront ? angle - pi : angle)
+        ..scaleByDouble(1 + grow, 1 + grow, 1, 1),
+      child: showFront ? _front(context) : CardBack(width: 200, glow: glow.withValues(alpha: _boxed ? 1 : charge)),
     );
   }
 
@@ -467,12 +608,13 @@ class _PoppingStars extends StatelessWidget {
   }
 }
 
-enum _Stage { carousel, reveal, results }
+enum _Stage { cut, carousel, reveal, results }
 
-/// Several pulls. They come out of their box one after another and spin
-/// into a carousel face down, every back lighting up in its rarity's colour
-/// at once, then each one gets a reveal of its own in order, and the
-/// overview of them all comes last.
+/// Several pulls. You cut their box's tape open once, the light of the
+/// rarest pull peeking out of the cut; the box opens, the cards come out of
+/// it one after another and spin into a carousel face down, every back
+/// lighting up in its rarity's colour at once, then each one gets a reveal
+/// of its own in order, and the overview of them all comes last.
 class _MultiPull extends StatefulWidget {
   const _MultiPull({
     required this.outcomes,
@@ -497,12 +639,23 @@ class _MultiPull extends StatefulWidget {
 }
 
 class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
-  /// The cards come out of the box, spread out and turn once round while
-  /// their backs light up.
+  /// The camera swaying round the box while you cut, and the scissors'
+  /// hint.
+  late final _sway = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+
+  /// The box opens, the cards come out of it, spread out and turn once
+  /// round while their backs light up.
   late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 4400));
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
-  var _stage = _Stage.carousel;
+  late final _cut = _TapeCut(_startCarousel);
+  var _stage = _Stage.cut;
   Timer? _pause;
+
+  /// The rarest of the pulls, whose light peeks out of the cut.
+  late final Rarity _rarest = widget.outcomes.map((o) => o.card.rarity).reduce((a, b) => a.index >= b.index ? a : b);
+
+  /// How long the tape shows, to cut it as far as the finger goes.
+  double _tapeLength = GachaBox.width;
 
   @override
   void initState() {
@@ -511,7 +664,6 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
       // A moment to take in the colours before the reveals.
       if (status == AnimationStatus.completed) _pause = Timer(const Duration(milliseconds: 900), _startReveals);
     });
-    _carousel.forward();
   }
 
   @override
@@ -524,9 +676,16 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     }
   }
 
+  void _startCarousel() {
+    if (!mounted || _stage != _Stage.cut) return;
+    setState(() => _stage = _Stage.carousel);
+    _carousel.forward();
+  }
+
   void _startReveals() {
     if (!mounted || _stage != _Stage.carousel) return;
     _pause?.cancel();
+    _sway.stop();
     setState(() => _stage = _Stage.reveal);
     _reveal(0);
   }
@@ -541,12 +700,15 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   void _toResults() {
     if (!mounted || _stage == _Stage.results) return;
     _pause?.cancel();
+    _cut.skip();
     _carousel.stop();
+    _sway.stop();
     setState(() => _stage = _Stage.results);
   }
 
-  /// Hurries the carousel along.
+  /// Hurries the carousel along; while the tape is whole, swipes cut it.
   void _tap() {
+    if (_stage == _Stage.cut) return;
     if (_carousel.isAnimating) {
       _carousel.value = 1;
     } else {
@@ -557,6 +719,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   @override
   void dispose() {
     _pause?.cancel();
+    _sway.dispose();
     _carousel.dispose();
     _spin.dispose();
     super.dispose();
@@ -566,6 +729,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final results = _stage == _Stage.results;
+    final cutting = _stage == _Stage.cut;
     return Column(
       children: [
         SizedBox(
@@ -596,8 +760,13 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
               : GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: _tap,
+                  onHorizontalDragStart: cutting ? (_) => setState(() => _cut.cutting = true) : null,
+                  onHorizontalDragUpdate: cutting
+                      ? (details) => setState(() => _cut.drag(details.delta.dx, _tapeLength))
+                      : null,
+                  onHorizontalDragEnd: cutting ? (_) => setState(() => _cut.cutting = false) : null,
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_carousel, _spin]),
+                    animation: Listenable.merge([_sway, _carousel, _spin]),
                     builder: (context, _) => _ring(),
                   ),
                 ),
@@ -606,7 +775,10 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(16),
           child: results
               ? FilledButton(onPressed: widget.onDone, child: const Text('Done'))
-              : Text('Tap to hurry', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+              : Text(
+                  cutting ? _cutHint : 'Tap to hurry',
+                  style: TextStyle(color: Colors.white.withValues(alpha: cutting ? 0.7 : 0.6)),
+                ),
         ),
       ],
     );
@@ -616,13 +788,14 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     final outcomes = widget.outcomes;
     final count = outcomes.length;
     final t = _carousel.value;
-    // The box opens, the cards rise out of it one after another, and it
-    // sinks away.
-    final open = const Interval(0, 0.08).transform(t);
+    // The box opens and moves down out of the ring's way, the cards rise out
+    // of it one after another, and it sinks away once empty.
+    final open = const Interval(0, 0.1).transform(t);
+    final move = const Interval(0, 0.14, curve: Curves.easeInOut).transform(t);
     double emerge(int i) =>
-        Interval(0.06 + 0.2 * i / count, 0.2 + 0.2 * i / count, curve: Curves.easeOutCubic).transform(t);
-    final sink = const Interval(0.32, 0.45, curve: Curves.easeInCubic).transform(t);
-    final spread = const Interval(0.1, 0.45, curve: Curves.easeOutBack).transform(t);
+        Interval(0.08 + 0.2 * i / count, 0.22 + 0.2 * i / count, curve: Curves.easeOutCubic).transform(t);
+    final sink = const Interval(0.34, 0.46, curve: Curves.easeInCubic).transform(t);
+    final spread = const Interval(0.12, 0.47, curve: Curves.easeOutBack).transform(t);
     // One turn round, slowing down until the first card is at the front.
     final position = -count * (1 - Curves.easeOutCubic.transform(t));
     // All backs light up together, then pulse gently.
@@ -636,37 +809,62 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
         double angle(int i) => 2 * pi * (i - position) / count;
         // Back cards first, so the front one is drawn on top.
         final order = [for (var i = 0; i < count; i++) i]..sort((a, b) => cos(angle(a)).compareTo(cos(angle(b))));
-        final boxWidth = width * 2;
-        final boxHeight = GachaBox.heightFor(boxWidth);
-        // Below the ring, and sinking out of sight once empty.
-        final boxAt = Offset(0, constraints.maxHeight / 2 - boxHeight / 2 - 8 + sink * constraints.maxHeight);
-        final opening = GachaBox.openingFor(boxWidth) - Offset(boxWidth / 2, boxHeight / 2) + boxAt;
-        Widget box(GachaBoxLayer layer) => Transform.translate(
-          offset: boxAt,
+        // Big in the middle while you cut, then small below the ring.
+        final fit = min(1.0, constraints.maxWidth / 360);
+        final shake = _cut.cutting ? sin(_sway.value * 2 * pi * 90) * (1 + 2 * _cut.progress) : 0.0;
+        final swaying = _swaying(_sway.value, zoom: fit, shift: const Offset(0, 20), shake: shake);
+        final camera =
+            BoxCamera.lerp(
+              swaying,
+              swaying.copyWith(zoom: fit * 0.7, pitch: 0.5, shift: Offset(0, constraints.maxHeight / 2 - 90 * fit)),
+              move,
+            ).copyWith(
+              shift:
+                  Offset.lerp(swaying.shift, Offset(0, constraints.maxHeight / 2 - 90 * fit), move)! +
+                  Offset(0, sink * constraints.maxHeight),
+            );
+        _tapeLength = max(1, GachaBox.tapeLength(camera));
+        final from = GachaBox.inside(camera, below: 60);
+        final fromScale = 0.4 * camera.scaleAt((x: 0, y: -GachaBox.height / 2 + 60, z: 0));
+        Widget box(GachaBoxLayer layer) => Positioned.fill(
           child: Opacity(
             opacity: 1 - sink,
-            child: _box(widget.banner, width: boxWidth, layer: layer, open: open, leak: open, glow: Colors.white),
+            child: _box(
+              widget.banner,
+              camera: camera,
+              layer: layer,
+              cut: _cut.progress,
+              open: open,
+              leak: _cut.done ? 1 - glow * 0.5 : _cut.progress,
+              glow: _rarest.color,
+            ),
           ),
         );
-        // Just the dark background, so the glows stand out.
-        return Stack(
-          alignment: Alignment.center,
-          clipBehavior: Clip.none,
-          children: [
-            if (sink < 1) box(GachaBoxLayer.back),
-            for (final i in order)
-              if (emerge(i) > 0)
-                Transform.translate(
-                  // From deep in the box up into the ring, growing as it
-                  // comes towards you.
-                  offset: Offset.lerp(opening + Offset(0, width * 0.5), Offset.zero, emerge(i))!,
-                  child: Transform.scale(
-                    scale: 0.45 + 0.55 * emerge(i),
-                    child: _ringCard(outcomes[i], width: width, angle: angle(i), radius: radius, glow: glow * pulse),
+        // Just the dark background, so the glows stand out. It fills the
+        // space, so swipes anywhere cut the tape.
+        return SizedBox(
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              if (sink < 1) box(GachaBoxLayer.back),
+              for (final i in order)
+                if (emerge(i) > 0)
+                  Transform.translate(
+                    // From deep in the box up into the ring, growing as it
+                    // comes towards you.
+                    offset: Offset.lerp(from, Offset.zero, emerge(i))!,
+                    child: Transform.scale(
+                      scale: fromScale + (1 - fromScale) * emerge(i),
+                      child: _ringCard(outcomes[i], width: width, angle: angle(i), radius: radius, glow: glow * pulse),
+                    ),
                   ),
-                ),
-            if (sink < 1) box(GachaBoxLayer.front),
-          ],
+              if (sink < 1) box(GachaBoxLayer.front),
+              if (_stage == _Stage.cut) _scissors(camera, _cut, (_sway.value * 4) % 1),
+            ],
+          ),
         );
       },
     );
