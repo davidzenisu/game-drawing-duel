@@ -946,8 +946,8 @@ void main() {
       expect(admin.pullsToBuy(1), 1);
       await expectLater(admin.pull(1), throwsA(isA<ApiException>()), reason: 'only when asked');
       await admin.pull(1, topUp: true);
-      expect(backend.requests.last.url.path, '/servers/123456/pulls');
-      expect(jsonDecode(backend.requests.last.body), {'count': 1, 'banner': 'standard', 'top_up': true});
+      final pull = backend.requests.lastWhere((r) => r.url.path == '/servers/123456/pulls');
+      expect(jsonDecode(pull.body), {'count': 1, 'banner': 'standard', 'top_up': true});
       expect((admin.tickets, admin.stars), (0, stars - 10));
 
       // Day 4's fights replay for everyone, on the day's calendar date.
