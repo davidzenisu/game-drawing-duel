@@ -32,6 +32,11 @@ class Suggestion(Base):
     kind: Mapped[str] = mapped_column(String(10), nullable=False)
     title: Mapped[str] = mapped_column(String(80), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    # "open", "in_progress", "rejected" or "in_review", set by server admins,
+    # or "done" once its author confirmed it's fixed.
+    status: Mapped[str] = mapped_column(
+        String(12), nullable=False, default="open", server_default="open"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

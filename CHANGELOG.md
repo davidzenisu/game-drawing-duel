@@ -9,6 +9,20 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.17.0] - 2026-11-17
+
+### Added
+- Ideas and bug reports have a status: open, in progress, in review,
+  rejected or done. Server admins set it from a dropdown on each one.
+- Once your idea or bug report is in review, check it and tap **It's fixed
+  now**: it's done, and a pull waits for you on the notification board as
+  a thank you.
+- A **Show all** toggle on the Ideas & bugs board.
+
+### Changed
+- The Ideas & bugs board only shows the open, in progress and in review
+  ones, unless you show them all.
+
 ## [0.16.0] - 2026-11-17
 
 ### Changed

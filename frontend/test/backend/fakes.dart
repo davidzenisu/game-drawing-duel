@@ -236,6 +236,9 @@ class FakeBackend {
   final Map<String, List<({String id, String kind, String title, String description, int author, Set<int> voters})>>
   suggestions = {};
 
+  /// The suggestions' statuses by id: open unless set.
+  final Map<String, String> suggestionStatuses = {};
+
   Map<String, Object?> _suggestionJson(
     String code,
     int yours,
@@ -246,6 +249,7 @@ class FakeBackend {
     'kind': s.kind,
     'title': s.title,
     'description': s.description,
+    'status': suggestionStatuses[s.id] ?? 'open',
     'author': servers[code]!.seats[s.author]['name'],
     'created_at': '2026-11-13T10:00:00Z',
     'votes': s.voters.length,
@@ -590,6 +594,41 @@ class FakeBackend {
           }
           board.remove(suggestion);
           return http.Response('', 204);
+        }
+        if (request.method == 'PUT' && path.length == 5 && path[4] == 'status') {
+          final suggestion = board.where((s) => s.id == path[3]).firstOrNull;
+          if (suggestion == null) return _json(404, {'detail': 'No such suggestion'});
+          if (!serverManagers.contains(token)) {
+            return _json(403, {'detail': "Only a server admin can set a suggestion's status"});
+          }
+          final status = body!['status'] as String;
+          if (!const ['open', 'in_progress', 'rejected', 'in_review'].contains(status)) {
+            return _json(422, {'detail': 'Not a status to set'});
+          }
+          if (suggestionStatuses[suggestion.id] == 'done') {
+            return _json(409, {'detail': 'This suggestion is done already'});
+          }
+          suggestionStatuses[suggestion.id] = status;
+          return _json(200, _suggestionJson(code, yours, true, suggestion));
+        }
+        if (request.method == 'POST' && path.length == 5 && path[4] == 'fixed') {
+          final suggestion = board.where((s) => s.id == path[3]).firstOrNull;
+          if (suggestion == null) return _json(404, {'detail': 'No such suggestion'});
+          if (suggestion.author != yours) {
+            return _json(403, {'detail': 'Only its author can confirm a suggestion is fixed'});
+          }
+          if (suggestionStatuses[suggestion.id] != 'in_review') {
+            return _json(409, {'detail': "This suggestion isn't in review"});
+          }
+          suggestionStatuses[suggestion.id] = 'done';
+          gifts.add((
+            id: 'gift-${gifts.length + 1}',
+            message: '${suggestion.title} has been fixed. Thank you for reporting it.',
+            pulls: 1,
+            serverCode: code,
+            positions: [yours],
+          ));
+          return _json(200, _suggestionJson(code, yours, serverManagers.contains(token), suggestion));
         }
         if (path.length == 5 && path[4] == 'vote') {
           final suggestion = board.where((s) => s.id == path[3]).firstOrNull;

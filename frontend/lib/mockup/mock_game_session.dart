@@ -449,7 +449,7 @@ class MockGameSession extends GameSession {
         description: 'Sometimes one tap on undo takes away the last two strokes instead of one.',
         author: friends.last,
         createdAt: now.subtract(const Duration(hours: 5)),
-      ),
+      )..status = SuggestionStatus.inProgress,
     ];
   });
 
@@ -465,6 +465,7 @@ class MockGameSession extends GameSession {
     yours: s.author == _yourName,
     // Like a server admin's, see [canManageServers].
     removable: s.author == _yourName || canManageServers,
+    status: s.status,
   );
 
   /// Your name on the board: one per server, like the friends'.
@@ -502,6 +503,33 @@ class MockGameSession extends GameSession {
     final s = _board.firstWhere((s) => s.id == suggestion.id);
     if (!_suggestion(s).removable) throw ArgumentError('Only its author or a server admin can remove it.');
     _board.remove(s);
+  }
+
+  @override
+  Future<Suggestion> setSuggestionStatus(Suggestion suggestion, SuggestionStatus status) async {
+    final s = _board.firstWhere((s) => s.id == suggestion.id);
+    if (!SuggestionStatus.settable.contains(status)) throw ArgumentError('Done is up to its author.');
+    if (s.status == SuggestionStatus.done) throw StateError('This suggestion is done already.');
+    s.status = status;
+    return _suggestion(s);
+  }
+
+  /// Like the backend: done, and its author gets a pull as a gift.
+  @override
+  Future<Suggestion> confirmFixed(Suggestion suggestion) async {
+    final s = _board.firstWhere((s) => s.id == suggestion.id);
+    if (!_suggestion(s).confirmable) throw StateError("This suggestion isn't yours in review.");
+    s.status = SuggestionStatus.done;
+    _gifts.add(
+      Gift(
+        id: 'gift-fixed-${s.id}',
+        message: '${s.title} has been fixed. Thank you for reporting it.',
+        pulls: 1,
+        sentAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+    return _suggestion(s);
   }
 
   @override
@@ -1296,4 +1324,6 @@ class _MockSuggestion {
 
   /// Who upvoted it, by name.
   final Set<String> voters;
+
+  SuggestionStatus status = SuggestionStatus.open;
 }

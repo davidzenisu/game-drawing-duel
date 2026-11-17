@@ -122,3 +122,61 @@ class SuggestionTests(ServerTestCase):
         self.assertEqual(self.remove(theirs["id"], SAM, admin).status_code, 204)
         self.assertEqual(self.board().json(), [])
         self.assertEqual(self.remove(theirs["id"], ADMIN).status_code, 404)
+
+    def set_status(self, suggestion_id: str, value: str, subject: str = SAM, admin=True):
+        permissions = ["read:api", "manage:servers"] if admin else None
+        return self.client.put(
+            f"/servers/{self.code}/suggestions/{suggestion_id}/status",
+            json={"status": value},
+            headers=bearer(make_token(subject, permissions=permissions)),
+        )
+
+    def confirm_fixed(self, suggestion_id: str, subject: str = ADMIN):
+        return self.client.post(
+            f"/servers/{self.code}/suggestions/{suggestion_id}/fixed",
+            headers=bearer(make_token(subject)),
+        )
+
+    def test_suggestions_are_open_and_only_server_admins_set_their_status(self) -> None:
+        idea = self.suggest().json()
+        self.assertEqual(idea["status"], "open")
+        self.assertEqual(self.set_status(idea["id"], "in_progress", admin=False).status_code, 403)
+        for value in ("in_progress", "rejected", "in_review", "open"):
+            changed = self.set_status(idea["id"], value)
+            self.assertEqual(changed.status_code, 200, changed.text)
+            self.assertEqual(changed.json()["status"], value)
+            self.assertEqual(self.board(SAM).json()[0]["status"], value)
+        self.assertEqual(self.set_status(idea["id"], "done").status_code, 422, "up to the author")
+        self.assertEqual(self.set_status(idea["id"], "closed").status_code, 422)
+        theirs = self.suggest(KIM, self.other).json()
+        self.assertEqual(self.set_status(theirs["id"], "in_review").status_code, 404)
+
+    def test_the_author_confirms_a_fix_in_review_and_gets_a_pull_once(self) -> None:
+        from app.models import Gift, GiftDelivery, ServerSeat
+        from app.routers.suggestions import fixed_message
+
+        idea = self.suggest(title="Dark mode").json()
+        self.assertEqual(self.confirm_fixed(idea["id"]).status_code, 409, "not in review yet")
+        self.set_status(idea["id"], "in_review")
+        self.assertEqual(self.confirm_fixed(idea["id"], SAM).status_code, 403, "not Sam's")
+
+        confirmed = self.confirm_fixed(idea["id"])
+        self.assertEqual(confirmed.status_code, 200, confirmed.text)
+        self.assertEqual(confirmed.json()["status"], "done")
+        self.assertEqual(self.confirm_fixed(idea["id"]).status_code, 409, "only once")
+        self.assertEqual(self.set_status(idea["id"], "open").status_code, 409, "done stays done")
+
+        with self.session_factory() as session:
+            gifts = session.query(Gift).all()
+            self.assertEqual(len(gifts), 1)
+            gift = gifts[0]
+            self.assertEqual(
+                (gift.message, gift.pulls, gift.stars),
+                ("Dark mode has been fixed. Thank you for reporting it.", 1, 0),
+            )
+            self.assertEqual(gift.message, fixed_message("Dark mode"))
+            seats = [
+                session.get(ServerSeat, d.seat_id).name
+                for d in session.query(GiftDelivery).all()
+            ]
+        self.assertEqual(seats, ["Alex"], "only to its author")

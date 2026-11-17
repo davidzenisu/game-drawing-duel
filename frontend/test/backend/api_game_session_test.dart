@@ -569,6 +569,34 @@ void main() {
       expect(await admin.suggestions(), isEmpty);
     });
 
+    test('server admins set a status; the author confirms it fixed and gets a pull as a gift', () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      final sam = await signedUp('sam', 'Sam');
+      await sam.joinServer(await sam.previewServer('123456'), (await sam.previewServer('123456')).players[1]);
+      final idea = await sam.suggest(kind: SuggestionKind.idea, title: 'Dark mode', description: 'For night owls.');
+      expect((idea.status, idea.confirmable), (SuggestionStatus.open, false));
+
+      await expectLater(admin.setSuggestionStatus(idea, SuggestionStatus.inReview), throwsA(isA<ApiException>()));
+      backend.serverManagers.add('alex');
+      final inReview = await admin.setSuggestionStatus(idea, SuggestionStatus.inReview);
+      expect(inReview.status, SuggestionStatus.inReview);
+      expect(
+        backend.requests.any((r) => r.method == 'PUT' && r.url.path == '/servers/123456/suggestions/${idea.id}/status'),
+        isTrue,
+      );
+      await expectLater(admin.confirmFixed(inReview), throwsA(isA<ApiException>()), reason: 'not their own');
+
+      final mine = (await sam.suggestions()).single;
+      expect(mine.confirmable, isTrue);
+      final done = await sam.confirmFixed(mine);
+      expect((done.status, done.confirmable), (SuggestionStatus.done, false));
+      expect(
+        [for (final g in sam.gifts) (g.message, g.pulls)],
+        [('Dark mode has been fixed. Thank you for reporting it.', 1)],
+        reason: 'loaded again right away',
+      );
+    });
+
     test('admins list the drawings of any server and load their strokes', () async {
       backend.serverManagers.add('alex');
       admin = await signedUpAgain('alex');

@@ -539,6 +539,7 @@ class ApiGameSession extends GameSession {
       'kind': String kind,
       'title': String title,
       'description': String description,
+      'status': String status,
       'author': String author,
       'created_at': String createdAt,
       'votes': int votes,
@@ -551,6 +552,7 @@ class ApiGameSession extends GameSession {
         kind: SuggestionKind.values.byName(kind),
         title: title,
         description: description,
+        status: SuggestionStatus.fromApi(status),
         author: author,
         createdAt: DateTime.parse(createdAt),
         votes: votes,
@@ -589,6 +591,25 @@ class ApiGameSession extends GameSession {
   @override
   Future<void> removeSuggestion(Suggestion suggestion) async {
     await _delete('/servers/${server.code}/suggestions/${suggestion.id}');
+  }
+
+  @override
+  Future<Suggestion> setSuggestionStatus(Suggestion suggestion, SuggestionStatus status) async => _parseSuggestion(
+    await _put('/servers/${server.code}/suggestions/${suggestion.id}/status', {'status': status.apiName}),
+  );
+
+  @override
+  Future<Suggestion> confirmFixed(Suggestion suggestion) async {
+    final code = server.code;
+    final confirmed = _parseSuggestion(await _post('/servers/$code/suggestions/${suggestion.id}/fixed'));
+    // Its gift waits on the notification board, once the game runs.
+    try {
+      _gifts = _parseGifts(await _get('/servers/$code/gifts'));
+      notifyListeners();
+    } on ApiException {
+      // Not running yet: it's there once the game starts.
+    }
+    return confirmed;
   }
 
   @override
