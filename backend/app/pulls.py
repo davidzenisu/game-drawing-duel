@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app import stars
 from app.gacha import LAUNCH_BONUS, Banner, GachaState, pick_character, pull_rarity
 from app.models import Character, Pull, PullGrant, ServerSeat, WeeklyHero
 from app.rules import Rarity
@@ -104,6 +105,14 @@ def copies(session: Session, seat: ServerSeat) -> dict[uuid.UUID, int]:
     return owned
 
 
+def lock(session: Session, seat_id: uuid.UUID) -> None:
+    """Locks the seat until the transaction ends, so the same player
+    pulling or buying pulls twice at once waits for the first."""
+    session.scalar(
+        select(ServerSeat.id).where(ServerSeat.id == seat_id).with_for_update()
+    )
+
+
 class NotEnoughPulls(Exception):
     pass
 
@@ -125,18 +134,21 @@ def pull(
     count: int,
     banner: Banner = Banner.STANDARD,
     rng: random.Random | None = None,
+    top_up: bool = False,
 ) -> list[Outcome]:
     """Spends `count` of the seat's grants on characters of `banner`: both
     pull from the whole pool (`in_pool`), the weekly one with this week's
-    rate-up.
+    rate-up. With `top_up`, stars buy the pulls the seat is short of first
+    (`stars.buy_pulls`, which raises `stars.CantBuyPull` without enough).
 
     Locks the seat, so the same player pulling twice at once waits instead of
-    spending the same grants; the caller commits.
+    spending the same grants (or stars); the caller commits, or rolls back
+    on an error.
     """
     rng = rng or random.SystemRandom()
-    session.scalar(
-        select(ServerSeat.id).where(ServerSeat.id == seat.id).with_for_update()
-    )
+    lock(session, seat.id)
+    if top_up:
+        stars.buy_pulls(session, seat.id, count - tickets(session, seat.id))
     grants = session.scalars(
         _unspent_grants(seat.id).order_by(PullGrant.granted_at).limit(count)
     ).all()

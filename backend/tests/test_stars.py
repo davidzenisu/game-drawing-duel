@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 
 from sqlalchemy import select
@@ -109,26 +110,60 @@ class BuyPullTests(FightTestCase):
                 .join(Player, Player.id == ServerSeat.player_id)
                 .where(Server.code == self.code, Player.auth0_id == subject)
             ).one()
-            session.add(StarGrant(seat_id=seat.id, reason="test", stars=stars))
+            session.add(StarGrant(seat_id=seat.id, reason=f"test:{uuid.uuid4()}", stars=stars))
             session.commit()
 
-    def spend_all_pulls(self, subject: str = ADMIN) -> None:
-        while (tickets := self.gacha(subject)["tickets"]) > 0:
-            self.post("pulls", subject, {"count": min(tickets, 10)})
-
-    def test_ten_stars_buy_a_pull_once_the_pulls_are_used_up(self) -> None:
+    def test_ten_stars_buy_a_pull_with_pulls_left(self) -> None:
+        tickets = self.gacha()["tickets"]
+        self.assertGreater(tickets, 0)
         self.give_stars(20)
-        response = self.buy()
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.json()["detail"], "Use your pulls first")
-        self.spend_all_pulls()
         bought = self.buy()
         self.assertEqual(bought.status_code, 200, bought.text)
-        self.assertEqual((bought.json()["tickets"], bought.json()["stars"]), (1, 13))
-        self.post("pulls", ADMIN, {"count": 1})
+        self.assertEqual((bought.json()["tickets"], bought.json()["stars"]), (tickets + 1, 13))
         self.assertEqual(self.buy().json()["stars"], 3, "and again")
-        self.post("pulls", ADMIN, {"count": 1})
         short = self.buy()
         self.assertEqual(short.status_code, 409)
-        self.assertEqual(short.json()["detail"], "A pull costs 10 stars")
+        self.assertEqual(short.json()["detail"], "1 pull costs 10 stars")
         self.assertEqual(self.gacha()["stars"], 3)
+        self.assertEqual(self.gacha()["tickets"], tickets + 2)
+
+    def test_several_pulls_at_once(self) -> None:
+        tickets = self.gacha()["tickets"]
+        self.give_stars(27)
+        short = self.post("stars/pull", ADMIN, {"count": 4})
+        self.assertEqual(short.status_code, 409)
+        self.assertEqual(short.json()["detail"], "4 pulls cost 40 stars")
+        bought = self.post("stars/pull", ADMIN, {"count": 3})
+        self.assertEqual(bought.status_code, 200, bought.text)
+        self.assertEqual((bought.json()["tickets"], bought.json()["stars"]), (tickets + 3, 0))
+        self.give_stars(10)
+        self.buy()
+        with self.session_factory() as session:
+            reasons = session.scalars(
+                select(StarGrant.reason).where(StarGrant.reason.like("pull:%"))
+            ).all()
+        self.assertEqual(sorted(reasons), ["pull:1", "pull:2", "pull:3", "pull:4"], "numbered")
+
+    def test_a_pull_tops_up_the_pulls_it_is_short_of_with_stars(self) -> None:
+        while self.gacha()["tickets"] > 3:
+            self.post("pulls", ADMIN, {"count": min(self.gacha()["tickets"] - 3, 10)})
+        tickets, total = self.gacha()["tickets"], self.gacha()["total_pulls"]
+        self.give_stars(10 * (10 - tickets) - 3 - 1)
+        short = self.post("pulls", ADMIN, {"count": 10, "top_up": True})
+        self.assertEqual(short.status_code, 409, "a star short")
+        self.assertEqual(self.gacha()["tickets"], tickets, "nothing bought")
+        self.assertEqual(
+            self.post("pulls", ADMIN, {"count": 10}).status_code, 409, "only when asked"
+        )
+        self.give_stars(1)
+        response = self.post("pulls", ADMIN, {"count": 10, "top_up": True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()["outcomes"]), 10)
+        gacha = response.json()["gacha"]
+        self.assertEqual((gacha["tickets"], gacha["stars"]), (0, 0))
+        self.assertEqual(gacha["total_pulls"], total + 10, "counts towards the pity")
+
+    def test_a_pull_with_enough_pulls_spends_no_stars(self) -> None:
+        response = self.post("pulls", ADMIN, {"count": 1, "top_up": True})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["gacha"]["stars"], 3)

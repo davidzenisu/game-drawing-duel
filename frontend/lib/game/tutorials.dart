@@ -67,7 +67,8 @@ enum Tutorial {
         title: 'Earn stars',
         text:
             'Writing a title earns ${StarRewards.prompt} stars, drawing a challenger ${StarRewards.challenger}, '
-            'and beating a challenger its stars. Tap your pulls at the top to see yours. Open "How to play" '
+            'and beating a challenger its stars. Tap your pulls at the top to see yours. Short of pulls when '
+            'you summon? Stars top them up, ${StarRewards.pullPrice} stars a pull. Open "How to play" '
             'any time to see these intros again.',
       ),
     ],

@@ -102,7 +102,8 @@ abstract final class StarRewards {
   static const prompt = 3;
   static const challenger = 3;
 
-  /// Stars buy a pull for this many, once your pulls are used up.
+  /// Stars buy a pull for this many: a pull tops up the pulls you're short
+  /// of with them.
   static const pullPrice = 10;
 }
 

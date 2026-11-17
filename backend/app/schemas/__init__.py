@@ -41,6 +41,7 @@ from app.schemas.day import (
     YourPrompt,
 )
 from app.schemas.gacha import (
+    BuyPullsRequest,
     EffectsRequest,
     ElementRequest,
     GachaResponse,
@@ -81,6 +82,7 @@ __all__ = [
     "BoostStep",
     "BoostSubmit",
     "BoostTarget",
+    "BuyPullsRequest",
     "ChallengerResponse",
     "ChallengerSubmit",
     "CharacterResponse",

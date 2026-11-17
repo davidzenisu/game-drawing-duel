@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 
+import '../rules/daily_loop.dart';
 import '../rules/gacha.dart';
 import '../game_session.dart';
 import '../rules/models.dart';
@@ -77,9 +78,23 @@ class _GachaScreenState extends State<GachaScreen> {
     };
   }
 
+  /// Asks before every pull, saying what it spends: your pulls, and the
+  /// stars that buy the ones you're short of.
   Future<void> _pull(BuildContext context, int count) async {
     final banner = _banner;
-    final outcomes = await runGameQuery(context, () => controller.pull(count, banner: banner));
+    final buy = controller.pullsToBuy(count);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => PullConfirmDialog(
+        count: count,
+        banner: banner,
+        tickets: controller.tickets,
+        stars: controller.stars,
+        buy: buy,
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final outcomes = await runGameQuery(context, () => controller.pull(count, banner: banner, topUp: buy > 0));
     if (outcomes == null || !context.mounted) return;
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
@@ -116,11 +131,7 @@ class _GachaScreenState extends State<GachaScreen> {
           appBar: AppBar(
             title: const Text('Summon'),
             actions: [
-              TicketChip(
-                tickets: controller.tickets,
-                stars: controller.stars,
-                onBuyPull: () => runGameAction(context, controller.buyPullWithStars),
-              ),
+              TicketChip(tickets: controller.tickets, stars: controller.stars),
               const SizedBox(width: 12),
             ],
           ),
@@ -260,7 +271,7 @@ class _GachaScreenState extends State<GachaScreen> {
                           children: [
                             Expanded(
                               child: FilledButton.tonalIcon(
-                                onPressed: canPull && controller.tickets >= 1 ? () => _pull(context, 1) : null,
+                                onPressed: canPull && controller.canAffordPull(1) ? () => _pull(context, 1) : null,
                                 icon: const Icon(Icons.auto_awesome_outlined),
                                 label: const Text('Pull ×1'),
                               ),
@@ -268,7 +279,7 @@ class _GachaScreenState extends State<GachaScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: FilledButton.icon(
-                                onPressed: canPull && controller.tickets >= 10 ? () => _pull(context, 10) : null,
+                                onPressed: canPull && controller.canAffordPull(10) ? () => _pull(context, 10) : null,
                                 icon: const Icon(Icons.auto_awesome_rounded),
                                 label: const Text('Pull ×10'),
                               ),
@@ -340,6 +351,53 @@ class _RateUpBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Asks before a pull of [count] on [banner], saying what it spends: your
+/// pulls, and, when you're short of them, the stars that buy the [buy]
+/// others ([StarRewards.pullPrice] stars a pull).
+class PullConfirmDialog extends StatelessWidget {
+  const PullConfirmDialog({
+    super.key,
+    required this.count,
+    required this.banner,
+    required this.tickets,
+    required this.stars,
+    required this.buy,
+  });
+
+  final int count;
+  final GachaBanner banner;
+  final int tickets;
+  final int stars;
+  final int buy;
+
+  static String _pulls(int n) => '$n ${n == 1 ? 'pull' : 'pulls'}';
+
+  /// What the pull spends, in words.
+  String get spending {
+    if (buy == 0) return 'Uses ${_pulls(count)} of your $tickets.';
+    final price = buy * StarRewards.pullPrice;
+    final buys = '$price of your $stars stars buy';
+    final rate = '(${StarRewards.pullPrice} stars a pull)';
+    if (tickets == 0) return "You're out of pulls: $buys ${count == 1 ? 'this one' : 'all $count'} $rate.";
+    return 'Uses your ${_pulls(tickets)}, and $buys the other $buy $rate.';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Pull ×$count on the ${banner.label.toLowerCase()} banner?'),
+      content: Text(spending),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(buy > 0 ? 'Pull · ${buy * StarRewards.pullPrice} ★' : 'Pull'),
+        ),
+      ],
     );
   }
 }

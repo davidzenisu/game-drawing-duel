@@ -654,9 +654,9 @@ class FakeBackend {
         return _json(200, _giftsFor(code, yours));
       }
       if (request.method == 'POST' && path.length == 4 && path[2] == 'stars' && path[3] == 'pull') {
-        if (_tickets(code, myId) > 0) return _json(409, {'detail': 'Use your pulls first'});
-        if (_stars(code, myId) < 10) return _json(409, {'detail': 'A pull costs 10 stars'});
-        starPulls.update((code, myId), (n) => n + 1, ifAbsent: () => 1);
+        final count = body?['count'] as int? ?? 1;
+        if (_stars(code, myId) < 10 * count) return _json(409, {'detail': 'Not enough stars'});
+        starPulls.update((code, myId), (n) => n + count, ifAbsent: () => count);
         return _json(200, _gacha(code, myId));
       }
       if (request.method == 'POST' && path.length == 5 && path[2] == 'challengers' && path[4] == 'stars') {
@@ -691,6 +691,11 @@ class FakeBackend {
         final count = body!['count'] as int;
         final banner = body['banner'] as String? ?? 'standard';
         bannersPulled.add(banner);
+        final short = count - _tickets(code, myId);
+        if (body['top_up'] == true && short > 0) {
+          if (_stars(code, myId) < 10 * short) return _json(409, {'detail': 'Not enough stars'});
+          starPulls.update((code, myId), (n) => n + short, ifAbsent: () => short);
+        }
         if (count > _tickets(code, myId)) return _json(409, {'detail': 'Not enough pulls'});
         if (banner == 'weekly' && _rateUp(code).isEmpty) {
           return _json(409, {'detail': 'The weekly banner opens with the first finale'});

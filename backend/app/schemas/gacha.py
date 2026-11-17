@@ -31,6 +31,12 @@ class PullRequest(BaseModel):
     count: int = Field(ge=1, le=10)
     # The weekly banner opens with the first finale.
     banner: Banner = Banner.STANDARD
+    # Buy the pulls you're short of with stars first.
+    top_up: bool = False
+
+
+class BuyPullsRequest(BaseModel):
+    count: int = Field(default=1, ge=1, le=10)
 
 
 class PullOutcomeResponse(BaseModel):

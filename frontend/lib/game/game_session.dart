@@ -274,12 +274,12 @@ abstract class GameSession extends ChangeNotifier {
   /// a fight you picked the fighters for and won.
   int get stars;
 
-  /// Whether stars can buy a pull now: once your pulls are used up, for
-  /// [StarRewards.pullPrice] stars.
-  bool get canBuyPullWithStars => tickets == 0 && stars >= StarRewards.pullPrice;
+  /// The pulls a pull of [count] buys with stars: the ones you're short of.
+  int pullsToBuy(int count) => count > tickets ? count - tickets : 0;
 
-  /// Spends [StarRewards.pullPrice] stars on a pull, see [canBuyPullWithStars].
-  Future<void> buyPullWithStars();
+  /// Whether you have the pulls for a pull of [count], or the stars to top
+  /// them up ([StarRewards.pullPrice] stars a pull).
+  bool canAffordPull(int count) => stars >= pullsToBuy(count) * StarRewards.pullPrice;
 
   GachaStatus get gachaStatus;
 
@@ -637,8 +637,9 @@ abstract class GameSession extends ChangeNotifier {
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
   /// Spends [count] pulls on [banner]; the weekly one opens with the first
-  /// finale, see [rateUp].
-  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard});
+  /// finale, see [rateUp]. With [topUp], stars buy the pulls you're short of
+  /// first ([pullsToBuy]), in the same step.
+  Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard, bool topUp = false});
 
   Future<void> unlockNextUpgrade(OwnedCard owned, {ElementKind? element});
 

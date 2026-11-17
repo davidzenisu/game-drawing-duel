@@ -7,7 +7,8 @@ import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
 
 /// Shows the number of available gacha pulls and pops when it changes. A
-/// tap opens a menu under it with your [stars], the currency.
+/// tap opens a menu under it with your [stars], the currency, and how they
+/// top up a pull you're short of pulls for.
 ///
 /// New pulls and stars are celebrated: a big ticket (or star) with what was
 /// received rises in the middle of a darkened screen, then flies into the
@@ -17,18 +18,12 @@ import '../rules/daily_loop.dart';
 /// back and the page on top is gone. Landed, the count goes up one pull at a
 /// time. Spending them is not celebrated.
 class TicketChip extends StatefulWidget {
-  const TicketChip({super.key, required this.tickets, this.stars = 0, this.onBuyPull});
+  const TicketChip({super.key, required this.tickets, this.stars = 0});
 
   final int tickets;
 
   /// Your stars, shown in the menu under the chip.
   final int stars;
-
-  /// Buys a pull with stars, from the menu; without it, or while you have
-  /// pulls or too few stars, the menu only says how it works.
-  final VoidCallback? onBuyPull;
-
-  bool get _canBuyPull => onBuyPull != null && tickets == 0 && stars >= StarRewards.pullPrice;
 
   @override
   State<TicketChip> createState() => _TicketChipState();
@@ -202,20 +197,19 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<bool>(
+    return PopupMenuButton<void>(
       tooltip: 'Pulls and stars',
       position: PopupMenuPosition.under,
-      onSelected: (buy) {
-        if (buy) widget.onBuyPull?.call();
-      },
-      itemBuilder: (_) => [
-        // A tap on it just closes the menu.
-        PopupMenuItem<bool>(value: false, child: _StarsInfo(stars: widget.stars)),
+      // A tap on an item just closes the menu.
+      itemBuilder: (context) => [
+        PopupMenuItem<void>(child: _StarsInfo(stars: widget.stars)),
         const PopupMenuDivider(),
-        PopupMenuItem<bool>(
-          value: true,
-          enabled: widget._canBuyPull,
-          child: _BuyPull(note: widget.tickets > 0 ? 'Once your pulls are used up' : null),
+        PopupMenuItem<void>(
+          child: Text(
+            'Short of pulls when you summon? Stars top them up, '
+            '${StarRewards.pullPrice} stars a pull.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
       ],
       child: _chip(),
@@ -259,40 +253,6 @@ class _StarsInfo extends StatelessWidget {
             color: theme.colorScheme.onSurface,
           ),
         ),
-      ],
-    );
-  }
-}
-
-/// Buying a pull with stars, in the menu under the pulls chip: in the
-/// pulls' font, like the stars.
-class _BuyPull extends StatelessWidget {
-  const _BuyPull({this.note});
-
-  /// Why it can't be bought yet.
-  final String? note;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.confirmation_number_rounded, size: 18),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                'Buy a pull · ${StarRewards.pullPrice} stars',
-                style: theme.chipTheme.labelStyle ?? theme.textTheme.labelLarge,
-              ),
-            ),
-          ],
-        ),
-        if (note case final note?) Text(note, style: theme.textTheme.bodySmall),
       ],
     );
   }

@@ -141,6 +141,11 @@ void main() {
     await tester.pump();
     await tester.tap(pull);
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Pull ×1 on the standard banner?'), findsOneWidget, reason: 'asks first');
+    expect(find.textContaining('Uses 1 pull of your'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Pull'));
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(controller.collection.every((o) => o.card.day == 0), isTrue, reason: 'only setup drawings on standard');
     expect(controller.gachaStatus.totalPulls, 1);
