@@ -155,6 +155,21 @@ void main() {
     expect(closed.value, isTrue);
   });
 
+  testWidgets('cutting 90% of the tape is enough', (tester) async {
+    await _open(tester, [_outcome('Sam', Rarity.basic)]);
+    final gesture = await tester.startGesture(const Offset(20, 420));
+    final cuts = <double>[];
+    while (_theBox(tester).cut < 1) {
+      await gesture.moveBy(const Offset(4, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+      cuts.add(_theBox(tester).cut);
+    }
+    await gesture.up();
+    expect(cuts.where((cut) => cut > 0.9 && cut < 1), isEmpty, reason: 'from 90% on, it cuts through');
+    expect(cuts.where((cut) => cut > 0.8 && cut < 0.9), isNotEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test('a box opens with a longer, heavier buzz the rarer its best pull', () {
     final buzzes = [for (final rarity in Rarity.values) openingBuzzFor(rarity)];
     expect(buzzes, orderedEquals([...buzzes]..sort()));

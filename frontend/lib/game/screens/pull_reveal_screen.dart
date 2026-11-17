@@ -27,7 +27,7 @@ const _pullOutTime = Duration(milliseconds: 1300);
 /// How long the phone buzzes as a box opens: the rarer the best pull
 /// inside, the longer and so the heavier.
 @visibleForTesting
-Duration openingBuzzFor(Rarity rarity) => Duration(milliseconds: const [80, 150, 240, 400][rarity.index]);
+Duration openingBuzzFor(Rarity rarity) => Duration(milliseconds: const [150, 300, 500, 800][rarity.index]);
 
 /// The light peeking out of a cut [cut] that far: white, turning to the
 /// [rarest] pull's colour only towards the end.
@@ -85,11 +85,16 @@ class _TapeCut {
 
   bool get done => progress >= 1;
 
+  /// How far a cut goes before it's through: the last bit cuts itself, so
+  /// a swipe that falls a little short still opens the box.
+  static const through = 0.9;
+
   /// Cuts [dx] further along a tape [length] long on screen.
   void drag(double dx, double length) {
     if (done || dx <= 0) return;
     final before = progress;
     progress = min(1, progress + dx / length);
+    if (progress >= through) progress = 1;
     if (before == 0) {
       HapticFeedback.heavyImpact();
     } else if ((progress * 8).floor() > (before * 8).floor()) {
