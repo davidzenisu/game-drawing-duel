@@ -44,6 +44,24 @@ Every change, bugfix or feature, is tracked by a GitHub issue.
   one kind (`bug` or `enhancement`) and the parts it touches (`frontend`,
   `backend`, `database`, `storage`, `infra`, `ci-cd`, `testing`,
   `performance`, `security`, `privacy`, `observability`, `tech-debt`).
-- Pull requests reference their issue: "Closes #N" when they finish it,
-  "Part of #N" when more is left. A request that belongs to an existing
-  issue goes into that issue instead of a new one.
+- A request that belongs to an existing issue goes into that issue instead
+  of a new one.
+
+### Issue flow
+
+Issues move through the status of the project board: Ready, In Progress,
+then closed.
+
+1. **Check the issue.** Read it, ask the user its open questions, and write
+   the answers into the issue. Once none is left, set its status to
+   **Ready**. If the user says to start on it right away, go straight to
+   step 2.
+2. **Start once the user says so.** Set its status to **In Progress**, then
+   work on it on its own branch.
+3. **Open a pull request when done, always**, without being asked. It
+   references its issue with "Part of #N", never a keyword that closes the
+   issue on merge ("Closes", "Fixes", "Resolves").
+4. **Watch the CI** of the pull request until it's green, fixing what
+   fails, then send the user the link to its Azure Static Web Apps preview
+   environment (the deployment comment on the pull request).
+5. **Close the issue only when the user says so** in the chat.
