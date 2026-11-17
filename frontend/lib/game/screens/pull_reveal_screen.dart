@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../platform/buzz.dart';
 import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/gacha.dart';
@@ -22,6 +23,16 @@ Duration _boxBuildUpFor(Rarity rarity) => Duration(milliseconds: 500 + 350 * rar
 /// How long a pull takes to come out of its box, from the flaps opening
 /// to the box sinking away.
 const _pullOutTime = Duration(milliseconds: 1300);
+
+/// How long the phone buzzes as a box opens: the rarer the best pull
+/// inside, the longer and so the heavier.
+@visibleForTesting
+Duration openingBuzzFor(Rarity rarity) => Duration(milliseconds: const [80, 150, 240, 400][rarity.index]);
+
+/// The light peeking out of a cut [cut] that far: white, turning to the
+/// [rarest] pull's colour only towards the end.
+Color _peek(double cut, Color rarest) =>
+    Color.lerp(Colors.white, rarest, Curves.easeIn.transform(const Interval(0.75, 1).transform(cut)))!;
 
 /// What to do while the tape is still whole.
 const _cutHint = 'Swipe along the tape to cut it open';
@@ -86,7 +97,6 @@ class _TapeCut {
     }
     if (done) {
       cutting = false;
-      HapticFeedback.mediumImpact();
       onCut();
     }
   }
@@ -96,14 +106,18 @@ class _TapeCut {
 }
 
 /// The scissors on the tape: sliding along it to show what to do until the
-/// cut starts, then at the cut.
+/// cut starts, then at the cut, fading out as it gets going.
 Widget _scissors(BoxCamera camera, _TapeCut cut, double hint) {
   final at = cut.progress > 0 ? cut.progress : Curves.easeInOut.transform(hint);
   return IgnorePointer(
     child: Transform.translate(
       offset: GachaBox.cutAt(camera, at) + const Offset(0, -18),
       child: Opacity(
-        opacity: cut.progress > 0 || cut.cutting ? 1 : 0.85 * sin(hint * pi),
+        opacity: cut.progress > 0
+            ? 1 - const Interval(0, 0.25).transform(cut.progress)
+            : cut.cutting
+            ? 1
+            : 0.85 * sin(hint * pi),
         child: Icon(
           Icons.content_cut_rounded,
           size: 34,
@@ -297,6 +311,8 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     _charge.addStatusListener((status) {
       if (status != AnimationStatus.completed) return;
       if (_boxed && _pull.isDismissed) {
+        // It opens with a heavy buzz, heavier the rarer the card.
+        if (!_skipped) buzz(openingBuzzFor(_rarity));
         _pull.forward();
       } else if (!_boxed && _flip.isDismissed) {
         _flip.forward();
@@ -330,7 +346,11 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) _showAll();
   }
 
+  /// Whether everything was shown at once, so without the opening buzz.
+  bool _skipped = false;
+
   void _showAll() {
+    _skipped = true;
     _cut.skip();
     _sway.stop();
     _charge.value = 1;
@@ -373,9 +393,14 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
         builder: (context, _) {
           final charge = _charge.value;
           final burst = _burst.value;
-          // Out of a box, the rarity's own light peeks out; on its own, the
-          // card climbs through the rarities' colours up to it.
-          final color = _boxed || _flip.value >= 0.5 ? rarity.color : _climb(charge, rarity);
+          // Out of a box, white light peeks out of the cut, turning to the
+          // rarity's own towards its end; on its own, the card climbs
+          // through the rarities' colours up to it.
+          final color = _boxed
+              ? _peek(_cut.progress, rarity.color)
+              : _flip.value >= 0.5
+              ? rarity.color
+              : _climb(charge, rarity);
           final rise = const Interval(0.2, 0.8).transform(_pull.value);
           // Legends burst out of a white flash.
           final flash = rarity == Rarity.legend && burst > 0
@@ -679,6 +704,8 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   void _startCarousel() {
     if (!mounted || _stage != _Stage.cut) return;
     setState(() => _stage = _Stage.carousel);
+    // It opens with a heavy buzz, heavier the rarer the best card.
+    buzz(openingBuzzFor(_rarest));
     _carousel.forward();
   }
 
@@ -836,7 +863,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
               cut: _cut.progress,
               open: open,
               leak: _cut.done ? 1 - glow * 0.5 : _cut.progress,
-              glow: _rarest.color,
+              glow: _peek(_cut.progress, _rarest.color),
             ),
           ),
         );

@@ -338,44 +338,66 @@ class _BoxPainter extends CustomPainter {
       );
     }
     final z = camera.zoom;
-    // A dark gap in the tape, the light inside welling up out of it: the
-    // further the cut, the brighter.
-    final bright = 0.45 + 0.55 * leak;
-    if (cut < 1) {
+    // Light shining out of the cut: a wide soft bloom on the tape round
+    // it, a brighter haze, and a thin white-hot line, brighter the further
+    // the cut; no hard edges.
+    final bright = 0.5 + 0.5 * leak;
+    for (final (width, blur, alpha, color) in [
+      (34.0, 18.0, 0.35, glow),
+      (16.0, 8.0, 0.6, glow),
+      (6.0, 3.0, 0.9, Color.lerp(glow, Colors.white, 0.6)!),
+    ]) {
       canvas.drawPath(
         seam,
         Paint()
-          ..color = _insideDark
+          ..blendMode = BlendMode.screen
+          ..color = color.withValues(alpha: alpha * bright)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 5 * z
-          ..strokeCap = StrokeCap.round,
+          ..strokeWidth = width * (0.6 + 0.4 * leak) * z
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur * z),
       );
     }
     canvas.drawPath(
       seam,
       Paint()
-        ..color = glow.withValues(alpha: bright)
+        ..color = Colors.white.withValues(alpha: bright)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = (6 + 14 * leak) * z
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, (5 + 10 * leak) * z),
-    );
-    canvas.drawPath(
-      seam,
-      Paint()
-        ..color = glow
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3 * z
+        ..strokeWidth = 1.4 * z
         ..strokeCap = StrokeCap.round,
     );
-    canvas.drawPath(
-      seam,
+    // Where the blade is, the light flares.
+    if (cut > 0 && cut < 1) _flare(canvas, to, 30 * z * bright);
+  }
+
+  /// A star of light at [at], [size] across its glow, with long thin rays.
+  void _flare(Canvas canvas, Offset at, double size) {
+    canvas.drawCircle(
+      at,
+      size,
       Paint()
-        ..color = Color.lerp(glow, Colors.white, 0.7)!.withValues(alpha: bright)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 * z
-        ..strokeCap = StrokeCap.round,
+        ..blendMode = BlendMode.screen
+        ..shader = RadialGradient(
+          colors: [Colors.white, glow.withValues(alpha: 0.6), glow.withValues(alpha: 0)],
+          stops: const [0, 0.35, 1],
+        ).createShader(Rect.fromCircle(center: at, radius: size)),
     );
+    final ray = Paint()
+      ..blendMode = BlendMode.screen
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, size * 0.06);
+    for (final (angle, length) in [(0.0, 2.2), (pi / 2, 1.3), (pi / 4, 0.8), (-pi / 4, 0.8)]) {
+      final reach = Offset(cos(angle), sin(angle)) * size * length;
+      ray
+        ..strokeWidth = size * 0.09
+        ..shader = ui.Gradient.linear(
+          at - reach,
+          at + reach,
+          [glow.withValues(alpha: 0), Colors.white.withValues(alpha: 0.9), glow.withValues(alpha: 0)],
+          const [0, 0.5, 1],
+        );
+      canvas.drawLine(at - reach, at + reach, ray);
+    }
   }
 
   /// Light pouring up out of the open box.

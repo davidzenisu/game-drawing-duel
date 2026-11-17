@@ -116,27 +116,29 @@ void main() {
     expect(_theBox(tester).cut, 0);
     expect(find.byType(CardBack), findsNothing);
 
-    // Half way, the legend's colour peeks out of the cut, the phone buzzing.
+    // Half way, white light shines out of the cut, the phone buzzing.
     await _swipe(tester, by: 160);
     final box = _theBox(tester);
-    expect(box.cut, inInclusiveRange(0.3, 0.9));
-    expect((box.open, box.glow), (0, Rarity.legend.color));
+    expect(box.cut, inInclusiveRange(0.3, 0.7));
+    expect((box.open, box.glow), (0, Colors.white), reason: "the legend's colour only comes at the end");
     expect(box.leak, box.cut, reason: 'the further the cut, the brighter');
     expect(buzzes.first, 'HapticFeedback.vibrate HapticFeedbackType.heavyImpact');
     expect(buzzes.where((b) => b == 'HapticFeedback.vibrate'), isNotEmpty, reason: 'buzzing as it cuts');
 
-    // Through: it shakes, shut, leaking light through its seams.
+    // Through: the legend's colour shines out; it shakes, shut, leaking
+    // light through its seams.
     await _swipe(tester);
-    expect(_theBox(tester).cut, 1);
-    expect(buzzes.last, 'HapticFeedback.vibrate HapticFeedbackType.mediumImpact');
+    expect((_theBox(tester).cut, _theBox(tester).glow), (1, Rarity.legend.color));
     expect(find.text('Tap to skip'), findsOneWidget);
     await _wait(tester, const Duration(milliseconds: 1000));
     expect((_theBox(tester).open, _theBox(tester).leak), (0, 1));
     expect(find.byType(CardBack), findsNothing, reason: 'the card is still in the box');
+    final cutBuzzes = buzzes.length;
 
-    // Then it opens and the card comes out.
+    // Then it opens with one heavy buzz, and the card comes out.
     await _wait(tester, const Duration(milliseconds: 1200));
     expect(_theBox(tester).open, greaterThan(0));
+    expect(buzzes.skip(cutBuzzes), ['HapticFeedback.vibrate HapticFeedbackType.heavyImpact']);
     expect(find.byType(CardBack), findsOneWidget);
     expect(find.text('Sam'), findsNothing);
     await _wait(tester, const Duration(seconds: 3));
@@ -153,6 +155,12 @@ void main() {
     expect(closed.value, isTrue);
   });
 
+  test('a box opens with a longer, heavier buzz the rarer its best pull', () {
+    final buzzes = [for (final rarity in Rarity.values) openingBuzzFor(rarity)];
+    expect(buzzes, orderedEquals([...buzzes]..sort()));
+    expect(buzzes.toSet(), hasLength(Rarity.values.length));
+  });
+
   testWidgets("the weekly rate-up's box is taped in gold", (tester) async {
     await _open(tester, [_outcome('Sam', Rarity.hero)], banner: GachaBanner.weekly);
     final box = _theBox(tester);
@@ -166,11 +174,13 @@ void main() {
 
   testWidgets('skip shows a single pull straight away, and so does a tap once the tape is cut', (tester) async {
     await _open(tester, [_outcome('Kim', Rarity.basic, isNew: false)]);
+    final buzzes = _buzzes(tester);
     await tester.tap(find.text('Skip'));
     await tester.pump();
     expect(find.text('Kim'), findsOneWidget);
     expect(find.text('Duplicate · +1 upgrade point (×2)'), findsOneWidget);
     expect(find.text('Skip'), findsNothing);
+    expect(buzzes, isEmpty, reason: 'no buzz when skipped');
     await tester.pumpWidget(const SizedBox());
 
     await _open(tester, [_outcome('Kim', Rarity.basic, isNew: false)]);
@@ -195,9 +205,10 @@ void main() {
     // peeking out.
     expect(find.text('Swipe along the tape to cut it open'), findsOneWidget);
     await _swipe(tester, by: 160);
-    expect(_theBox(tester).glow, Rarity.legend.color);
+    expect(_theBox(tester).glow, Colors.white);
     expect(find.byType(CardBack), findsNothing);
     await _swipe(tester);
+    expect(_theBox(tester).glow, Rarity.legend.color);
     expect(find.text('Tap to hurry'), findsOneWidget);
 
     // The cards come out of the box, then the carousel only glows; no
