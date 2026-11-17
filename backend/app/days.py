@@ -120,16 +120,66 @@ def active_seats(server: Server) -> list[ServerSeat]:
     )
 
 
-def drawer_of(server: Server, author: ServerSeat) -> ServerSeat:
-    """Who draws the prompt `author` writes: the next player."""
-    seats = active_seats(server)
-    return seats[(seats.index(author) + 1) % len(seats)]
+def shuffled(server: Server, prompt_day: int) -> bool:
+    """Whether the challengers of the prompts written on `prompt_day` are
+    handed round at random: who draws each prompt, then who boosts and who
+    fights the challenger. Servers that were running when that came in keep
+    the roster order for what had started (`Server.shuffled_from_day`);
+    sessions launched since shuffle from day 1."""
+    return server.shuffled_from_day is not None and prompt_day >= server.shuffled_from_day
 
 
-def author_for(server: Server, drawer: ServerSeat) -> ServerSeat:
-    """Whose prompt `drawer` draws: the previous player's."""
+def _drawers(session: Session, server: Server, prompt_day: int) -> dict[uuid.UUID, ServerSeat]:
+    """Who draws the prompt each player wrote, or the premade one standing in,
+    on `prompt_day`, by the author's seat: a fresh random hand-out per day
+    (`shuffled`), never their own prompt and, where possible, never one of
+    themselves. Before, the next player in the roster drew it. The same
+    every time it's asked, once the day's prompts are in."""
     seats = active_seats(server)
-    return seats[(seats.index(drawer) - 1) % len(seats)]
+    if len(seats) < 2:
+        return {}
+    if not shuffled(server, prompt_day):
+        return {a.id: seats[(i + 1) % len(seats)] for i, a in enumerate(seats)}
+    written = {
+        p.author_seat_id: p.subject_seat_id
+        for p in session.scalars(
+            select(ChallengerPrompt).where(
+                ChallengerPrompt.day == prompt_day,
+                ChallengerPrompt.author_seat_id.in_([s.id for s in seats]),
+            )
+        )
+    }
+    subjects = {
+        a.id: written.get(a.id) or premade_subject(server, prompt_day, a).id
+        for a in seats
+    }
+    rng = random.Random(f"{server.id}:{prompt_day}:drawers")
+    best: list[ServerSeat] | None = None
+    best_clashes = len(seats) + 1
+    # Random orders until one gives nobody their own prompt or a prompt of
+    # themselves; with everyone's prompt of the same player there's none,
+    # so the fewest drawers of themselves.
+    for _ in range(500):
+        order = seats[:]
+        rng.shuffle(order)
+        if any(d.id == a.id for a, d in zip(seats, order, strict=True)):
+            continue
+        clashes = sum(d.id == subjects[a.id] for a, d in zip(seats, order, strict=True))
+        if clashes < best_clashes:
+            best, best_clashes = order, clashes
+            if clashes == 0:
+                break
+    if best is None:  # No derangement found: practically impossible.
+        best = seats[1:] + seats[:1]
+    return {a.id: d for a, d in zip(seats, best, strict=True)}
+
+
+def author_for(session: Session, server: Server, prompt_day: int, drawer: ServerSeat) -> ServerSeat | None:
+    """Whose prompt of `prompt_day` `drawer` draws, see `_drawers`."""
+    for author_id, d in _drawers(session, server, prompt_day).items():
+        if d.id == drawer.id:
+            return next(s for s in server.seats if s.id == author_id)
+    return None
 
 
 def _rng(server: Server, day: int, seat: ServerSeat, purpose: str) -> random.Random:
@@ -244,12 +294,15 @@ class PromptToDraw:
 def prompt_to_draw(
     session: Session, server: Server, day: int, drawer: ServerSeat
 ) -> PromptToDraw | None:
-    """The prompt `drawer` draws on `day`: the one the previous player wrote
-    the day before, or a premade one if they didn't. In speed mode, only
-    the prompts of the days that have them are drawn."""
+    """The prompt `drawer` draws on `day`: the one a player handed to them
+    at random wrote the day before (see `_drawers`), or a premade one if
+    they didn't. In speed mode, only the prompts of the days that have them
+    are drawn."""
     if day <= 1 or not prompts_on(server, day - 1):
         return None
-    author = author_for(server, drawer)
+    author = author_for(session, server, day - 1, drawer)
+    if author is None:
+        return None
     written = session.scalar(
         select(ChallengerPrompt).where(
             ChallengerPrompt.author_seat_id == author.id,

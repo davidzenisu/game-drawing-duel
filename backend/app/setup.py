@@ -72,6 +72,7 @@ def launch(session: Session, server: Server, at: datetime | None = None) -> None
     """Launches the game: day 1 starts, `at` or now, and every player gets
     the launch bonus. The caller commits."""
     server.launched_at = at or func.now()
+    server.shuffled_from_day = 1
     if server.is_test:
         server.test_day = 1
     grant_launch_bonus(session, [s for s in server.seats if s.player_id is not None])

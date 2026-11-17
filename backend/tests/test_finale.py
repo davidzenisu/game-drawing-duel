@@ -158,7 +158,8 @@ class FinaleTests(FightTestCase):
         self.assertFalse(set(self.challengers(5)) & ranked)
 
     def test_the_ranking_tells_who_wrote_boosted_and_fought_each(self) -> None:
-        # Day 4: Alex writes a prompt; Sam, the next player, draws it.
+        # Day 4: Alex writes a prompt of Robin; Sam draws it, as nobody draws
+        # their own prompt or one of themselves.
         written = self.post(
             "today/prompt", ADMIN, {"subject_position": 2, "title": "Sauna Lord"}
         )
@@ -177,11 +178,14 @@ class FinaleTests(FightTestCase):
         self.assertEqual((sams["prompt_author_position"], sams["default_prompt"]), (0, False))
         others = [entries[c] for c in self.challengers(3)]
         self.assertTrue(all(e["default_prompt"] for e in others), "nobody wrote one")
-        self.assertEqual(
-            [e["prompt_author_position"] for e in others],
-            [(e["character"]["artist_position"] - 1) % 3 for e in others],
-            "the player before the artist",
-        )
+        authors = [e["prompt_author_position"] for e in others]
+        self.assertEqual(sorted(authors), [0, 1, 2], "everyone's prompt drawn once")
+        for entry in others:
+            self.assertNotEqual(
+                entry["prompt_author_position"],
+                entry["character"]["artist_position"],
+                "nobody draws their own prompt",
+            )
         for entry in entries.values():
             self.assertEqual(
                 sum(b["stars"] for b in entry["boosts"]), entry["stars"] - 3
