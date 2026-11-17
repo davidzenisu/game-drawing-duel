@@ -31,3 +31,19 @@ same file and shows it under **What's new** in the account menu.
 - Keep the versions in `frontend/pubspec.yaml`, `backend/pyproject.toml`
   (and `backend/uv.lock`, via `uv lock`) and `backend/app/main.py` equal to
   the latest one; tests check it.
+
+## GitHub issues
+
+Every change, bugfix or feature, is tracked by a GitHub issue.
+
+- Before starting a change that has no issue yet, create one: what's wrong
+  or wanted, how it works today (with the code it touches), a proposal, the
+  open questions and the scope (backend, frontend, docs, release notes).
+  Player reports keep their wording, translated to English if needed.
+- Label every issue with the repository's existing labels, never new ones:
+  one kind (`bug` or `enhancement`) and the parts it touches (`frontend`,
+  `backend`, `database`, `storage`, `infra`, `ci-cd`, `testing`,
+  `performance`, `security`, `privacy`, `observability`, `tech-debt`).
+- Pull requests reference their issue: "Closes #N" when they finish it,
+  "Part of #N" when more is left. A request that belongs to an existing
+  issue goes into that issue instead of a new one.
