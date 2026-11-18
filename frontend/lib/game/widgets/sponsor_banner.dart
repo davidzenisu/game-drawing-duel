@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// The sponsor's banner, big on the sign-in screen.
+/// The sponsor's banner, big on the title screen under the game's title.
 class SponsorBanner extends StatelessWidget {
   const SponsorBanner({super.key});
 

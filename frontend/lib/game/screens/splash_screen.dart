@@ -8,6 +8,7 @@ import '../rules/models.dart';
 import '../rules/themes.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
+import '../widgets/sponsor_banner.dart';
 import '../widgets/themed_background.dart';
 
 /// The title screen the game opens on, while it loads. The title and the
@@ -95,6 +96,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ),
                             const SizedBox(height: 24),
                             _Title(textTheme: textTheme),
+                            const SizedBox(height: 28),
+                            const ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: 420),
+                              child: SponsorBanner(),
+                            ),
                           ],
                         ),
                       ),
