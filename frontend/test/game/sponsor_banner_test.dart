@@ -19,8 +19,8 @@ void main() {
         .opacity;
 
     await tester.pumpWidget(MaterialApp(home: SplashScreen(ready: true, onStart: () {})));
-    await tester.pump(SplashScreen.intro);
-    await tester.pump();
+    // A frame past the intro: everything else is in.
+    await tester.pump(SplashScreen.intro + const Duration(milliseconds: 16));
     // Everything else is in; the banner waits a moment longer.
     expect(bannerOpacity(), 0);
     await tester.pump(SplashScreen.bannerPause - const Duration(milliseconds: 100));
@@ -48,8 +48,8 @@ void main() {
 
     var started = 0;
     await tester.pumpWidget(MaterialApp(home: SplashScreen(ready: true, onStart: () => started++)));
-    await tester.pump(SplashScreen.intro);
-    await tester.pump();
+    // A frame past the intro: everything else is in.
+    await tester.pump(SplashScreen.intro + const Duration(milliseconds: 16));
     await tester.tap(find.text('Tap to start'));
     expect(started, 1);
     await tester.pumpWidget(const SizedBox());
