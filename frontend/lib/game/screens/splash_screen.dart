@@ -71,10 +71,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         _intro.value = 1;
         _banner.value = 1;
       } else {
-        // The banner comes in once everything else is in.
-        _intro.forward().whenCompleteOrCancel(() {
-          if (mounted) _banner.forward();
+        // The banner comes in once everything else is in, timed from the
+        // very frame the intro ends.
+        _intro.addStatusListener((status) {
+          if (status == AnimationStatus.completed) _banner.forward();
         });
+        _intro.forward();
       }
     }
   }
