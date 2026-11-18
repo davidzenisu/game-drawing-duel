@@ -24,8 +24,12 @@ class SplashScreen extends StatefulWidget {
   /// How long the title and the standees take to come in, the button last.
   static const intro = Duration(milliseconds: 2200);
 
-  /// How long the sponsor's banner takes to come in, after the [intro].
-  static const banner = Duration(milliseconds: 700);
+  /// How long the sponsor's banner takes to come in after the [intro]: it
+  /// waits a moment ([bannerPause]), then slides up from below.
+  static const banner = Duration(milliseconds: 1600);
+
+  /// How long the banner waits once everything else is in.
+  static const bannerPause = Duration(milliseconds: 800);
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -34,6 +38,16 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late final _intro = AnimationController(vsync: this, duration: SplashScreen.intro);
   late final _banner = AnimationController(vsync: this, duration: SplashScreen.banner);
+
+  /// The banner's slide, after its pause.
+  late final _bannerSlide = CurvedAnimation(
+    parent: _banner,
+    curve: Interval(
+      SplashScreen.bannerPause.inMilliseconds / SplashScreen.banner.inMilliseconds,
+      1,
+      curve: Curves.easeOutCubic,
+    ),
+  );
 
   late final _title = CurvedAnimation(
     parent: _intro,
@@ -68,6 +82,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void dispose() {
     _intro.dispose();
+    _bannerSlide.dispose();
     _banner.dispose();
     super.dispose();
   }
@@ -154,15 +169,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Last of all, the sponsor's banner slams in from big. It's
-                      // only decoration: while it's big, taps go through it to the button.
+                      // Last of all, after a pause, the sponsor's banner slides up
+                      // from below. It's only decoration: taps go through it.
                       IgnorePointer(
                         child: AnimatedBuilder(
-                          animation: _banner,
+                          animation: _bannerSlide,
                           builder: (context, child) => Opacity(
-                            opacity: Curves.easeOut.transform((_banner.value * 3).clamp(0.0, 1.0)),
-                            child: Transform.scale(
-                              scale: 1 + 1.5 * (1 - Curves.easeOutBack.transform(_banner.value)),
+                            opacity: (_bannerSlide.value * 2).clamp(0.0, 1.0),
+                            child: Transform.translate(
+                              offset: Offset(0, 160 * (1 - _bannerSlide.value)),
                               child: child,
                             ),
                           ),

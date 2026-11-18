@@ -9,7 +9,7 @@ import 'package:frontend/game/widgets/sponsor_banner.dart';
 import '../helpers.dart';
 
 void main() {
-  testWidgets('the sponsor banner comes in below Tap to start, after everything else', (tester) async {
+  testWidgets('the sponsor banner slides in below Tap to start, a while after everything else', (tester) async {
     tester.view.physicalSize = const Size(360, 740);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -21,10 +21,17 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: SplashScreen(ready: true, onStart: () {})));
     await tester.pump(SplashScreen.intro);
     await tester.pump();
-    // Everything else is in; the banner not yet.
+    // Everything else is in; the banner waits a moment longer.
     expect(bannerOpacity(), 0);
+    await tester.pump(SplashScreen.bannerPause - const Duration(milliseconds: 100));
+    expect(bannerOpacity(), 0);
+    // Then it slides up from below.
+    await tester.pump(const Duration(milliseconds: 300));
+    final sliding = tester.getRect(find.byType(SponsorBanner)).top;
+    expect(bannerOpacity(), greaterThan(0));
     await tester.pump(SplashScreen.banner);
     expect(bannerOpacity(), 1);
+    expect(tester.getRect(find.byType(SponsorBanner)).top, lessThan(sliding));
     expect(find.text("SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION"), findsOneWidget);
     expect(
       tester.getRect(find.byType(SponsorBanner)).top,
