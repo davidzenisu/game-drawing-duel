@@ -12,8 +12,7 @@ the game is in early development (0.x), versions stay below 1.0.
 ## [0.19.0] - 2026-11-17
 
 ### Added
-- **Player stats**, in the Heroes menu and the week ranking: every player
-  ranked in three categories, for this week so far or last week:
+- The week ranking ranks the **players** too, in three categories:
   - **Most fights won**: fights won with the fighters you picked.
   - **Most boosted**: the boost stars your challengers got. It stays secret
     until the week is over, so it doesn't give away how strong a drawing is.
@@ -21,7 +20,15 @@ the game is in early development (0.x), versions stay below 1.0.
     step you could: your title, drawing, boosts and fight.
 - When a new week begins, the first place of each category wins a
   **trophy** worth 3 stars, as a gift on the notification board. Tied
-  first places each win one. The player stats show everyone's trophies.
+  first places each win one. The ranking shows everyone's trophies.
+
+### Changed
+- The week ranking opens from the first day, with two views, Players and
+  Challengers, each for this week or last week. It opens on the players
+  of this week. This week's challengers only show who they portray; last
+  week's are ranked by their stars as before.
+- This week's ranking is kept on the device for the day, last week's until
+  the next week is over; the refresh button asks again.
 
 ## [0.18.0] - 2026-11-17
 

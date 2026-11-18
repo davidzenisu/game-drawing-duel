@@ -546,6 +546,7 @@ class PlayerStats {
     required this.toDay,
     required this.trophyStars,
     required this.stats,
+    this.portrayed = const [],
   });
 
   final StatPeriod period;
@@ -553,6 +554,11 @@ class PlayerStats {
   final int toDay;
   final int trophyStars;
   final List<PlayerStat> stats;
+
+  /// Every player of the roster, with how many of the challengers the week
+  /// ranks (fought that week) portray them, drawn so far; without their
+  /// stars.
+  final List<(Player, int)> portrayed;
 }
 
 /// How [player]'s characters did against [against]'s last week, and the

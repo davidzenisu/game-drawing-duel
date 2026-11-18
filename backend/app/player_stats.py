@@ -202,6 +202,25 @@ def values(
     return stats
 
 
+def portrayed(session: Session, server: Server, week_end: int) -> dict[uuid.UUID, int]:
+    """How many of the challengers the week ending on `week_end` ranks
+    (fought that week, as `app.finale.ranking`) portray each seat, of the
+    ones drawn so far."""
+    first = days.week_start(server, week_end)
+    return dict(
+        session.execute(
+            select(Character.subject_seat_id, func.count())
+            .where(
+                Character.server_id == server.id,
+                Character.assignment_id.is_(None),
+                Character.day >= first - _FIGHT_AFTER_DRAWING,
+                Character.day <= week_end - _FIGHT_AFTER_DRAWING,
+            )
+            .group_by(Character.subject_seat_id)
+        ).all()
+    )
+
+
 def ranking(server: Server, by_seat: dict[uuid.UUID, int]) -> list[Placed]:
     """The players who joined, best first (then in roster order), with their
     place: tied players share one."""

@@ -22,6 +22,13 @@ class PlayerStat(BaseModel):
     players: list[PlacedPlayer]
 
 
+class PortrayedPlayer(BaseModel):
+    """How many of the week's challengers portray a player."""
+
+    player_position: int
+    challengers: int
+
+
 class PlayerStatsResponse(BaseModel):
     """How the players did from `from_day` to `to_day`, a stat at a time."""
 
@@ -32,3 +39,7 @@ class PlayerStatsResponse(BaseModel):
     # The stars of each trophy, won by the first places once the week is over.
     trophy_stars: int
     stats: list[PlayerStat]
+    # Every player of the roster, with the challengers portraying them of the
+    # ones the week ranks (fought that week), drawn so far; their stars stay
+    # out.
+    portrayed: list[PortrayedPlayer]

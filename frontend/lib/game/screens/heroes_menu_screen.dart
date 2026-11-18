@@ -11,14 +11,13 @@ import 'challengers_screen.dart';
 import 'collection_screen.dart';
 import 'fight_history_screen.dart';
 import 'gacha_screen.dart';
-import 'player_stats_screen.dart';
 import 'ranking_screen.dart';
 import 'rewards_screen.dart';
 import 'win_rates_screen.dart';
 
 /// Everything around your heroes, off the daily hub: summoning, your
 /// heroes, the challengers, rewards, win rates, replays of past fights, the
-/// week ranking, the player stats and hurries. What doesn't apply right now is greyed out.
+/// week ranking and hurries. What doesn't apply right now is greyed out.
 class HeroesMenuScreen extends StatelessWidget {
   const HeroesMenuScreen({super.key, required this.controller});
 
@@ -102,17 +101,8 @@ class HeroesMenuScreen extends StatelessWidget {
                             icon: Icons.emoji_events_rounded,
                             title: 'Week ranking',
                             unavailable: Unavailable.weekRanking(c),
-                            // Once a week is over; speed mode has its own finale.
-                            onTap: c.weeklyHero == null || c.server.isSpeed
-                                ? null
-                                : () => open(RankingScreen(controller: c), Tutorial.finale),
-                          ),
-                          HubTile(
-                            icon: Icons.leaderboard_rounded,
-                            title: 'Player stats',
-                            unavailable: Unavailable.playerStats(c),
-                            // Speed mode has none.
-                            onTap: c.server.isSpeed ? null : () => open(PlayerStatsScreen(controller: c)),
+                            // Speed mode has its own finale.
+                            onTap: c.server.isSpeed ? null : () => open(RankingScreen(controller: c), Tutorial.finale),
                           ),
                         ],
                       ),

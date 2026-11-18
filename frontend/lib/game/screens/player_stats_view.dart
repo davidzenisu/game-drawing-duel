@@ -1,135 +1,47 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
-import '../game_session.dart';
 import '../rules/daily_loop.dart';
-import '../widgets/game_action.dart';
 
-/// How every player did, a category at a time: this week so far or last
-/// week. Pick a category to see every player ranked by it, with the
-/// trophies they won in it. Each category's first places win a trophy once
-/// the week is over.
-class PlayerStatsScreen extends StatefulWidget {
-  const PlayerStatsScreen({super.key, required this.controller, this.period = StatPeriod.week});
+/// How every player did, a category at a time: chips pick the category,
+/// whose players are ranked below with the trophies they won in it. Each
+/// category's first places win a trophy once the week is over.
+class PlayerStatsView extends StatefulWidget {
+  const PlayerStatsView({super.key, required this.stats});
 
-  final GameSession controller;
-
-  /// The period shown first.
-  final StatPeriod period;
+  final PlayerStats stats;
 
   @override
-  State<PlayerStatsScreen> createState() => _PlayerStatsScreenState();
+  State<PlayerStatsView> createState() => _PlayerStatsViewState();
 }
 
-class _PlayerStatsScreenState extends State<PlayerStatsScreen> {
-  late StatPeriod _period = widget.period;
+class _PlayerStatsViewState extends State<PlayerStatsView> {
   PlayerStatKind _kind = PlayerStatKind.mostWins;
-  final Map<StatPeriod, PlayerStats?> _stats = {};
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    // After the first frame, so errors can show in the scaffold.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  /// The [_period]'s stats: last week's as kept on the device, unless
-  /// [refresh].
-  Future<void> _load({bool refresh = false}) async {
-    final period = _period;
-    setState(() => _loading = true);
-    final stats = await runGameQuery(context, () => widget.controller.playerStats(period, refresh: refresh));
-    if (!mounted) return;
-    setState(() {
-      if (stats != null || !refresh) _stats[period] = stats;
-      _loading = false;
-    });
-  }
-
-  void _pick(StatPeriod period) {
-    setState(() => _period = period);
-    if (!_stats.containsKey(period)) _load();
-  }
 
   @override
   Widget build(BuildContext context) {
-    final stats = _stats[_period];
-    final loaded = _stats.containsKey(_period);
-    final text = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Player stats'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loading ? null : () => _load(refresh: true),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 640),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SegmentedButton<StatPeriod>(
-                    segments: [
-                      for (final period in StatPeriod.values) ButtonSegment(value: period, label: Text(period.label)),
-                    ],
-                    selected: {_period},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (picked) => _pick(picked.single),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final kind in PlayerStatKind.values)
-                        ChoiceChip(
-                          label: Text(kind.label),
-                          selected: kind == _kind,
-                          onSelected: (_) => setState(() => _kind = kind),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (!loaded || (_loading && stats == null))
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                  else if (stats == null)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        _period == StatPeriod.lastWeek
-                            ? 'No finished week yet. Once the first week is over, its stats show here.'
-                            : 'No player stats in this session.',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  else ...[
-                    Text(_span(stats), style: text.bodyMedium),
-                    const SizedBox(height: 12),
-                    if (stats.stats.where((s) => s.kind == _kind).firstOrNull case final stat?)
-                      StatLeaderboard(
-                        stat: stat,
-                        trophyStars: stats.trophyStars,
-                        over: stats.period == StatPeriod.lastWeek,
-                      ),
-                  ],
-                ],
+    final stats = widget.stats;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(_span(stats), style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final kind in PlayerStatKind.values)
+              ChoiceChip(
+                label: Text(kind.label),
+                selected: kind == _kind,
+                onSelected: (_) => setState(() => _kind = kind),
               ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (stats.stats.where((s) => s.kind == _kind).firstOrNull case final stat?)
+          StatLeaderboard(stat: stat, trophyStars: stats.trophyStars, over: stats.period == StatPeriod.lastWeek),
+      ],
     );
   }
 

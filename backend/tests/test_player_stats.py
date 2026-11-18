@@ -203,6 +203,18 @@ class PlayerStatsTests(FinaleTestCase):
             wins = player_stats.values(session, server, 11, 16)["most-wins"]
             self.assertEqual(wins[seat.id], 1)
 
+    def test_who_the_weeks_challengers_portray_without_their_stars(self) -> None:
+        stats = self.stats()
+        portrayed = {p["player_position"]: p["challengers"] for p in stats["portrayed"]}
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            self.assertEqual(
+                sorted(portrayed), sorted(s.position for s in server.seats)
+            )
+        # Days 2 and 3's challengers, fought on days 4 and 5.
+        self.assertEqual(sum(portrayed.values()), 6)
+        self.assertNotIn("stars", stats["portrayed"][0])
+
     def test_no_last_week_before_the_first_is_over(self) -> None:
         self.assertIsNone(self.stats("last-week"))
 

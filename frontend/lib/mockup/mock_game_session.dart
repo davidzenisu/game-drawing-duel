@@ -933,6 +933,10 @@ class MockGameSession extends GameSession {
       StatPeriod.lastWeek => (max(weekStart - 7, 1), weekStart - 1),
     };
     if (period == StatPeriod.lastWeek && to < 7) return null;
+    final portrayed = switch (period) {
+      StatPeriod.week => _ranked(weekStart - 2, min(weekStart + 4, _day)),
+      StatPeriod.lastWeek => _ranked(weekStart - 9, weekStart - 3),
+    };
     final weeksOver = max(0, (weekStart - 1) ~/ 7);
     int roll(int seed, int below) => Random(seed).nextInt(below);
     int value(PlayerStatKind kind, int i) => switch (kind) {
@@ -961,6 +965,10 @@ class MockGameSession extends GameSession {
               for (final (i, player) in server.players.indexed)
                 (player, value(kind, i), roll(i * 7 + kind.index, weeksOver + 1)),
             ]),
+      ],
+      portrayed: [
+        // The challengers fought that week, drawn two days before, so far.
+        for (final player in server.players) (player, portrayed.where((c) => c.card.subject == player.name).length),
       ],
     );
   }

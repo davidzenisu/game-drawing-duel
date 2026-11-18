@@ -1,28 +1,133 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
+import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/screens/player_stats_view.dart';
 import 'package:frontend/game/screens/ranking_detail_screen.dart';
 import 'package:frontend/game/screens/ranking_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 
 import '../helpers.dart';
 
+void _phone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(400, 800);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
-  testWidgets('the week ranking lists every challenger, the hero first, each with its details', (tester) async {
-    tester.view.physicalSize = const Size(400, 800);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  test('tied players share a place, the next one skips theirs', () {
+    final [a, b, c, d] = const [
+      Player(id: 'a', name: 'A'),
+      Player(id: 'b', name: 'B'),
+      Player(id: 'c', name: 'C'),
+      Player(id: 'd', name: 'D'),
+    ];
+    final stat = PlayerStat.rank(PlayerStatKind.mostWins, [(a, 1, 0), (b, 3, 1), (c, 1, 0), (d, 3, 0)]);
+    expect(
+      [for (final p in stat.players) (p.player.name, p.value, p.place, p.first)],
+      [('B', 3, 1, true), ('D', 3, 1, true), ('A', 1, 3, false), ('C', 1, 3, false)],
+    );
+    final none = PlayerStat.rank(PlayerStatKind.busyStreak, [(a, 0, 0), (b, 0, 0)]);
+    expect(none.players.where((p) => p.first), isEmpty, reason: 'a first place of 0 wins nothing');
+  });
+
+  testWidgets("this week: the players ranked, boosts kept secret, and only who the challengers portray", (
+    tester,
+  ) async {
+    _phone(tester);
     final controller = await launchedGame(launchDate: firstMonday);
+    for (var day = 1; day < 4; day++) {
+      await controller.advanceDay();
+    }
 
     await tester.pumpWidget(MaterialApp(home: RankingScreen(controller: controller)));
     await tester.pumpAndSettle();
-    expect(find.textContaining('No ranking yet'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    // The players' view of this week first.
+    expect(find.byType(PlayerStatsView), findsOneWidget);
+    expect(find.textContaining('Days 1 to 4, so far.'), findsOneWidget);
+    expect(find.textContaining('wins a trophy worth 3 ★'), findsOneWidget);
+    final week = (await controller.playerStats(StatPeriod.week))!;
+    final wins = week.stats.firstWhere((s) => s.kind == PlayerStatKind.mostWins);
+    expect(find.text(PlayerStatKind.mostWins.description), findsOneWidget);
+    for (final placed in wins.players) {
+      expect(find.text(placed.player.isYou ? '${placed.player.name} (you)' : placed.player.name), findsOneWidget);
+    }
+    expect(find.text('${wins.players.first.value} wins'), findsWidgets);
 
+    // Boosts are secret this week.
+    await tester.tap(find.text('Most boosted'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Secret until the week is over'), findsOneWidget);
+    expect(find.textContaining(' ★'), findsOneWidget, reason: 'only in the trophy line, no values');
+    await tester.tap(find.text('Busy streak'));
+    await tester.pumpAndSettle();
+    expect(find.text(PlayerStatKind.busyStreak.description), findsOneWidget);
+
+    // The challengers of this week: only who they portray.
+    await tester.tap(find.text('Challengers'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlayersDashboard), findsOneWidget);
+    final total = week.portrayed.fold(0, (sum, p) => sum + p.$2);
+    expect(total, greaterThan(0));
+    expect(find.textContaining('$total challengers drawn for this week'), findsOneWidget);
+    expect(find.textContaining('#1'), findsNothing, reason: 'no ranking before the week is over');
+    expect(find.byType(CardboardCard), findsNothing, reason: 'nor their drawings');
+
+    // No last week yet, in either view.
+    await tester.tap(find.text('Last week'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No ranking yet'), findsOneWidget);
+    await tester.tap(find.text('Players'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No ranking yet'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("last week: the players' trophies", (tester) async {
+    _phone(tester);
+    final controller = await launchedGame(launchDate: firstMonday);
+    for (var day = 1; day < 8; day++) {
+      await controller.advanceDay();
+    }
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RankingScreen(controller: controller, period: StatPeriod.lastWeek),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Days 1 to 7. The first place of each category won a trophy worth 3 ★.'), findsOneWidget);
+    await tester.tap(find.text('Most boosted'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Secret'), findsNothing, reason: 'not once the week is over');
+    final last = (await controller.playerStats(StatPeriod.lastWeek))!;
+    final boosted = last.stats.firstWhere((s) => s.kind == PlayerStatKind.mostBoosted);
+    final firsts = boosted.players.where((p) => p.first);
+    expect(find.text('+3 ★'), findsNWidgets(firsts.length));
+    expect(find.byIcon(Icons.emoji_events_rounded), findsNWidgets(firsts.length));
+    final withTrophies = boosted.players.where((p) => p.trophies > 0);
+    expect(find.byIcon(Icons.emoji_events_outlined), findsNWidgets(withTrophies.length));
+    for (final placed in withTrophies) {
+      expect(find.text('×${placed.trophies}'), findsWidgets);
+    }
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("last week's challengers: the hero first, then the others, each with its details", (tester) async {
+    _phone(tester);
+    final controller = await launchedGame(launchDate: firstMonday);
     for (var day = 1; day < 8; day++) {
       await controller.advanceDay();
     }
     final ranking = (await controller.weekRanking())!;
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(MaterialApp(home: RankingScreen(controller: controller)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RankingScreen(controller: controller, view: RankingView.challengers, period: StatPeriod.lastWeek),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     expect(find.textContaining('${ranking.challengers.length} challengers'), findsOneWidget);
@@ -35,7 +140,7 @@ void main() {
 
     // How often each player was chosen as a challenger, as a pie and a legend.
     expect(find.byType(PlayersDashboard), findsOneWidget);
-    final weeks = PlayerWeek.of(controller.server.players, ranking);
+    final weeks = PlayerWeek.ofRanking(controller.server.players, ranking);
     expect(weeks, hasLength(controller.server.players.length), reason: 'every player in the legend');
     expect(weeks.map((w) => w.chosen).fold(0, (a, b) => a + b), ranking.challengers.length);
     expect([for (final w in weeks) w.chosen], [...weeks.map((w) => w.chosen)]..sort((a, b) => b.compareTo(a)));

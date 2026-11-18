@@ -34,7 +34,6 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 | Hero List | Challengers |
 | Rewards | Win rates |
 | Fight replay (past days' fights) | Week ranking |
-| Player stats | |
 
 **Challengers** lists the challengers you drew (for now only your own, not the ones you fought or boosted), each with its record in its decided fights.
 
@@ -87,17 +86,21 @@ A challenger counts for the week of its fight, once it went through all four ste
 | Saturday | Sunday | Monday | Tuesday | the next week |
 | Sunday | Monday | Tuesday | Wednesday | the next week |
 
-**Week ranking** (in the heroes menu) opens with a dashboard of how often each player was chosen as a challenger that week: a pie of the challengers portraying each player, every player keeping their color (by roster position; a roster of nine or ten shares one grey slice for the players past the eighth), and a legend of every player, most chosen first, with their count and share. Below it, a **Player stats** button opens last week's player stats (see below). Then the weekly hero on a big card of its own (its drawing large, its nameplate and stars, framed in hero gold), then the others, most stars first: each with its place, a small drawing, its nameplate (the player it portrays and its title) and its stars at the end of the week. The ranking is kept on the device until the next week is over, so it opens without asking the server again; the refresh button in the top right asks anyway. Tapping one opens its details: the drawing big (tap it for full screen, to zoom in), who drew it, who wrote its prompt ("(default)" when they wrote none and it was drawn from a premade title), its boost stars in total and by player ("(default)" for the stars chance spread for a player who didn't give them), and its fight: "Won against Sam's team of heroes" (or "Lost …"), Sam being the player who picked the fighters.
+**Week ranking** (in the heroes menu, from day 1 on; speed mode has its own final ranking instead) has two views, picked at the top: **Players** and **Challengers**, each for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday). It opens on the players of this week. Before the first week is over, last week says there's no ranking yet. This week's answers are kept on the device for the day, last week's until the next week is over, so the screen opens without asking the server again; the refresh button in the top right asks anyway.
 
-**Player stats** (in the heroes menu, and from the week ranking) rank every player who joined in three categories, one at a time (chips pick it), for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday):
+**Players** rank every player who joined in three categories, one at a time (chips pick it):
 
 | Category | What counts |
 |---|---|
 | Most fights won | fights won, of the ones the player picked the fighters for (chance's don't count) |
-| Most boosted | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the week ranking. **Secret** during the ongoing week ("Secret until the week is over"), as it would tell how strong a drawing is; last week's is shown. |
+| Most boosted | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the challengers' ranking. **Secret** this week ("Secret until the week is over"), as it would tell how strong a drawing is: only the players and their trophies show. Last week's is shown. |
 | Busy streak | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. This week's counts today once it's done, and today doesn't break it before. |
 
-Every player is listed best first, with their place and value; tied players share a place (two firsts, then a third). First places show a trophy, and your own row is highlighted. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Busy streak in the week up to day 7!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept: every player shows the trophies they won in a category so far ("×2"). Last week's stats are kept on the device until the next week is over, like the ranking; this week's are asked for every time the screen opens, and the refresh button asks again. Speed mode has no player stats.
+Every player is listed best first, with their place and value; tied players share a place (two firsts, then a third). First places show a trophy, and your own row is highlighted. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Busy streak in the week up to day 7!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept: every player shows the trophies they won in a category so far ("×2").
+
+**Challengers** of this week show only who they portray, without any ranking or stars, which stay secret until the week is over: a pie of the challengers drawn so far for this week (the ones fought this week, see above) portraying each player, every player keeping their color (by roster position; a roster of nine or ten shares one grey slice for the players past the eighth), and a legend of every player, most chosen first, with their count and share. Last week's show the same pie for that week, then the weekly hero on a big card of its own (its drawing large, its nameplate and stars, framed in hero gold), then the others, most stars first: each with its place, a small drawing, its nameplate (the player it portrays and its title) and its stars at the end of the week. Tapping one opens its details: the drawing big (tap it for full screen, to zoom in), who drew it, who wrote its prompt ("(default)" when they wrote none and it was drawn from a premade title), its boost stars in total and by player ("(default)" for the stars chance spread for a player who didn't give them), and its fight: "Won against Sam's team of heroes" (or "Lost …"), Sam being the player who picked the fighters.
+
+Speed mode has no player stats.
 
 *The section below is still in its concept phase, ignore for now!!*
 

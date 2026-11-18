@@ -111,7 +111,7 @@ void main() {
         'Challengers': true,
         'Win rates': false, // not before the first week is over
         'Fight replay': false, // no past fights yet
-        'Week ranking': false, // the first week isn't over
+        'Week ranking': true, // this week's player stats from day 1 on
       },
     );
     expect(tester.takeException(), isNull, reason: 'fits a phone');

@@ -1083,7 +1083,7 @@ void main() {
       expect(cache.entries, isEmpty, reason: 'the next player on this device starts fresh');
     });
 
-    test('player stats: every player ranked with their trophies, last week kept on the device', () async {
+    test('player stats: every player ranked with their trophies, kept for the day or the week', () async {
       final cache = FakeLocalCache();
       final alex = ApiGameSession(
         api: ApiClient(
@@ -1125,6 +1125,10 @@ void main() {
           },
           {'key': 'a-stat-from-the-future', 'secret': false, 'players': const []},
         ],
+        'portrayed': [
+          {'player_position': 0, 'challengers': 0},
+          {'player_position': 1, 'challengers': 2},
+        ],
       };
 
       expect(await alex.playerStats(StatPeriod.lastWeek), isNull, reason: 'before the first week is over');
@@ -1144,23 +1148,31 @@ void main() {
       );
       expect(wins.players.first.player.isYou, isTrue);
       expect((boosted.secret, boosted.players.single.value, boosted.players.single.place), (true, null, null));
+      expect([for (final (player, n) in week.portrayed) (player.name, n)], [('Alex', 0), ('Sam', 2)]);
       final before = statsRequests();
+      backend.playerStats[('123456', 'week')] = answer('week', 1, 1, 3, secret: true);
+      expect((await alex.playerStats(StatPeriod.week))!.stats.first.players.first.value, 2, reason: 'kept for the day');
+      expect(statsRequests(), before);
+      expect((await alex.playerStats(StatPeriod.week, refresh: true))!.stats.first.players.first.value, 3);
+      expect(statsRequests(), before + 1);
+      backend.days['123456'] = 2;
+      await alex.refreshDay();
       await alex.playerStats(StatPeriod.week);
-      expect(statsRequests(), before + 1, reason: 'the ongoing week is asked for every time');
+      expect(statsRequests(), before + 2, reason: 'asked again the next day');
 
       backend.playerStats[('123456', 'last-week')] = answer('last-week', 1, 7, 3);
       backend.days['123456'] = 8;
       await alex.refreshDay();
       expect((await alex.playerStats(StatPeriod.lastWeek))!.stats[1].players.single.value, 4);
-      expect(statsRequests(), before + 2);
+      expect(statsRequests(), before + 3);
       backend.playerStats[('123456', 'last-week')] = answer('last-week', 1, 7, 5);
       expect((await alex.playerStats(StatPeriod.lastWeek))!.stats.first.players.first.value, 3, reason: 'kept');
-      expect(statsRequests(), before + 2);
+      expect(statsRequests(), before + 3);
       expect((await alex.playerStats(StatPeriod.lastWeek, refresh: true))!.stats.first.players.first.value, 5);
       backend.days['123456'] = 15;
       await alex.refreshDay();
       await alex.playerStats(StatPeriod.lastWeek);
-      expect(statsRequests(), before + 4, reason: 'the next week is over');
+      expect(statsRequests(), before + 5, reason: 'the next week is over');
     });
 
     test("this week's win rates, from last week's fights", () async {

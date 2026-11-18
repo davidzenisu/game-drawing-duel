@@ -9,22 +9,54 @@ import '../rules/models.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sketch_canvas.dart';
-import 'player_stats_screen.dart';
+import 'player_stats_view.dart';
 import 'ranking_detail_screen.dart';
 
-/// The latest finished week's challengers, most stars first: the first
-/// joined the gacha pool as a hero. Tapping one opens its details.
+/// Who sees the week ranking: the players' stats or the challengers.
+enum RankingView {
+  players('Players'),
+  challengers('Challengers');
+
+  const RankingView(this.label);
+
+  final String label;
+}
+
+/// The week ranking, of this week so far or last week, in two views:
+///
+/// - **Players** (the default, this week): every player ranked in the
+///   player stats' categories (`PlayerStatsView`), this week's boosts kept
+///   secret.
+/// - **Challengers**: this week, only who its challengers portray, as a pie;
+///   last week, the pie and its challengers ranked by their stars, the first
+///   the weekly hero. Tapping one opens its details.
+///
+/// Answers are kept on the device: this week's for the day, last week's
+/// until the next week is over; the refresh button asks again.
 class RankingScreen extends StatefulWidget {
-  const RankingScreen({super.key, required this.controller});
+  const RankingScreen({
+    super.key,
+    required this.controller,
+    this.view = RankingView.players,
+    this.period = StatPeriod.week,
+  });
 
   final GameSession controller;
+
+  /// The view and week shown first.
+  final RankingView view;
+  final StatPeriod period;
 
   @override
   State<RankingScreen> createState() => _RankingScreenState();
 }
 
 class _RankingScreenState extends State<RankingScreen> {
+  late RankingView _view = widget.view;
+  late StatPeriod _period = widget.period;
+  final Map<StatPeriod, PlayerStats?> _stats = {};
   WeekRanking? _ranking;
+  bool _rankingLoaded = false;
   bool _loading = true;
 
   @override
@@ -34,20 +66,46 @@ class _RankingScreenState extends State<RankingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  /// The ranking kept on the device, or asked again with [refresh].
+  /// Last week's challengers come from the week ranking, everything else
+  /// from the player stats.
+  bool get _showsRanking => _view == RankingView.challengers && _period == StatPeriod.lastWeek;
+
+  bool get _loaded => _showsRanking ? _rankingLoaded : _stats.containsKey(_period);
+
+  /// What the current view and week show: as kept on the device, unless
+  /// [refresh].
   Future<void> _load({bool refresh = false}) async {
     setState(() => _loading = true);
-    final ranking = await runGameQuery(context, () => widget.controller.weekRanking(refresh: refresh));
-    if (!mounted) return;
+    final controller = widget.controller;
+    if (_showsRanking) {
+      final ranking = await runGameQuery(context, () => controller.weekRanking(refresh: refresh));
+      if (!mounted) return;
+      setState(() {
+        if (ranking != null || !refresh) _ranking = ranking;
+        _rankingLoaded = true;
+        _loading = false;
+      });
+    } else {
+      final period = _period;
+      final stats = await runGameQuery(context, () => controller.playerStats(period, refresh: refresh));
+      if (!mounted) return;
+      setState(() {
+        if (stats != null || !refresh) _stats[period] = stats;
+        _loading = false;
+      });
+    }
+  }
+
+  void _show({RankingView? view, StatPeriod? period}) {
     setState(() {
-      _ranking = ranking ?? (refresh ? _ranking : null);
-      _loading = false;
+      _view = view ?? _view;
+      _period = period ?? _period;
     });
+    if (!_loaded) _load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final ranking = _ranking;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Week ranking'),
@@ -59,56 +117,101 @@ class _RankingScreenState extends State<RankingScreen> {
           ),
         ],
       ),
-      body: _loading && ranking == null
-          ? const Center(child: CircularProgressIndicator())
-          : ranking == null || ranking.challengers.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'No ranking yet. Once a week is over, its challengers are ranked by their stars.',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'The week up to day ${ranking.day}: ${ranking.challengers.length} challengers, ranked by '
-                          'their own ${Stars.challengerBase} ★ plus their boost stars.',
-                          style: Theme.of(context).textTheme.bodyMedium,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SegmentedButton<RankingView>(
+                    segments: [
+                      for (final view in RankingView.values)
+                        ButtonSegment(
+                          value: view,
+                          label: Text(view.label),
+                          icon: Icon(view == RankingView.players ? Icons.people_alt_rounded : Icons.shield_rounded),
                         ),
-                        const SizedBox(height: 12),
-                        PlayersDashboard(players: widget.controller.server.players, ranking: ranking),
-                        const SizedBox(height: 8),
-                        OutlinedButton.icon(
-                          icon: const Icon(Icons.leaderboard_rounded),
-                          label: const Text("Player stats: last week's trophies"),
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  PlayerStatsScreen(controller: widget.controller, period: StatPeriod.lastWeek),
-                            ),
+                    ],
+                    selected: {_view},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (picked) => _show(view: picked.single),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<StatPeriod>(
+                    segments: [
+                      for (final period in StatPeriod.values) ButtonSegment(value: period, label: Text(period.label)),
+                    ],
+                    selected: {_period},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (picked) => _show(period: picked.single),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!_loaded || (_loading && _content(context) == null))
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else
+                    _content(context) ??
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            _period == StatPeriod.lastWeek
+                                ? 'No ranking yet. Once the first week is over, it shows here.'
+                                : 'Nothing to rank in this session.',
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        _WinnerCard(entry: ranking.challengers.first),
-                        const SizedBox(height: 8),
-                        for (final (i, entry) in ranking.challengers.indexed.skip(1))
-                          _RankTile(place: i + 1, entry: entry),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What the current view and week show; null without anything to show.
+  Widget? _content(BuildContext context) {
+    final players = widget.controller.server.players;
+    if (_showsRanking) {
+      final ranking = _ranking;
+      if (ranking == null || ranking.challengers.isEmpty) return null;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'The week up to day ${ranking.day}: ${ranking.challengers.length} challengers, ranked by '
+            'their own ${Stars.challengerBase} ★ plus their boost stars.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          PlayersDashboard(weeks: PlayerWeek.ofRanking(players, ranking)),
+          const SizedBox(height: 12),
+          _WinnerCard(entry: ranking.challengers.first),
+          const SizedBox(height: 8),
+          for (final (i, entry) in ranking.challengers.indexed.skip(1)) _RankTile(place: i + 1, entry: entry),
+        ],
+      );
+    }
+    final stats = _stats[_period];
+    if (stats == null) return null;
+    if (_view == RankingView.players) return PlayerStatsView(key: ValueKey(_period), stats: stats);
+    final total = stats.portrayed.fold(0, (sum, p) => sum + p.$2);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Days ${stats.fromDay} to ${stats.toDay}, so far: $total challengers drawn for this week. Their '
+          'stars stay secret until the week is over; then they are ranked.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 12),
+        PlayersDashboard(weeks: PlayerWeek.of(players, {for (final (player, n) in stats.portrayed) player.name: n})),
+      ],
     );
   }
 }
@@ -119,8 +222,8 @@ void _openDetails(BuildContext context, int place, RankedChallenger entry) => Na
   ),
 );
 
-/// How often a player was chosen as a challenger in a week's ranking: the
-/// challengers portraying them.
+/// How often a player was chosen as a challenger in a week: the challengers
+/// portraying them.
 class PlayerWeek {
   const PlayerWeek({required this.name, required this.position, required this.chosen});
 
@@ -130,20 +233,26 @@ class PlayerWeek {
   final int position;
   final int chosen;
 
-  /// Every player of the roster, most chosen first.
-  static List<PlayerWeek> of(List<Player> players, WeekRanking ranking) {
+  /// Every player of the roster, most [chosen] (by name) first.
+  static List<PlayerWeek> of(List<Player> players, Map<String, int> chosen) {
     final entries = [
       for (final (position, player) in players.indexed)
-        PlayerWeek(
-          name: player.name,
-          position: position,
-          chosen: ranking.challengers.where((c) => c.card.subject == player.name).length,
-        ),
+        PlayerWeek(name: player.name, position: position, chosen: chosen[player.name] ?? 0),
     ];
     return entries..sort((a, b) {
       final byChosen = b.chosen.compareTo(a.chosen);
       return byChosen != 0 ? byChosen : a.position.compareTo(b.position);
     });
+  }
+
+  /// Every player of the roster, with the challengers of [ranking]
+  /// portraying them.
+  static List<PlayerWeek> ofRanking(List<Player> players, WeekRanking ranking) {
+    final chosen = <String, int>{};
+    for (final entry in ranking.challengers) {
+      chosen[entry.card.subject] = (chosen[entry.card.subject] ?? 0) + 1;
+    }
+    return of(players, chosen);
   }
 }
 
@@ -155,10 +264,10 @@ class PlayerWeek {
 /// one grey slice for the players past the eighth. Slices are split by a
 /// thin gap of the card's color.
 class PlayersDashboard extends StatelessWidget {
-  const PlayersDashboard({super.key, required this.players, required this.ranking});
+  const PlayersDashboard({super.key, required this.weeks});
 
-  final List<Player> players;
-  final WeekRanking ranking;
+  /// Every player, most chosen first ([PlayerWeek.of]).
+  final List<PlayerWeek> weeks;
 
   static const _light = [
     Color(0xFF2A78D6),
@@ -189,7 +298,6 @@ class PlayersDashboard extends StatelessWidget {
     final others = theme.colorScheme.outline;
     Color colorOf(PlayerWeek week) => week.position < hues.length ? hues[week.position] : others;
 
-    final weeks = PlayerWeek.of(players, ranking);
     final total = weeks.fold(0, (sum, w) => sum + w.chosen);
     final slices = <(Color, int)>[
       for (final week in weeks)

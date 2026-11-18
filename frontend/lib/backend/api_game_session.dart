@@ -1382,16 +1382,17 @@ class ApiGameSession extends GameSession {
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
     final server = this.server;
     if (server.isSpeed) return null;
-    final path = '/servers/${server.code}/player-stats?period=${period.key}';
-    final json = period == StatPeriod.lastWeek
-        ? await _kept(
-            'player-stats:${server.code}',
-            path,
-            refresh: refresh,
-            // Until the next week is over, like the week ranking.
-            stillCurrent: (json, _) => json is Map && json['to_day'] is int && day <= (json['to_day'] as int) + 7,
-          )
-        : await _get(path);
+    final json = await _kept(
+      'player-stats:${period.key}:${server.code}',
+      '/servers/${server.code}/player-stats?period=${period.key}',
+      refresh: refresh,
+      stillCurrent: switch (period) {
+        // This week's for the day it was asked on.
+        StatPeriod.week => (_, askedOn) => askedOn == day,
+        // Last week's until the next week is over, like the week ranking.
+        StatPeriod.lastWeek => (json, _) => json is Map && json['to_day'] is int && day <= (json['to_day'] as int) + 7,
+      },
+    );
     return switch (json) {
       null => null,
       {'from_day': int fromDay, 'to_day': int toDay, 'trophy_stars': int trophyStars, 'stats': List stats} =>
@@ -1425,6 +1426,13 @@ class ApiGameSession extends GameSession {
                   ...[]
               else
                 throw const FormatException('Unexpected player stat.'),
+          ],
+          portrayed: [
+            for (final entry in json['portrayed'] as List? ?? const [])
+              if (entry case {'player_position': int position, 'challengers': int challengers})
+                (_seat(server, position), challengers)
+              else
+                throw const FormatException('Unexpected portrayed player.'),
           ],
         ),
       _ => throw const FormatException('Unexpected player stats.'),
