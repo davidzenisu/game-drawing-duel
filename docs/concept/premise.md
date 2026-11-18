@@ -88,6 +88,16 @@ A challenger counts for the week of its fight, once it went through all four ste
 
 **Week ranking** (in the heroes menu) opens with a dashboard of how often each player was chosen as a challenger that week: a pie of the challengers portraying each player, every player keeping their color (by roster position; a roster of nine or ten shares one grey slice for the players past the eighth), and a legend of every player, most chosen first, with their count and share. Below it, the weekly hero on a big card of its own (its drawing large, its nameplate and stars, framed in hero gold), then the others, most stars first: each with its place, a small drawing, its nameplate (the player it portrays and its title) and its stars at the end of the week. The ranking is kept on the device until the next week is over, so it opens without asking the server again; the refresh button in the top right asks anyway. Tapping one opens its details: the drawing big (tap it for full screen, to zoom in), who drew it, who wrote its prompt ("(default)" when they wrote none and it was drawn from a premade title), its boost stars in total and by player ("(default)" for the stars chance spread for a player who didn't give them), and its fight: "Won against Sam's team of heroes" (or "Lost …"), Sam being the player who picked the fighters.
 
+**Weekly trophies**: every week, the players who joined are also ranked, in three categories:
+
+| Category | What counts |
+|---|---|
+| Giant Slayer | fights won, of the ones the player picked the fighters for (chance's don't count) |
+| Grand Artist | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the week ranking. Secret during the week, as it would tell how strong a drawing is. |
+| Addict | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. |
+
+Tied players share a place. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Addict in week 1!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept, so players can see how many each won. Weeks are numbered from the launch week ("Week 1", Monday to Sunday, so it may be short). Speed mode has no trophies.
+
 *The section below is still in its concept phase, ignore for now!!*
 
 In the final battle at the end of each week, the idea is to crown the best challenger while also allowing each player to show their best fighter setup. The main idea is to give players opportunities to boost challengers to slightly change the ranking while player by player they switch from a "challenger" role to a "heroes" role to fight an increasing number of challengers.

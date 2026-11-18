@@ -59,6 +59,12 @@ from app.schemas.gift import (
     GiftSent,
 )
 from app.schemas.player import MeResponse, PlayerResponse, PlayerUpdate
+from app.schemas.player_stats import (
+    PlacedPlayer,
+    PlayerStat,
+    PlayerStatsResponse,
+    PortrayedPlayer,
+)
 from app.schemas.server import (
     AssignmentResponse,
     CleanupResponse,
@@ -107,8 +113,12 @@ __all__ = [
     "MeResponse",
     "OutcomeResponse",
     "OwnedCharacterResponse",
+    "PlacedPlayer",
     "PlayerResponse",
+    "PlayerStat",
+    "PlayerStatsResponse",
     "PlayerUpdate",
+    "PortrayedPlayer",
     "PromptSubmit",
     "PromptToDrawResponse",
     "PullOutcomeResponse",

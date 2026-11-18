@@ -173,6 +173,7 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.STARS_FOR_PROMPT, stars["prompt"])
         self.assertEqual(rules.STARS_FOR_CHALLENGER, stars["challenger"])
         self.assertEqual(rules.STARS_PER_PULL, stars["pull_price"])
+        self.assertEqual(rules.STARS_FOR_WEEK_STAT, stars["week_stat"])
 
     def test_achievements(self):
         achievements = SHARED["achievements"]
