@@ -52,6 +52,20 @@ void _phone(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('the hub shows the sponsor banner on top', (tester) async {
+    _phone(tester);
+    final controller = await launchedGame(launchDate: firstMonday);
+    await _seenAll(controller);
+    await tester.pumpWidget(MaterialApp(home: DailyHubScreen(controller: controller)));
+    await tester.pump();
+    expect(find.text("SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION"), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(SponsorBanner)).dy,
+      lessThan(tester.getTopLeft(find.byType(HubGrid)).dy),
+    );
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+  });
+
   testWidgets('a regular server greys out the steps that have not started', (tester) async {
     _phone(tester);
     expect(await _open(tester, await launchedGame(launchDate: firstMonday)), ['Choose a challenger']);

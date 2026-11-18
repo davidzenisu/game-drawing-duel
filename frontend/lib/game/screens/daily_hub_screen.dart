@@ -306,6 +306,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          const SponsorBanner(),
+                          const SizedBox(height: 12),
                           // The day's free hurry, above the drawing step.
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -361,6 +363,34 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// The sponsor's banner, big at the top of the hub.
+class SponsorBanner extends StatelessWidget {
+  const SponsorBanner({super.key});
+
+  static const text = "SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION";
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFD97757), Color(0xFFB8532F)]),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.2,
+        ),
+      ),
     );
   }
 }

@@ -9,6 +9,12 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.19.0] - 2026-11-18
+
+### Added
+- A big banner at the top of the daily hub: SPONSORED BY OLIVIA'S CLAUDE
+  SUBSCRIPTION.
+
 ## [0.18.0] - 2026-11-17
 
 ### Changed
