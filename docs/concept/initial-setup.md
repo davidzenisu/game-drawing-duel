@@ -10,7 +10,7 @@ When a server is created, the creator can prepopulate their own and all other pl
 
 They can then share a generated server code with friends to join. The lobby (while friends join) and the setup (while they finish their drawings) don't update on their own: a **refresh** button in the top right checks who joined or finished, and whether the game moved on or was cancelled.
 
-On the title screen the game opens on, below **Tap to start**, a small banner reads **SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION**, tilted slightly, in a bold comic-book font (Bangers). It comes in last: once the title, the standees and the button are in, it waits a moment, then slides up from below (all at once when the platform asks for less motion). It shows nowhere else.
+On the title screen the game opens on, below **Tap to start**, a small banner reads **SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION** on three lines, in the outlined, slanted word art of the summon banners' names, in the standard banner's gold. It comes in last: once the title, the standees and the button are in, it waits a moment, then slides up from below (all at once when the platform asks for less motion). It shows nowhere else.
 
 After signing up, a player picks between joining a server and creating one. Joining comes first, since most players join a friend's server with its code. Until they dismiss it, new players also see a short note there: the game in one sentence (you and your friends draw each other as heroes and challengers, collect the drawings and send them into fights), and that everything is explained step by step once they join or create a server.
 

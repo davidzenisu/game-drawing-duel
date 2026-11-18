@@ -231,13 +231,15 @@ class _BannerStyle {
   };
 }
 
-/// Big, bold, outlined and slanted: a banner's name.
+/// Big, bold, outlined and slanted: a banner's name. Lines of [text]
+/// are lined up by [textAlign].
 class WordArt extends StatelessWidget {
-  const WordArt(this.text, {super.key, required this.colors, this.angle = -0.06});
+  const WordArt(this.text, {super.key, required this.colors, this.angle = -0.06, this.textAlign});
 
   final String text;
   final List<Color> colors;
   final double angle;
+  final TextAlign? textAlign;
 
   @override
   Widget build(BuildContext context) {
@@ -256,6 +258,7 @@ class WordArt extends StatelessWidget {
           children: [
             Text(
               text,
+              textAlign: textAlign,
               style: base.copyWith(
                 foreground: Paint()
                   ..style = PaintingStyle.stroke
@@ -271,7 +274,7 @@ class WordArt extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: colors,
               ).createShader(bounds),
-              child: Text(text, style: base.copyWith(color: Colors.white)),
+              child: Text(text, textAlign: textAlign, style: base.copyWith(color: Colors.white)),
             ),
           ],
         ),

@@ -32,7 +32,7 @@ void main() {
     await tester.pump(SplashScreen.banner);
     expect(bannerOpacity(), 1);
     expect(tester.getRect(find.byType(SponsorBanner)).top, lessThan(sliding));
-    expect(find.text("SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION"), findsOneWidget);
+    expect(find.bySemanticsLabel(SponsorBanner.text), findsOneWidget);
     expect(
       tester.getRect(find.byType(SponsorBanner)).top,
       greaterThan(tester.getBottomLeft(find.text('Tap to start')).dy),

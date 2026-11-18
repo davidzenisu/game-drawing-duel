@@ -24,7 +24,3 @@ flutter:
   assets:
     - assets/logo.png
     - ../CHANGELOG.md
-  fonts:
-    - family: Bangers
-      fonts:
-        - asset: assets/fonts/Bangers-Regular.ttf
