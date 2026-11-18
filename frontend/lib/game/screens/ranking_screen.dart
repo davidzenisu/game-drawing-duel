@@ -27,10 +27,9 @@ enum RankingView {
 /// - **Players** (the default, this week): every player ranked in the
 ///   player stats' categories (`PlayerStatsView`), this week's boosts kept
 ///   secret.
-/// - **Challengers**: last week, a pie of who its challengers portray and
-///   the challengers ranked by their stars, the first the weekly hero.
-///   Tapping one opens its details. This week's wait for the week to be
-///   over.
+/// - **Challengers**: this week, only who its challengers portray, as a pie;
+///   last week, the pie and its challengers ranked by their stars, the first
+///   the weekly hero. Tapping one opens its details.
 ///
 /// Answers are kept on the device: this week's for the day, last week's
 /// until the next week is over; the refresh button asks again.
@@ -202,13 +201,18 @@ class _RankingScreenState extends State<RankingScreen> {
     if (stats == null) return null;
     final week = widget.controller.weekOf(stats.toDay);
     if (_view == RankingView.players) return PlayerStatsView(key: ValueKey(_period), stats: stats, week: week);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(
-        "Week $week, so far. This week's challengers are ranked once the week is over: their stars stay secret "
-        'until then.',
-        textAlign: TextAlign.center,
-      ),
+    final total = stats.portrayed.fold(0, (sum, p) => sum + p.$2);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Week $week, so far: $total challengers drawn for this week. '
+          'Their stars stay secret until the week is over; then they are ranked.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 12),
+        PlayersDashboard(weeks: PlayerWeek.of(players, {for (final (player, n) in stats.portrayed) player.name: n})),
+      ],
     );
   }
 }
