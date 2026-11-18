@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from fastapi import APIRouter, HTTPException, status
 
-from app import days, fights, finale, player_stats, speed
+from app import days, finale, player_stats, speed
 from app.auth import CurrentPlayer
 from app.deps import Code, DbSession, running_game
 from app.rules import STARS_FOR_WEEK_STAT
@@ -46,9 +46,8 @@ def get_player_stats(
             return None
         first, last = days.week_start(server, week.day), week.day
     else:
-        # The boosts and fights nobody finished yesterday count too.
-        fights.complete_boosts(session, server, today - 1)
-        fights.complete_fights(session, server, today - 1)
+        # Yesterday's boosts and fights nobody finished aren't completed
+        # here: chance's only count for Grand Artist, secret this week.
         first, last = days.week_start(server, today), today
     values = player_stats.values(session, server, first, last)
     trophies = player_stats.trophies(session, server)

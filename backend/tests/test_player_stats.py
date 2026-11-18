@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from app import player_stats
 from app.models import Character, Fight, Server, ServerSeat, Trophy
@@ -118,9 +118,7 @@ class PlayerStatsTests(FinaleTestCase):
             )
 
             mine = [
-                g
-                for g in self.gifts()
-                if g["message"].startswith("Trophy: Addict")
+                g for g in self.gifts() if g["message"].startswith("Trophy: Addict")
             ]
             self.assertEqual(len(mine), 1)
             self.assertEqual((mine[0]["stars"], mine[0]["pulls"]), (3, 0))
@@ -214,6 +212,35 @@ class PlayerStatsTests(FinaleTestCase):
         # Days 2 and 3's challengers, fought on days 4 and 5.
         self.assertEqual(sum(portrayed.values()), 6)
         self.assertNotIn("stars", stats["portrayed"][0])
+
+    def test_this_weeks_stats_take_few_queries(self) -> None:
+        """Every query is a round trip to the database: the count stays
+        small and doesn't grow with the days played."""
+
+        def queries() -> int:
+            count = 0
+
+            def hook(*_) -> None:
+                nonlocal count
+                count += 1
+
+            event.listen(self.engine, "before_cursor_execute", hook)
+            try:
+                self.stats()
+            finally:
+                event.remove(self.engine, "before_cursor_execute", hook)
+            return count
+
+        early = queries()
+        with self.without_rest():
+            for _ in range(4, 12):
+                for subject in PLAYERS:
+                    self.do_all(subject)
+                self.next_day()
+            self.today()
+        later = queries()
+        self.assertLessEqual(early, 15)
+        self.assertLessEqual(later, early + 2, "not more with the days played")
 
     def test_no_last_week_before_the_first_is_over(self) -> None:
         self.assertIsNone(self.stats("last-week"))
