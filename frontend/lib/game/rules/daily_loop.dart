@@ -105,6 +105,10 @@ abstract final class StarRewards {
   /// Stars buy a pull for this many: a pull tops up the pulls you're short
   /// of with them.
   static const pullPrice = 10;
+
+  /// Once a week is over, the first place of each player stat wins a
+  /// trophy worth these stars, as a gift; tied first places each win one.
+  static const weekStat = 3;
 }
 
 abstract final class Hurries {

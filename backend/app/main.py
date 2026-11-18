@@ -22,6 +22,7 @@ from app.routers import (
     content,
     gifts,
     me,
+    player_stats,
     pool,
     servers,
     setup,
@@ -30,7 +31,7 @@ from app.routers import (
 )
 
 # The docs page is served by `configure_docs_page`, with the game's logo.
-app = FastAPI(title="Game Drawing Duel API", version="0.19.0", docs_url=None)
+app = FastAPI(title="Game Drawing Duel API", version="0.20.0", docs_url=None)
 
 # The backend deployment writes the commit it deploys into this file; local
 # runs and tests have none.
@@ -117,6 +118,7 @@ app.include_router(today.router, dependencies=_authenticated)
 app.include_router(gifts.router, dependencies=_authenticated)
 app.include_router(suggestions.router, dependencies=_authenticated)
 app.include_router(achievements.router, dependencies=_authenticated)
+app.include_router(player_stats.router, dependencies=_authenticated)
 # Also needs the content permission.
 app.include_router(content.router, dependencies=_authenticated)
 app.include_router(admin.router, dependencies=_authenticated)

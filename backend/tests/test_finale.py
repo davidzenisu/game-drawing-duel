@@ -19,8 +19,8 @@ from tests.test_drawing_uploads import SKETCH
 from tests.test_fights import ADMIN, PLAYERS, FightTestCase
 
 
-class FinaleTests(FightTestCase):
-    """The weekly finale, see `app/finale.py`."""
+class FinaleTestCase(FightTestCase):
+    """A test session launched on a Monday, on day 3."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -87,6 +87,10 @@ class FinaleTests(FightTestCase):
         response = self.get(f"/servers/{self.code}/ranking", subject)
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
+
+
+class FinaleTests(FinaleTestCase):
+    """The weekly finale, see `app/finale.py`."""
 
     def test_the_most_stars_join_the_pool_as_a_hero(self) -> None:
         # Day 4: one of day 3's challengers gets more boost stars than any.

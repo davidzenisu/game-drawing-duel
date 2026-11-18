@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import days, fights, rules, speed
+from app import days, fights, player_stats, rules, speed
 from app.models import Character, Fight, Server, WeeklyHero
 
 # A challenger is fought this many days after it was drawn (its prompt is
@@ -93,8 +93,9 @@ def _decide(session: Session, server: Server, day: int) -> WeeklyHero:
 
 
 def settle(session: Session, server: Server) -> None:
-    """Decides every finale that's over and isn't yet. Commits. Speed mode
-    sessions have no weeks."""
+    """Decides every finale that's over and isn't yet, with the trophies of
+    its player stats (`app.player_stats`). Commits. Speed mode sessions have
+    no weeks."""
     if speed.is_speed(server):
         return
     today = days.current_day(server)
@@ -103,6 +104,7 @@ def settle(session: Session, server: Server) -> None:
     )
     day = finale_day(server, 1)
     heroes = []
+    awarded = []
     while day < today:
         if day not in decided:
             # The boosts and fights nobody finished on the last day count
@@ -110,10 +112,13 @@ def settle(session: Session, server: Server) -> None:
             fights.complete_boosts(session, server, day)
             fights.complete_fights(session, server, day)
             heroes.append(_decide(session, server, day))
+            awarded.extend(player_stats.award(session, server, day))
         day += 7
     if not heroes:
         return
+    # Decided together, so a week's trophies are only awarded once.
     session.add_all(heroes)
+    session.add_all(awarded)
     try:
         session.commit()
     except IntegrityError:

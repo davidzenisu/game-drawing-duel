@@ -9,6 +9,19 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.20.0] - 2026-11-18
+
+### Added
+- **Weekly trophies**: every week, the players are ranked in three
+  categories, and when a new week begins, the first place of each wins a
+  trophy worth 3 stars, as a gift on the notification board. Tied first
+  places each win one.
+  - **Giant Slayer**: fights won with the fighters you picked.
+  - **Grand Artist**: the boost stars your challengers got, in the week of
+    their fight.
+  - **Addict**: the days in a row, even across weeks, you did every step
+    you could: your title, drawing, boosts and fight.
+
 ## [0.19.0] - 2026-11-18
 
 ### Added

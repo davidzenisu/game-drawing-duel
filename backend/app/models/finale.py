@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    String,
     UniqueConstraint,
     Uuid,
     func,
@@ -42,3 +43,27 @@ class WeeklyHero(Base):
     )
 
     character: Mapped[Character | None] = relationship()
+
+
+class Trophy(Base):
+    """A player stat's first place in a week (`app.player_stats`), won once
+    the week is over; tied first places each have one. It came with
+    `rules.STARS_FOR_WEEK_STAT` stars as a gift."""
+
+    __tablename__ = "trophy"
+    __table_args__ = (UniqueConstraint("seat_id", "stat", "day"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    seat_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("server_seat.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # An `app.player_stats.STATS` key.
+    stat: Mapped[str] = mapped_column(String(20), nullable=False)
+    # The finale day of the week.
+    day: Mapped[int] = mapped_column(Integer, nullable=False)
+    won_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utc_now,
+        server_default=func.now(),
+    )
