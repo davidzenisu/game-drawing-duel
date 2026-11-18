@@ -33,6 +33,26 @@ void main() {
     }
   });
 
+  for (final brightness in Brightness.values) {
+    testWidgets('a full roster of ten has ten colors in the challenger pie ($brightness)', (tester) async {
+      final weeks = [for (var i = 0; i < 10; i++) PlayerWeek(name: 'P$i', position: i, chosen: 1)];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: brightness),
+          home: Scaffold(body: SingleChildScrollView(child: PlayersDashboard(weeks: weeks))),
+        ),
+      );
+      final dots = [
+        for (final box in tester.widgetList<Container>(find.byType(Container)))
+          if (box.decoration case BoxDecoration(shape: BoxShape.circle, :final color?)) color,
+      ];
+      expect(dots, hasLength(10));
+      expect(dots.toSet(), hasLength(10), reason: 'every player has a color of their own');
+      final grey = ThemeData(brightness: brightness).colorScheme.outline;
+      expect(dots, isNot(contains(grey)));
+    });
+  }
+
   test('tied players share a place, the next one skips theirs', () {
     final [a, b, c, d] = const [
       Player(id: 'a', name: 'A'),
