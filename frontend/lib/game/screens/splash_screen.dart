@@ -8,6 +8,7 @@ import '../rules/models.dart';
 import '../rules/themes.dart';
 import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
+import '../widgets/sponsor_banner.dart';
 import '../widgets/themed_background.dart';
 
 /// The title screen the game opens on, while it loads. The title and the
@@ -23,12 +24,30 @@ class SplashScreen extends StatefulWidget {
   /// How long the title and the standees take to come in, the button last.
   static const intro = Duration(milliseconds: 2200);
 
+  /// How long the sponsor's banner takes to come in after the [intro]: it
+  /// waits a moment ([bannerPause]), then slides up from below.
+  static const banner = Duration(milliseconds: 1600);
+
+  /// How long the banner waits once everything else is in.
+  static const bannerPause = Duration(milliseconds: 800);
+
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late final _intro = AnimationController(vsync: this, duration: SplashScreen.intro);
+  late final _banner = AnimationController(vsync: this, duration: SplashScreen.banner);
+
+  /// The banner's slide, after its pause.
+  late final _bannerSlide = CurvedAnimation(
+    parent: _banner,
+    curve: Interval(
+      SplashScreen.bannerPause.inMilliseconds / SplashScreen.banner.inMilliseconds,
+      1,
+      curve: Curves.easeOutCubic,
+    ),
+  );
 
   late final _title = CurvedAnimation(
     parent: _intro,
@@ -48,13 +67,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.didChangeDependencies();
     if (_intro.isDismissed) {
       // All at once when the platform asks for less motion.
-      MediaQuery.of(context).disableAnimations ? _intro.value = 1 : _intro.forward();
+      if (MediaQuery.of(context).disableAnimations) {
+        _intro.value = 1;
+        _banner.value = 1;
+      } else {
+        // The banner comes in once everything else is in, timed from the
+        // very frame the intro ends.
+        _intro.addStatusListener((status) {
+          if (status == AnimationStatus.completed) _banner.forward();
+        });
+        _intro.forward();
+      }
     }
   }
 
   @override
   void dispose() {
     _intro.dispose();
+    _bannerSlide.dispose();
+    _banner.dispose();
     super.dispose();
   }
 
@@ -137,6 +168,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Last of all, after a pause, the sponsor's banner slides up
+                      // from below. It's only decoration: taps go through it.
+                      IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _bannerSlide,
+                          builder: (context, child) => Opacity(
+                            opacity: (_bannerSlide.value * 2).clamp(0.0, 1.0),
+                            child: Transform.translate(
+                              offset: Offset(0, 80 * (1 - _bannerSlide.value)),
+                              child: child,
+                            ),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 210),
+                            child: const SponsorBanner(),
+                          ),
                         ),
                       ),
                     ],
