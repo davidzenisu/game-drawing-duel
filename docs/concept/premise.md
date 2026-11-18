@@ -102,6 +102,16 @@ Every player is listed best first, with their value, without place numbers: the 
 
 Speed mode has no player stats.
 
+**Weekly trophies**: every week, the players who joined are also ranked, in three categories:
+
+| Category | What counts |
+|---|---|
+| Giant Slayer | fights won, of the ones the player picked the fighters for (chance's don't count) |
+| Grand Artist | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the week ranking. Secret during the week, as it would tell how strong a drawing is. |
+| Addict | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. |
+
+Tied players share a place. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Addict in week 1!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept, so players can see how many each won. Weeks are numbered from the launch week ("Week 1", Monday to Sunday, so it may be short). Speed mode has no trophies.
+
 *The section below is still in its concept phase, ignore for now!!*
 
 In the final battle at the end of each week, the idea is to crown the best challenger while also allowing each player to show their best fighter setup. The main idea is to give players opportunities to boost challengers to slightly change the ranking while player by player they switch from a "challenger" role to a "heroes" role to fight an increasing number of challengers.
