@@ -49,7 +49,9 @@ void main() {
     expect(none.players.where((p) => p.first), isEmpty, reason: 'a first place of 0 wins nothing');
   });
 
-  testWidgets("this week: the players ranked, boosts kept secret, the challengers not yet", (tester) async {
+  testWidgets("this week: the players ranked, boosts kept secret, and only who the challengers portray", (
+    tester,
+  ) async {
     _phone(tester);
     final controller = await launchedGame(launchDate: firstMonday);
     for (var day = 1; day < 4; day++) {
@@ -87,13 +89,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(PlayerStatKind.busyStreak.description), findsOneWidget);
 
-    // The challengers of this week wait for the week to be over.
+    // The challengers of this week: only who they portray.
     await tester.tap(find.text('Challengers'));
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining("Week 1, so far. This week's challengers are ranked once the week is over"),
-      findsOneWidget,
-    );
+    expect(find.byType(PlayersDashboard), findsOneWidget);
+    final total = week.portrayed.fold(0, (sum, p) => sum + p.$2);
+    expect(total, greaterThan(0));
+    expect(find.textContaining('Week 1, so far: $total challengers drawn for this week'), findsOneWidget);
     expect(find.textContaining('#1'), findsNothing, reason: 'no ranking before the week is over');
     expect(find.byType(CardboardCard), findsNothing, reason: 'nor their drawings');
 

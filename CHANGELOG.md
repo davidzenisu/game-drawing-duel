@@ -9,6 +9,13 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.21.0] - 2026-11-18
+
+### Added
+- The week ranking's challengers of this week show who they portray, as a
+  pie, drawn so far. Their stars and ranking still wait for the week to be
+  over.
+
 ## [0.20.0] - 2026-11-18
 
 ### Added
