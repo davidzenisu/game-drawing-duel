@@ -9,6 +9,24 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.20.0] - 2026-11-18
+
+### Added
+- The week ranking ranks the **players** too: Giant Slayer, Grand Artist
+  and Addict, picked with a three-part button, for this week so far or last
+  week. First places wear a trophy (outlined while it's still to win), and
+  everyone shows the trophies they won. Grand Artist stays secret until the
+  week is over.
+
+### Changed
+- The week ranking opens from the first day, with two views, Players and
+  Challengers, each for this week or last week. It opens on the players of
+  this week. This week's challengers wait for the week to be over; last
+  week's are ranked by their stars as before.
+- Weeks are named by number: "Week 1" is the launch week.
+- This week's ranking is kept on the device for the day, last week's until
+  the next week is over; the refresh button asks again.
+
 ## [0.19.0] - 2026-11-18
 
 ### Added

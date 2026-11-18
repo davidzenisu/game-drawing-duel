@@ -171,6 +171,15 @@ enum Tutorial {
             'On Monday the challenger with the most stars joins the gacha pool as a hero. Everyone can see the '
             'whole ranking from the hub.',
       ),
+      TutorialPage(
+        icon: Icons.people_alt_rounded,
+        title: 'Player trophies',
+        text:
+            'Players are ranked too: Giant Slayer (fights won), Grand Artist (boost stars of your challengers, '
+            'secret until the week is over) and Addict (days in a row with every step done). On Monday, every '
+            'first place wins a trophy worth '
+            '${StarRewards.weekStat} stars.',
+      ),
     ],
     gacha => [
       TutorialPage(

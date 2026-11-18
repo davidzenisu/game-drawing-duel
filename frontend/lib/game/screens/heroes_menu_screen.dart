@@ -101,10 +101,8 @@ class HeroesMenuScreen extends StatelessWidget {
                             icon: Icons.emoji_events_rounded,
                             title: 'Week ranking',
                             unavailable: Unavailable.weekRanking(c),
-                            // Once a week is over; speed mode has its own finale.
-                            onTap: c.weeklyHero == null || c.server.isSpeed
-                                ? null
-                                : () => open(RankingScreen(controller: c), Tutorial.finale),
+                            // Speed mode has its own finale.
+                            onTap: c.server.isSpeed ? null : () => open(RankingScreen(controller: c), Tutorial.finale),
                           ),
                         ],
                       ),
