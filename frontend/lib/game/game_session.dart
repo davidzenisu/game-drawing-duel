@@ -393,6 +393,13 @@ abstract class GameSession extends ChangeNotifier {
   /// unless [refresh].
   Future<WeekRanking?> weekRanking({bool refresh = false});
 
+  /// Loads every player's stats and trophies for [period], and who its
+  /// challengers portray, see [PlayerStats]; null in speed mode, which has
+  /// none, and for last week before the first week is over. Kept on the
+  /// device unless [refresh]: this week's for the day, last week's until the
+  /// next week is over.
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false});
+
   /// Loads this week's win rates, from last week's fights (see [WinRates]);
   /// null in speed mode, which has none. Kept on the device for the week,
   /// unless [refresh].
@@ -417,6 +424,16 @@ abstract class GameSession extends ChangeNotifier {
   // Derived state ------------------------------------------------------------
 
   List<Player> get otherPlayers => server.players.where((p) => !p.isYou).toList();
+
+  /// The week [day] falls in: week 1 is the launch week. Weeks run from
+  /// Monday to Sunday, so the first one may be short. Today's theme tells
+  /// its weekday ([DailyTheme] runs Monday to Sunday).
+  int weekOf(int day) {
+    // This week's Monday, then the launch week's: on or before day 1.
+    final weekStart = this.day - theme.index;
+    final firstWeekStart = weekStart - ((weekStart + 5) ~/ 7) * 7;
+    return (day - firstWeekStart) ~/ 7 + 1;
+  }
 
   bool isUnlocked(DrawingAssignment assignment) {
     final basedOn = assignment.basedOn;

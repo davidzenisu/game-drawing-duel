@@ -453,6 +453,114 @@ class WeekRanking {
   final List<RankedChallenger> challengers;
 }
 
+/// The week the player stats count (see [PlayerStats]).
+enum StatPeriod {
+  week('week', 'This week'),
+  lastWeek('last-week', 'Last week');
+
+  const StatPeriod(this.key, this.label);
+
+  /// Its name in the API.
+  final String key;
+  final String label;
+}
+
+/// A category of the player stats: every player ranked by it, its first
+/// places winning a trophy once the week is over ([StarRewards.weekStat]).
+enum PlayerStatKind {
+  mostWins('most-wins', 'Giant Slayer', 'Fights won, of the ones they picked the fighters for', 'wins'),
+  mostBoosted(
+    'most-boosted',
+    'Grand Artist',
+    'Boost stars the challengers they drew got, in the week of their fight',
+    '★',
+  ),
+  busyStreak(
+    'busy-streak',
+    'Addict',
+    'Days in a row, across weeks, they did every step they could: title, drawing, boost and fight',
+    'days',
+  );
+
+  const PlayerStatKind(this.key, this.label, this.description, this.unit);
+
+  /// Its name in the API.
+  final String key;
+  final String label;
+  final String description;
+  final String unit;
+
+  static PlayerStatKind? byKey(String key) => values.where((k) => k.key == key).firstOrNull;
+}
+
+/// A player's value of a stat and their place (tied players share one),
+/// both null while the stat is secret; and the [trophies] they won in it.
+class PlacedPlayer {
+  const PlacedPlayer({required this.player, required this.value, required this.place, this.trophies = 0});
+
+  final Player player;
+  final int? value;
+  final int? place;
+  final int trophies;
+
+  /// A first place, worth a trophy once the week is over.
+  bool get first => place == 1 && (value ?? 0) > 0;
+}
+
+/// A player stat, with every player best first; in roster order while it's
+/// [secret].
+class PlayerStat {
+  const PlayerStat({required this.kind, required this.players, this.secret = false});
+
+  final PlayerStatKind kind;
+  final List<PlacedPlayer> players;
+
+  /// Hidden until the week is over: [PlayerStatKind.mostBoosted] would tell
+  /// how strong a drawing is.
+  final bool secret;
+
+  /// [values] (and the trophies won) ranked best first, then in the order
+  /// given; tied players share a place, the next one skips theirs.
+  static PlayerStat rank(PlayerStatKind kind, List<(Player, int, int)> values) {
+    final sorted = [...values.indexed]
+      ..sort((a, b) {
+        final byValue = b.$2.$2.compareTo(a.$2.$2);
+        return byValue != 0 ? byValue : a.$1.compareTo(b.$1);
+      });
+    final placed = <PlacedPlayer>[];
+    for (final (i, (_, (player, value, trophies))) in sorted.indexed) {
+      final place = placed.isNotEmpty && placed.last.value == value ? placed.last.place : i + 1;
+      placed.add(PlacedPlayer(player: player, value: value, place: place, trophies: trophies));
+    }
+    return PlayerStat(kind: kind, players: placed);
+  }
+}
+
+/// How the players did from [fromDay] to [toDay], a category at a time.
+/// Once a week is over, each category's first places win a trophy worth
+/// [trophyStars], as a gift.
+class PlayerStats {
+  const PlayerStats({
+    required this.period,
+    required this.fromDay,
+    required this.toDay,
+    required this.trophyStars,
+    required this.stats,
+    this.portrayed = const [],
+  });
+
+  final StatPeriod period;
+  final int fromDay;
+  final int toDay;
+  final int trophyStars;
+  final List<PlayerStat> stats;
+
+  /// Every player of the roster, with how many of the challengers the week
+  /// ranks (fought that week) portray them, drawn so far; without their
+  /// stars.
+  final List<(Player, int)> portrayed;
+}
+
 /// How [player]'s characters did against [against]'s last week, and the
 /// extra stars that gives them against that player this week.
 class WinRate {

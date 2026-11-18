@@ -922,6 +922,60 @@ class MockGameSession extends GameSession {
   }
 
   @override
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async => _playerStats(period);
+
+  /// Made-up player stats: at random, but the same for a period and day.
+  /// Last week's once the first week is over, as the week ranking; this
+  /// week's boosts are secret.
+  PlayerStats? _playerStats(StatPeriod period) {
+    if (server.isSpeed) return null;
+    final weekStart = _days.weekStart(_day);
+    final (from, to) = switch (period) {
+      StatPeriod.week => (max(weekStart, 1), _day),
+      StatPeriod.lastWeek => (max(weekStart - 7, 1), weekStart - 1),
+    };
+    if (period == StatPeriod.lastWeek && to < 7) return null;
+    final portrayed = switch (period) {
+      StatPeriod.week => _ranked(weekStart - 2, min(weekStart + 4, _day)),
+      StatPeriod.lastWeek => _ranked(weekStart - 9, weekStart - 3),
+    };
+    final weeksOver = max(0, (weekStart - 1) ~/ 7);
+    int roll(int seed, int below) => Random(seed).nextInt(below);
+    int value(PlayerStatKind kind, int i) => switch (kind) {
+      PlayerStatKind.mostWins => roll(to * 1009 + i * 31 + 1, to - from + 2),
+      PlayerStatKind.mostBoosted => roll(to * 1009 + i * 31 + 2, 4 * (to - from + 1) + 1),
+      PlayerStatKind.busyStreak => roll(to * 1009 + i * 31 + 3, to + 1),
+    };
+    int trophies(PlayerStatKind kind, int i) => roll(i * 7 + kind.index, weeksOver + 1);
+    return PlayerStats(
+      period: period,
+      fromDay: from,
+      toDay: to,
+      trophyStars: StarRewards.weekStat,
+      stats: [
+        for (final kind in PlayerStatKind.values)
+          if (period == StatPeriod.week && kind == PlayerStatKind.mostBoosted)
+            PlayerStat(
+              kind: kind,
+              secret: true,
+              players: [
+                for (final (i, player) in server.players.indexed)
+                  PlacedPlayer(player: player, value: null, place: null, trophies: trophies(kind, i)),
+              ],
+            )
+          else
+            PlayerStat.rank(kind, [
+              for (final (i, player) in server.players.indexed) (player, value(kind, i), trophies(kind, i)),
+            ]),
+      ],
+      portrayed: [
+        // The challengers fought that week, drawn two days before, so far.
+        for (final player in server.players) (player, portrayed.where((c) => c.card.subject == player.name).length),
+      ],
+    );
+  }
+
+  @override
   Future<WeekWinRates?> winRates({bool refresh = false}) async => server.isSpeed ? null : _days.winRates(_day, you);
 
   List<HurryPlan> _incomingHurries = const [];

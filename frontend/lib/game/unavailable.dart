@@ -60,9 +60,8 @@ abstract final class Unavailable {
       ? null
       : 'The first fights are on day ${LoopStep.fight}: replay them from day ${LoopStep.fight + 1} on.';
 
-  static String? weekRanking(GameSession c) => c.server.isSpeed
-      ? 'Speed mode ranks all of its challengers at the end instead.'
-      : 'The first ranking comes once the first week is over, on Monday.';
+  static String? weekRanking(GameSession c) =>
+      c.server.isSpeed ? 'Speed mode ranks all of its challengers at the end instead.' : null;
 
   static String? hurry(GameSession c) {
     if (c.hurrySentTo case final target?) return "Done: you sent today's hurry to ${target.name}.";

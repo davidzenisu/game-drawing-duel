@@ -1379,6 +1379,67 @@ class ApiGameSession extends GameSession {
       json is Map && json['day'] is int && (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
+    final server = this.server;
+    if (server.isSpeed) return null;
+    final json = await _kept(
+      'player-stats:${period.key}:${server.code}',
+      '/servers/${server.code}/player-stats?period=${period.key}',
+      refresh: refresh,
+      stillCurrent: switch (period) {
+        // This week's for the day it was asked on.
+        StatPeriod.week => (_, askedOn) => askedOn == day,
+        // Last week's until the next week is over, like the week ranking.
+        StatPeriod.lastWeek => (json, _) => json is Map && json['to_day'] is int && day <= (json['to_day'] as int) + 7,
+      },
+    );
+    return switch (json) {
+      null => null,
+      {'from_day': int fromDay, 'to_day': int toDay, 'trophy_stars': int trophyStars, 'stats': List stats} =>
+        PlayerStats(
+          period: period,
+          fromDay: fromDay,
+          toDay: toDay,
+          trophyStars: trophyStars,
+          stats: [
+            for (final stat in stats)
+              if (stat case {'key': String key, 'players': List players})
+                if (PlayerStatKind.byKey(key) case final kind?)
+                  PlayerStat(
+                    kind: kind,
+                    secret: stat['secret'] == true,
+                    players: [
+                      for (final placed in players)
+                        if (placed case {'player_position': int position, 'trophies': int trophies})
+                          PlacedPlayer(
+                            player: _seat(server, position),
+                            value: placed['value'] as int?,
+                            place: placed['place'] as int?,
+                            trophies: trophies,
+                          )
+                        else
+                          throw const FormatException('Unexpected placed player.'),
+                    ],
+                  )
+                else
+                  // A stat this version doesn't know yet.
+                  ...[]
+              else
+                throw const FormatException('Unexpected player stat.'),
+          ],
+          portrayed: [
+            for (final entry in json['portrayed'] as List? ?? const [])
+              if (entry case {'player_position': int position, 'challengers': int challengers})
+                (_seat(server, position), challengers)
+              else
+                throw const FormatException('Unexpected portrayed player.'),
+          ],
+        ),
+      _ => throw const FormatException('Unexpected player stats.'),
+    };
+  }
+
+  @override
   Future<WeekWinRates?> winRates({bool refresh = false}) async {
     final server = this.server;
     if (server.isSpeed) return null;
