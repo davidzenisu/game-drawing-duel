@@ -9,6 +9,12 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.20.3] - 2026-11-18
+
+### Fixed
+- In the week ranking's challenger pie, the ninth and tenth players of a
+  full roster get colors of their own, instead of sharing one grey slice.
+
 ## [0.20.2] - 2026-11-18
 
 ### Added

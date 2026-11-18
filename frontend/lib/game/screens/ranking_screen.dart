@@ -260,16 +260,16 @@ class PlayerWeek {
 /// The week at a glance: a pie of how often each player was chosen as a
 /// challenger, with a legend of every player, their count and share.
 ///
-/// Each player keeps their color by roster position, from eight validated
-/// categorical hues (stepped for dark mode); a roster of nine or ten shares
-/// one grey slice for the players past the eighth. Slices are split by a
-/// thin gap of the card's color.
+/// Each player keeps their color by roster position, from ten validated
+/// categorical hues (stepped for dark mode), one for every player of a full
+/// roster. Slices are split by a thin gap of the card's color.
 class PlayersDashboard extends StatelessWidget {
   const PlayersDashboard({super.key, required this.weeks});
 
   /// Every player, most chosen first ([PlayerWeek.of]).
   final List<PlayerWeek> weeks;
 
+  /// One hue for each of the most players a server takes (ten).
   static const _light = [
     Color(0xFF2A78D6),
     Color(0xFFEB6834),
@@ -279,6 +279,8 @@ class PlayersDashboard extends StatelessWidget {
     Color(0xFF008300),
     Color(0xFF6250D6),
     Color(0xFFE34948),
+    Color(0xFF8A2B60),
+    Color(0xFF1EB7EE),
   ];
   static const _dark = [
     Color(0xFF3987E5),
@@ -289,6 +291,9 @@ class PlayersDashboard extends StatelessWidget {
     Color(0xFF0CA30C),
     Color(0xFF9085E9),
     Color(0xFFE66767),
+    Color(0xFFA738A2),
+    // Lighter than the others: a darker cyan reads as the blue or violet.
+    Color(0xFF27C0DC),
   ];
 
   @override
@@ -296,16 +301,13 @@ class PlayersDashboard extends StatelessWidget {
     final theme = Theme.of(context);
     final text = theme.textTheme;
     final hues = theme.brightness == Brightness.dark ? _dark : _light;
-    final others = theme.colorScheme.outline;
-    Color colorOf(PlayerWeek week) => week.position < hues.length ? hues[week.position] : others;
+    // Past a full roster, which can't happen, players share the last hue.
+    Color colorOf(PlayerWeek week) => hues[math.min(week.position, hues.length - 1)];
 
     final total = weeks.fold(0, (sum, w) => sum + w.chosen);
     final slices = <(Color, int)>[
       for (final week in weeks)
-        if (week.chosen > 0 && week.position < hues.length) (colorOf(week), week.chosen),
-      if (weeks.where((w) => w.position >= hues.length).fold(0, (sum, w) => sum + w.chosen) case final rest
-          when rest > 0)
-        (others, rest),
+        if (week.chosen > 0) (colorOf(week), week.chosen),
     ];
     final cardColor = theme.cardTheme.color ?? theme.colorScheme.surfaceContainerLow;
 
