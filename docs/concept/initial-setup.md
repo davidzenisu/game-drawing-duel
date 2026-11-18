@@ -10,6 +10,8 @@ When a server is created, the creator can prepopulate their own and all other pl
 
 They can then share a generated server code with friends to join. The lobby (while friends join) and the setup (while they finish their drawings) don't update on their own: a **refresh** button in the top right checks who joined or finished, and whether the game moved on or was cancelled.
 
+The sign-in screen shows a big banner above the sign-in card, tilted slightly, in a bold comic-book font (Bangers): **SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION**. It shows nowhere else.
+
 After signing up, a player picks between joining a server and creating one. Joining comes first, since most players join a friend's server with its code. Until they dismiss it, new players also see a short note there: the game in one sentence (you and your friends draw each other as heroes and challengers, collect the drawings and send them into fights), and that everything is explained step by step once they join or create a server.
 
 In the top right of the main screens (servers, lobby, setup and the daily hub), an **account** menu shows who you're signed in as, lets you change your account's first name, see **What's new** (the release notes, newest version first, with their dates) and sign out (the mockup has no account to sign out of). On a server, it also holds cancelling the server, and the server's **Ideas & bugs** board.
