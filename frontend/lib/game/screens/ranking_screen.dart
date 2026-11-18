@@ -184,7 +184,7 @@ class _RankingScreenState extends State<RankingScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'The week up to day ${ranking.day}: ${ranking.challengers.length} challengers, ranked by '
+            'Week ${widget.controller.weekOf(ranking.day)}: ${ranking.challengers.length} challengers, ranked by '
             'their own ${Stars.challengerBase} ★ plus their boost stars.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -199,14 +199,15 @@ class _RankingScreenState extends State<RankingScreen> {
     }
     final stats = _stats[_period];
     if (stats == null) return null;
-    if (_view == RankingView.players) return PlayerStatsView(key: ValueKey(_period), stats: stats);
+    final week = widget.controller.weekOf(stats.toDay);
+    if (_view == RankingView.players) return PlayerStatsView(key: ValueKey(_period), stats: stats, week: week);
     final total = stats.portrayed.fold(0, (sum, p) => sum + p.$2);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Days ${stats.fromDay} to ${stats.toDay}, so far: $total challengers drawn for this week. Their '
-          'stars stay secret until the week is over; then they are ranked.',
+          'Week $week, so far: $total challengers drawn for this week. '
+          'Their stars stay secret until the week is over; then they are ranked.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 12),

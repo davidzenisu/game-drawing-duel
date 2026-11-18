@@ -240,6 +240,12 @@ def first_places(server: Server, by_seat: dict[uuid.UUID, int]) -> list[ServerSe
     return [p.seat for p in ranking(server, by_seat) if p.place == 1 and p.value > 0]
 
 
+def week_number(server: Server, day: int) -> int:
+    """The week `day` falls in: week 1 is the launch week (Monday to Sunday,
+    so it may be short)."""
+    return (days.week_start(server, day) - days.week_start(server, 1)) // 7 + 1
+
+
 def award(session: Session, server: Server, day: int) -> list[Trophy | Gift]:
     """The trophies of the week that ends on `day`, and the gifts of their
     stars, to add to the session."""
@@ -252,7 +258,7 @@ def award(session: Session, server: Server, day: int) -> list[Trophy | Gift]:
         awarded.extend(Trophy(seat_id=s.id, stat=stat, day=day) for s in winners)
         awarded.append(
             Gift(
-                message=f"Trophy: {NAMES[stat]} in the week up to day {day}!",
+                message=f"Trophy: {NAMES[stat]} in week {week_number(server, day)}!",
                 pulls=0,
                 stars=rules.STARS_FOR_WEEK_STAT,
                 server_id=server.id,

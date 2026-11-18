@@ -1008,7 +1008,7 @@ class MockGameSession extends GameSession {
         _gifts.add(
           Gift(
             id: 'trophy-${stat.kind.key}-${_day - 1}',
-            message: 'Trophy: ${stat.kind.label} in the week up to day ${_day - 1}!',
+            message: 'Trophy: ${stat.kind.label} in week ${weekOf(_day - 1)}!',
             pulls: 0,
             stars: StarRewards.weekStat,
             sentAt: DateTime.now(),

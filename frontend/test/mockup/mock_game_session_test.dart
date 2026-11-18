@@ -33,7 +33,7 @@ void main() {
     expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty);
     // You led the Addict streak: its trophy waits on the notification board.
     final trophy = game.gifts.singleWhere((g) => g.message.startsWith('Trophy: '));
-    expect(trophy.message, 'Trophy: Addict in the week up to day 7!');
+    expect(trophy.message, 'Trophy: Addict in week 1!');
     expect((trophy.pulls, trophy.stars), (0, StarRewards.weekStat));
     final last = (await game.playerStats(StatPeriod.lastWeek))!;
     final addict = last.stats.firstWhere((s) => s.kind == PlayerStatKind.busyStreak);

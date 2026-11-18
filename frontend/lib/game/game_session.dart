@@ -425,6 +425,16 @@ abstract class GameSession extends ChangeNotifier {
 
   List<Player> get otherPlayers => server.players.where((p) => !p.isYou).toList();
 
+  /// The week [day] falls in: week 1 is the launch week. Weeks run from
+  /// Monday to Sunday, so the first one may be short. Today's theme tells
+  /// its weekday ([DailyTheme] runs Monday to Sunday).
+  int weekOf(int day) {
+    // This week's Monday, then the launch week's: on or before day 1.
+    final weekStart = this.day - theme.index;
+    final firstWeekStart = weekStart - ((weekStart + 5) ~/ 7) * 7;
+    return (day - firstWeekStart) ~/ 7 + 1;
+  }
+
   bool isUnlocked(DrawingAssignment assignment) {
     final basedOn = assignment.basedOn;
     return basedOn == null || assignments.any((a) => a.id == basedOn && setupDrawing(a) != null);

@@ -16,6 +16,23 @@ void _phone(WidgetTester tester) {
 }
 
 void main() {
+  test('weeks are numbered from the launch week, Monday to Sunday', () async {
+    // Launched on a Wednesday: week 1 is days 1 to 5, week 2 starts on Monday, day 6.
+    final game = await launchedGame(launchDate: firstMonday.add(const Duration(days: 2)));
+    for (final day in [1, 1, 2, 3, 6, 9]) {
+      while (game.day < day) {
+        await game.advanceDay();
+      }
+      expect(
+        [
+          for (final d in [1, 5, 6, 12, 13]) game.weekOf(d),
+        ],
+        [1, 1, 2, 2, 3],
+        reason: 'on day $day',
+      );
+    }
+  });
+
   test('tied players share a place, the next one skips theirs', () {
     final [a, b, c, d] = const [
       Player(id: 'a', name: 'A'),
@@ -46,7 +63,7 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     // The players' view of this week first.
     expect(find.byType(PlayerStatsView), findsOneWidget);
-    expect(find.textContaining('Days 1 to 4, so far.'), findsOneWidget);
+    expect(find.textContaining('Week 1, so far.'), findsOneWidget);
     expect(find.textContaining('wins a trophy worth 3 ★'), findsOneWidget);
     final week = (await controller.playerStats(StatPeriod.week))!;
     final wins = week.stats.firstWhere((s) => s.kind == PlayerStatKind.mostWins);
@@ -78,7 +95,7 @@ void main() {
     expect(find.byType(PlayersDashboard), findsOneWidget);
     final total = week.portrayed.fold(0, (sum, p) => sum + p.$2);
     expect(total, greaterThan(0));
-    expect(find.textContaining('$total challengers drawn for this week'), findsOneWidget);
+    expect(find.textContaining('Week 1, so far: $total challengers drawn for this week'), findsOneWidget);
     expect(find.textContaining('#1'), findsNothing, reason: 'no ranking before the week is over');
     expect(find.byType(CardboardCard), findsNothing, reason: 'nor their drawings');
 
@@ -105,7 +122,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Days 1 to 7. The first place of each category won a trophy worth 3 ★.'), findsOneWidget);
+    expect(find.text('Week 1. The first place of each category won a trophy worth 3 ★.'), findsOneWidget);
     await tester.tap(find.text('Grand Artist'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Secret'), findsNothing, reason: 'not once the week is over');
@@ -142,7 +159,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull, reason: 'fits a phone');
-    expect(find.textContaining('${ranking.challengers.length} challengers'), findsOneWidget);
+    expect(find.textContaining('Week 1: ${ranking.challengers.length} challengers'), findsOneWidget);
     final hero = ranking.challengers.first;
     expect(find.text(hero.card.title), findsWidgets, reason: 'in its nameplate');
     expect(find.text('${hero.stars} ★').first, findsOneWidget);

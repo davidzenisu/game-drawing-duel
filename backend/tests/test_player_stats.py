@@ -124,7 +124,7 @@ class PlayerStatsTests(FinaleTestCase):
             ]
             self.assertEqual(len(mine), 1)
             self.assertEqual((mine[0]["stars"], mine[0]["pulls"]), (3, 0))
-            self.assertIn("week up to day 7", mine[0]["message"])
+            self.assertEqual(mine[0]["message"], "Trophy: Addict in week 1!")
             for subject in PLAYERS[1:]:
                 self.assertFalse(
                     [g for g in self.gifts(subject) if "Addict" in g["message"]]
