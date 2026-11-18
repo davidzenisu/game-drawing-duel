@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// The sponsor's banner, big on the title screen under the game's title.
+/// The sponsor's banner on the title screen, below Tap to start.
 class SponsorBanner extends StatelessWidget {
   const SponsorBanner({super.key});
 
@@ -14,23 +14,23 @@ class SponsorBanner extends StatelessWidget {
     return Transform.rotate(
       angle: -0.03,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
           gradient: const LinearGradient(colors: [Color(0xFFD97757), Color(0xFFB8532F)]),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 4))],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white, width: 1.5),
+          boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 5, offset: Offset(0, 2))],
         ),
         child: Text(
           text,
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontFamily: fontFamily,
-            fontSize: 34,
+            fontSize: 17,
             height: 1.1,
-            letterSpacing: 2,
+            letterSpacing: 1,
             color: Colors.white,
-            shadows: [Shadow(color: Color(0xFF5A2310), offset: Offset(3, 3))],
+            shadows: [Shadow(color: Color(0xFF5A2310), offset: Offset(1.5, 1.5))],
           ),
         ),
       ),

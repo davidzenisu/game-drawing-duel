@@ -179,12 +179,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           builder: (context, child) => Opacity(
                             opacity: (_bannerSlide.value * 2).clamp(0.0, 1.0),
                             child: Transform.translate(
-                              offset: Offset(0, 160 * (1 - _bannerSlide.value)),
+                              offset: Offset(0, 80 * (1 - _bannerSlide.value)),
                               child: child,
                             ),
                           ),
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 420),
+                            constraints: const BoxConstraints(maxWidth: 210),
                             child: const SponsorBanner(),
                           ),
                         ),
