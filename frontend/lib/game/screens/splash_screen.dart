@@ -24,12 +24,16 @@ class SplashScreen extends StatefulWidget {
   /// How long the title and the standees take to come in, the button last.
   static const intro = Duration(milliseconds: 2200);
 
+  /// How long the sponsor's banner takes to come in, after the [intro].
+  static const banner = Duration(milliseconds: 700);
+
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late final _intro = AnimationController(vsync: this, duration: SplashScreen.intro);
+  late final _banner = AnimationController(vsync: this, duration: SplashScreen.banner);
 
   late final _title = CurvedAnimation(
     parent: _intro,
@@ -49,13 +53,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.didChangeDependencies();
     if (_intro.isDismissed) {
       // All at once when the platform asks for less motion.
-      MediaQuery.of(context).disableAnimations ? _intro.value = 1 : _intro.forward();
+      if (MediaQuery.of(context).disableAnimations) {
+        _intro.value = 1;
+        _banner.value = 1;
+      } else {
+        // The banner comes in once everything else is in.
+        _intro.forward().whenCompleteOrCancel(() {
+          if (mounted) _banner.forward();
+        });
+      }
     }
   }
 
   @override
   void dispose() {
     _intro.dispose();
+    _banner.dispose();
     super.dispose();
   }
 
@@ -96,11 +109,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             ),
                             const SizedBox(height: 24),
                             _Title(textTheme: textTheme),
-                            const SizedBox(height: 28),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              child: const SponsorBanner(),
-                            ),
                           ],
                         ),
                       ),
@@ -143,6 +151,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Last of all, the sponsor's banner slams in from big.
+                      AnimatedBuilder(
+                        animation: _banner,
+                        builder: (context, child) => Opacity(
+                          opacity: Curves.easeOut.transform((_banner.value * 3).clamp(0.0, 1.0)),
+                          child: Transform.scale(
+                            scale: 1 + 1.5 * (1 - Curves.easeOutBack.transform(_banner.value)),
+                            child: child,
+                          ),
+                        ),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 420),
+                          child: const SponsorBanner(),
                         ),
                       ),
                     ],

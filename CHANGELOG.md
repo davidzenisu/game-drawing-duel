@@ -12,8 +12,9 @@ the game is in early development (0.x), versions stay below 1.0.
 ## [0.19.0] - 2026-11-18
 
 ### Added
-- A big banner on the title screen, under the title and above Tap to start,
-  in a bold comic-book font: SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION.
+- A big banner on the title screen, in a bold comic-book font: SPONSORED BY
+  OLIVIA'S CLAUDE SUBSCRIPTION. It slams in below Tap to start, once
+  everything else is in.
 
 ## [0.18.0] - 2026-11-17
 

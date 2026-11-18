@@ -9,17 +9,27 @@ import 'package:frontend/game/widgets/sponsor_banner.dart';
 import '../helpers.dart';
 
 void main() {
-  testWidgets('the title screen shows the sponsor banner between the title and Tap to start', (tester) async {
+  testWidgets('the sponsor banner comes in below Tap to start, after everything else', (tester) async {
     tester.view.physicalSize = const Size(360, 740);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
+    double bannerOpacity() => tester
+        .widget<Opacity>(find.ancestor(of: find.byType(SponsorBanner), matching: find.byType(Opacity)).first)
+        .opacity;
+
     await tester.pumpWidget(MaterialApp(home: SplashScreen(ready: true, onStart: () {})));
     await tester.pump(SplashScreen.intro);
+    await tester.pump();
+    // Everything else is in; the banner not yet.
+    expect(bannerOpacity(), 0);
+    await tester.pump(SplashScreen.banner);
+    expect(bannerOpacity(), 1);
     expect(find.text("SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION"), findsOneWidget);
-    final banner = tester.getRect(find.byType(SponsorBanner));
-    expect(banner.top, greaterThan(tester.getBottomLeft(find.text('DRAWING DUEL')).dy));
-    expect(banner.bottom, lessThan(tester.getTopLeft(find.text('Tap to start')).dy));
+    expect(
+      tester.getRect(find.byType(SponsorBanner)).top,
+      greaterThan(tester.getBottomLeft(find.text('Tap to start')).dy),
+    );
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     await tester.pumpWidget(const SizedBox());
   });
