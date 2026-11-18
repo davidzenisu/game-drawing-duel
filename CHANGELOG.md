@@ -9,7 +9,7 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
-## [0.19.0] - 2026-11-18
+## [0.20.0] - 2026-11-18
 
 ### Added
 - **Weekly trophies**: every week, the players are ranked in three
@@ -21,6 +21,13 @@ the game is in early development (0.x), versions stay below 1.0.
     their fight.
   - **Addict**: the days in a row, even across weeks, you did every step
     you could: your title, drawing, boosts and fight.
+
+## [0.19.0] - 2026-11-18
+
+### Added
+- A small banner on the title screen, in the gold word art of the summon
+  banners: SPONSORED BY OLIVIA'S CLAUDE SUBSCRIPTION. A moment after everything else is in, it
+  slides up from below, under Tap to start.
 
 ## [0.18.0] - 2026-11-17
 
