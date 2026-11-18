@@ -34,6 +34,20 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Tap to start can be tapped while the banner comes in', (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var started = 0;
+    await tester.pumpWidget(MaterialApp(home: SplashScreen(ready: true, onStart: () => started++)));
+    await tester.pump(SplashScreen.intro);
+    await tester.pump();
+    await tester.tap(find.text('Tap to start'));
+    expect(started, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the sign-in screen and the daily hub have no sponsor banner', (tester) async {
     final controller = await launchedGame(launchDate: firstMonday);
     await tester.pumpWidget(MaterialApp(home: SignInScreen(controller: controller)));

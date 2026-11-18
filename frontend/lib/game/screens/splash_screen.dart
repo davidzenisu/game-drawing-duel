@@ -154,19 +154,22 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Last of all, the sponsor's banner slams in from big.
-                      AnimatedBuilder(
-                        animation: _banner,
-                        builder: (context, child) => Opacity(
-                          opacity: Curves.easeOut.transform((_banner.value * 3).clamp(0.0, 1.0)),
-                          child: Transform.scale(
-                            scale: 1 + 1.5 * (1 - Curves.easeOutBack.transform(_banner.value)),
-                            child: child,
+                      // Last of all, the sponsor's banner slams in from big. It's
+                      // only decoration: while it's big, taps go through it to the button.
+                      IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _banner,
+                          builder: (context, child) => Opacity(
+                            opacity: Curves.easeOut.transform((_banner.value * 3).clamp(0.0, 1.0)),
+                            child: Transform.scale(
+                              scale: 1 + 1.5 * (1 - Curves.easeOutBack.transform(_banner.value)),
+                              child: child,
+                            ),
                           ),
-                        ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 420),
-                          child: const SponsorBanner(),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 420),
+                            child: const SponsorBanner(),
+                          ),
                         ),
                       ),
                     ],
