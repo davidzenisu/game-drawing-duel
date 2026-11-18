@@ -120,14 +120,14 @@ class PlayerStatsTests(FinaleTestCase):
             mine = [
                 g
                 for g in self.gifts()
-                if g["message"].startswith("Trophy: Busy streak")
+                if g["message"].startswith("Trophy: Addict")
             ]
             self.assertEqual(len(mine), 1)
             self.assertEqual((mine[0]["stars"], mine[0]["pulls"]), (3, 0))
             self.assertIn("week up to day 7", mine[0]["message"])
             for subject in PLAYERS[1:]:
                 self.assertFalse(
-                    [g for g in self.gifts(subject) if "Busy streak" in g["message"]]
+                    [g for g in self.gifts(subject) if "Addict" in g["message"]]
                 )
 
             self.do_all()
@@ -141,7 +141,7 @@ class PlayerStatsTests(FinaleTestCase):
         # Awarded only once.
         self.today()
         trophy_gifts = [
-            g for g in self.gifts() if g["message"].startswith("Trophy: Busy")
+            g for g in self.gifts() if g["message"].startswith("Trophy: Addict")
         ]
         self.assertEqual(len(trophy_gifts), 1)
         with self.session_factory() as session:
@@ -158,10 +158,10 @@ class PlayerStatsTests(FinaleTestCase):
         for subject in PLAYERS:
             gifts = self.gifts(subject)
             self.assertEqual(
-                sum(g["message"].startswith("Trophy: Most boosted") for g in gifts), 1
+                sum(g["message"].startswith("Trophy: Grand Artist") for g in gifts), 1
             )
             # Nobody picked fighters themselves: no trophy.
-            self.assertFalse([g for g in gifts if "Most fights won" in g["message"]])
+            self.assertFalse([g for g in gifts if "Giant Slayer" in g["message"]])
         self.assertEqual(
             self.trophies(self.stats(), "most-boosted"), {0: 1, 1: 1, 2: 1}
         )

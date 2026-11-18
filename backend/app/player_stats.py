@@ -5,13 +5,13 @@ place of each category wins a trophy (`Trophy`), worth
 `rules.STARS_FOR_WEEK_STAT` stars as a gift to accept (`award`); tied first
 places each win one. Speed mode sessions have none.
 
-- `most-wins`: the fights won, of the ones they picked the fighters for
+- `most-wins` (Giant Slayer): the fights won, of the ones they picked the fighters for
   (chance's don't count, as everywhere).
-- `most-boosted`: the boost stars the challengers they drew got, counted in
+- `most-boosted` (Grand Artist): the boost stars the challengers they drew got, counted in
   the week of their fight (as the week ranking), so a ranking never gives
   away a challenger that isn't fought yet. Secret during the ongoing week
   (`SECRET`): it would tell how strong a drawing is.
-- `busy-streak`: the run of days up to the week's last one, across weeks,
+- `busy-streak` (Addict): the run of days up to the week's last one, across weeks,
   on which they did every daily step they could themselves: their title,
   drawing, boosts and fight (`_did_all`). A step with nothing to do doesn't
   break it. In the ongoing week, today counts once it's done, and doesn't
@@ -44,9 +44,9 @@ STATS = ("most-wins", "most-boosted", "busy-streak")
 SECRET = frozenset({"most-boosted"})
 
 NAMES = {
-    "most-wins": "Most fights won",
-    "most-boosted": "Most boosted",
-    "busy-streak": "Busy streak",
+    "most-wins": "Giant Slayer",
+    "most-boosted": "Grand Artist",
+    "busy-streak": "Addict",
 }
 
 # A challenger is fought this many days after it was drawn.
@@ -159,7 +159,7 @@ def values(
     session: Session, server: Server, first: int, last: int
 ) -> dict[str, dict[uuid.UUID, int]]:
     """Every stat of every seat that joined, from day `first` to day `last`
-    (the busy streak up to `last`)."""
+    (the Addict streak up to `last`)."""
     seats = days.active_seats(server)
     ids = [s.id for s in seats]
     stats: dict[str, dict[uuid.UUID, int]] = {

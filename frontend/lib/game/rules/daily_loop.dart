@@ -468,16 +468,16 @@ enum StatPeriod {
 /// A category of the player stats: every player ranked by it, its first
 /// places winning a trophy once the week is over ([StarRewards.weekStat]).
 enum PlayerStatKind {
-  mostWins('most-wins', 'Most fights won', 'Fights won, of the ones they picked the fighters for', 'wins'),
+  mostWins('most-wins', 'Giant Slayer', 'Fights won, of the ones they picked the fighters for', 'wins'),
   mostBoosted(
     'most-boosted',
-    'Most boosted',
+    'Grand Artist',
     'Boost stars the challengers they drew got, in the week of their fight',
     '★',
   ),
   busyStreak(
     'busy-streak',
-    'Busy streak',
+    'Addict',
     'Days in a row, across weeks, they did every step they could: title, drawing, boost and fight',
     'days',
   );

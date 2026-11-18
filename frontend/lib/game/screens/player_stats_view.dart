@@ -40,7 +40,7 @@ class _PlayerStatsViewState extends State<PlayerStatsView> {
         ),
         const SizedBox(height: 12),
         if (stats.stats.where((s) => s.kind == _kind).firstOrNull case final stat?)
-          StatLeaderboard(stat: stat, trophyStars: stats.trophyStars, over: stats.period == StatPeriod.lastWeek),
+          StatLeaderboard(stat: stat, over: stats.period == StatPeriod.lastWeek),
       ],
     );
   }
@@ -56,15 +56,15 @@ class _PlayerStatsViewState extends State<PlayerStatsView> {
   }
 }
 
-/// Every player ranked by [stat], best first: tied players share a place.
-/// First places wear a trophy (and, once the week is [over], the
-/// [trophyStars] it was worth), your row stands out, and every player shows
-/// the trophies they won in it so far. A secret stat shows only those.
+/// Every player ranked by [stat], best first, without place numbers: the
+/// first places wear a trophy, filled once the week is [over] and they won
+/// it, an outline while it's still to win. Your row stands out, and every
+/// player shows the trophies they won in it so far. A secret stat shows only
+/// those.
 class StatLeaderboard extends StatelessWidget {
-  const StatLeaderboard({super.key, required this.stat, this.trophyStars = 0, this.over = false});
+  const StatLeaderboard({super.key, required this.stat, this.over = false});
 
   final PlayerStat stat;
-  final int trophyStars;
   final bool over;
 
   @override
@@ -112,19 +112,14 @@ class StatLeaderboard extends StatelessWidget {
                   children: [
                     SizedBox(
                       width: 32,
-                      child: switch (placed) {
-                        PlacedPlayer(first: true) => const Icon(
-                          Icons.emoji_events_rounded,
-                          color: AppPalette.rarityHero,
-                          semanticLabel: '1',
-                        ),
-                        PlacedPlayer(:final place?) => Text(
-                          '$place',
-                          style: text.titleMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                        _ => const SizedBox(),
-                      },
+                      child: placed.first
+                          ? Icon(
+                              over ? Icons.emoji_events_rounded : Icons.emoji_events_outlined,
+                              key: const ValueKey('first-place'),
+                              color: AppPalette.rarityHero,
+                              semanticLabel: over ? 'Trophy won' : 'First so far',
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -142,16 +137,11 @@ class StatLeaderboard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.emoji_events_outlined, size: 16, color: AppPalette.rarityHero),
+                              const Icon(Icons.emoji_events_rounded, size: 16, color: AppPalette.rarityHero),
                               Text('×${placed.trophies}', style: text.labelMedium),
                             ],
                           ),
                         ),
-                      ),
-                    if (over && placed.first)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Text('+$trophyStars ★', style: text.labelMedium?.copyWith(color: AppPalette.rarityHero)),
                       ),
                     if (placed.value case final value?) Text('$value ${kind.unit}', style: text.titleSmall),
                   ],

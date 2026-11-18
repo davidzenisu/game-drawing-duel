@@ -921,11 +921,14 @@ class MockGameSession extends GameSession {
     return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 8, lastDay - 2));
   }
 
+  @override
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async => _playerStats(period);
+
   /// Made-up player stats: at random, but the same for a period and day.
   /// Last week's once the first week is over, as the week ranking; this
-  /// week's boosts are secret.
-  @override
-  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
+  /// week's boosts are secret. You lead the Addict streak, as if you never
+  /// missed a day, so every week over brings you its trophy to try.
+  PlayerStats? _playerStats(StatPeriod period) {
     if (server.isSpeed) return null;
     final weekStart = _days.weekStart(_day);
     final (from, to) = switch (period) {
@@ -942,8 +945,11 @@ class MockGameSession extends GameSession {
     int value(PlayerStatKind kind, int i) => switch (kind) {
       PlayerStatKind.mostWins => roll(to * 1009 + i * 31 + 1, to - from + 2),
       PlayerStatKind.mostBoosted => roll(to * 1009 + i * 31 + 2, 4 * (to - from + 1) + 1),
-      PlayerStatKind.busyStreak => roll(to * 1009 + i * 31 + 3, to + 1),
+      PlayerStatKind.busyStreak => server.players[i].isYou ? to : roll(to * 1009 + i * 31 + 3, to),
     };
+    int trophies(PlayerStatKind kind, int i) => kind == PlayerStatKind.busyStreak
+        ? (server.players[i].isYou ? weeksOver : 0)
+        : roll(i * 7 + kind.index, weeksOver + 1);
     return PlayerStats(
       period: period,
       fromDay: from,
@@ -957,13 +963,12 @@ class MockGameSession extends GameSession {
               secret: true,
               players: [
                 for (final (i, player) in server.players.indexed)
-                  PlacedPlayer(player: player, value: null, place: null, trophies: roll(i * 7 + 5, weeksOver + 1)),
+                  PlacedPlayer(player: player, value: null, place: null, trophies: trophies(kind, i)),
               ],
             )
           else
             PlayerStat.rank(kind, [
-              for (final (i, player) in server.players.indexed)
-                (player, value(kind, i), roll(i * 7 + kind.index, weeksOver + 1)),
+              for (final (i, player) in server.players.indexed) (player, value(kind, i), trophies(kind, i)),
             ]),
       ],
       portrayed: [
@@ -996,6 +1001,19 @@ class MockGameSession extends GameSession {
         final winner = ranked.first;
         if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
         _weeklyHero = WeeklyHero(card: winner.card, day: _day - 1, stars: winner.stars);
+      }
+      // Last week's trophies you won, as gifts on the notification board.
+      for (final stat in _playerStats(StatPeriod.lastWeek)?.stats ?? const <PlayerStat>[]) {
+        if (!stat.players.any((p) => p.player.isYou && p.first)) continue;
+        _gifts.add(
+          Gift(
+            id: 'trophy-${stat.kind.key}-${_day - 1}',
+            message: 'Trophy: ${stat.kind.label} in the week up to day ${_day - 1}!',
+            pulls: 0,
+            stars: StarRewards.weekStat,
+            sentAt: DateTime.now(),
+          ),
+        );
       }
     }
   }

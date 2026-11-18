@@ -13,14 +13,15 @@ the game is in early development (0.x), versions stay below 1.0.
 
 ### Added
 - The week ranking ranks the **players** too, in three categories:
-  - **Most fights won**: fights won with the fighters you picked.
-  - **Most boosted**: the boost stars your challengers got. It stays secret
+  - **Giant Slayer**: fights won with the fighters you picked.
+  - **Grand Artist**: the boost stars your challengers got. It stays secret
     until the week is over, so it doesn't give away how strong a drawing is.
-  - **Busy streak**: the days in a row, even across weeks, you did every
-    step you could: your title, drawing, boosts and fight.
+  - **Addict**: the days in a row, even across weeks, you did every step you
+    could: your title, drawing, boosts and fight.
 - When a new week begins, the first place of each category wins a
   **trophy** worth 3 stars, as a gift on the notification board. Tied
-  first places each win one. The ranking shows everyone's trophies.
+  first places each win one. The ranking shows everyone's trophies, and
+  this week's leaders with an outlined trophy, still to win.
 
 ### Changed
 - The week ranking opens from the first day, with two views, Players and

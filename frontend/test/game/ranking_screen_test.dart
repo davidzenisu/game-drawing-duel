@@ -55,13 +55,20 @@ void main() {
       expect(find.text(placed.player.isYou ? '${placed.player.name} (you)' : placed.player.name), findsOneWidget);
     }
     expect(find.text('${wins.players.first.value} wins'), findsWidgets);
+    final firsts = find.byKey(const ValueKey('first-place'));
+    expect(firsts, findsNWidgets(wins.players.where((p) => p.first).length));
+    expect(
+      tester.widgetList<Icon>(firsts).map((i) => i.icon),
+      everyElement(Icons.emoji_events_outlined),
+      reason: 'not won yet',
+    );
 
     // Boosts are secret this week.
-    await tester.tap(find.text('Most boosted'));
+    await tester.tap(find.text('Grand Artist'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Secret until the week is over'), findsOneWidget);
     expect(find.textContaining(' ★'), findsOneWidget, reason: 'only in the trophy line, no values');
-    await tester.tap(find.text('Busy streak'));
+    await tester.tap(find.text('Addict'));
     await tester.pumpAndSettle();
     expect(find.text(PlayerStatKind.busyStreak.description), findsOneWidget);
 
@@ -99,16 +106,21 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Days 1 to 7. The first place of each category won a trophy worth 3 ★.'), findsOneWidget);
-    await tester.tap(find.text('Most boosted'));
+    await tester.tap(find.text('Grand Artist'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Secret'), findsNothing, reason: 'not once the week is over');
     final last = (await controller.playerStats(StatPeriod.lastWeek))!;
     final boosted = last.stats.firstWhere((s) => s.kind == PlayerStatKind.mostBoosted);
     final firsts = boosted.players.where((p) => p.first);
-    expect(find.text('+3 ★'), findsNWidgets(firsts.length));
-    expect(find.byIcon(Icons.emoji_events_rounded), findsNWidgets(firsts.length));
+    expect(find.textContaining('+3'), findsNothing, reason: 'no stars in the table');
+    final first = find.byKey(const ValueKey('first-place'));
+    expect(first, findsNWidgets(firsts.length));
+    expect(tester.widgetList<Icon>(first).map((i) => i.icon), everyElement(Icons.emoji_events_rounded), reason: 'won');
+    for (final place in [for (final p in boosted.players) '${p.place}']) {
+      expect(find.text(place), findsNothing, reason: 'no place numbers');
+    }
     final withTrophies = boosted.players.where((p) => p.trophies > 0);
-    expect(find.byIcon(Icons.emoji_events_outlined), findsNWidgets(withTrophies.length));
+    expect(find.textContaining('×'), findsNWidgets(withTrophies.length));
     for (final placed in withTrophies) {
       expect(find.text('×${placed.trophies}'), findsWidgets);
     }

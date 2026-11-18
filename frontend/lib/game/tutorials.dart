@@ -175,8 +175,9 @@ enum Tutorial {
         icon: Icons.people_alt_rounded,
         title: 'Player trophies',
         text:
-            'Players are ranked too: most fights won, most boosted (secret until the week is over) and the '
-            'busiest streak of days with every step done. On Monday, every first place wins a trophy worth '
+            'Players are ranked too: Giant Slayer (fights won), Grand Artist (boost stars of your challengers, '
+            'secret until the week is over) and Addict (days in a row with every step done). On Monday, every '
+            'first place wins a trophy worth '
             '${StarRewards.weekStat} stars.',
       ),
     ],
