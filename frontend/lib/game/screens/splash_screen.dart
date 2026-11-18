@@ -97,9 +97,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             const SizedBox(height: 24),
                             _Title(textTheme: textTheme),
                             const SizedBox(height: 28),
-                            const ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: 420),
-                              child: SponsorBanner(),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 420),
+                              child: const SponsorBanner(),
                             ),
                           ],
                         ),
