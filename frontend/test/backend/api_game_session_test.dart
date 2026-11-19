@@ -1092,6 +1092,14 @@ void main() {
       expect((await alex.weekRanking())!.challengers.single.stars, 6, reason: 'from the device');
       expect(rankingRequests(), before + 1, reason: 'kept until the next week is over');
 
+      // One kept before rankings had a boost balance is asked again.
+      final kept = jsonDecode(cache.read('ranking:123456')!) as Map<String, dynamic>;
+      (kept['json'] as Map).remove('boost_balance');
+      cache.write('ranking:123456', jsonEncode(kept));
+      await alex.weekRanking();
+      expect(rankingRequests(), before + 2, reason: 'no boost balance kept');
+      expect(cache.read('ranking:123456'), contains('boost_balance'));
+
       // Refreshed by hand.
       backend.rankings['123456'] = {
         'day': 7,
@@ -1100,14 +1108,14 @@ void main() {
         ],
       };
       expect((await alex.weekRanking(refresh: true))!.challengers.single.stars, 7);
-      expect(rankingRequests(), before + 2);
+      expect(rankingRequests(), before + 3);
 
       // Day 15: the next week is over, so its ranking is asked for.
       backend.rankings['123456'] = {'day': 14, 'challengers': backend.rankings['123456']!['challengers']};
       backend.days['123456'] = 15;
       await alex.refreshDay();
       expect((await alex.weekRanking())!.day, 14);
-      expect(rankingRequests(), before + 3);
+      expect(rankingRequests(), before + 4);
 
       await alex.signOut();
       expect(cache.entries, isEmpty, reason: 'the next player on this device starts fresh');
@@ -1253,6 +1261,7 @@ void main() {
       expect((await alex.winRates())!.rates, isEmpty);
       expect((await alex.winRates())!.rates, isEmpty);
       expect(requests('/win-rates'), 1, reason: 'from the device');
+      expect(cache.entries.keys, contains('win-rates:v2:123456'), reason: 'not the ones kept with the old bands');
       backend.days['123456'] = 7;
       await alex.refreshDay();
       expect((await alex.winRates())!.rates, isEmpty, reason: 'the week of days 1 to 7 is not over');

@@ -1412,9 +1412,13 @@ class ApiGameSession extends GameSession {
 
   /// Whether a kept week ranking is still the latest: until the next week
   /// is over, the day after its finale, a week later. A speed session's
-  /// ranking is final.
+  /// ranking is final. One kept before rankings had a boost balance is
+  /// asked again, so its card shows.
   bool _stillCurrent(ServerSession server, Object? json) =>
-      json is Map && json['day'] is int && (server.isSpeed || day <= (json['day'] as int) + 7);
+      json is Map &&
+      json['day'] is int &&
+      json.containsKey('boost_balance') &&
+      (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
@@ -1482,7 +1486,9 @@ class ApiGameSession extends GameSession {
     final server = this.server;
     if (server.isSpeed) return null;
     final json = await _kept(
-      'win-rates:${server.code}',
+      // v2: the bands of 0.22.0 (60% and 80%); the ones kept before are
+      // asked again.
+      'win-rates:v2:${server.code}',
       '/servers/${server.code}/win-rates',
       refresh: refresh,
       // They hold for the week after the one they count.

@@ -548,7 +548,11 @@ class FakeBackend {
         return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
-        return _json(200, rankings[code]);
+        // Like the API: a boost balance, null unless a test sets one.
+        return _json(200, switch (rankings[code]) {
+          null => null,
+          final ranking => {'boost_balance': null, ...ranking},
+        });
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'player-stats') {
         if (speedServers.contains(code)) return _json(404, {'detail': 'Speed mode has no player stats'});

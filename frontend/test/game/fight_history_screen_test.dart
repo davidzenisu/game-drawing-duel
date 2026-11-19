@@ -30,8 +30,8 @@ void main() {
     expect(fights.where((f) => f.owner.isYou).single.id, 'fight7-${game.you.id}', reason: 'your own fight');
     final drawn = fights.singleWhere((f) => f.challenger.artist == game.you.name);
     expect(drawn.owner.isYou, isFalse, reason: 'a friend fought yours');
-    // Like the ranking: the challengers drawn on even days won theirs.
-    expect(drawn.fightersWin, drawn.challenger.day.isOdd);
+    // Like the ranking: the challengers drawn on challengerWins days won theirs.
+    expect(drawn.fightersWin, !MockGameSession.challengerWins(drawn.challenger.day));
     expect(await game.fightsOn(8), isEmpty, reason: "not today's");
   });
 

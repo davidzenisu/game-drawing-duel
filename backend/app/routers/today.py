@@ -424,6 +424,9 @@ def boost(
     the stars you left."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
+    # Last week's fights give this week's boost stars (`app.boost_balance`).
+    fights.complete_boosts(session, server, day - 1)
+    fights.complete_fights(session, server, day - 1)
     given = {b.challenger_id: b.stars for b in body.boosts}
     if len(given) != len(body.boosts):
         raise HTTPException(
