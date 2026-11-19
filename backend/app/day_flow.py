@@ -5,9 +5,8 @@ speed mode, as soon as everyone did everything there is to do."""
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app import days, fights, pulls, speed
+from app import boost_balance, days, fights, pulls, speed
 from app.models import ChallengerPrompt, DayEnd, Server, ServerSeat
-from app.rules import BOOST_STARS
 
 
 def advance(session: Session, server: Server, day: int) -> None:
@@ -43,7 +42,8 @@ def seat_done(session: Session, server: Server, day: int, seat: ServerSeat) -> b
         return False
     if (
         fights.boost_targets(session, server, day, seat)
-        and sum(fights.given_boosts(session, seat, day).values()) < BOOST_STARS
+        and sum(fights.given_boosts(session, seat, day).values())
+        < boost_balance.stars(session, server, day)
     ):
         return False
     can_fight = set(pulls.copies(session, seat)) - set(

@@ -132,7 +132,21 @@ void main() {
     final boost = rules['boost'] as Map<String, dynamic>;
     expect(Boost.challengers, boost['challengers']);
     expect(Boost.stars, boost['stars']);
-    expect(Boost.maxPerChallenger, boost['max_per_challenger']);
+    final balance = boost['balance'] as Map<String, dynamic>;
+    expect(WeeklyBoost.minFights, balance['min_fights']);
+    expect([
+      for (final (share, stars) in WeeklyBoost.more) [share, stars],
+    ], balance['more']);
+    expect([
+      for (final (share, stars) in WeeklyBoost.fewer) [share, stars],
+    ], balance['fewer']);
+    expect((WeeklyBoost.minStars, WeeklyBoost.maxStars), (balance['min_stars'], balance['max_stars']));
+    for (final [int heroWins, int fights, int step] in (balance['cases'] as List).cast<List>()) {
+      expect(WeeklyBoost.step(heroWins, fights), step, reason: '$heroWins of $fights');
+    }
+    for (final [int previous, int step, int stars] in (balance['weeks'] as List).cast<List>()) {
+      expect(WeeklyBoost.stars(previous, step), stars, reason: '$previous with $step');
+    }
   });
 
   test('stars', () {

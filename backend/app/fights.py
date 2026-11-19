@@ -2,8 +2,8 @@
 fighters against the ones drawn the day before.
 
 A challenger drawn on day D is boosted during day D + 1 and fought on day
-D + 2. Every day, a player spreads `rules.BOOST_STARS` across a few of
-yesterday's challengers (`boost_targets`); once the day is over, chance
+D + 2. Every day, a player spreads the week's boost stars
+(`app.boost_balance`) across a few of yesterday's challengers (`boost_targets`); once the day is over, chance
 spreads the ones they left. The fight is decided as soon as the fighters are
 picked: they win with more stars than the challenger with its boost stars
 (`rules.fighters_win`). Players who pick no fighters get random ones from
@@ -18,12 +18,10 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import days, pulls, rules, speed, upgrades, win_rates
+from app import boost_balance, days, pulls, rules, speed, upgrades, win_rates
 from app.models import Boost, Character, Fight, Fighter, Server, ServerSeat
 from app.rules import (
     BOOST_CHALLENGERS,
-    BOOST_MAX_PER_CHALLENGER,
-    BOOST_STARS,
     MAX_FIGHTERS,
     REST_DAYS,
     Rarity,
@@ -179,12 +177,12 @@ def set_boosts(
         raise InvalidBoost("No challengers to boost today")
     if set(stars) - targets:
         raise InvalidBoost("You can't boost that challenger today")
-    if any(n < 0 or n > BOOST_MAX_PER_CHALLENGER for n in stars.values()):
-        raise InvalidBoost(
-            f"A challenger takes up to {BOOST_MAX_PER_CHALLENGER} of your stars"
-        )
-    if sum(stars.values()) > BOOST_STARS:
-        raise InvalidBoost(f"You have {BOOST_STARS} stars to give")
+    balance = boost_balance.balance(session, server, day)
+    to_give = rules.BOOST_STARS if balance is None else balance.stars
+    if any(n < 0 or n > to_give for n in stars.values()):
+        raise InvalidBoost(f"A challenger takes up to {to_give} of your stars")
+    if sum(stars.values()) > to_give:
+        raise InvalidBoost(f"You have {to_give} stars to give")
     session.execute(
         delete(Boost).where(
             Boost.booster_seat_id == seat.id,
@@ -206,9 +204,10 @@ def complete_boosts(session: Session, server: Server, day: int) -> None:
     day before have none. Commits."""
     if day < FIRST_BOOST_DAY:
         return
+    to_give = boost_balance.stars(session, server, day)
     for seat in days.active_seats(server):
         given = given_boosts(session, seat, day)
-        left = BOOST_STARS - sum(given.values())
+        left = to_give - sum(given.values())
         if left <= 0:
             continue
         targets = boost_targets(session, server, day, seat)
@@ -224,7 +223,7 @@ def complete_boosts(session: Session, server: Server, day: int) -> None:
         if not targets or spread:
             continue
         rng = _rng(server.id, day, seat.id, "boosts")
-        room = {c.id: BOOST_MAX_PER_CHALLENGER - given.get(c.id, 0) for c in targets}
+        room = {c.id: to_give - given.get(c.id, 0) for c in targets}
         chance: dict[uuid.UUID, int] = {}
         for _ in range(left):
             open_ = [c for c, n in room.items() if n > 0]

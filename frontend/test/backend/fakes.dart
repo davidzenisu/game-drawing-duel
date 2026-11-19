@@ -178,6 +178,10 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
+  /// The week's boost balance by server code, sent with the boost step;
+  /// none (the base stars) unless a test sets one up.
+  final Map<String, Map<String, Object?>> boostBalances = {};
+
   /// The player stats by server code and period, as the API answers them.
   final Map<(String, String), Map<String, Object?>> playerStats = {};
 
@@ -544,7 +548,11 @@ class FakeBackend {
         return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
-        return _json(200, rankings[code]);
+        // Like the API: a boost balance, null unless a test sets one.
+        return _json(200, switch (rankings[code]) {
+          null => null,
+          final ranking => {'boost_balance': null, ...ranking},
+        });
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'player-stats') {
         if (speedServers.contains(code)) return _json(404, {'detail': 'Speed mode has no player stats'});
@@ -1078,8 +1086,9 @@ class FakeBackend {
           'targets': [
             for (final c in targets) {'challenger': c, 'stars': boosts[(code, today, yours)]?[c['id']] ?? 0},
           ],
-          'stars': 3,
-          'max_per_challenger': 3,
+          'stars': boostBalances[code]?['stars'] ?? 3,
+          'max_per_challenger': boostBalances[code]?['stars'] ?? 3,
+          'balance': boostBalances[code],
         },
       },
       'boost_forfeited': missedDrawing(today),

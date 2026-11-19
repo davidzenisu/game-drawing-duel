@@ -137,7 +137,8 @@ class FightTests(FightTestCase):
         self.assertEqual(response.json()["boost"]["targets"][0]["stars"], 3)
         self.assertEqual(self.boost_stars(challenger), 3, "replaced, not added")
 
-        self.assertEqual(self.boost({challenger: 4}).status_code, 422)
+        self.assertEqual(self.boost({challenger: 4}).status_code, 409)
+        self.assertEqual(self.boost({challenger: 7}).status_code, 422)
         self.assertEqual(self.boost({challenger: -1}).status_code, 422)
         unknown = self.boost({str(uuid.uuid4()): 1})
         self.assertEqual(unknown.status_code, 409)

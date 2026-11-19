@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 from sqlalchemy import delete, select
@@ -85,6 +85,18 @@ class WinRateTests(FightTestCase):
         self.assertEqual((rates["from_day"], rates["to_day"]), (-6, 0))
         self.assertEqual(rates["min_fights"], rules.WIN_RATE_MIN_FIGHTS)
         self.assertEqual(rates["win_rates"], [])
+
+    def test_the_weeks_before_the_balance_keep_the_old_bands(self) -> None:
+        self.assertEqual(
+            self.win_rates()["extra_stars"],
+            [list(b) for b in rules.WIN_RATE_EXTRA_STARS_BEFORE],
+            "launched before the first week of the new bands",
+        )
+        with patch("app.rules.BALANCE_FROM", date(2026, 10, 5)):
+            self.assertEqual(
+                self.win_rates()["extra_stars"],
+                [list(b) for b in rules.WIN_RATE_EXTRA_STARS],
+            )
 
     def test_winning_most_meetings_gives_fighters_extra_stars(self) -> None:
         self.to_day_eight()

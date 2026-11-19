@@ -28,8 +28,9 @@ enum RankingView {
 ///   player stats' categories (`PlayerStatsView`), this week's boosts kept
 ///   secret.
 /// - **Challengers**: this week, only who its challengers portray, as a pie;
-///   last week, the pie and its challengers ranked by their stars, the first
-///   the weekly hero. Tapping one opens its details.
+///   last week, the boost balance its fights gave this week, the pie and its
+///   challengers ranked by their stars, the first the weekly hero. Tapping
+///   one opens its details.
 ///
 /// Answers are kept on the device: this week's for the day, last week's
 /// until the next week is over; the refresh button asks again.
@@ -188,6 +189,10 @@ class _RankingScreenState extends State<RankingScreen> {
             'their own ${Stars.challengerBase} ★ plus their boost stars.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          if (ranking.boostBalance case final balance?) ...[
+            const SizedBox(height: 12),
+            BoostBalanceCard(balance: balance),
+          ],
           const SizedBox(height: 12),
           PlayersDashboard(weeks: PlayerWeek.ofRanking(players, ranking)),
           const SizedBox(height: 12),
@@ -213,6 +218,49 @@ class _RankingScreenState extends State<RankingScreen> {
         const SizedBox(height: 12),
         PlayersDashboard(weeks: PlayerWeek.of(players, {for (final (player, n) in stats.portrayed) player.name: n})),
       ],
+    );
+  }
+}
+
+/// The boost balance a week's fights gave the week after: the boost stars
+/// to give a day, and how they changed with the heroes' win rate. The rules
+/// behind it are in the boost tutorial.
+class BoostBalanceCard extends StatelessWidget {
+  const BoostBalanceCard({super.key, required this.balance});
+
+  final BoostBalance balance;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final b = balance;
+    final change = switch (b.change) {
+      > 0 => 'Up from ${b.previousStars} ★ from last week',
+      < 0 => 'Down from ${b.previousStars} ★ from last week',
+      _ => 'Same as last week',
+    };
+    final why = b.counted ? 'hero win rate ${b.heroPercent}%' : 'only ${b.fights} fights';
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.balance_rounded, color: colors.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Boost balance', style: textTheme.titleMedium)),
+                Text('${b.stars} ★ a day', style: textTheme.titleMedium?.copyWith(color: AppPalette.rarityHero)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('$change ($why)', style: textTheme.bodyMedium),
+          ],
+        ),
+      ),
     );
   }
 }

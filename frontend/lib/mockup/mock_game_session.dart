@@ -844,17 +844,54 @@ class MockGameSession extends GameSession {
     final targets = {for (final t in boostTargets) t.challenger.id};
     if (targets.isEmpty) throw StateError('No challengers to boost today.');
     if (!targets.containsAll(stars.keys)) throw ArgumentError("You can't boost that challenger today.");
-    if (stars.values.any((n) => n < 0 || n > Boost.maxPerChallenger)) {
-      throw ArgumentError('A challenger takes up to ${Boost.maxPerChallenger} of your stars.');
+    if (stars.values.any((n) => n < 0 || n > boostStars)) {
+      throw ArgumentError('A challenger takes up to $boostStars of your stars.');
     }
-    if (stars.values.fold(0, (a, b) => a + b) > Boost.stars) {
-      throw ArgumentError('You have ${Boost.stars} stars to give.');
+    if (stars.values.fold(0, (a, b) => a + b) > boostStars) {
+      throw ArgumentError('You have $boostStars stars to give.');
     }
     _yourBoosts[_day] = {
       for (final MapEntry(key: id, value: n) in stars.entries)
         if (n > 0) id: n,
     };
     notifyListeners();
+  }
+
+  /// Whether the demo challengers drawn on [day] win their fight: one day in
+  /// four (days 2, 6, 10…), so the heroes win about three fights in four and
+  /// the boost balance gives +1 ★ a week (see [boostBalance]).
+  static bool challengerWins(int day) => day % 4 == 2;
+
+  /// Like online: the week before's fights balance the week's boost stars.
+  @override
+  BoostBalance? get boostBalance => _boostBalance(_day);
+
+  /// The boost balance of [day]'s week, every week since the first stacking
+  /// up: the fights of a week are those of the challengers drawn two days
+  /// before each of its days ([weekRanking]). None in the first week and
+  /// in speed mode.
+  BoostBalance? _boostBalance(int day) {
+    if (server.isSpeed) return null;
+    final week = _days.weekStart(day);
+    BoostBalance? balance;
+    var stars = Boost.stars;
+    for (var start = _days.weekStart(1); start < week; start += 7) {
+      final ranked = _ranked(start - 2, start + 4);
+      final fights = ranked.fold(0, (n, c) => n + c.fights);
+      final heroWins = ranked.fold(0, (n, c) => n + c.fights - c.wins);
+      final step = WeeklyBoost.step(heroWins, fights);
+      balance = BoostBalance(
+        fromDay: start,
+        toDay: start + 6,
+        fights: fights,
+        heroWins: heroWins,
+        previousStars: stars,
+        step: step,
+        stars: WeeklyBoost.stars(stars, step),
+      );
+      stars = balance.stars;
+    }
+    return balance;
   }
 
   /// A challenger's boost stars: the friends' plus yours.
@@ -872,7 +909,8 @@ class MockGameSession extends GameSession {
   /// A challenger in the ranking, with demo details: its prompt by the
   /// player before its artist (premade now and then), the friends' boost
   /// stars from two of them (the second's spread by chance), yours, and
-  /// one fight, won on even days, against the player after its artist.
+  /// one fight, won when drawn on a [challengerWins] day, against the player
+  /// after its artist.
   RankedChallenger _rankedEntry(CharacterCard c) {
     final players = server.players;
     final artist = players.indexWhere((p) => p.name == c.artist).clamp(0, players.length - 1);
@@ -883,14 +921,14 @@ class MockGameSession extends GameSession {
     ];
     final yours = _yourBoosts.values.fold(0, (sum, given) => sum + (given[c.id] ?? 0));
     final friends = _days.friendsBoostStars(c);
-    final own = min(friends, Boost.maxPerChallenger);
+    final own = min(friends, Boost.stars);
     final boosts = [
       if (yours > 0) ChallengerBoost(booster: you, stars: yours),
       if (own > 0 && boosters.isNotEmpty) ChallengerBoost(booster: boosters.first, stars: own),
       if (friends > own && boosters.length > 1)
         ChallengerBoost(booster: boosters[1], stars: friends - own, byChance: true),
     ];
-    final won = c.day.isEven;
+    final won = challengerWins(c.day);
     return RankedChallenger(
       card: c,
       stars: Stars.ofChallenger(_boostStars(c)),
@@ -904,7 +942,7 @@ class MockGameSession extends GameSession {
   }
 
   /// The challengers drawn from [from] to [to], the friends' and yours, most
-  /// stars first. Each had one fight: the even ones won it.
+  /// stars first. Each had one fight: the [challengerWins] days' ones won it.
   List<RankedChallenger> _ranked(int from, int to) => [
     for (var day = from; day <= to; day++)
       if (_drawnOn(day)) ...[
@@ -924,7 +962,11 @@ class MockGameSession extends GameSession {
     }
     final lastDay = _days.weekStart(_day) - 1;
     if (lastDay < 7) return null;
-    return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 8, lastDay - 2));
+    return WeekRanking(
+      day: lastDay,
+      challengers: _ranked(lastDay - 8, lastDay - 2),
+      boostBalance: _boostBalance(lastDay + 1),
+    );
   }
 
   @override
@@ -1025,15 +1067,16 @@ class MockGameSession extends GameSession {
   }
 
   /// The challengers you drew, boosted or fought, newest first. Yours had
-  /// one fight once fought, two days after: the even ones won it.
+  /// one fight once fought, two days after: the [challengerWins] days' ones
+  /// won it.
   @override
   List<ChallengerRecord> get challengers {
     // Like online, only the ones you drew (for now).
     final encountered = <CharacterCard>{..._yourChallengers.values};
     ChallengerRecord record(CharacterCard card) {
-      // Fought once, two days after it was drawn; the even days' ones won.
+      // Fought once, two days after it was drawn; the challengerWins days' ones won.
       final fights = _day > card.day + 2 ? 1 : 0;
-      final wins = fights > 0 && card.day.isEven ? 1 : 0;
+      final wins = fights > 0 && challengerWins(card.day) ? 1 : 0;
       // Like online, the artist collects its stars in a fight it won.
       final stars = wins > 0 ? Stars.ofChallenger(_boostStars(card)) : 0;
       final collected = _collectedChallengers.contains(card.id);
@@ -1098,7 +1141,7 @@ class MockGameSession extends GameSession {
   /// not: you (or chance for you) against the fourth friend's challenger,
   /// and each friend who drew against the next challenger that isn't their
   /// own and nobody fights yet. Without yours, one is fought twice. Like in
-  /// the ranking, the challengers drawn on even days won theirs.
+  /// the ranking, the challengers drawn on [challengerWins] days won theirs.
   @override
   Future<List<FightSetup>> fightsOn(int day) async {
     if (day >= _day || !_drawnOn(day - 2)) return const [];
@@ -1126,10 +1169,11 @@ class MockGameSession extends GameSession {
   }
 
   /// A friend's (or chance's) fighters from the pool against [challenger]:
-  /// strong enough to beat it if it was drawn on an odd day, too weak if not.
+  /// too weak to beat it if it was drawn on a [challengerWins] day, strong
+  /// enough if not.
   FightSetup _cannedFight(int day, CharacterCard challenger, Player owner) {
     final challengerStars = Stars.ofChallenger(_boostStars(challenger));
-    final win = challenger.day.isOdd;
+    final win = !challengerWins(challenger.day);
     final shuffled = [..._pool]..shuffle(Random('${challenger.id}-${owner.id}'.hashCode));
     final order = {for (final (i, c) in shuffled.indexed) c.id: i};
     // Strongest first to win, weakest first to lose.

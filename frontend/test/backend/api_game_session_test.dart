@@ -862,6 +862,22 @@ void main() {
       final samsChallenger = target.challenger.id;
       expect((target.challenger.artist, target.stars), ('Sam', 0));
       expect((robin.canBoost, robin.boostStarsLeft), (true, 3));
+      expect(robin.boostBalance, isNull, reason: 'the first week has the base stars');
+      backend.boostBalances[robin.server.code] = {
+        'from_day': -6,
+        'to_day': 0,
+        'fights': 10,
+        'hero_wins': 9,
+        'min_fights': 7,
+        'previous_stars': 3,
+        'step': 2,
+        'stars': 5,
+      };
+      await robin.refreshDay();
+      expect((robin.boostStars, robin.boostStarsLeft), (5, 5));
+      expect((robin.boostBalance!.heroPercent, robin.boostBalance!.change), (90, 2));
+      backend.boostBalances.clear();
+      await robin.refreshDay();
       expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
       await robin.setBoosts({samsChallenger: 2});
       final put = backend.requests.lastWhere((r) => r.method == 'PUT');
@@ -976,6 +992,16 @@ void main() {
       backend.weeklyHeroes['123456'] = {'character': right, 'day': 7, 'stars': 9};
       backend.rankings['123456'] = {
         'day': 7,
+        'boost_balance': {
+          'from_day': 1,
+          'to_day': 7,
+          'fights': 10,
+          'hero_wins': 9,
+          'min_fights': 7,
+          'previous_stars': 3,
+          'step': 2,
+          'stars': 5,
+        },
         'challengers': [
           {
             'character': right,
@@ -1001,6 +1027,9 @@ void main() {
       final ranking = (await admin.weekRanking())!;
       expect(backend.requests.last.url.path, '/servers/123456/ranking');
       expect(ranking.day, 7);
+      final balance = ranking.boostBalance!;
+      expect((balance.heroWins, balance.challengerWins, balance.heroPercent), (9, 1, 90));
+      expect((balance.previousStars, balance.change, balance.stars), (3, 2, 5));
       expect(
         [for (final r in ranking.challengers) (r.card.id, r.stars, r.fights, r.wins)],
         [(right['id'], 9, 1, 1), (left['id'], 6, 0, 0)],
@@ -1063,6 +1092,14 @@ void main() {
       expect((await alex.weekRanking())!.challengers.single.stars, 6, reason: 'from the device');
       expect(rankingRequests(), before + 1, reason: 'kept until the next week is over');
 
+      // One kept before rankings had a boost balance is asked again.
+      final kept = jsonDecode(cache.read('ranking:123456')!) as Map<String, dynamic>;
+      (kept['json'] as Map).remove('boost_balance');
+      cache.write('ranking:123456', jsonEncode(kept));
+      await alex.weekRanking();
+      expect(rankingRequests(), before + 2, reason: 'no boost balance kept');
+      expect(cache.read('ranking:123456'), contains('boost_balance'));
+
       // Refreshed by hand.
       backend.rankings['123456'] = {
         'day': 7,
@@ -1071,14 +1108,14 @@ void main() {
         ],
       };
       expect((await alex.weekRanking(refresh: true))!.challengers.single.stars, 7);
-      expect(rankingRequests(), before + 2);
+      expect(rankingRequests(), before + 3);
 
       // Day 15: the next week is over, so its ranking is asked for.
       backend.rankings['123456'] = {'day': 14, 'challengers': backend.rankings['123456']!['challengers']};
       backend.days['123456'] = 15;
       await alex.refreshDay();
       expect((await alex.weekRanking())!.day, 14);
-      expect(rankingRequests(), before + 3);
+      expect(rankingRequests(), before + 4);
 
       await alex.signOut();
       expect(cache.entries, isEmpty, reason: 'the next player on this device starts fresh');
@@ -1199,6 +1236,23 @@ void main() {
         [for (final r in rates.rates) (r.player.name, r.against.name, r.fights, r.wins, r.extraStars)],
         [('Sam', 'Robin', 4, 4, 2), ('Robin', 'Sam', 4, 0, 0)],
       );
+      expect(rates.bands, WinRates.extraStarsByShare, reason: 'the rules\' without bands from the server');
+
+      // The weeks before the boost balance keep the old bands: 3 of 4 is
+      // more than 50%, and gives +1 there.
+      backend.winRates['123456'] = {
+        ...backend.winRates['123456']!,
+        'extra_stars': [
+          [0.5, 1],
+          [0.75, 2],
+        ],
+        'win_rates': [
+          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 3, 'extra_stars': 1},
+        ],
+      };
+      final before = (await admin.winRates(refresh: true))!;
+      expect(before.bands, [(0.5, 1), (0.75, 2)]);
+      expect(before.rates.single.extraStars, 1, reason: 'not more than 60%, but more than 50%');
       expect((rates.extraStars('Sam', 'Robin'), rates.extraStars('Robin', 'Sam')), (2, 0));
     });
 
@@ -1224,6 +1278,7 @@ void main() {
       expect((await alex.winRates())!.rates, isEmpty);
       expect((await alex.winRates())!.rates, isEmpty);
       expect(requests('/win-rates'), 1, reason: 'from the device');
+      expect(cache.entries.keys, contains('win-rates:v2:123456'), reason: 'not the ones kept with the old bands');
       backend.days['123456'] = 7;
       await alex.refreshDay();
       expect((await alex.winRates())!.rates, isEmpty, reason: 'the week of days 1 to 7 is not over');

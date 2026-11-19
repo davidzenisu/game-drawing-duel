@@ -9,6 +9,24 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.22.0] - 2026-11-19
+
+### Added
+- The boost stars change every week with how last week's fights went: when
+  the heroes won more than 60% of them, everyone has one more boost star a
+  day this week, more than 80% two more; under 40%, one fewer, under 20% two
+  fewer. They stack from week to week, between 3 and 6 a day, and it takes
+  at least 7 fights. It starts with the week of Monday, 23 November; speed
+  mode keeps 3.
+- Last week's challengers in the week ranking start with a **Boost balance**
+  card: this week's boost stars a day, and how they changed with last
+  week's hero win rate. The boost tutorial explains how it works.
+
+### Changed
+- From the week of Monday, 23 November, win rates give one extra star for
+  winning more than 60% of the meetings with another player's characters
+  (was 50%), and two for more than 80% (was 75%).
+
 ## [0.21.0] - 2026-11-19
 
 ### Added

@@ -40,13 +40,81 @@ abstract final class SpeedMode {
   static Duration get total => days.fold(setup, (a, b) => a + b);
 }
 
-/// Step 3: every day, you spread [stars] across up to [challengers] of the
-/// challengers drawn the day before, at most [maxPerChallenger] on one. Once
-/// the day is over, chance spreads the ones you left.
+/// Step 3: every day, you spread the week's boost stars across up to
+/// [challengers] of the challengers drawn the day before, all of them on one
+/// at most. Once the day is over, chance spreads the ones you left.
 abstract final class Boost {
   static const challengers = 3;
+
+  /// The stars to give a day in the first week and in speed mode; after
+  /// that, [WeeklyBoost] balances them.
   static const stars = 3;
-  static const maxPerChallenger = 3;
+}
+
+/// Each week starts from the week before's boost stars and changes them by
+/// the heroes' share of the week before's decided fights, once there were
+/// at least [minFights]: winning more than a share of [more] gives that many
+/// more stars (the most of every share beaten), less than a share of
+/// [fewer] that many fewer (the most of every share undercut). Never fewer
+/// than [minStars] or more than [maxStars]. Speed mode sessions have no
+/// weeks, so they keep [Boost.stars].
+abstract final class WeeklyBoost {
+  static const minFights = 7;
+  static const more = [(0.6, 1), (0.8, 2)];
+  static const fewer = [(0.4, 1), (0.2, 2)];
+  static const minStars = 3;
+  static const maxStars = 6;
+
+  /// How many boost stars more (or fewer) a week gives after the heroes won
+  /// [heroWins] of the week before's [fights].
+  static int step(int heroWins, int fights) {
+    if (fights < minFights) return 0;
+    final up = more.fold(0, (most, tier) => heroWins > tier.$1 * fights ? max(most, tier.$2) : most);
+    final down = fewer.fold(0, (most, tier) => heroWins < tier.$1 * fights ? max(most, tier.$2) : most);
+    return up - down;
+  }
+
+  /// A week's boost stars: the week before's changed by [step], within
+  /// [minStars] and [maxStars].
+  static int stars(int previous, int step) => (previous + step).clamp(minStars, maxStars);
+}
+
+/// A week's boost stars a day, and why: the week before's ([previousStars])
+/// changed by [step], the heroes having won [heroWins] of its decided
+/// [fights], from [fromDay] to [toDay].
+class BoostBalance {
+  const BoostBalance({
+    required this.fromDay,
+    required this.toDay,
+    required this.fights,
+    required this.heroWins,
+    required this.previousStars,
+    required this.step,
+    required this.stars,
+    this.minFights = WeeklyBoost.minFights,
+  });
+
+  final int fromDay;
+  final int toDay;
+  final int fights;
+  final int heroWins;
+  final int previousStars;
+  final int step;
+  final int stars;
+
+  /// The fights it takes to change the stars.
+  final int minFights;
+
+  int get challengerWins => fights - heroWins;
+
+  /// The heroes' share of the fights, in percent, rounded.
+  int get heroPercent => fights == 0 ? 0 : (100 * heroWins / fights).round();
+
+  /// Whether there were enough fights to count.
+  bool get counted => fights >= minFights;
+
+  /// How the stars changed from the week before's, within the limits.
+  int get change => stars - previousStars;
 }
 
 /// Stars decide the fights: the fighters' rarities against the challenger's
@@ -81,12 +149,12 @@ abstract final class WinRates {
 
   /// Winning more than a share of the meetings gives these extra stars: the
   /// most of every share beaten.
-  static const extraStarsByShare = [(0.5, 1), (0.75, 2)];
+  static const extraStarsByShare = [(0.6, 1), (0.8, 2)];
 
-  /// The extra stars for winning [wins] of [fights] last week.
-  static int extraStars(int wins, int fights) {
+  /// The extra stars for winning [wins] of [fights] last week, by [bands].
+  static int extraStars(int wins, int fights, [List<(double, int)> bands = extraStarsByShare]) {
     if (fights < minFights) return 0;
-    return extraStarsByShare.fold(0, (most, tier) => wins > tier.$1 * fights ? max(most, tier.$2) : most);
+    return bands.fold(0, (most, tier) => wins > tier.$1 * fights ? max(most, tier.$2) : most);
   }
 }
 
@@ -446,11 +514,14 @@ class ChallengerFight {
 /// The latest finished week's challengers, most stars first; the first
 /// joined the gacha pool as a hero.
 class WeekRanking {
-  const WeekRanking({required this.day, required this.challengers});
+  const WeekRanking({required this.day, required this.challengers, this.boostBalance});
 
   /// The last day of the week.
   final int day;
   final List<RankedChallenger> challengers;
+
+  /// The boost stars its fights gave the week after; null in speed mode.
+  final BoostBalance? boostBalance;
 }
 
 /// The week the player stats count (see [PlayerStats]).
@@ -564,7 +635,13 @@ class PlayerStats {
 /// How [player]'s characters did against [against]'s last week, and the
 /// extra stars that gives them against that player this week.
 class WinRate {
-  const WinRate({required this.player, required this.against, required this.fights, required this.wins});
+  const WinRate({
+    required this.player,
+    required this.against,
+    required this.fights,
+    required this.wins,
+    this.bands = WinRates.extraStarsByShare,
+  });
 
   final Player player;
   final Player against;
@@ -573,17 +650,30 @@ class WinRate {
   final int fights;
   final int wins;
 
-  int get extraStars => WinRates.extraStars(wins, fights);
+  /// The win rate bands of the week they count for (see [WeekWinRates.bands]).
+  final List<(double, int)> bands;
+
+  int get extraStars => WinRates.extraStars(wins, fights, bands);
 }
 
 /// This week's win rates, from the fights of the days [fromDay] to [toDay]:
 /// every pair of players whose characters met, both ways.
 class WeekWinRates {
-  const WeekWinRates({required this.fromDay, required this.toDay, required this.rates});
+  const WeekWinRates({
+    required this.fromDay,
+    required this.toDay,
+    required this.rates,
+    this.bands = WinRates.extraStarsByShare,
+  });
 
   final int fromDay;
   final int toDay;
   final List<WinRate> rates;
+
+  /// The extra stars for winning more than a share of the meetings, as the
+  /// server counts them this week: the weeks before the boost balance's
+  /// first one kept older bands.
+  final List<(double, int)> bands;
 
   /// The extra stars [player]'s characters get against [against]'s.
   int extraStars(String player, String against) =>

@@ -725,6 +725,7 @@ class ApiGameSession extends GameSession {
   Map<String, int> _restDays = const {};
   List<BoostTarget> _boostTargets = const [];
   bool _boostForfeited = false;
+  BoostBalance? _boostBalance;
   WeeklyHero? _weeklyHero;
   List<ChallengerRecord> _challengers = const [];
 
@@ -887,6 +888,10 @@ class ApiGameSession extends GameSession {
         _ => const {},
       };
       _boostForfeited = json['boost_forfeited'] == true;
+      _boostBalance = switch (json['boost']) {
+        {'balance': final balance} => _parseBoostBalance(balance),
+        _ => null,
+      };
       _boostTargets = switch (json['boost']) {
         null => const [],
         {'targets': List targets} => [
@@ -1244,6 +1249,35 @@ class ApiGameSession extends GameSession {
   bool get boostForfeited => _boostForfeited;
 
   @override
+  BoostBalance? get boostBalance => _boostBalance;
+
+  /// A week's boost stars and why, from the API; null stays null.
+  static BoostBalance? _parseBoostBalance(Object? json) => switch (json) {
+    null => null,
+    {
+      'from_day': int fromDay,
+      'to_day': int toDay,
+      'fights': int fights,
+      'hero_wins': int heroWins,
+      'min_fights': int minFights,
+      'previous_stars': int previousStars,
+      'step': int step,
+      'stars': int stars,
+    } =>
+      BoostBalance(
+        fromDay: fromDay,
+        toDay: toDay,
+        fights: fights,
+        heroWins: heroWins,
+        minFights: minFights,
+        previousStars: previousStars,
+        step: step,
+        stars: stars,
+      ),
+    _ => throw const FormatException('Unexpected boost balance.'),
+  };
+
+  @override
   List<HurryPlan> get incomingHurries => _incomingHurries;
 
   @override
@@ -1343,6 +1377,7 @@ class ApiGameSession extends GameSession {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
         day: day,
+        boostBalance: _parseBoostBalance((json as Map)['boost_balance']),
         challengers: [
           for (final entry in challengers)
             if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})
@@ -1377,9 +1412,13 @@ class ApiGameSession extends GameSession {
 
   /// Whether a kept week ranking is still the latest: until the next week
   /// is over, the day after its finale, a week later. A speed session's
-  /// ranking is final.
+  /// ranking is final. One kept before rankings had a boost balance is
+  /// asked again, so its card shows.
   bool _stillCurrent(ServerSession server, Object? json) =>
-      json is Map && json['day'] is int && (server.isSpeed || day <= (json['day'] as int) + 7);
+      json is Map &&
+      json['day'] is int &&
+      json.containsKey('boost_balance') &&
+      (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
@@ -1447,16 +1486,30 @@ class ApiGameSession extends GameSession {
     final server = this.server;
     if (server.isSpeed) return null;
     final json = await _kept(
-      'win-rates:${server.code}',
+      // v2: the bands of 0.22.0 (60% and 80%); the ones kept before are
+      // asked again.
+      'win-rates:v2:${server.code}',
       '/servers/${server.code}/win-rates',
       refresh: refresh,
       // They hold for the week after the one they count.
       stillCurrent: (json, _) => json is Map && json['to_day'] is int && day <= (json['to_day'] as int) + 7,
     );
+    // The bands the server counts this week by.
+    final bands = switch (json) {
+      {'extra_stars': List bands} => [
+        for (final band in bands)
+          if (band case [num share, int stars])
+            (share.toDouble(), stars)
+          else
+            throw const FormatException('Unexpected win rate band.'),
+      ],
+      _ => WinRates.extraStarsByShare,
+    };
     return switch (json) {
       {'from_day': int fromDay, 'to_day': int toDay, 'win_rates': List rates} => WeekWinRates(
         fromDay: fromDay,
         toDay: toDay,
+        bands: bands,
         rates: [
           for (final rate in rates)
             if (rate case {
@@ -1465,7 +1518,13 @@ class ApiGameSession extends GameSession {
               'fights': int fights,
               'wins': int wins,
             })
-              WinRate(player: _seat(server, player), against: _seat(server, against), fights: fights, wins: wins)
+              WinRate(
+                player: _seat(server, player),
+                against: _seat(server, against),
+                fights: fights,
+                wins: wins,
+                bands: bands,
+              )
             else
               throw const FormatException('Unexpected win rate.'),
         ],

@@ -410,7 +410,7 @@ void main() {
     await game.advanceDay();
     final record = game.challengers.single;
     expect(record.fights, 1);
-    expect(record.wins, yours.day.isEven ? 1 : 0);
+    expect(record.wins, MockGameSession.challengerWins(yours.day) ? 1 : 0);
     expect(game.pool, hasLength(pool));
   });
 
@@ -572,7 +572,7 @@ void main() {
   });
 
   test('your challenger that won its fight has its stars for you to collect, once', () async {
-    // Day 2's challenger is fought on day 4; the mockup's even-day ones win.
+    // Day 2's challenger is fought on day 4; the mockup's challengers of day 2 win.
     final game = await launchedGame(day: 2);
     await game.submitChallenger(doodle);
     await game.advanceDay();
@@ -691,6 +691,17 @@ void main() {
       if (game.promptToDraw != null) await game.submitChallenger(doodle);
       await game.advanceDay();
     }
+  });
+
+  test('the heroes won most of the first week, so the second gives +1 boost star a day', () async {
+    final game = await launchedGame(launchDate: firstMonday, day: 8);
+    final balance = game.boostBalance!;
+    expect((await game.weekRanking())!.boostBalance!.stars, balance.stars, reason: 'the ranking shows it too');
+    expect(balance.heroPercent, greaterThan(60));
+    expect(balance.heroPercent, lessThanOrEqualTo(80));
+    expect((balance.previousStars, balance.change, balance.stars), (3, 1, 4));
+    expect(game.boostStars, 4);
+    if (game.boostTargets.isNotEmpty) expect(game.boostStarsLeft, 4);
   });
 
   test('skipping the drawing costs the next day\'s boosts', () async {
