@@ -1066,7 +1066,7 @@ class FakeBackend {
       // every day, with a fight or not.
       'rest_days': {
         for (final f in fights[code] ?? const [])
-          if (f.owner == yours && f.day < today)
+          if (f.owner == yours && f.day <= today)
             for (final c in f.fighters)
               if (f.day + Rarity.values.byName(c['rarity'] as String).restDays + 1 - today case final left
                   when left > 0)

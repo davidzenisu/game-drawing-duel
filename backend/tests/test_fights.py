@@ -437,7 +437,10 @@ class RestTests(FightTestCase):
         rest = rules.REST_DAYS[rules.Rarity(rarities[rare[0]])]
         self.next_day()
         self.assertEqual(self.today()["rest_days"], {})
-        self.assertEqual(self.pick([rare[0], basic]).status_code, 200)
+        picked = self.pick([rare[0], basic])
+        self.assertEqual(picked.status_code, 200)
+        # Today's fighters rest from tomorrow on: a day more from today.
+        self.assertEqual(picked.json()["rest_days"], {rare[0]: rest + 1, basic: 2})
         self.next_day()
 
         # Day 5: both rest, the basic one for today only.

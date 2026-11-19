@@ -178,9 +178,10 @@ class TodayResponse(BaseModel):
     prompt: YourPrompt | None
     to_draw: PromptToDrawResponse | None
     fight: FightStep | None
-    # Your characters that rest today after a fight (`rules.REST_DAYS`),
-    # with how many days each still rests from today on: 1 is back tomorrow.
-    # Sent every day, with a fight step or not.
+    # Your characters that rest after a fight (`rules.REST_DAYS`), with how
+    # many days each still rests from today on: 1 is back tomorrow. Today's
+    # fighters count too: they rest from tomorrow on, so their rest days plus
+    # one. Sent every day, with a fight step or not.
     rest_days: dict[uuid.UUID, int]
     boost: BoostStep | None
     # You skipped yesterday's drawing, so you can't boost today.

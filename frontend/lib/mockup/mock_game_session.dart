@@ -691,13 +691,13 @@ class MockGameSession extends GameSession {
   @override
   FightSetup? get yourFight => _yourFights[_day];
 
-  /// Like online: your characters that rest today after a fight, with the
-  /// days they still rest.
+  /// Like online: your characters that rest after a fight, with the days
+  /// they still rest; today's fighters rest from tomorrow on.
   @override
   Map<String, int> get restDays {
     final left = <String, int>{};
     for (final MapEntry(key: day, value: fight) in _yourFights.entries) {
-      if (day >= _day) continue;
+      if (day > _day) continue;
       for (final fighter in fight.fighters) {
         final days = day + fighter.card.rarity.restDays + 1 - _day;
         if (days > (left[fighter.card.id] ?? 0)) left[fighter.card.id] = days;

@@ -124,7 +124,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('resting characters show the days until they are back, and can be filtered', (tester) async {
+  testWidgets('resting characters are greyed out with the days until they are back, last by default', (tester) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -135,28 +135,44 @@ void main() {
     final legend = game.collection.firstWhere((o) => o.card.rarity == Rarity.legend);
     final basic = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
     await game.submitFighters([legend, basic]);
-    await game.advanceDay();
+
+    Iterable<String> shownIds() => tester.widgetList<Standee>(find.byType(Standee)).map((s) => s.card.id);
+    List<int> badges() => [for (final badge in tester.widgetList<RestBadge>(find.byType(RestBadge))) badge.days];
+    double opacityOf(OwnedCard owned) => tester
+        .widgetList<Opacity>(
+          find.ancestor(
+            of: find.byWidgetPredicate((w) => w is Standee && w.card.id == owned.card.id),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .fold(1.0, (opacity, o) => opacity * o.opacity);
 
     await tester.pumpWidget(MaterialApp(home: CollectionScreen(controller: game)));
     await tester.pump(const Duration(milliseconds: 500));
     expect(tester.takeException(), isNull, reason: 'fits a phone');
+    // Sorted by cooldown: the ready ones first.
+    expect(find.text('Cooldown'), findsNothing, reason: 'in the sort menu');
+    expect(shownIds().first, isNot(anyOf(legend.card.id, basic.card.id)));
+    expect(badges(), isEmpty, reason: 'the resting ones come last, out of sight');
+
     await tester.ensureVisible(find.text('Resting'));
     await tester.pump();
     await tester.tap(find.text('Resting'));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(tester.widgetList<Standee>(find.byType(Standee)).map((s) => s.card.id).toSet(), {
-      legend.card.id,
-      basic.card.id,
-    });
-    expect(tester.widgetList<RestBadge>(find.byType(RestBadge)).map((b) => b.days).toSet(), {
-      1,
-      Rarity.legend.restDays,
-    });
+    // Picked today, they rest from tomorrow on: a day more.
+    expect(shownIds(), [basic.card.id, legend.card.id], reason: 'back soonest first');
+    expect(badges(), [2, Rarity.legend.restDays + 1]);
+    expect(find.byTooltip('Resting, back in 2 days'), findsOneWidget);
+    expect(opacityOf(legend), lessThan(1), reason: 'greyed out');
+
+    await game.advanceDay();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(badges(), [1, Rarity.legend.restDays]);
     expect(find.byTooltip('Resting, back tomorrow'), findsOneWidget);
     expect(find.byTooltip('Resting, back in ${Rarity.legend.restDays} days'), findsOneWidget);
     expect(find.text('${Rarity.legend.restDays}d'), findsOneWidget);
 
-    // Its details say so too.
+    // Its details say so too, but show it as it is.
     await tester.pumpWidget(
       MaterialApp(
         home: CharacterDetailScreen(controller: game, owned: legend),
@@ -164,6 +180,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.textContaining('resting, back in ${Rarity.legend.restDays} days'), findsOneWidget);
+    expect(opacityOf(legend), 1);
     await tester.pumpWidget(const SizedBox());
   });
 
