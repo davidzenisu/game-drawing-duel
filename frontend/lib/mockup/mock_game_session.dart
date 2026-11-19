@@ -844,17 +844,49 @@ class MockGameSession extends GameSession {
     final targets = {for (final t in boostTargets) t.challenger.id};
     if (targets.isEmpty) throw StateError('No challengers to boost today.');
     if (!targets.containsAll(stars.keys)) throw ArgumentError("You can't boost that challenger today.");
-    if (stars.values.any((n) => n < 0 || n > Boost.maxPerChallenger)) {
-      throw ArgumentError('A challenger takes up to ${Boost.maxPerChallenger} of your stars.');
+    if (stars.values.any((n) => n < 0 || n > boostStars)) {
+      throw ArgumentError('A challenger takes up to $boostStars of your stars.');
     }
-    if (stars.values.fold(0, (a, b) => a + b) > Boost.stars) {
-      throw ArgumentError('You have ${Boost.stars} stars to give.');
+    if (stars.values.fold(0, (a, b) => a + b) > boostStars) {
+      throw ArgumentError('You have $boostStars stars to give.');
     }
     _yourBoosts[_day] = {
       for (final MapEntry(key: id, value: n) in stars.entries)
         if (n > 0) id: n,
     };
     notifyListeners();
+  }
+
+  /// Like online: the week before's fights balance the week's boost stars.
+  @override
+  BoostBalance? get boostBalance => _boostBalance(_day);
+
+  /// The boost balance of [day]'s week, every week since the first stacking
+  /// up: the fights of a week are those of the challengers drawn two days
+  /// before each of its days ([weekRanking]). None in the first week and
+  /// in speed mode.
+  BoostBalance? _boostBalance(int day) {
+    if (server.isSpeed) return null;
+    final week = _days.weekStart(day);
+    BoostBalance? balance;
+    var stars = Boost.stars;
+    for (var start = _days.weekStart(1); start < week; start += 7) {
+      final ranked = _ranked(start - 2, start + 4);
+      final fights = ranked.fold(0, (n, c) => n + c.fights);
+      final heroWins = ranked.fold(0, (n, c) => n + c.fights - c.wins);
+      final step = WeeklyBoost.step(heroWins, fights);
+      balance = BoostBalance(
+        fromDay: start,
+        toDay: start + 6,
+        fights: fights,
+        heroWins: heroWins,
+        previousStars: stars,
+        step: step,
+        stars: WeeklyBoost.stars(stars, step),
+      );
+      stars = balance.stars;
+    }
+    return balance;
   }
 
   /// A challenger's boost stars: the friends' plus yours.
@@ -883,7 +915,7 @@ class MockGameSession extends GameSession {
     ];
     final yours = _yourBoosts.values.fold(0, (sum, given) => sum + (given[c.id] ?? 0));
     final friends = _days.friendsBoostStars(c);
-    final own = min(friends, Boost.maxPerChallenger);
+    final own = min(friends, Boost.stars);
     final boosts = [
       if (yours > 0) ChallengerBoost(booster: you, stars: yours),
       if (own > 0 && boosters.isNotEmpty) ChallengerBoost(booster: boosters.first, stars: own),
@@ -924,7 +956,11 @@ class MockGameSession extends GameSession {
     }
     final lastDay = _days.weekStart(_day) - 1;
     if (lastDay < 7) return null;
-    return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 8, lastDay - 2));
+    return WeekRanking(
+      day: lastDay,
+      challengers: _ranked(lastDay - 8, lastDay - 2),
+      boostBalance: _boostBalance(lastDay + 1),
+    );
   }
 
   @override

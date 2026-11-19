@@ -725,6 +725,7 @@ class ApiGameSession extends GameSession {
   Map<String, int> _restDays = const {};
   List<BoostTarget> _boostTargets = const [];
   bool _boostForfeited = false;
+  BoostBalance? _boostBalance;
   WeeklyHero? _weeklyHero;
   List<ChallengerRecord> _challengers = const [];
 
@@ -887,6 +888,10 @@ class ApiGameSession extends GameSession {
         _ => const {},
       };
       _boostForfeited = json['boost_forfeited'] == true;
+      _boostBalance = switch (json['boost']) {
+        {'balance': final balance} => _parseBoostBalance(balance),
+        _ => null,
+      };
       _boostTargets = switch (json['boost']) {
         null => const [],
         {'targets': List targets} => [
@@ -1244,6 +1249,35 @@ class ApiGameSession extends GameSession {
   bool get boostForfeited => _boostForfeited;
 
   @override
+  BoostBalance? get boostBalance => _boostBalance;
+
+  /// A week's boost stars and why, from the API; null stays null.
+  static BoostBalance? _parseBoostBalance(Object? json) => switch (json) {
+    null => null,
+    {
+      'from_day': int fromDay,
+      'to_day': int toDay,
+      'fights': int fights,
+      'hero_wins': int heroWins,
+      'min_fights': int minFights,
+      'previous_stars': int previousStars,
+      'step': int step,
+      'stars': int stars,
+    } =>
+      BoostBalance(
+        fromDay: fromDay,
+        toDay: toDay,
+        fights: fights,
+        heroWins: heroWins,
+        minFights: minFights,
+        previousStars: previousStars,
+        step: step,
+        stars: stars,
+      ),
+    _ => throw const FormatException('Unexpected boost balance.'),
+  };
+
+  @override
   List<HurryPlan> get incomingHurries => _incomingHurries;
 
   @override
@@ -1343,6 +1377,7 @@ class ApiGameSession extends GameSession {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
         day: day,
+        boostBalance: _parseBoostBalance((json as Map)['boost_balance']),
         challengers: [
           for (final entry in challengers)
             if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})

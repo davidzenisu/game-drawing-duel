@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
-from app.rules import BOOST_CHALLENGERS, BOOST_MAX_PER_CHALLENGER, MAX_FIGHTERS
+from app.rules import BOOST_CHALLENGERS, BOOST_MAX_STARS, MAX_FIGHTERS
 from app.schemas.character import CharacterResponse
 
 
@@ -86,6 +86,25 @@ class BoostTarget(BaseModel):
     stars: int
 
 
+class BoostBalanceResponse(BaseModel):
+    """A week's boost stars a day, and why: the week before's, changed by
+    the heroes' share of its decided fights (`app.boost_balance`)."""
+
+    # The first and last day of the week before, whose fights count.
+    from_day: int
+    to_day: int
+    # Its decided fights, and how many the heroes won.
+    fights: int
+    hero_wins: int
+    # The fights it takes to change the stars.
+    min_fights: int
+    # The week before's boost stars, the change its fights give, and the
+    # week's stars within the minimum and maximum.
+    previous_stars: int
+    step: int
+    stars: int
+
+
 class BoostStep(BaseModel):
     """Step 3: spread your boost stars across a few of yesterday's
     challengers, never the one you drew or the one you fight tomorrow. Change
@@ -95,6 +114,8 @@ class BoostStep(BaseModel):
     # The stars you spread, and how many one challenger takes at most.
     stars: int
     max_per_challenger: int
+    # Why this week has `stars`; null in the first week and in speed mode.
+    balance: BoostBalanceResponse | None = None
 
 
 class FightStep(BaseModel):
@@ -165,6 +186,8 @@ class RankingResponse(BaseModel):
     # The last day of the week.
     day: int
     challengers: list[RankedChallenger]
+    # The boost stars its fights gave the week after; null in speed mode.
+    boost_balance: BoostBalanceResponse | None = None
 
 
 class TodayResponse(BaseModel):
@@ -219,7 +242,7 @@ class FightersSubmit(BaseModel):
 
 class BoostGiven(BaseModel):
     challenger_id: uuid.UUID
-    stars: int = Field(ge=0, le=BOOST_MAX_PER_CHALLENGER)
+    stars: int = Field(ge=0, le=BOOST_MAX_STARS)
 
 
 class BoostSubmit(BaseModel):

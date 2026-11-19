@@ -64,9 +64,9 @@ class _BoostScreenState extends State<BoostScreen> {
     _dirty ? _leaveGuard.enable() : _leaveGuard.disable();
   }
 
-  int get _left => Boost.stars - _draft.values.fold(0, (sum, n) => sum + n);
+  int get _left => widget.controller.boostStars - _draft.values.fold(0, (sum, n) => sum + n);
 
-  bool _canGive(BoostTarget target) => !_saving && _left > 0 && target.stars < Boost.maxPerChallenger;
+  bool _canGive(BoostTarget target) => !_saving && _left > 0 && target.stars < widget.controller.boostStars;
 
   /// Saves the stars; completes with whether it worked.
   Future<bool> _save() async {
@@ -156,6 +156,8 @@ class _BoostScreenState extends State<BoostScreen> {
                   ),
                 ),
                 _StarTray(
+                  total: widget.controller.boostStars,
+                  balance: widget.controller.boostBalance,
                   left: _left,
                   enabled: _canGive(current),
                   saving: _saving,
@@ -326,6 +328,8 @@ class _GivenStar extends StatelessWidget {
 /// view, or tap it. Stars dragged down from a challenger land back here.
 class _StarTray extends StatelessWidget {
   const _StarTray({
+    required this.total,
+    required this.balance,
     required this.left,
     required this.enabled,
     required this.saving,
@@ -337,6 +341,9 @@ class _StarTray extends StatelessWidget {
     required this.onDone,
   });
 
+  /// This week's stars to give, and why.
+  final int total;
+  final BoostBalance? balance;
   final int left;
   final bool enabled;
   final bool saving;
@@ -371,11 +378,13 @@ class _StarTray extends StatelessWidget {
               children: [
                 Text(
                   left == 0
-                      ? 'All ${Boost.stars} stars given. Drag one down to take it back.'
-                      : 'Drag a star onto a challenger: $left of ${Boost.stars} left',
+                      ? 'All $total stars given. Drag one down to take it back.'
+                      : 'Drag a star onto a challenger: $left of $total left',
                   style: textTheme.titleSmall,
                   textAlign: TextAlign.center,
                 ),
+                if (balance case final balance?)
+                  Text(balance.reason, style: textTheme.bodySmall, textAlign: TextAlign.center),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -385,32 +394,36 @@ class _StarTray extends StatelessWidget {
                       icon: const Icon(Icons.chevron_left_rounded),
                     ),
                     Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          for (var i = 0; i < Boost.stars; i++)
-                            i < left
-                                ? Tooltip(
-                                    message: 'Give a star',
-                                    child: InkResponse(
-                                      onTap: enabled ? onGive : null,
-                                      child: Draggable<_Star>(
-                                        data: const _Star(null),
-                                        maxSimultaneousDrags: enabled ? 1 : 0,
-                                        feedback: _star(size: _starSize * 1.3),
-                                        childWhenDragging: Opacity(opacity: 0.3, child: _star()),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                                          child: _star(color: enabled ? AppPalette.rarityHero : colors.outline),
+                      // Up to six stars in a week of many: they shrink to fit.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (var i = 0; i < total; i++)
+                              i < left
+                                  ? Tooltip(
+                                      message: 'Give a star',
+                                      child: InkResponse(
+                                        onTap: enabled ? onGive : null,
+                                        child: Draggable<_Star>(
+                                          data: const _Star(null),
+                                          maxSimultaneousDrags: enabled ? 1 : 0,
+                                          feedback: _star(size: _starSize * 1.3),
+                                          childWhenDragging: Opacity(opacity: 0.3, child: _star()),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                                            child: _star(color: enabled ? AppPalette.rarityHero : colors.outline),
+                                          ),
                                         ),
                                       ),
+                                    )
+                                  : Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: Icon(Icons.star_outline_rounded, size: _starSize, color: colors.outline),
                                     ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    child: Icon(Icons.star_outline_rounded, size: _starSize, color: colors.outline),
-                                  ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     IconButton(

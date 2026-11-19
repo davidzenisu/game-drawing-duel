@@ -114,8 +114,9 @@ enum Tutorial {
         title: 'Boost the challengers',
         text:
             'From day ${LoopStep.boost}, spread ${_stars(Boost.stars)} across up to ${Boost.challengers} of '
-            'yesterday\'s challengers, never your own or the one you fight tomorrow. One takes up to '
-            '${Boost.maxPerChallenger}.',
+            'yesterday\'s challengers, never your own or the one you fight tomorrow. One can take them all. '
+            'Each week, the stars change with how last week\'s fights went: more when the heroes won most, '
+            'fewer when the challengers did, between ${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars}.',
       ),
       TutorialPage(
         icon: Icons.shield_rounded,

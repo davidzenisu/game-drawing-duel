@@ -9,7 +9,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import day_flow, days, fights, finale, speed, stars, win_rates
+from app import boost_balance, day_flow, days, fights, finale, speed, stars, win_rates
 from app.auth import CurrentPlayer
 from app.deps import Code, DbSession, running_game
 from app.drawings import save_character
@@ -26,7 +26,7 @@ from app.models import (
 )
 from app.responses import character_response
 from app.rules import (
-    BOOST_MAX_PER_CHALLENGER,
+    BOOST_BALANCE_MIN_FIGHTS,
     BOOST_STARS,
     SPEED_DAYS,
     STARS_FOR_CHALLENGER,
@@ -36,6 +36,7 @@ from app.rules import (
     hurry_hits,
 )
 from app.schemas import (
+    BoostBalanceResponse,
     BoostStep,
     BoostSubmit,
     BoostTarget,
@@ -170,13 +171,33 @@ def _boost_step(
     if not targets:
         return None
     given = fights.given_boosts(session, seat, day)
+    balance = boost_balance.balance(session, server, day)
+    to_give = BOOST_STARS if balance is None else balance.stars
     return BoostStep(
         targets=[
             BoostTarget(challenger=character_response(c), stars=given.get(c.id, 0))
             for c in targets
         ],
-        stars=BOOST_STARS,
-        max_per_challenger=BOOST_MAX_PER_CHALLENGER,
+        stars=to_give,
+        max_per_challenger=to_give,
+        balance=_balance_response(balance),
+    )
+
+
+def _balance_response(
+    balance: boost_balance.Balance | None,
+) -> BoostBalanceResponse | None:
+    if balance is None:
+        return None
+    return BoostBalanceResponse(
+        from_day=balance.from_day,
+        to_day=balance.to_day,
+        fights=balance.fights,
+        hero_wins=balance.hero_wins,
+        min_fights=BOOST_BALANCE_MIN_FIGHTS,
+        previous_stars=balance.previous_stars,
+        step=balance.step,
+        stars=balance.stars,
     )
 
 
@@ -637,7 +658,13 @@ def get_ranking(
                 ],
             )
         )
-    return RankingResponse(day=last_day, challengers=entries)
+    return RankingResponse(
+        day=last_day,
+        challengers=entries,
+        boost_balance=None
+        if speed.is_speed(server)
+        else _balance_response(boost_balance.balance(session, server, last_day + 1)),
+    )
 
 
 @router.get("/{code}/win-rates", response_model=WinRatesResponse)

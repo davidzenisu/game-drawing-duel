@@ -166,7 +166,24 @@ class SharedRulesTest(unittest.TestCase):
         boost = SHARED["boost"]
         self.assertEqual(rules.BOOST_CHALLENGERS, boost["challengers"])
         self.assertEqual(rules.BOOST_STARS, boost["stars"])
-        self.assertEqual(rules.BOOST_MAX_PER_CHALLENGER, boost["max_per_challenger"])
+        balance = boost["balance"]
+        self.assertEqual(rules.BOOST_BALANCE_MIN_FIGHTS, balance["min_fights"])
+        self.assertEqual([list(t) for t in rules.BOOST_BALANCE_MORE], balance["more"])
+        self.assertEqual(
+            [list(t) for t in rules.BOOST_BALANCE_FEWER], balance["fewer"]
+        )
+        self.assertEqual(
+            (rules.BOOST_MIN_STARS, rules.BOOST_MAX_STARS),
+            (balance["min_stars"], balance["max_stars"]),
+        )
+        for hero_wins, fights, step in balance["cases"]:
+            self.assertEqual(
+                rules.boost_balance_step(hero_wins, fights), step, (hero_wins, fights)
+            )
+        for previous, step, stars in balance["weeks"]:
+            self.assertEqual(
+                rules.balanced_boost_stars(previous, step), stars, (previous, step)
+            )
 
     def test_stars(self):
         stars = SHARED["stars"]

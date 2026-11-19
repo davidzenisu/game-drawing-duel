@@ -28,8 +28,9 @@ enum RankingView {
 ///   player stats' categories (`PlayerStatsView`), this week's boosts kept
 ///   secret.
 /// - **Challengers**: this week, only who its challengers portray, as a pie;
-///   last week, the pie and its challengers ranked by their stars, the first
-///   the weekly hero. Tapping one opens its details.
+///   last week, the boost balance its fights gave this week, the pie and its
+///   challengers ranked by their stars, the first the weekly hero. Tapping
+///   one opens its details.
 ///
 /// Answers are kept on the device: this week's for the day, last week's
 /// until the next week is over; the refresh button asks again.
@@ -188,6 +189,10 @@ class _RankingScreenState extends State<RankingScreen> {
             'their own ${Stars.challengerBase} ★ plus their boost stars.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          if (ranking.boostBalance case final balance?) ...[
+            const SizedBox(height: 12),
+            BoostBalanceCard(balance: balance),
+          ],
           const SizedBox(height: 12),
           PlayersDashboard(weeks: PlayerWeek.ofRanking(players, ranking)),
           const SizedBox(height: 12),
@@ -216,6 +221,65 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 }
+
+/// The boost balance a week's fights gave the week after: how many of them
+/// the heroes and the challengers won, and the boost stars to give a day
+/// that makes.
+class BoostBalanceCard extends StatelessWidget {
+  const BoostBalanceCard({super.key, required this.balance});
+
+  final BoostBalance balance;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final b = balance;
+    final percent = b.fights == 0 ? 0 : 100 - b.heroPercent;
+    final change = switch (b.change) {
+      0 => 'unchanged',
+      > 0 => '+${b.change} from ${b.previousStars}',
+      _ => '−${-b.change} from ${b.previousStars}',
+    };
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.balance_rounded, color: colors.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Boost balance', style: textTheme.titleMedium)),
+                Text('${b.stars} ★ a day', style: textTheme.titleMedium?.copyWith(color: AppPalette.rarityHero)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              b.fights == 0
+                  ? 'No fights this week.'
+                  : 'Challengers won ${b.challengerWins} of ${b.fights} fights ($percent%), '
+                        'heroes ${b.heroWins} (${b.heroPercent}%).',
+              style: textTheme.bodyMedium,
+            ),
+            Text('Boost stars to give this week: ${b.stars} a day ($change).', style: textTheme.bodyMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Heroes winning ${[for (final (share, n) in WeeklyBoost.more) 'more than ${_percent(share)} give +$n ★'].join(', ')}; '
+              '${[for (final (share, n) in WeeklyBoost.fewer) 'under ${_percent(share)} −$n ★'].join(', ')}. '
+              'It takes ${b.minFights} fights, and stays between ${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars} ★.',
+              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _percent(double share) => '${(share * 100).round()}%';
 
 void _openDetails(BuildContext context, int place, RankedChallenger entry) => Navigator.of(context).push(
   MaterialPageRoute<void>(

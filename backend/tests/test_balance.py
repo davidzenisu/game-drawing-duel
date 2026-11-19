@@ -14,7 +14,7 @@ def _spread(rng: random.Random, targets: int) -> list[int]:
     """A player's boost stars, spread at random like chance does."""
     stars = [0] * targets
     for _ in range(rules.BOOST_STARS):
-        open_ = [i for i, n in enumerate(stars) if n < rules.BOOST_MAX_PER_CHALLENGER]
+        open_ = [i for i, n in enumerate(stars) if n < rules.BOOST_STARS]
         stars[rng.choice(open_)] += 1
     return stars
 

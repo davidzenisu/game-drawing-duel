@@ -285,11 +285,45 @@ REST_DAYS = {
     Rarity.LEGEND: 4,
 }
 
-# Every day, a player spreads this many boost stars across this many of the
-# day before's challengers, at most this many on one.
+# Every day, a player spreads boost stars across this many of the day
+# before's challengers, all of them on one at most: this many in the first
+# week and in speed mode, then balanced week by week (`boost_balance_step`).
 BOOST_CHALLENGERS = 3
 BOOST_STARS = 3
-BOOST_MAX_PER_CHALLENGER = 3
+
+# Each week starts from the week before's boost stars and changes them by
+# the heroes' share of the week before's decided fights, once there were at
+# least this many: winning more than a share of `MORE` gives that many more
+# stars (the most of every share beaten), less than a share of `FEWER` that
+# many fewer (the most of every share undercut). Never fewer than the
+# minimum or more than the maximum.
+BOOST_BALANCE_MIN_FIGHTS = 7
+BOOST_BALANCE_MORE = ((0.6, 1), (0.8, 2))
+BOOST_BALANCE_FEWER = ((0.4, 1), (0.2, 2))
+BOOST_MIN_STARS = 3
+BOOST_MAX_STARS = 6
+
+
+def boost_balance_step(hero_wins: int, fights: int) -> int:
+    """How many boost stars more (or fewer) a week gives after the heroes
+    won `hero_wins` of the week before's `fights`."""
+    if fights < BOOST_BALANCE_MIN_FIGHTS:
+        return 0
+    more = max(
+        (n for share, n in BOOST_BALANCE_MORE if hero_wins > share * fights),
+        default=0,
+    )
+    fewer = max(
+        (n for share, n in BOOST_BALANCE_FEWER if hero_wins < share * fights),
+        default=0,
+    )
+    return more - fewer
+
+
+def balanced_boost_stars(previous: int, step: int) -> int:
+    """A week's boost stars: the week before's changed by `step`, within
+    the minimum and maximum."""
+    return min(BOOST_MAX_STARS, max(BOOST_MIN_STARS, previous + step))
 
 
 def team_stars(team: list[Rarity]) -> int:
@@ -321,7 +355,7 @@ def fighters_win(
 # winning more than a share of last week's fights against them: the most
 # extra stars of every share they beat. It takes this many fights to count.
 WIN_RATE_MIN_FIGHTS = 3
-WIN_RATE_EXTRA_STARS = ((0.5, 1), (0.75, 2))
+WIN_RATE_EXTRA_STARS = ((0.6, 1), (0.8, 2))
 
 
 def win_rate_extra_stars(wins: int, fights: int) -> int:

@@ -291,4 +291,6 @@ class FinaleTests(FinaleTestCase):
     def test_a_week_without_challengers_has_no_hero(self) -> None:
         self.go_to_day(15)
         self.assertIsNone(self.today()["weekly_hero"])
-        self.assertEqual(self.ranking(), {"day": 14, "challengers": []})
+        ranking = self.ranking()
+        self.assertEqual((ranking["day"], ranking["challengers"]), (14, []))
+        self.assertEqual(ranking["boost_balance"]["stars"], 3)

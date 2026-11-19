@@ -178,6 +178,10 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
+  /// The week's boost balance by server code, sent with the boost step;
+  /// none (the base stars) unless a test sets one up.
+  final Map<String, Map<String, Object?>> boostBalances = {};
+
   /// The player stats by server code and period, as the API answers them.
   final Map<(String, String), Map<String, Object?>> playerStats = {};
 
@@ -1078,8 +1082,9 @@ class FakeBackend {
           'targets': [
             for (final c in targets) {'challenger': c, 'stars': boosts[(code, today, yours)]?[c['id']] ?? 0},
           ],
-          'stars': 3,
-          'max_per_challenger': 3,
+          'stars': boostBalances[code]?['stars'] ?? 3,
+          'max_per_challenger': boostBalances[code]?['stars'] ?? 3,
+          'balance': boostBalances[code],
         },
       },
       'boost_forfeited': missedDrawing(today),

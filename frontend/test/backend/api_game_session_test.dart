@@ -862,6 +862,22 @@ void main() {
       final samsChallenger = target.challenger.id;
       expect((target.challenger.artist, target.stars), ('Sam', 0));
       expect((robin.canBoost, robin.boostStarsLeft), (true, 3));
+      expect(robin.boostBalance, isNull, reason: 'the first week has the base stars');
+      backend.boostBalances[robin.server.code] = {
+        'from_day': -6,
+        'to_day': 0,
+        'fights': 10,
+        'hero_wins': 9,
+        'min_fights': 7,
+        'previous_stars': 3,
+        'step': 2,
+        'stars': 5,
+      };
+      await robin.refreshDay();
+      expect((robin.boostStars, robin.boostStarsLeft), (5, 5));
+      expect(robin.boostBalance!.reason, 'Heroes won 90% last week: +2 ★ to give a day this week, 5 in all.');
+      backend.boostBalances.clear();
+      await robin.refreshDay();
       expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
       await robin.setBoosts({samsChallenger: 2});
       final put = backend.requests.lastWhere((r) => r.method == 'PUT');
@@ -976,6 +992,16 @@ void main() {
       backend.weeklyHeroes['123456'] = {'character': right, 'day': 7, 'stars': 9};
       backend.rankings['123456'] = {
         'day': 7,
+        'boost_balance': {
+          'from_day': 1,
+          'to_day': 7,
+          'fights': 10,
+          'hero_wins': 9,
+          'min_fights': 7,
+          'previous_stars': 3,
+          'step': 2,
+          'stars': 5,
+        },
         'challengers': [
           {
             'character': right,
@@ -1001,6 +1027,9 @@ void main() {
       final ranking = (await admin.weekRanking())!;
       expect(backend.requests.last.url.path, '/servers/123456/ranking');
       expect(ranking.day, 7);
+      final balance = ranking.boostBalance!;
+      expect((balance.heroWins, balance.challengerWins, balance.heroPercent), (9, 1, 90));
+      expect((balance.previousStars, balance.change, balance.stars), (3, 2, 5));
       expect(
         [for (final r in ranking.challengers) (r.card.id, r.stars, r.fights, r.wins)],
         [(right['id'], 9, 1, 1), (left['id'], 6, 0, 0)],

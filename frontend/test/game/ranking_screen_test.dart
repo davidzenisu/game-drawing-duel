@@ -187,6 +187,16 @@ void main() {
     expect(find.text('2'), findsOneWidget, reason: 'the others numbered below');
     expect(find.textContaining('Drawn by'), findsNothing, reason: 'details are on their own screen');
 
+    // The boost balance its fights gave this week: who won how many of them.
+    final balance = ranking.boostBalance!;
+    expect(find.text('Boost balance'), findsOneWidget);
+    expect(find.text('${balance.stars} ★ a day'), findsOneWidget);
+    expect(
+      find.textContaining('Challengers won ${balance.challengerWins} of ${balance.fights} fights'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Boost stars to give this week: ${balance.stars} a day'), findsOneWidget);
+
     // How often each player was chosen as a challenger, as a pie and a legend.
     expect(find.byType(PlayersDashboard), findsOneWidget);
     final weeks = PlayerWeek.ofRanking(controller.server.players, ranking);
@@ -203,6 +213,8 @@ void main() {
     expect(find.text('#1 · Weekly hero'), findsOneWidget);
 
     // The details of the weekly hero.
+    await tester.ensureVisible(find.text('#1 · Weekly hero'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('#1 · Weekly hero'));
     await tester.pumpAndSettle();
     expect(find.byType(RankingDetailScreen), findsOneWidget);

@@ -348,6 +348,10 @@ abstract class GameSession extends ChangeNotifier {
   /// You skipped yesterday's challenger drawing, so you can't boost today.
   bool get boostForfeited;
 
+  /// Why this week has [boostStars]: the week before's fights balance them
+  /// ([WeeklyBoost]). Null in the first week and in speed mode.
+  BoostBalance? get boostBalance;
+
   /// The challengers you drew, newest first (for now only your own, not the
   /// ones you fought or boosted). They don't join the gacha [pool].
   List<ChallengerRecord> get challengers;
@@ -455,8 +459,12 @@ abstract class GameSession extends ChangeNotifier {
   /// Your characters that can fight today.
   List<OwnedCard> get availableFighters => collection.where((o) => !isResting(o)).toList();
 
+  /// The boost stars you give a day this week; one challenger takes all of
+  /// them at most.
+  int get boostStars => boostBalance?.stars ?? Boost.stars;
+
   /// The boost stars you have left to give today.
-  int get boostStarsLeft => Boost.stars - boostTargets.fold(0, (sum, t) => sum + t.stars);
+  int get boostStarsLeft => boostStars - boostTargets.fold(0, (sum, t) => sum + t.stars);
 
   /// Whether you have boost stars left to give today.
   bool get canBoost => boostTargets.isNotEmpty && boostStarsLeft > 0;
@@ -556,8 +564,8 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> submitChallenger(Sketch sketch);
 
   /// Step 3: gives [boostTargets]' challengers these boost stars, by
-  /// challenger id, replacing the ones you gave today. Up to [Boost.stars]
-  /// in all, [Boost.maxPerChallenger] on one.
+  /// challenger id, replacing the ones you gave today. Up to [boostStars]
+  /// in all, and on one.
   Future<void> setBoosts(Map<String, int> stars);
 
   /// Step 4: lock in up to four fighters against today's challenger. The
