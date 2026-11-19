@@ -357,13 +357,24 @@ def fighters_win(
 WIN_RATE_MIN_FIGHTS = 3
 WIN_RATE_EXTRA_STARS = ((0.6, 1), (0.8, 2))
 
+# The boost balance and the win rate bands above start with the week of this
+# Monday (UTC), so running servers switch between two weeks instead of in the
+# middle of one. The weeks before keep `BOOST_STARS` a day and these bands.
+BALANCE_FROM = date(2026, 11, 23)
+WIN_RATE_EXTRA_STARS_BEFORE = ((0.5, 1), (0.75, 2))
 
-def win_rate_extra_stars(wins: int, fights: int) -> int:
-    """The extra stars for winning `wins` of `fights` last week."""
+
+def win_rate_extra_stars(
+    wins: int,
+    fights: int,
+    bands: tuple[tuple[float, int], ...] = WIN_RATE_EXTRA_STARS,
+) -> int:
+    """The extra stars for winning `wins` of `fights` last week, by `bands`
+    of [share, extra stars]."""
     if fights < WIN_RATE_MIN_FIGHTS:
         return 0
     return max(
-        (stars for share, stars in WIN_RATE_EXTRA_STARS if wins > share * fights),
+        (stars for share, stars in bands if wins > share * fights),
         default=0,
     )
 

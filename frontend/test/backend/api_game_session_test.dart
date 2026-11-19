@@ -1236,6 +1236,23 @@ void main() {
         [for (final r in rates.rates) (r.player.name, r.against.name, r.fights, r.wins, r.extraStars)],
         [('Sam', 'Robin', 4, 4, 2), ('Robin', 'Sam', 4, 0, 0)],
       );
+      expect(rates.bands, WinRates.extraStarsByShare, reason: 'the rules\' without bands from the server');
+
+      // The weeks before the boost balance keep the old bands: 3 of 4 is
+      // more than 50%, and gives +1 there.
+      backend.winRates['123456'] = {
+        ...backend.winRates['123456']!,
+        'extra_stars': [
+          [0.5, 1],
+          [0.75, 2],
+        ],
+        'win_rates': [
+          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 3, 'extra_stars': 1},
+        ],
+      };
+      final before = (await admin.winRates(refresh: true))!;
+      expect(before.bands, [(0.5, 1), (0.75, 2)]);
+      expect(before.rates.single.extraStars, 1, reason: 'not more than 60%, but more than 50%');
       expect((rates.extraStars('Sam', 'Robin'), rates.extraStars('Robin', 'Sam')), (2, 0));
     });
 

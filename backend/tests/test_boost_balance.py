@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from unittest.mock import patch
 
 from sqlalchemy import delete, func, select, update
 
@@ -19,6 +20,13 @@ class BoostBalanceTests(FightTestCase):
             server = session.scalar(select(Server).where(Server.code == self.code))
             server.launched_at = datetime(2026, 10, 5, 9, tzinfo=UTC)
             session.commit()
+        # The balance from the launch week on, unless a test says otherwise.
+        self.balance_from(date(2026, 10, 5))
+
+    def balance_from(self, monday: date) -> None:
+        balance_from = patch("app.rules.BALANCE_FROM", monday)
+        balance_from.start()
+        self.addCleanup(balance_from.stop)
 
     def next_day(self):
         # Everyone draws a challenger, so there's one to boost and fight.
@@ -131,3 +139,22 @@ class BoostBalanceTests(FightTestCase):
         self.set_results(8, 14, False)
         balance = self.today(ADMIN)["boost"]["balance"]
         self.assertEqual((balance["previous_stars"], balance["stars"]), (5, 3))
+
+    def test_the_weeks_before_the_balance_keep_the_base_stars(self) -> None:
+        # Running servers switch between two weeks: from day 15's on.
+        self.balance_from(date(2026, 10, 19))
+        self.to_day(8)
+        self.set_results(1, 7, True)
+        step = self.today()["boost"]
+        self.assertEqual((step["stars"], step["balance"]), (3, None))
+        self.assertIsNone(self.ranking()["boost_balance"])
+        self.assertEqual(self.boost({step["targets"][0]["challenger"]["id"]: 4}).status_code, 409)
+
+        self.to_day(15)
+        self.set_results(1, 14, True)
+        balance = self.today()["boost"]["balance"]
+        self.assertEqual(
+            (balance["previous_stars"], balance["step"], balance["stars"]),
+            (3, 2, 5),
+            "the first week on starts from the base stars",
+        )

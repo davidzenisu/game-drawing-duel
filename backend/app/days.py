@@ -15,7 +15,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app import speed
+from app import rules, speed
 from app.models import (
     ChallengerPrompt,
     Character,
@@ -73,6 +73,12 @@ def week_start(server: Server, day: int) -> int:
     """The first day of the game in `day`'s week. Weeks start on Monday (UTC),
     like the themes; the launch week may start before day 1."""
     return day - date_of_day(server, day).weekday()
+
+
+def balanced(server: Server, day: int) -> bool:
+    """Whether `day`'s week has the boost balance and the win rate bands of
+    `rules.BALANCE_FROM` on: the ones starting on or after that Monday."""
+    return date_of_day(server, week_start(server, day)) >= rules.BALANCE_FROM
 
 
 # A challenger is fought three days after its prompt was written: it's drawn

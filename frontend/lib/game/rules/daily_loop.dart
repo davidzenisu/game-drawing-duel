@@ -151,10 +151,10 @@ abstract final class WinRates {
   /// most of every share beaten.
   static const extraStarsByShare = [(0.6, 1), (0.8, 2)];
 
-  /// The extra stars for winning [wins] of [fights] last week.
-  static int extraStars(int wins, int fights) {
+  /// The extra stars for winning [wins] of [fights] last week, by [bands].
+  static int extraStars(int wins, int fights, [List<(double, int)> bands = extraStarsByShare]) {
     if (fights < minFights) return 0;
-    return extraStarsByShare.fold(0, (most, tier) => wins > tier.$1 * fights ? max(most, tier.$2) : most);
+    return bands.fold(0, (most, tier) => wins > tier.$1 * fights ? max(most, tier.$2) : most);
   }
 }
 
@@ -635,7 +635,13 @@ class PlayerStats {
 /// How [player]'s characters did against [against]'s last week, and the
 /// extra stars that gives them against that player this week.
 class WinRate {
-  const WinRate({required this.player, required this.against, required this.fights, required this.wins});
+  const WinRate({
+    required this.player,
+    required this.against,
+    required this.fights,
+    required this.wins,
+    this.bands = WinRates.extraStarsByShare,
+  });
 
   final Player player;
   final Player against;
@@ -644,17 +650,30 @@ class WinRate {
   final int fights;
   final int wins;
 
-  int get extraStars => WinRates.extraStars(wins, fights);
+  /// The win rate bands of the week they count for (see [WeekWinRates.bands]).
+  final List<(double, int)> bands;
+
+  int get extraStars => WinRates.extraStars(wins, fights, bands);
 }
 
 /// This week's win rates, from the fights of the days [fromDay] to [toDay]:
 /// every pair of players whose characters met, both ways.
 class WeekWinRates {
-  const WeekWinRates({required this.fromDay, required this.toDay, required this.rates});
+  const WeekWinRates({
+    required this.fromDay,
+    required this.toDay,
+    required this.rates,
+    this.bands = WinRates.extraStarsByShare,
+  });
 
   final int fromDay;
   final int toDay;
   final List<WinRate> rates;
+
+  /// The extra stars for winning more than a share of the meetings, as the
+  /// server counts them this week: the weeks before the boost balance's
+  /// first one kept older bands.
+  final List<(double, int)> bands;
 
   /// The extra stars [player]'s characters get against [against]'s.
   int extraStars(String player, String against) =>

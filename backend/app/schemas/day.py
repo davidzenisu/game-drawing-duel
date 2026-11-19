@@ -274,8 +274,10 @@ class WinRatesResponse(BaseModel):
     # The first and last day of the week whose fights count.
     from_day: int
     to_day: int
-    # The meetings it takes for a win rate to give extra stars.
+    # The meetings it takes for a win rate to give extra stars, and the
+    # extra stars for winning more than a share of them: [share, stars].
     min_fights: int
+    extra_stars: list[tuple[float, int]]
     # Every pair of players whose characters met, both ways.
     win_rates: list[WinRate]
 

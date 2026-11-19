@@ -15,6 +15,7 @@ This works the following way:
 	- It takes at least **3** meetings between two players for a win rate to count.
 	- If a player's heroes and challengers won more than **60%** of their meetings with another player's, they get **one** extra ☆ against that player this week.
 	- If they won more than **80%**, they get **two** extra ☆ instead.
+	- These bands start with the week of Monday, 23 November 2026, like the [Boost Balance](./boost-balance.md); the weeks before gave one extra ☆ for more than 50% and two for more than 75%. The win rates screen explains the bands of its week.
 	- Exactly 60% or 80% isn't more: it gives the smaller bonus. Losing gives no negative stars: a player who won under 40% against another is the one the other player's bonus counts against.
 - The same bands balance the boost stars of the following week (see [Boost Balance](./boost-balance.md)).
 - In a fight, each hero gets its extra stars against the challenger's player, and the challenger gets its extra stars once for each hero whose player it beat most of the time. Ties still go to the challenger.

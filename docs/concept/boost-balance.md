@@ -10,6 +10,7 @@ Each week, the boost stars every player gives a day change with how the fights o
 
 This works the following way:
 - In the first week, every player gives **3** boost stars a day.
+- The balance starts with the week of Monday, 23 November 2026, so servers running when it came in switched between two weeks, not in the middle of one: the weeks before kept 3 boost stars a day, and their first week with it started from 3, changed by the week before's fights.
 - Each following week starts from the week before's boost stars and changes them by the heroes' share of the week before's fights (every decided fight counts, also the ones chance picked the fighters for):
 
 | Heroes won | Boost stars |

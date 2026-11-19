@@ -6,7 +6,8 @@ first week. The heroes' share of the week before's decided fights (the ones
 the players who picked the fighters, or chance, won) changes them by
 `rules.boost_balance_step`, within `rules.BOOST_MIN_STARS` and
 `rules.BOOST_MAX_STARS`. One challenger takes all of them at most. Speed
-mode sessions have no weeks, so they keep `rules.BOOST_STARS`.
+mode sessions have no weeks, so they keep `rules.BOOST_STARS`, and so do
+the weeks before `rules.BALANCE_FROM`'s: the first week on starts from it.
 """
 
 from collections import Counter
@@ -48,8 +49,8 @@ def balance(session: Session, server: Server, day: int) -> Balance | None:
     """The boost balance of `day`'s week. The fights of the weeks before
     must be decided (`app.fights.complete_fights`,
     `app.fights.decide_fights`). None in the first week and in speed
-    mode."""
-    if speed.is_speed(server):
+    mode, and before `rules.BALANCE_FROM`'s week."""
+    if speed.is_speed(server) or not days.balanced(server, day):
         return None
     first_week = days.week_start(server, 1)
     week = days.week_start(server, day)
@@ -73,9 +74,11 @@ def balance(session: Session, server: Server, day: int) -> Balance | None:
         wins[start] += fighters_win
     stars = rules.BOOST_STARS
     for start in range(first_week, week - 7, 7):
-        stars = rules.balanced_boost_stars(
-            stars, rules.boost_balance_step(wins[start], fights[start])
-        )
+        # The weeks before the balance keep the base stars.
+        if days.balanced(server, start + 7):
+            stars = rules.balanced_boost_stars(
+                stars, rules.boost_balance_step(wins[start], fights[start])
+            )
     last = week - 7
     return Balance(
         from_day=last,

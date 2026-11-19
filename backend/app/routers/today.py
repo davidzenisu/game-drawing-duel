@@ -692,6 +692,7 @@ def get_win_rates(
         from_day=first,
         to_day=last,
         min_fights=WIN_RATE_MIN_FIGHTS,
+        extra_stars=list(win_rates.bands(server, day)),
         win_rates=[
             WinRate(
                 player_position=positions[r.player],

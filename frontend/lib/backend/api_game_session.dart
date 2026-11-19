@@ -1494,10 +1494,22 @@ class ApiGameSession extends GameSession {
       // They hold for the week after the one they count.
       stillCurrent: (json, _) => json is Map && json['to_day'] is int && day <= (json['to_day'] as int) + 7,
     );
+    // The bands the server counts this week by.
+    final bands = switch (json) {
+      {'extra_stars': List bands} => [
+        for (final band in bands)
+          if (band case [num share, int stars])
+            (share.toDouble(), stars)
+          else
+            throw const FormatException('Unexpected win rate band.'),
+      ],
+      _ => WinRates.extraStarsByShare,
+    };
     return switch (json) {
       {'from_day': int fromDay, 'to_day': int toDay, 'win_rates': List rates} => WeekWinRates(
         fromDay: fromDay,
         toDay: toDay,
+        bands: bands,
         rates: [
           for (final rate in rates)
             if (rate case {
@@ -1506,7 +1518,13 @@ class ApiGameSession extends GameSession {
               'fights': int fights,
               'wins': int wins,
             })
-              WinRate(player: _seat(server, player), against: _seat(server, against), fights: fights, wins: wins)
+              WinRate(
+                player: _seat(server, player),
+                against: _seat(server, against),
+                fights: fights,
+                wins: wins,
+                bands: bands,
+              )
             else
               throw const FormatException('Unexpected win rate.'),
         ],
