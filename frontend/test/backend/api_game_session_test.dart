@@ -875,7 +875,7 @@ void main() {
       };
       await robin.refreshDay();
       expect((robin.boostStars, robin.boostStarsLeft), (5, 5));
-      expect(robin.boostBalance!.reason, 'Heroes won 90% last week: +2 ★ to give a day this week, 5 in all.');
+      expect((robin.boostBalance!.heroPercent, robin.boostBalance!.change), (90, 2));
       backend.boostBalances.clear();
       await robin.refreshDay();
       expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));

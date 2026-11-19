@@ -80,9 +80,9 @@ class _WinRatesScreenState extends State<WinRatesScreen> {
                     child: Text(
                       // The first week has no week before it to count.
                       '${rates.fromDay < 1 ? 'No win rates yet: they start once the first week is over.' : 'From the fights of days ${rates.fromDay} to ${rates.toDay}.'} '
-                      'Characters count for the player they show. Win more than half of at least '
-                      '${WinRates.minFights} fights against a player for +1 ★ against them the next week, more than '
-                      'three quarters for +2 ★.',
+                      'Characters count for the player they show. Win more than ${_percent(_one.$1)} of at least '
+                      '${WinRates.minFights} fights against a player for +${_one.$2} ★ against them the next week, '
+                      'more than ${_percent(_two.$1)} for +${_two.$2} ★.',
                       style: textTheme.bodyMedium,
                     ),
                   ),
@@ -309,3 +309,10 @@ class _MatchupSide extends StatelessWidget {
     );
   }
 }
+
+/// The win rate bands, for the explanation: the first and the second.
+final _one = WinRates.extraStarsByShare.first;
+final _two = WinRates.extraStarsByShare.last;
+
+/// A share as a percentage, e.g. 60%.
+String _percent(double share) => '${(share * 100).round()}%';

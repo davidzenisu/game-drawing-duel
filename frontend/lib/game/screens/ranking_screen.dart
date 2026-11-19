@@ -222,9 +222,9 @@ class _RankingScreenState extends State<RankingScreen> {
   }
 }
 
-/// The boost balance a week's fights gave the week after: how many of them
-/// the heroes and the challengers won, and the boost stars to give a day
-/// that makes.
+/// The boost balance a week's fights gave the week after: the boost stars
+/// to give a day, and how they changed with the heroes' win rate. The rules
+/// behind it are in the boost tutorial.
 class BoostBalanceCard extends StatelessWidget {
   const BoostBalanceCard({super.key, required this.balance});
 
@@ -235,12 +235,12 @@ class BoostBalanceCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
     final b = balance;
-    final percent = b.fights == 0 ? 0 : 100 - b.heroPercent;
     final change = switch (b.change) {
-      0 => 'unchanged',
-      > 0 => '+${b.change} from ${b.previousStars}',
-      _ => '−${-b.change} from ${b.previousStars}',
+      > 0 => 'Up from ${b.previousStars} ★ from last week',
+      < 0 => 'Down from ${b.previousStars} ★ from last week',
+      _ => 'Same as last week',
     };
+    final why = b.counted ? 'hero win rate ${b.heroPercent}%' : 'only ${b.fights} fights';
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -256,30 +256,14 @@ class BoostBalanceCard extends StatelessWidget {
                 Text('${b.stars} ★ a day', style: textTheme.titleMedium?.copyWith(color: AppPalette.rarityHero)),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              b.fights == 0
-                  ? 'No fights this week.'
-                  : 'Challengers won ${b.challengerWins} of ${b.fights} fights ($percent%), '
-                        'heroes ${b.heroWins} (${b.heroPercent}%).',
-              style: textTheme.bodyMedium,
-            ),
-            Text('Boost stars to give this week: ${b.stars} a day ($change).', style: textTheme.bodyMedium),
             const SizedBox(height: 4),
-            Text(
-              'Heroes winning ${[for (final (share, n) in WeeklyBoost.more) 'more than ${_percent(share)} give +$n ★'].join(', ')}; '
-              '${[for (final (share, n) in WeeklyBoost.fewer) 'under ${_percent(share)} −$n ★'].join(', ')}. '
-              'It takes ${b.minFights} fights, and stays between ${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars} ★.',
-              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-            ),
+            Text('$change ($why)', style: textTheme.bodyMedium),
           ],
         ),
       ),
     );
   }
 }
-
-String _percent(double share) => '${(share * 100).round()}%';
 
 void _openDetails(BuildContext context, int place, RankedChallenger entry) => Navigator.of(context).push(
   MaterialPageRoute<void>(

@@ -114,9 +114,7 @@ enum Tutorial {
         title: 'Boost the challengers',
         text:
             'From day ${LoopStep.boost}, spread ${_stars(Boost.stars)} across up to ${Boost.challengers} of '
-            'yesterday\'s challengers, never your own or the one you fight tomorrow. One can take them all. '
-            'Each week, the stars change with how last week\'s fights went: more when the heroes won most, '
-            'fewer when the challengers did, between ${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars}.',
+            'yesterday\'s challengers, never your own or the one you fight tomorrow. One can take them all.',
       ),
       TutorialPage(
         icon: Icons.shield_rounded,
@@ -124,6 +122,16 @@ enum Tutorial {
         text:
             'Boost stars add to a challenger\'s ${_stars(Stars.challengerBase)}, and tomorrow someone fights '
             'it. Move your stars until the day is over; the ones you leave are spread by chance.',
+      ),
+      TutorialPage(
+        icon: Icons.balance_rounded,
+        title: 'A balance every week',
+        text:
+            'Each week, the boost stars change with how last week\'s fights went. Heroes winning '
+            '${[for (final (share, n) in WeeklyBoost.more) 'more than ${_percent(share)} give +$n ★'].join(', ')}; '
+            '${[for (final (share, n) in WeeklyBoost.fewer) 'under ${_percent(share)} −$n ★'].join(', ')}. '
+            'It takes ${WeeklyBoost.minFights} fights, and it adds up week after week, between '
+            '${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars} ★ a day. The week ranking shows this week\'s.',
       ),
     ],
     fight => [
@@ -222,3 +230,6 @@ enum Tutorial {
     ],
   };
 }
+
+/// A share as a percentage, e.g. 60%.
+String _percent(double share) => '${(share * 100).round()}%';

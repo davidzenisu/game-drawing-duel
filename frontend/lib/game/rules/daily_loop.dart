@@ -115,20 +115,6 @@ class BoostBalance {
 
   /// How the stars changed from the week before's, within the limits.
   int get change => stars - previousStars;
-
-  /// Why the week has [stars], in a line.
-  String get reason {
-    if (!counted) {
-      return 'Only $fights ${fights == 1 ? 'fight' : 'fights'} last week, fewer than $minFights: '
-          'still $stars ★ to give a day.';
-    }
-    final heroes = 'Heroes won $heroPercent% last week';
-    if (change > 0) return '$heroes: +$change ★ to give a day this week, $stars in all.';
-    if (change < 0) return '$heroes: −${-change} ★ to give a day this week, $stars in all.';
-    if (step > 0) return '$heroes: already the most stars to give, $stars a day.';
-    if (step < 0) return '$heroes: already the fewest stars to give, $stars a day.';
-    return '$heroes: still $stars ★ to give a day.';
-  }
 }
 
 /// Stars decide the fights: the fighters' rarities against the challenger's

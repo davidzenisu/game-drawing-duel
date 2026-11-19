@@ -700,7 +700,6 @@ void main() {
     expect(balance.heroPercent, greaterThan(60));
     expect(balance.heroPercent, lessThanOrEqualTo(80));
     expect((balance.previousStars, balance.change, balance.stars), (3, 1, 4));
-    expect(balance.reason, 'Heroes won ${balance.heroPercent}% last week: +1 ★ to give a day this week, 4 in all.');
     expect(game.boostStars, 4);
     if (game.boostTargets.isNotEmpty) expect(game.boostStarsLeft, 4);
   });

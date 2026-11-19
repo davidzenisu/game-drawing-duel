@@ -157,7 +157,6 @@ class _BoostScreenState extends State<BoostScreen> {
                 ),
                 _StarTray(
                   total: widget.controller.boostStars,
-                  balance: widget.controller.boostBalance,
                   left: _left,
                   enabled: _canGive(current),
                   saving: _saving,
@@ -329,7 +328,6 @@ class _GivenStar extends StatelessWidget {
 class _StarTray extends StatelessWidget {
   const _StarTray({
     required this.total,
-    required this.balance,
     required this.left,
     required this.enabled,
     required this.saving,
@@ -341,9 +339,8 @@ class _StarTray extends StatelessWidget {
     required this.onDone,
   });
 
-  /// This week's stars to give, and why.
+  /// This week's stars to give.
   final int total;
-  final BoostBalance? balance;
   final int left;
   final bool enabled;
   final bool saving;
@@ -383,8 +380,6 @@ class _StarTray extends StatelessWidget {
                   style: textTheme.titleSmall,
                   textAlign: TextAlign.center,
                 ),
-                if (balance case final balance?)
-                  Text(balance.reason, style: textTheme.bodySmall, textAlign: TextAlign.center),
                 const SizedBox(height: 8),
                 Row(
                   children: [

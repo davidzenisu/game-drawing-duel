@@ -28,5 +28,6 @@ This works the following way:
 - Speed mode has no weeks, so it always has 3 boost stars a day.
 
 Where to see it:
-- **Boost challengers**: the star tray shows the week's stars, and below the count why: "Heroes won 72% last week: +1 ★ to give a day this week, 4 in all." (or that they stay the same, that there were too few fights, or that they're already at the most or the fewest). With many stars, the tray's stars shrink to fit a phone.
-- **Week ranking**: last week's **Challengers** start with a **Boost balance** card: how many of last week's fights the challengers and the heroes won, with their shares, and the boost stars to give a day this week, with the change from the week before ("4 a day (+1 from 3)"), above the bands it goes by.
+- **Boost challengers**: the star tray shows the week's stars ("2 of 4 left"), without more on the balance. With many stars, they shrink to fit a phone.
+- **Week ranking**: last week's **Challengers** start with a short **Boost balance** card: "Boost balance 4 ★ a day", and below "Up from 3 ★ from last week (hero win rate 75%)" ("Down from …", "Same as last week", or "only 5 fights" instead of the win rate when there were too few).
+- **Tutorial**: the boost tutorial's last page, "A balance every week", explains the bands, the fights it takes and the limits.

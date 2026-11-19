@@ -17,11 +17,9 @@ the game is in early development (0.x), versions stay below 1.0.
   day this week, more than 80% two more; under 40%, one fewer, under 20% two
   fewer. They stack from week to week, between 3 and 6 a day, and it takes
   at least 7 fights. Speed mode keeps 3.
-- The boost screen shows this week's boost stars and why ("Heroes won 72%
-  last week: +1 ★ to give a day this week, 4 in all.").
 - Last week's challengers in the week ranking start with a **Boost balance**
-  card: how many fights the challengers and the heroes won, and this week's
-  boost stars.
+  card: this week's boost stars a day, and how they changed with last
+  week's hero win rate. The boost tutorial explains how it works.
 
 ### Changed
 - Win rates give one extra star for winning more than 60% of the meetings

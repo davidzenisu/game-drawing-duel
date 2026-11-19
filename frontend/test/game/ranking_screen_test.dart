@@ -39,7 +39,9 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(brightness: brightness),
-          home: Scaffold(body: SingleChildScrollView(child: PlayersDashboard(weeks: weeks))),
+          home: Scaffold(
+            body: SingleChildScrollView(child: PlayersDashboard(weeks: weeks)),
+          ),
         ),
       );
       final dots = [
@@ -187,15 +189,15 @@ void main() {
     expect(find.text('2'), findsOneWidget, reason: 'the others numbered below');
     expect(find.textContaining('Drawn by'), findsNothing, reason: 'details are on their own screen');
 
-    // The boost balance its fights gave this week: who won how many of them.
+    // The boost balance its fights gave this week, the rules in the tutorial.
     final balance = ranking.boostBalance!;
     expect(find.text('Boost balance'), findsOneWidget);
     expect(find.text('${balance.stars} ★ a day'), findsOneWidget);
     expect(
-      find.textContaining('Challengers won ${balance.challengerWins} of ${balance.fights} fights'),
+      find.text('Up from ${balance.previousStars} ★ from last week (hero win rate ${balance.heroPercent}%)'),
       findsOneWidget,
+      reason: "the mockup's heroes won about three fights in four",
     );
-    expect(find.textContaining('Boost stars to give this week: ${balance.stars} a day'), findsOneWidget);
 
     // How often each player was chosen as a challenger, as a pie and a legend.
     expect(find.byType(PlayersDashboard), findsOneWidget);
