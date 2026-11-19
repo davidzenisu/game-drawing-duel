@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/collection_screen.dart';
 import 'package:frontend/game/screens/progress_screen.dart';
 import 'package:frontend/game/widgets/card_art.dart';
+import 'package:frontend/game/widgets/rest_badge.dart';
 
 import '../helpers.dart';
 
@@ -119,6 +121,49 @@ void main() {
     await tester.tap(find.widgetWithText(InkWell, 'Most copies').last);
     await tester.pump(const Duration(milliseconds: 500));
     expect(shownIds().first, maxed.card.id, reason: '40 copies');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('resting characters show the days until they are back, and can be filtered', (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame(launchDate: firstMonday);
+    for (var day = 1; day < LoopStep.fight; day++) {
+      await game.advanceDay();
+    }
+    final legend = game.collection.firstWhere((o) => o.card.rarity == Rarity.legend);
+    final basic = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
+    await game.submitFighters([legend, basic]);
+    await game.advanceDay();
+
+    await tester.pumpWidget(MaterialApp(home: CollectionScreen(controller: game)));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.ensureVisible(find.text('Resting'));
+    await tester.pump();
+    await tester.tap(find.text('Resting'));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.widgetList<Standee>(find.byType(Standee)).map((s) => s.card.id).toSet(), {
+      legend.card.id,
+      basic.card.id,
+    });
+    expect(tester.widgetList<RestBadge>(find.byType(RestBadge)).map((b) => b.days).toSet(), {
+      1,
+      Rarity.legend.restDays,
+    });
+    expect(find.byTooltip('Resting, back tomorrow'), findsOneWidget);
+    expect(find.byTooltip('Resting, back in ${Rarity.legend.restDays} days'), findsOneWidget);
+    expect(find.text('${Rarity.legend.restDays}d'), findsOneWidget);
+
+    // Its details say so too.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CharacterDetailScreen(controller: game, owned: legend),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.textContaining('resting, back in ${Rarity.legend.restDays} days'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 

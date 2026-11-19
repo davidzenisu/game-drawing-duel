@@ -7,6 +7,7 @@ import '../rules/upgrades.dart';
 import '../widgets/card_art.dart';
 import '../widgets/fight_stage.dart';
 import '../widgets/game_action.dart';
+import '../widgets/rest_badge.dart';
 import 'fight_replay_screen.dart';
 
 /// Step 4: pick up to four fighters against a challenger the others boosted
@@ -298,37 +299,4 @@ String _extraStars(FightSetup fight) {
     if (fight.challengerExtraStars > 0) "the challenger's +${fight.challengerExtraStars}",
   ];
   return parts.isEmpty ? '' : ' (win rate extra stars: ${parts.join(', ')})';
-}
-
-/// The days a character still rests after a fight, on its card in the
-/// roster: a moon and the number of days.
-class RestBadge extends StatelessWidget {
-  const RestBadge({super.key, required this.days});
-
-  final int days;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: 'Resting, ${backIn(days)}',
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: colors.inverseSurface, borderRadius: BorderRadius.circular(10)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.bedtime_rounded, size: 12, color: colors.onInverseSurface),
-            const SizedBox(width: 2),
-            Text(
-              '${days}d',
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: colors.onInverseSurface, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

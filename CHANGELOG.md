@@ -9,6 +9,14 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.21.0] - 2026-11-19
+
+### Added
+- The Collection shows which characters are resting after a fight: a moon
+  with the days left on their card ("Resting, back in 2 days" or "back
+  tomorrow"), every day, also on days without a fight. Their details say so
+  too, and the new **Resting** filter lists only the characters on cooldown.
+
 ## [0.20.3] - 2026-11-18
 
 ### Fixed

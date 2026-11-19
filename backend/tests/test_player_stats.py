@@ -67,7 +67,7 @@ class PlayerStatsTests(FinaleTestCase):
             )
             self.assertEqual(boosted.status_code, 200, boosted.text)
         if today["fight"] and today["fight"]["yours"] is None:
-            resting = set(today["fight"]["resting"])
+            resting = set(today["rest_days"])
             free = [c for c in self.owned(subject) if c not in resting]
             if free:
                 self.assertEqual(self.pick(free[:1], subject).status_code, 200)

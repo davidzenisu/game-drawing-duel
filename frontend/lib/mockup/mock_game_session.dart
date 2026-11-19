@@ -206,6 +206,12 @@ class MockGameSession extends GameSession {
     while (day < 8) {
       // Yesterday's challenger is drawn, so today's boosts are on.
       if (day == 7) await submitChallenger(_bots.doodle('challenger'));
+      // Sunday's fighters, your rarest character and a basic one, rest on
+      // Monday: one is back tomorrow, the other a few days later.
+      if (day == 7 && fightChallenger != null) {
+        final byRarity = [...collection]..sort((a, b) => b.card.rarity.stars.compareTo(a.card.rarity.stars));
+        await submitFighters({byRarity.first, byRarity.last}.toList());
+      }
       await advanceDay();
     }
   }

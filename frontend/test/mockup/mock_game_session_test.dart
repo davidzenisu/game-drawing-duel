@@ -47,6 +47,10 @@ void main() {
     expect(game.boostTargets, hasLength(Boost.challengers));
     expect(game.fightChallenger, isNotNull);
     expect(game.yourFight, isNull);
+    // Sunday's fighters rest: the rarest a few days, a basic one until
+    // tomorrow.
+    expect(game.restDays.values.toSet(), {1, Rarity.legend.restDays});
+    expect(game.availableFighters, isNotEmpty);
   });
 
   test('you can go by another name on a server, and rename your account', () async {
