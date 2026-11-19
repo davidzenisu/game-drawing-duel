@@ -47,6 +47,10 @@ void main() {
     expect(game.boostTargets, hasLength(Boost.challengers));
     expect(game.fightChallenger, isNotNull);
     expect(game.yourFight, isNull);
+    // Sunday's fighters rest: the rarest a few days, a basic one until
+    // tomorrow.
+    expect(game.restDays.values.toSet(), {1, Rarity.legend.restDays});
+    expect(game.availableFighters, isNotEmpty);
   });
 
   test('you can go by another name on a server, and rename your account', () async {
@@ -419,7 +423,10 @@ void main() {
     final rare = game.collection.where((o) => o.card.rarity != Rarity.basic).first;
     final basic = game.collection.firstWhere((o) => o.card.rarity == Rarity.basic);
     await game.submitFighters([rare, basic]);
-    expect(game.restDays, isEmpty, reason: 'they rest from tomorrow on');
+    expect(game.restDays, {
+      rare.card.id: rare.card.rarity.restDays + 1,
+      basic.card.id: 2,
+    }, reason: 'they rest from tomorrow on: a day more');
 
     await game.advanceDay();
     expect(game.restDays, {rare.card.id: rare.card.rarity.restDays, basic.card.id: 1}, reason: 'a new week too');

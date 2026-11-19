@@ -316,12 +316,19 @@ def new_fight(
 
 
 def resting(
-    session: Session, server: Server, seat: ServerSeat, day: int
+    session: Session,
+    server: Server,
+    seat: ServerSeat,
+    day: int,
+    *,
+    sent_today: bool = False,
 ) -> dict[uuid.UUID, int]:
     """The characters `seat` sent into a fight that still rest on `day`, with
     how many days they rest from `day` on (1: back tomorrow). After a fight,
     a character rests `rules.REST_DAYS` of its rarity, from 1 day for a
-    basic one to 4 for a legend, fought by chance or not."""
+    basic one to 4 for a legend, fought by chance or not. With `sent_today`,
+    the ones sent into `day`'s fight count too: they rest from tomorrow on,
+    so they're back a day later than their rest days."""
     last_fights = session.execute(
         select(Fighter.character_id, Character.rarity, func.max(Fight.day))
         .join(Fight, Fight.id == Fighter.fight_id)
@@ -329,7 +336,7 @@ def resting(
         .where(
             Fight.owner_seat_id == seat.id,
             Fight.day >= day - max(REST_DAYS.values()),
-            Fight.day < day,
+            Fight.day <= day if sent_today else Fight.day < day,
         )
         .group_by(Fighter.character_id, Character.rarity)
     ).all()

@@ -9,6 +9,7 @@ import '../rules/upgrades.dart';
 import '../widgets/download_drawing_button.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/rest_badge.dart';
 import '../widgets/unlock_celebration.dart';
 import 'progress_screen.dart';
 
@@ -26,7 +27,8 @@ class CollectionScreen extends StatefulWidget {
 enum _Status {
   ready('Upgrade ready'),
   owned('Summoned'),
-  missing('Not summoned');
+  missing('Not summoned'),
+  resting('Resting');
 
   const _Status(this.label);
 
@@ -46,6 +48,7 @@ enum _PlayerRole {
 
 /// How the collection is ordered.
 enum _Sort {
+  cooldown('Cooldown'),
   pool('Pool order'),
   rarity('Rarity'),
   copies('Most copies'),
@@ -65,7 +68,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   /// The player's name to filter by, or null for anyone.
   String? _player;
-  _Sort _sort = _Sort.pool;
+  _Sort _sort = _Sort.cooldown;
 
   bool _matches(CharacterCard card, OwnedCard? owned) {
     if (_filter != null && card.rarity != _filter) return false;
@@ -77,14 +80,22 @@ class _CollectionScreenState extends State<CollectionScreen> {
       _Status.ready => owned != null && owned.hasUnspentPoints,
       _Status.owned => owned != null,
       _Status.missing => owned == null,
+      _Status.resting => owned != null && widget.controller.isResting(owned),
     };
   }
 
   int _compare(_Entry a, _Entry b) => switch (_sort) {
+    // The ones without a cooldown first, then the ones back soonest.
+    _Sort.cooldown => _restDays(a).compareTo(_restDays(b)),
     _Sort.pool => 0,
     _Sort.rarity => b.card.rarity.stars.compareTo(a.card.rarity.stars),
     _Sort.copies => (b.owned?.copies ?? 0).compareTo(a.owned?.copies ?? 0),
     _Sort.name => a.card.subject.toLowerCase().compareTo(b.card.subject.toLowerCase()),
+  };
+
+  int _restDays(_Entry entry) => switch (entry.owned) {
+    final owned? => widget.controller.restDaysLeft(owned),
+    null => 0,
   };
 
   @override
@@ -219,6 +230,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                           (card: final card, owned: null) => _LockedTile(card: card),
                           (card: _, owned: final OwnedCard owned) => _CollectionTile(
                             owned: owned,
+                            restDays: controller.restDaysLeft(owned),
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => CharacterDetailScreen(controller: controller, owned: owned),
@@ -237,9 +249,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
 }
 
 class _CollectionTile extends StatelessWidget {
-  const _CollectionTile({required this.owned, required this.onTap});
+  const _CollectionTile({required this.owned, required this.restDays, required this.onTap});
 
   final OwnedCard owned;
+
+  /// The days it still rests after a fight, 0 if it's ready.
+  final int restDays;
   final VoidCallback onTap;
 
   @override
@@ -251,12 +266,26 @@ class _CollectionTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Column(
         children: [
-          Hero(
-            tag: 'standee-${card.id}',
-            child: Standee(card: card, width: 120, effects: owned.shown, element: owned.element),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Greyed out while it rests, here only: its details show it
+              // as it is.
+              Opacity(
+                opacity: restDays > 0 ? 0.4 : 1,
+                child: Hero(
+                  tag: 'standee-${card.id}',
+                  child: Standee(card: card, width: 120, effects: owned.shown, element: owned.element),
+                ),
+              ),
+              if (restDays > 0) Positioned(top: 0, right: 0, child: RestBadge(days: restDays)),
+            ],
           ),
           const SizedBox(height: 6),
-          Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
+          Opacity(
+            opacity: restDays > 0 ? 0.4 : 1,
+            child: Nameplate(name: card.subject, title: card.title, rarity: card.rarity, compact: true),
+          ),
           // Right under its nameplate, with more room before the next row,
           // so it's clear which character it belongs to.
           if (owned.copies > 1 || owned.hasUnspentPoints) ...[
@@ -410,7 +439,8 @@ class _CharacterDetailScreenState extends State<CharacterDetailScreen> {
                     Nameplate(name: card.subject, title: card.title, rarity: card.rarity),
                     const SizedBox(height: 8),
                     Text(
-                      '${card.prompt} · drawn by ${card.artist} · owned ×${owned.copies}',
+                      '${card.prompt} · drawn by ${card.artist} · owned ×${owned.copies}'
+                      '${widget.controller.isResting(owned) ? ' · resting, ${backIn(widget.controller.restDaysLeft(owned))}' : ''}',
                       style: textTheme.bodySmall,
                     ),
                     const SizedBox(height: 24),

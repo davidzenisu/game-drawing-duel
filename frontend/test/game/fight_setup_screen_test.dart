@@ -4,6 +4,7 @@ import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/fight_setup_screen.dart';
+import 'package:frontend/game/widgets/rest_badge.dart';
 import 'package:frontend/game/widgets/fight_stage.dart';
 
 import '../helpers.dart';

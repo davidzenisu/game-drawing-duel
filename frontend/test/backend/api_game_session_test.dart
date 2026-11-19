@@ -901,7 +901,8 @@ void main() {
       expect(backend.requests.last.url.path, '/servers/123456/gacha');
       expect(admin.stars - starsBefore, fight.fightersWin ? 5 : 0);
       expect(admin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)), reason: 'only the ones drawn');
-      expect(admin.restDays, isEmpty);
+      // Today's fighters rest from tomorrow on: a day more.
+      expect(admin.restDays, {for (final o in admin.collection.take(2)) o.card.id: o.card.rarity.restDays + 1});
       // The first win is an achievement, its 5 stars to collect once.
       final firstWin = admin.achievements.firstWhere((a) => a.key == 'wins:1');
       expect((firstWin.kind, firstWin.goal, firstWin.stars), (AchievementKind.wins, 1, 5));

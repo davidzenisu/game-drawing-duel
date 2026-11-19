@@ -877,12 +877,15 @@ class ApiGameSession extends GameSession {
       _dayEnded = {for (final position in ended) _seat(server, position as int).id};
       _fightChallenger = null;
       _yourFight = null;
-      _restDays = const {};
-      if (json['fight'] case {'challenger': final challenger, 'yours': final yours, 'rest_days': Map restDays}) {
+      if (json['fight'] case {'challenger': final challenger, 'yours': final yours}) {
         _fightChallenger = await _card(server, challenger);
         _yourFight = yours == null ? null : await _parseFight(server, yours);
-        _restDays = {for (final MapEntry(:key, :value) in restDays.entries) key as String: value as int};
       }
+      // Sent every day, with a fight or not.
+      _restDays = switch (json['rest_days']) {
+        Map restDays => {for (final MapEntry(:key, :value) in restDays.entries) key as String: value as int},
+        _ => const {},
+      };
       _boostForfeited = json['boost_forfeited'] == true;
       _boostTargets = switch (json['boost']) {
         null => const [],

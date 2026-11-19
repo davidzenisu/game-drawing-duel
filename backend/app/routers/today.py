@@ -148,6 +148,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             challenger=character_response(drawn) if drawn else None,
         ),
         fight=_fight_step(session, server, day, seat),
+        rest_days=fights.resting(session, server, seat, day, sent_today=True),
         boost=_boost_step(session, server, day, seat),
         boost_forfeited=fights.missed_drawing(session, server, day, seat),
         results=[
@@ -227,14 +228,11 @@ def _fight_step(
     if challenger is None:
         return None
     yours = fights.fight_of(session, seat, day)
-    rest_days = fights.resting(session, server, seat, day)
     return FightStep(
         challenger=character_response(challenger),
         yours=None
         if yours is None
         else _fight_response(session, server, yours),
-        resting=sorted(rest_days, key=str),
-        rest_days=rest_days,
     )
 
 

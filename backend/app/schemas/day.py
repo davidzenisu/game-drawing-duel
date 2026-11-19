@@ -104,12 +104,6 @@ class FightStep(BaseModel):
     challenger: CharacterResponse
     # Your fighters and how they fared, once picked.
     yours: FightResponse | None
-    # Your characters that rest today after a fight
-    # (`rules.REST_DAYS`)...
-    resting: list[uuid.UUID]
-    # ...with how many days each still rests from today on: 1 is back
-    # tomorrow.
-    rest_days: dict[uuid.UUID, int]
 
 
 class IncomingHurry(BaseModel):
@@ -184,6 +178,11 @@ class TodayResponse(BaseModel):
     prompt: YourPrompt | None
     to_draw: PromptToDrawResponse | None
     fight: FightStep | None
+    # Your characters that rest after a fight (`rules.REST_DAYS`), with how
+    # many days each still rests from today on: 1 is back tomorrow. Today's
+    # fighters count too: they rest from tomorrow on, so their rest days plus
+    # one. Sent every day, with a fight step or not.
+    rest_days: dict[uuid.UUID, int]
     boost: BoostStep | None
     # You skipped yesterday's drawing, so you can't boost today.
     boost_forfeited: bool = False

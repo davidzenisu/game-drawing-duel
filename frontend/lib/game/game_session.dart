@@ -334,10 +334,10 @@ abstract class GameSession extends ChangeNotifier {
 
   FightSetup? get yourFight;
 
-  /// Your characters that rest today after a fight, by id, with how many
-  /// days each still rests from today on (1: back tomorrow). After a fight,
-  /// a character rests [Rarity.restDays] days, from 1 for a basic one to 4
-  /// for a legend.
+  /// Your characters that rest after a fight, by id, with how many days
+  /// each still rests from today on (1: back tomorrow). After a fight, a
+  /// character rests [Rarity.restDays] days, from 1 for a basic one to 4 for
+  /// a legend; today's fighters rest from tomorrow on, so a day more.
   Map<String, int> get restDays;
 
   /// Yesterday's challengers you may boost today, with the boost stars you

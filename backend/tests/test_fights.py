@@ -436,15 +436,20 @@ class RestTests(FightTestCase):
         self.assertEqual(len(rare), 2)
         rest = rules.REST_DAYS[rules.Rarity(rarities[rare[0]])]
         self.next_day()
-        self.assertEqual(self.today()["fight"]["resting"], [])
-        self.assertEqual(self.today()["fight"]["rest_days"], {})
-        self.assertEqual(self.pick([rare[0], basic]).status_code, 200)
+        self.assertEqual(self.today()["rest_days"], {})
+        picked = self.pick([rare[0], basic])
+        self.assertEqual(picked.status_code, 200)
+        # Today's fighters rest from tomorrow on: a day more from today.
+        self.assertEqual(picked.json()["rest_days"], {rare[0]: rest + 1, basic: 2})
         self.next_day()
 
         # Day 5: both rest, the basic one for today only.
-        fight = self.today()["fight"]
-        self.assertEqual(fight["rest_days"], {rare[0]: rest, basic: 1})
-        self.assertEqual(set(fight["resting"]), {rare[0], basic})
+        self.assertEqual(self.today()["rest_days"], {rare[0]: rest, basic: 1})
+        # Sent on days without a challenger to fight too.
+        with patch("app.routers.today.fights.fight_challenger", return_value=None):
+            today = self.today()
+        self.assertIsNone(today["fight"])
+        self.assertEqual(today["rest_days"], {rare[0]: rest, basic: 1})
         again = self.pick([rare[1], basic])
         self.assertEqual(again.status_code, 409)
         self.assertEqual(
@@ -454,7 +459,7 @@ class RestTests(FightTestCase):
         self.next_day()
 
         # Day 6: the basic one is back, the rarer one rests a day less.
-        rest_days = self.today()["fight"]["rest_days"]
+        rest_days = self.today()["rest_days"]
         self.assertNotIn(basic, rest_days)
         self.assertEqual(rest_days.get(rare[0], 0), rest - 1)
         self.assertEqual(self.pick([basic]).status_code, 200)
@@ -465,7 +470,7 @@ class RestTests(FightTestCase):
         # Alex sends one fighter a day, so there's always one left.
         while True:
             self.next_day()
-            rest_days = self.today()["fight"]["rest_days"]
+            rest_days = self.today()["rest_days"]
             fighter = next(c for c in rarities if c not in rest_days)
             if self.today()["day"] == 7:
                 break
@@ -474,7 +479,7 @@ class RestTests(FightTestCase):
         self.next_day()
         # Day 8 is a Monday, and the character that fought on Sunday rests.
         rest = rules.REST_DAYS[rules.Rarity(rarities[fighter])]
-        self.assertEqual(self.today()["fight"]["rest_days"][fighter], rest)
+        self.assertEqual(self.today()["rest_days"][fighter], rest)
 
     def test_fighters_picked_by_chance_rest_too(self) -> None:
         # Sam picks nobody all week, so chance does, from the characters
