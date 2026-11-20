@@ -12,10 +12,9 @@ the game is in early development (0.x), versions stay below 1.0.
 ## [0.22.1] - 2026-11-20
 
 ### Fixed
-- In the browser, back goes back one screen in the game (or closes the open
-  window) instead of leaving it, usually for the sign-in page. On the hub,
-  it asks **Leave the game?** first. A running drawing still can't be left,
-  and unsaved boosts still ask first.
+- In the browser, back on the hub no longer leaves the game straight away,
+  usually for the sign-in page: it asks **Leave the game?** first. On the
+  other screens, back still goes back one screen.
 
 ## [0.22.0] - 2026-11-19
 

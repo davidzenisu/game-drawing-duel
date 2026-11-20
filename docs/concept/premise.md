@@ -24,7 +24,7 @@ The daily hub shows the 4 steps of the cycle as big buttons (icon and title, the
 
 When choosing a challenger, picking a player shows only their name, no drawing of them.
 
-On the web, the browser's back button goes back one screen at a time, like the app's own back arrow, and closes an open dialog first. Screens that can't be left right away keep their rules: a running drawing ignores it, unsaved boosts ask first. On the daily hub (or whatever screen the game starts on), back asks **Leave the game?** before leaving for the page before the game, so it never drops the player on the sign-in page by accident. A reload starts over on the hub.
+On the web, the browser's back button goes back one screen at a time, like the app's own back arrow, and closes an open dialog first. Screens that can't be left right away keep their rules: a running drawing ignores it, unsaved boosts ask first. On the daily hub (or whatever screen the game starts on), back asks **Leave the game?** before leaving for the page before the game, so it never drops the player on the sign-in page by accident.
 
 Above them, next to the day's title and above the drawing step, a **Send a hurry** button sends the day's free hurry (greyed out once sent, or on a day without one).
 

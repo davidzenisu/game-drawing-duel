@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'backend/api_client.dart';
 import 'backend/api_game_session.dart';
@@ -15,9 +14,6 @@ const _auth0Audience = String.fromEnvironment('AUTH0_AUDIENCE');
 const _apiUrl = String.fromEnvironment('API_URL');
 
 void main() {
-  // The game keeps the browser history itself (`BrowserBack`), one entry
-  // per screen, so Flutter's own must stay out of it.
-  setUrlStrategy(null);
   runApp(GameApp(session: FeatureFlags.mockupGameplay ? MockGameSession() : _backendSession()));
 }
 
