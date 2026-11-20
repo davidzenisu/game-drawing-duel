@@ -9,6 +9,13 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.22.1] - 2026-11-20
+
+### Fixed
+- In the browser, back goes back one screen at a time, however often you
+  press it, instead of leaving the game for the sign-in page from the second
+  time on. On the hub, it asks **Leave the game?** first.
+
 ## [0.22.0] - 2026-11-19
 
 ### Added
