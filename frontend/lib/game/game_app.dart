@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../platform/browser_history.dart';
 import '../theme/app_theme.dart';
+import 'browser_back.dart';
 import 'game_session.dart';
 import 'screens/daily_hub_screen.dart';
 import 'screens/lobby_screen.dart';
@@ -11,8 +13,9 @@ import 'screens/splash_screen.dart';
 import 'screens/signup_screen.dart';
 
 /// The game for a [GameSession], e.g. the offline mockup enabled through
-/// `FeatureFlags.mockupGameplay`.
-class GameApp extends StatelessWidget {
+/// `FeatureFlags.mockupGameplay`. On the web, the browser's back button
+/// goes back one screen ([BrowserBack]).
+class GameApp extends StatefulWidget {
   const GameApp({super.key, required this.session, this.splash = true});
 
   final GameSession session;
@@ -21,13 +24,21 @@ class GameApp extends StatelessWidget {
   final bool splash;
 
   @override
+  State<GameApp> createState() => _GameAppState();
+}
+
+class _GameAppState extends State<GameApp> {
+  final _browserBack = BrowserBack(browserHistory());
+
+  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: session.isMockup ? 'Drawing Duel (Mockup)' : 'Drawing Duel',
+      title: widget.session.isMockup ? 'Drawing Duel (Mockup)' : 'Drawing Duel',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      home: GameRoot(session: session, splash: splash),
+      navigatorObservers: [_browserBack],
+      home: GameRoot(session: widget.session, splash: widget.splash),
     );
   }
 }

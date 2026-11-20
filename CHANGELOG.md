@@ -9,6 +9,14 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.22.1] - 2026-11-20
+
+### Fixed
+- In the browser, back goes back one screen in the game (or closes the open
+  window) instead of leaving it, usually for the sign-in page. On the hub,
+  it asks **Leave the game?** first. A running drawing still can't be left,
+  and unsaved boosts still ask first.
+
 ## [0.22.0] - 2026-11-19
 
 ### Added
