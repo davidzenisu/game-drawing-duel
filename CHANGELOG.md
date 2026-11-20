@@ -12,9 +12,9 @@ the game is in early development (0.x), versions stay below 1.0.
 ## [0.22.1] - 2026-11-20
 
 ### Fixed
-- In the browser, back on the hub no longer leaves the game straight away,
-  usually for the sign-in page: it asks **Leave the game?** first. On the
-  other screens, back still goes back one screen.
+- In the browser, back goes back one screen at a time, however often you
+  press it, instead of leaving the game for the sign-in page from the second
+  time on. On the hub, it asks **Leave the game?** first.
 
 ## [0.22.0] - 2026-11-19
 
