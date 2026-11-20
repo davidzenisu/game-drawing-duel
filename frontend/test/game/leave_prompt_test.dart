@@ -45,14 +45,26 @@ void main() {
     expect(calls, contains('SystemNavigator.pop'));
   });
 
-  testWidgets('back on another screen goes back to the one before', (tester) async {
-    await openGame(tester);
+  testWidgets('back several screens deep goes back one screen at a time, then asks', (tester) async {
+    final calls = await openGame(tester);
     final navigator = tester.state<NavigatorState>(find.byType(Navigator).first);
-    navigator.push(MaterialPageRoute<void>(builder: (_) => const Scaffold(body: Text('Another screen'))));
-    await tester.pumpAndSettle();
+    for (final name in ['Menu', 'Submenu', 'Details']) {
+      navigator.push(MaterialPageRoute<void>(builder: (_) => Scaffold(body: Text(name))));
+      await tester.pumpAndSettle();
+    }
+
+    for (final (gone, shown) in [('Details', 'Submenu'), ('Submenu', 'Menu')]) {
+      await back(tester);
+      expect(find.text(gone), findsNothing);
+      expect(find.text(shown), findsOneWidget);
+      expect(find.text('Leave the game?'), findsNothing);
+    }
+    await back(tester);
+    expect(find.text('Menu'), findsNothing);
+    expect(find.text('Leave the game?'), findsNothing);
 
     await back(tester);
-    expect(find.text('Another screen'), findsNothing);
-    expect(find.text('Leave the game?'), findsNothing);
+    expect(find.text('Leave the game?'), findsOneWidget);
+    expect(calls, isNot(contains('SystemNavigator.pop')));
   });
 }
