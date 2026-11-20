@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../platform/browser_history.dart';
+import '../platform/back_guard.dart';
 import '../theme/app_theme.dart';
-import 'browser_back.dart';
 import 'game_session.dart';
 import 'screens/daily_hub_screen.dart';
 import 'screens/lobby_screen.dart';
@@ -14,21 +13,51 @@ import 'screens/signup_screen.dart';
 
 /// The game for a [GameSession], e.g. the offline mockup enabled through
 /// `FeatureFlags.mockupGameplay`. On the web, the browser's back button
-/// goes back one screen ([BrowserBack]).
+/// goes back one screen like the app's own, and on the first screen asks
+/// "Leave the game?" ([BackGuard]).
 class GameApp extends StatefulWidget {
-  const GameApp({super.key, required this.session, this.splash = true});
+  const GameApp({super.key, required this.session, this.splash = true, this.backGuard});
 
   final GameSession session;
 
   /// Whether the game opens on its title screen ([SplashScreen]).
   final bool splash;
 
+  /// Catches the browser's back button, a [BackGuard] unless given.
+  final BackGuard? backGuard;
+
   @override
   State<GameApp> createState() => _GameAppState();
 }
 
 class _GameAppState extends State<GameApp> {
-  final _browserBack = BrowserBack(browserHistory());
+  final _navigator = GlobalKey<NavigatorState>();
+  late final _backGuard = widget.backGuard ?? BackGuard();
+  bool _asking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _backGuard.start(_onBack);
+  }
+
+  Future<void> _onBack() async {
+    final navigator = _navigator.currentState;
+    if (navigator == null || await navigator.maybePop() || _asking || !navigator.mounted) return;
+    _asking = true;
+    final leave = await showDialog<bool>(
+      context: navigator.context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave the game?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Stay')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Leave')),
+        ],
+      ),
+    );
+    _asking = false;
+    if (leave == true) _backGuard.leave();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +66,7 @@ class _GameAppState extends State<GameApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      navigatorObservers: [_browserBack],
+      navigatorKey: _navigator,
       home: GameRoot(session: widget.session, splash: widget.splash),
     );
   }

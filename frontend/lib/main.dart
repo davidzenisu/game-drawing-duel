@@ -15,8 +15,8 @@ const _auth0Audience = String.fromEnvironment('AUTH0_AUDIENCE');
 const _apiUrl = String.fromEnvironment('API_URL');
 
 void main() {
-  // The game keeps the browser history itself (`BrowserBack`), one entry
-  // per screen, so Flutter's own must stay out of it.
+  // The game handles the browser's back button itself (`BackGuard`), so
+  // Flutter's own browser history must stay out of it.
   setUrlStrategy(null);
   runApp(GameApp(session: FeatureFlags.mockupGameplay ? MockGameSession() : _backendSession()));
 }
