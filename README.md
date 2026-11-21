@@ -218,11 +218,13 @@ ranking of the latest finished week.
 The random picks are derived from the server, day and seat, so they stay the
 same without being stored ahead of time.
 
-Every day each player can also send one free hurry to another player: at a
-random moment between a quarter and 60% of the time limit, it takes 10% of
-the time left off their challenger drawing, which they only find out while
-drawing. Every hurry a player receives counts, each on the time left when it
-hits (`GET today` lists them as `incoming_hurries`).
+Every day each player can also send one free hurry to another player: with
+between 55 and 15 seconds left, it takes 5 seconds off their challenger
+drawing, which they only find out while drawing. Every hurry a player
+receives counts, each on the time left when it hits (`GET today` lists them
+as `incoming_hurries`). A hurry can carry an optional short `message` (up to
+60 characters), shown to the target when it hits; `GET today` returns yours
+as `hurry_message`.
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -231,7 +233,7 @@ hits (`GET today` lists them as `incoming_hurries`).
 | `PUT /servers/{code}/today/challenger` | Draw today's challenger, once |
 | `PUT /servers/{code}/today/boosts` | Spread your boost stars across today's challengers to boost (`boosts`, each a `challenger_id` and its `stars`), replacing the ones you gave today |
 | `PUT /servers/{code}/today/fighters` | Send up to four fighters against today's challenger, once; the stars decide right away |
-| `POST /servers/{code}/today/hurry` | Send today's free hurry to another player, once |
+| `POST /servers/{code}/today/hurry` | Send today's free hurry to another player (`target_position`, with an optional `message`), once |
 | `GET /servers/{code}/ranking` | The latest finished week's challengers, most stars first, with their stars, fights and wins; `null` before the first week is over. In speed mode, all of the session's challengers once it's over |
 | `GET /servers/{code}/challengers` | The challengers you encountered (drew, fought against or boosted), newest first, with their decided fights and wins |
 | `POST /servers/{code}/today/end` | Speed mode and test sessions: end your day; the next starts once everyone did |

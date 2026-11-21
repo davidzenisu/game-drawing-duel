@@ -64,7 +64,12 @@ abstract final class Unavailable {
       c.server.isSpeed ? 'Speed mode ranks all of its challengers at the end instead.' : null;
 
   static String? hurry(GameSession c) {
-    if (c.hurrySentTo case final target?) return "Done: you sent today's hurry to ${target.name}.";
+    if (c.hurrySentTo case final target?) {
+      return switch (c.hurryMessage) {
+        final message? => 'Done: you hurried ${target.name}: "$message"',
+        null => "Done: you sent today's hurry to ${target.name}.",
+      };
+    }
     if (c.sessionOver) return _over;
     return 'Nobody draws a challenger tomorrow: speed mode\'s last drawings are on day ${_lastSpeedDay(LoopStep.draw)}.';
   }

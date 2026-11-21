@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
+import '../game_session.dart';
 import '../rules/models.dart';
 import '../rules/themes.dart';
 import '../widgets/card_art.dart';
@@ -51,7 +52,7 @@ class DrawingRecapScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 Nameplate(name: subject, title: result.title, rarity: rarity, nameFirst: true),
                 const SizedBox(height: 12),
-                _Hurries(by: result.hurriedBy),
+                _Hurries(hurries: result.hurries),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
@@ -70,15 +71,18 @@ class DrawingRecapScreen extends StatelessWidget {
   }
 }
 
-/// Who sent a hurry against the drawing.
+/// Who sent a hurry against the drawing, in the order they hit, with their
+/// messages.
 class _Hurries extends StatelessWidget {
-  const _Hurries({required this.by});
+  const _Hurries({required this.hurries});
 
-  final List<String> by;
+  final List<HurryPlan> hurries;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final by = [for (final hurry in hurries) hurry.by];
+    final messages = hurries.any((hurry) => hurry.message != null);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -99,7 +103,36 @@ class _Hurries extends StatelessWidget {
                 ),
               ],
             ),
-            if (by.isNotEmpty) ...[
+            // With messages, one line each, in the order they hit.
+            if (messages) ...[
+              const SizedBox(height: 4),
+              for (final hurry in hurries)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(radius: 12, child: Text(hurry.by.characters.first, style: textTheme.labelSmall)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: hurry.by,
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              if (hurry.message case final message?) TextSpan(text: ': $message'),
+                            ],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ] else if (by.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,

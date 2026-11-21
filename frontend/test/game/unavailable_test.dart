@@ -27,6 +27,9 @@ void main() {
     expect(Unavailable.prompt(game), 'Done: you chose ${game.yourPrompt!.subject.name} today.');
     await game.sendHurry(game.otherPlayers.first);
     expect(Unavailable.hurry(game), "Done: you sent today's hurry to ${game.otherPlayers.first.name}.");
+    final withMessage = await launchedGame();
+    await withMessage.sendHurry(withMessage.otherPlayers.first, message: ' Tick tock ⏰ ');
+    expect(Unavailable.hurry(withMessage), 'Done: you hurried ${withMessage.otherPlayers.first.name}: "Tick tock ⏰"');
   });
 
   test('speed mode explains the steps it is done with', () async {

@@ -220,6 +220,7 @@ class SharedRulesTest(unittest.TestCase):
     def test_hurry(self):
         hurry = SHARED["hurry"]
         self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])
+        self.assertEqual(rules.HURRY_MESSAGE_MAX_LENGTH, hurry["message_max_length"])
         self.assertEqual(rules.CHALLENGER_DRAW_SECONDS, SHARED["challenger_draw_seconds"])
         self.assertEqual(
             (rules.HURRY_FIRST_LEFT_SECONDS, rules.HURRY_LAST_LEFT_SECONDS),

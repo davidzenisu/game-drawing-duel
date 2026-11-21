@@ -121,6 +121,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         if server.is_test or speed.is_speed(server)
         else []
     )
+    hurry_target, hurry_message = _hurry_sent(session, server, seat, day)
     return TodayResponse(
         day=day,
         theme=days.theme_of(server, day).value,
@@ -157,7 +158,8 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             for f in fights.fights_on(session, server, day - 1)
             if seat.id in {f.owner_seat_id, f.challenger.artist_seat_id}
         ],
-        hurry_sent_to=_hurry_sent_to(session, server, seat, day),
+        hurry_sent_to=hurry_target,
+        hurry_message=hurry_message,
         incoming_hurries=_incoming_hurries(session, server, seat, day),
         day_ended=list(ended),
         weekly_hero=_weekly_hero(session, server),
@@ -212,16 +214,20 @@ def _weekly_hero(session: Session, server: Server) -> WeeklyHeroResponse | None:
     )
 
 
-def _hurry_sent_to(
+def _hurry_sent(
     session: Session, server: Server, seat: ServerSeat, day: int
-) -> int | None:
-    """Who `seat` sent `day`'s hurry to: it hits the day after."""
-    target = session.scalar(
-        select(Hurry.target_seat_id).where(
-            Hurry.sender_seat_id == seat.id, Hurry.day == day + 1
-        )
+) -> tuple[int | None, str | None]:
+    """Who `seat` sent `day`'s hurry to, and its message: it hits the day
+    after."""
+    hurry = session.scalar(
+        select(Hurry).where(Hurry.sender_seat_id == seat.id, Hurry.day == day + 1)
     )
-    return next((s.position for s in server.seats if s.id == target), None)
+    if hurry is None:
+        return None, None
+    target = next(
+        (s.position for s in server.seats if s.id == hurry.target_seat_id), None
+    )
+    return target, hurry.message
 
 
 def _incoming_hurries(
@@ -237,7 +243,11 @@ def _incoming_hurries(
     ).all()
     hits = hurry_hits([hurry.at_fraction for hurry in hurries])
     return [
-        IncomingHurry(by_position=positions[hurry.sender_seat_id], left_seconds=left)
+        IncomingHurry(
+            by_position=positions[hurry.sender_seat_id],
+            left_seconds=left,
+            message=hurry.message,
+        )
         for hurry, left in zip(hurries, hits, strict=True)
     ]
 
@@ -476,6 +486,7 @@ def send_hurry(
             target_seat_id=target.id,
             day=hits_on,
             at_fraction=random.random(),
+            message=body.message or None,
         )
     )
     try:

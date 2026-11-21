@@ -189,6 +189,9 @@ class FakeBackend {
   /// sent) and sender seat: the target seat.
   final Map<(String, int, int), int> hurries = {};
 
+  /// Their messages, by the same keys.
+  final Map<(String, int, int), String> hurryMessages = {};
+
   /// Seats that ended a day, by server code and day.
   final Map<(String, int), Set<int>> dayEnded = {};
 
@@ -1021,6 +1024,7 @@ class FakeBackend {
           return _json(409, {'detail': "You sent today's hurry already"});
         }
         hurries[(code, day + 1, yours)] = body!['target_position'] as int;
+        if (body['message'] case final String message) hurryMessages[(code, day + 1, yours)] = message;
       case ('POST', ['today', 'end']):
         final ended = dayEnded.putIfAbsent((code, day), () => {})..add(yours);
         if (joined.every(ended.contains)) days[code] = day + 1;
@@ -1097,9 +1101,11 @@ class FakeBackend {
           if (f.day == today - 1 && (f.owner == yours || f.challenger['artist_position'] == yours)) _fightJson(f),
       ],
       'hurry_sent_to': hurries[(code, today + 1, yours)],
+      'hurry_message': hurryMessages[(code, today + 1, yours)],
       'incoming_hurries': [
         for (final MapEntry(:key, :value) in hurries.entries)
-          if (key.$1 == code && key.$2 == today && value == yours) {'by_position': key.$3, 'left_seconds': 39.0},
+          if (key.$1 == code && key.$2 == today && value == yours)
+            {'by_position': key.$3, 'left_seconds': 39.0, 'message': hurryMessages[key]},
       ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
       'weekly_hero': weeklyHeroes[code],

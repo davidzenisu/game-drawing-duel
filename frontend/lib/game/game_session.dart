@@ -72,12 +72,15 @@ class ServerSession {
 /// drawing. Every hurry you receive counts.
 /// It takes away `Hurries.cut` of the time left when it hits.
 class HurryPlan {
-  const HurryPlan({required this.by, required this.left});
+  const HurryPlan({required this.by, required this.left, this.message});
 
   final String by;
 
   /// When the hurry hits: the drawing time left then (see `Hurries.hits`).
   final Duration left;
+
+  /// The sender's short message, shown when it hits, if they added one.
+  final String? message;
 }
 
 /// Pulls and stars an admin gave you outside the regular rewards, with a
@@ -385,6 +388,9 @@ abstract class GameSession extends ChangeNotifier {
   /// tomorrow.
   Player? get hurrySentTo;
 
+  /// The short message you added to today's hurry, if any.
+  String? get hurryMessage;
+
   /// Whether you can still send today's free hurry: once a day, when
   /// there's a drawing tomorrow, i.e. on prompt days.
   bool get canSendHurry => !sessionOver && promptsToday && hurrySentTo == null;
@@ -633,9 +639,11 @@ abstract class GameSession extends ChangeNotifier {
   Future<Sketch> drawingSketch(AdminDrawing drawing) =>
       Future.error(UnsupportedError('Only server admins can see every drawing.'));
 
-  /// Sends today's free hurry, against [target]'s drawing tomorrow.
-  /// Completes with false if it was already used.
-  Future<bool> sendHurry(Player target);
+  /// Sends today's free hurry, against [target]'s drawing tomorrow, with an
+  /// optional short [message] they see when it hits (blank is none, at most
+  /// `Hurries.messageMaxLength` characters). Completes with false if it was
+  /// already used.
+  Future<bool> sendHurry(Player target, {String? message});
 
   /// The hints of [theme] in use, see [canEditContent].
   Future<List<ContentEntry>> contentEntries(DailyTheme theme) =>
