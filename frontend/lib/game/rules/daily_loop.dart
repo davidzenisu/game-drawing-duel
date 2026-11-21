@@ -187,6 +187,12 @@ abstract final class Hurries {
   static const firstLeft = Duration(seconds: 55);
   static const lastLeft = Duration(seconds: 15);
 
+  /// The longest short message a hurry's sender can add.
+  static const messageMaxLength = 60;
+
+  /// Quick picks for the message, in the send dialog.
+  static const quickMessages = ['Tick tock ⏰', 'Hurry up!', 'No pressure 😇', 'Draw faster! 🐢'];
+
   /// The time left at which each of a day's hurries hits, in the order they
   /// were sent, from a random share in [0, 1) each (its jitter).
   ///

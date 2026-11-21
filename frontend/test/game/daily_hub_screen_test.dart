@@ -145,7 +145,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text(controller.otherPlayers.first.name).last);
     await tester.pumpAndSettle();
+    // Then an optional message: a quick pick fills it in.
+    expect(find.text('Hurry ${controller.otherPlayers.first.name}'), findsOneWidget);
+    await tester.tap(find.text('Tick tock ⏰'));
+    await tester.pump();
+    expect(find.widgetWithText(TextField, 'Tick tock ⏰'), findsOneWidget);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
     expect(controller.hurrySentTo, controller.otherPlayers.first);
+    expect(controller.hurryMessage, 'Tick tock ⏰');
     expect(find.text('Hurry sent'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
