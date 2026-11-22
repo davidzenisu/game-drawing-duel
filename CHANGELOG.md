@@ -11,6 +11,10 @@ the game is in early development (0.x), versions stay below 1.0.
 
 ## [0.24.0] - 2026-11-22
 
+### Added
+- A redo button next to undo while drawing: it brings back what undo took
+  back, stroke by stroke, until you draw or clear again.
+
 ### Changed
 - Cleared the canvas by mistake? Undo brings the whole drawing back in one
   tap, then takes back its strokes one by one as usual. Undo and the bin are

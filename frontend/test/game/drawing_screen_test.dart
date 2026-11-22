@@ -548,7 +548,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('a clear takes one undo to bring the drawing back', (tester) async {
+  testWidgets('a clear takes one undo to bring the drawing back, and redo goes forward again', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -559,9 +559,11 @@ void main() {
     );
     final pad = tester.widget<SketchPad>(find.byType(SketchPad)).controller;
     final undo = find.widgetWithIcon(IconButton, Icons.undo_rounded);
+    final redo = find.widgetWithIcon(IconButton, Icons.redo_rounded);
     final clear = find.widgetWithIcon(IconButton, Icons.delete_outline_rounded);
     bool enabled(Finder button) => tester.widget<IconButton>(button).onPressed != null;
     expect(enabled(undo), isFalse, reason: 'nothing to undo yet');
+    expect(enabled(redo), isFalse, reason: 'nothing to redo yet');
     expect(enabled(clear), isFalse, reason: 'nothing to clear yet');
 
     final rect = tester.getRect(find.byType(SketchPad));
@@ -587,6 +589,17 @@ void main() {
     await tester.pump();
     expect(pad.isEmpty, isTrue);
     expect(enabled(undo), isFalse);
+
+    // Redo goes forward again: both strokes, then the clear.
+    expect(enabled(redo), isTrue);
+    await tester.tap(redo);
+    await tester.tap(redo);
+    await tester.pump();
+    expect(pad.strokes, hasLength(2));
+    await tester.tap(redo);
+    await tester.pump();
+    expect(pad.isEmpty, isTrue);
+    expect(enabled(redo), isFalse);
     await tester.pumpWidget(const SizedBox());
   });
 

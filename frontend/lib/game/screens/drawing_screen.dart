@@ -661,6 +661,11 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                           icon: const Icon(Icons.undo_rounded),
                         ),
                         IconButton(
+                          onPressed: _pad.enabled && _pad.canRedo ? _pad.redo : null,
+                          tooltip: 'Redo',
+                          icon: const Icon(Icons.redo_rounded),
+                        ),
+                        IconButton(
                           onPressed: _pad.enabled && !_pad.isEmpty ? _pad.clear : null,
                           tooltip: 'Clear',
                           icon: const Icon(Icons.delete_outline_rounded),

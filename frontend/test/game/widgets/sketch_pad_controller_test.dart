@@ -45,6 +45,40 @@ void main() {
     expect(controller.isEmpty, isTrue);
   });
 
+  testWidgets('redo does again what undo took back, until a new stroke or clear', (tester) async {
+    final controller = await pad(tester);
+    await stroke(tester);
+    await stroke(tester);
+    controller.clear();
+    expect(controller.canRedo, isFalse);
+
+    controller.undo();
+    controller.undo();
+    expect(controller.strokes, hasLength(1));
+    expect(controller.canRedo, isTrue);
+
+    controller.redo();
+    expect(controller.strokes, hasLength(2), reason: 'the stroke comes back');
+    controller.redo();
+    expect(controller.isEmpty, isTrue, reason: 'the canvas is cleared again');
+    expect(controller.canRedo, isFalse);
+    controller.redo();
+    expect(controller.isEmpty, isTrue);
+
+    // A new stroke drops what undo took back.
+    controller.undo();
+    controller.undo();
+    await stroke(tester);
+    expect(controller.strokes, hasLength(2));
+    expect(controller.canRedo, isFalse);
+
+    // So does a clear.
+    controller.undo();
+    expect(controller.canRedo, isTrue);
+    controller.clear();
+    expect(controller.canRedo, isFalse);
+  });
+
   testWidgets('a locked pad keeps its history', (tester) async {
     final controller = await pad(tester);
     await stroke(tester);
