@@ -1381,8 +1381,7 @@ class ApiGameSession extends GameSession {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
         day: day,
-        maxStars: (json as Map)['max_stars'] as int?,
-        boostBalance: _parseBoostBalance(json['boost_balance']),
+        boostBalance: _parseBoostBalance((json as Map)['boost_balance']),
         challengers: [
           for (final entry in challengers)
             if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})
@@ -1392,6 +1391,7 @@ class ApiGameSession extends GameSession {
                 fights: fights,
                 wins: wins,
                 place: entry['place'] as int? ?? 1,
+                artistBoostStars: entry['artist_boost_stars'] as int? ?? 0,
                 heroRarity: switch (entry['hero_rarity']) {
                   final String rarity => Rarity.values.byName(rarity),
                   _ => null,
@@ -1423,11 +1423,13 @@ class ApiGameSession extends GameSession {
   /// Whether a kept week ranking is still the latest: until the next week
   /// is over, the day after its finale, a week later. A speed session's
   /// ranking is final. One kept before rankings had several weekly heroes
-  /// (and their maximum stars) is asked again, so they show.
+  /// (and the artists' boost stars) is asked again, so they show.
   bool _stillCurrent(ServerSession server, Object? json) =>
       json is Map &&
       json['day'] is int &&
-      json.containsKey('max_stars') &&
+      json.containsKey('boost_balance') &&
+      json['challengers'] is List &&
+      (json['challengers'] as List).every((c) => c is Map && c.containsKey('artist_boost_stars')) &&
       (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override

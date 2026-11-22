@@ -185,7 +185,7 @@ void main() {
     final hero = ranking.challengers.first;
     expect(find.text(hero.card.title), findsWidgets, reason: 'in its nameplate');
     expect(find.text('${hero.stars} ★').first, findsOneWidget);
-    expect(find.textContaining('rarer the closer they came to 12 ★'), findsOneWidget);
+    expect(find.textContaining('The top 3 became weekly heroes'), findsOneWidget);
     expect(find.text('#1 · Weekly hero · ★★★★'), findsOneWidget, reason: 'the heroes on bigger cards');
     expect(find.text('#2 · Weekly hero · ★★★'), findsOneWidget);
     expect(find.text('#3 · Weekly hero · ★★'), findsOneWidget);
@@ -226,6 +226,11 @@ void main() {
     expect(find.text('Weekly hero (Legend) with ${hero.stars} ★'), findsOneWidget);
     expect(find.text('Drawn by'), findsOneWidget);
     expect(find.text(hero.card.artist), findsOneWidget);
+    // What its place was decided by after its boost stars.
+    expect(find.text('Day ${hero.card.day} · ${controller.themeOfDay(hero.card.day).label}'), findsOneWidget);
+    expect(find.text("${hero.card.artist}'s challengers this week"), findsOneWidget);
+    expect(find.text('+${hero.artistBoostStars} ★ boosted'), findsOneWidget);
+    expect(find.text('${hero.winPercent}% · won ${hero.wins} of ${hero.fights}'), findsOneWidget);
     final author = hero.promptAuthor!;
     expect(find.text(hero.defaultPrompt ? '${author.name} (default)' : author.name), findsOneWidget);
     expect(find.text(hero.boostStars == 0 ? 'not boosted' : '+${hero.boostStars} ★'), findsOneWidget);

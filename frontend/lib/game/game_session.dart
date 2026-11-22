@@ -287,8 +287,7 @@ abstract class GameSession extends ChangeNotifier {
   GachaStatus get gachaStatus;
 
   /// This week's rate-up characters' ids: the latest finale's weekly
-  /// heroes and, when none of them is a legend, a starter legend of the 1st
-  /// place's player. A pull landing on their
+  /// heroes. A pull landing on their
   /// rarity picks one of them [GachaMachine.rateUp] percent of the time.
   Set<String> get rateUp;
 
@@ -437,6 +436,9 @@ abstract class GameSession extends ChangeNotifier {
   // Derived state ------------------------------------------------------------
 
   List<Player> get otherPlayers => server.players.where((p) => !p.isYou).toList();
+
+  /// The theme of [day]: the one of its weekday, as today's [theme] is.
+  DailyTheme themeOfDay(int day) => DailyTheme.values[(theme.index + day - this.day) % DailyTheme.values.length];
 
   /// The week [day] falls in: week 1 is the launch week. Weeks run from
   /// Monday to Sunday, so the first one may be short. Today's theme tells

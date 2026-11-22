@@ -6,6 +6,7 @@ import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
+import '../rules/themes.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sketch_canvas.dart';
@@ -186,12 +187,8 @@ class _RankingScreenState extends State<RankingScreen> {
         children: [
           Text(
             'Week ${widget.controller.weekOf(ranking.day)}: ${ranking.challengers.length} challengers, ranked by '
-            'their own ${Stars.challengerBase} ★ plus their boost stars, then by their win rate.'
-            '${switch (ranking.maxStars) {
-              final int most => ' Up to ${Finale.maxHeroes} of them became weekly heroes, rarer the closer '
-                  'they came to $most ★, the most a challenger could get.',
-              null => '',
-            }}',
+            'their boost stars, then the boost stars of their artist\'s challengers, their win rate and the '
+            'latest day. The top ${Finale.maxHeroes} became weekly heroes: ★★★★, ★★★ and ★★.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           if (ranking.boostBalance case final balance?) ...[
@@ -201,9 +198,12 @@ class _RankingScreenState extends State<RankingScreen> {
           const SizedBox(height: 12),
           PlayersDashboard(weeks: PlayerWeek.ofRanking(players, ranking)),
           const SizedBox(height: 12),
-          for (final hero in ranking.heroes) ...[_HeroCard(entry: hero), const SizedBox(height: 8)],
+          for (final hero in ranking.heroes) ...[
+            _HeroCard(entry: hero, dayTheme: widget.controller.themeOfDay(hero.card.day)),
+            const SizedBox(height: 8),
+          ],
           for (final entry in ranking.challengers)
-            if (!entry.isWeeklyHero) _RankTile(entry: entry),
+            if (!entry.isWeeklyHero) _RankTile(entry: entry, dayTheme: widget.controller.themeOfDay(entry.card.day)),
         ],
       );
     }
@@ -270,8 +270,9 @@ class BoostBalanceCard extends StatelessWidget {
   }
 }
 
-void _openDetails(BuildContext context, RankedChallenger entry) =>
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => RankingDetailScreen(entry: entry)));
+void _openDetails(BuildContext context, RankedChallenger entry, DailyTheme dayTheme) => Navigator.of(
+  context,
+).push(MaterialPageRoute<void>(builder: (_) => RankingDetailScreen(entry: entry, dayTheme: dayTheme)));
 
 /// How often a player was chosen as a challenger in a week: the challengers
 /// portraying them.
@@ -465,9 +466,12 @@ class _PiePainter extends CustomPainter {
 /// large, its place, its nameplate and its stars, framed in the colour of
 /// the rarity it was crowned with.
 class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.entry});
+  const _HeroCard({required this.entry, required this.dayTheme});
 
   final RankedChallenger entry;
+
+  /// The theme of the day it was drawn, for its details.
+  final DailyTheme dayTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -481,7 +485,7 @@ class _HeroCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _openDetails(context, entry),
+        onTap: () => _openDetails(context, entry, dayTheme),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -514,9 +518,12 @@ class _HeroCard extends StatelessWidget {
 }
 
 class _RankTile extends StatelessWidget {
-  const _RankTile({required this.entry});
+  const _RankTile({required this.entry, required this.dayTheme});
 
   final RankedChallenger entry;
+
+  /// The theme of the day it was drawn, for its details.
+  final DailyTheme dayTheme;
 
   @override
   Widget build(BuildContext context) {
@@ -525,7 +532,7 @@ class _RankTile extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _openDetails(context, entry),
+        onTap: () => _openDetails(context, entry, dayTheme),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Row(

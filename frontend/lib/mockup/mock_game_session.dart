@@ -90,25 +90,9 @@ class MockGameSession extends GameSession {
   @override
   GachaStatus get gachaStatus => _gacha.status;
 
-  /// Like online: the latest finale's heroes and, when none of them is a
-  /// legend, a starter legend of a 1st place's player, the same all week.
+  /// Like online: the latest finale's heroes.
   @override
-  Set<String> get rateUp {
-    if (_weeklyHeroes.isEmpty) return const {};
-    final first = {
-      for (final hero in _weeklyHeroes)
-        if (hero.place == 1) hero.card.subject,
-    };
-    final legends = [
-      for (final card in _pool)
-        if (card.day == 0 && card.rarity == Rarity.legend && first.contains(card.subject)) card,
-    ];
-    return {
-      for (final hero in _weeklyHeroes) hero.card.id,
-      if (legends.isNotEmpty && _weeklyHeroes.every((h) => h.card.rarity != Rarity.legend))
-        legends[_weeklyHeroes.first.day % legends.length].id,
-    };
-  }
+  Set<String> get rateUp => {for (final hero in _weeklyHeroes) hero.card.id};
 
   @override
   bool get isMockup => true;
@@ -971,40 +955,36 @@ class MockGameSession extends GameSession {
     );
   }
 
-  /// The challengers drawn from [from] to [to], the friends' and yours, most
-  /// stars first, then the best win rate, with their places. Each had one
+  /// The challengers drawn from [from] to [to], the friends' and yours,
+  /// ranked like online ([Finale.compare]), with their places. Each had one
   /// fight: the [challengerWins] days' ones won it.
   List<RankedChallenger> _ranked(int from, int to) {
-    final ranked =
-        [
-          for (var day = from; day <= to; day++)
-            if (_drawnOn(day)) ...[
-              for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
-              ?_yourChallengers[day],
-            ],
-        ].map(_rankedEntry).toList()..sort(
-          (a, b) => b.stars != a.stars ? b.stars.compareTo(a.stars) : (b.wins / b.fights).compareTo(a.wins / a.fights),
-        );
-    final places = Finale.places([for (final r in ranked) (r.stars, r.wins, r.fights)]);
-    return [for (final (i, r) in ranked.indexed) r.at(places[i])];
+    final entries = [
+      for (var day = from; day <= to; day++)
+        if (_drawnOn(day)) ...[
+          for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
+          ?_yourChallengers[day],
+        ],
+    ].map(_rankedEntry).toList();
+    final byArtist = <String, int>{};
+    for (final r in entries) {
+      byArtist[r.card.artist] = (byArtist[r.card.artist] ?? 0) + r.boostStars;
+    }
+    final ranked = [for (final r in entries) r.at(1, artistBoostStars: byArtist[r.card.artist])]
+      ..sort((a, b) => Finale.compare(a.rankedBy, b.rankedBy));
+    return [for (final (i, r) in ranked.indexed) r.at(i + 1)];
   }
 
   /// The week that ends on [lastDay]: its challengers, the ones fought that
-  /// week (drawn two days before), with the weekly heroes it crowns.
-  WeekRanking _week(int lastDay) {
-    final ranked = _ranked(lastDay - 8, lastDay - 2);
-    final maxStars = Finale.maxStars(_boostBalance(lastDay)?.stars ?? Boost.stars);
-    final heroes = Finale.heroes([for (final r in ranked) (r.stars, r.wins, r.fights)], maxStars);
-    return WeekRanking(
-      day: lastDay,
-      maxStars: maxStars,
-      challengers: [
-        for (final (i, r) in ranked.indexed)
-          if (heroes[i] case (final place, final rarity)) r.at(place, heroRarity: rarity) else r,
-      ],
-      boostBalance: _boostBalance(lastDay + 1),
-    );
-  }
+  /// week (drawn two days before), its top ones crowned weekly heroes.
+  WeekRanking _week(int lastDay) => WeekRanking(
+    day: lastDay,
+    challengers: [
+      for (final (i, r) in _ranked(lastDay - 8, lastDay - 2).indexed)
+        i < Finale.maxHeroes ? r.at(i + 1, heroRarity: Finale.rarities[i]) : r,
+    ],
+    boostBalance: _boostBalance(lastDay + 1),
+  );
 
   /// The latest finished week's ranking: the challengers fought that week,
   /// drawn two days before.

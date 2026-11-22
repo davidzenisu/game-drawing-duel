@@ -1,11 +1,10 @@
 import random
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import patch
 
 from sqlalchemy import delete, select
 
-from app import pulls
+from app import pulls, rules
 from app.gacha import Banner
 from app.models import (
     Boost,
@@ -93,97 +92,119 @@ class FinaleTestCase(FightTestCase):
 class FinaleTests(FinaleTestCase):
     """The weekly finale, see `app/finale.py`."""
 
-    def full_server(self):
-        """The most stars of a server of 5 players or more: 3 + 3 boosters
-        giving 3 each. With 3 players, a challenger has one booster."""
-        return patch("app.finale.max_stars", return_value=12)
-
     def pool(self) -> set[str]:
         return {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
 
-    def test_up_to_three_heroes_join_the_pool_by_their_stars(self) -> None:
-        # 3 + 3 from chance each, and more for three of them: 11 of 12 make
-        # a legend, 9 a hero, 7 an adventurer; 6 isn't enough.
-        legend, hero = self.challengers(3)[:2]
-        adventurer = self.challengers(2)[0]
-        self.boost(legend, 5)
-        self.boost(hero, 3)
-        self.boost(adventurer, 1)
-        with self.full_server():
-            self.go_to_day(7)
-            self.assertIsNone(self.ranking(), "not before the week is over")
-            self.assertEqual(self.today()["weekly_heroes"], [])
-            self.assertFalse(self.pool() & {legend, hero, adventurer})
+    def test_the_top_three_join_the_pool_as_a_legend_a_hero_and_an_adventurer(
+        self,
+    ) -> None:
+        # 3 + 3 from chance each, and more for three of them.
+        first, second = self.challengers(3)[:2]
+        third = self.challengers(2)[0]
+        self.boost(first, 5)
+        self.boost(second, 3)
+        self.boost(third, 1)
+        self.go_to_day(7)
+        self.assertIsNone(self.ranking(), "not before the week is over")
+        self.assertEqual(self.today()["weekly_heroes"], [])
+        self.assertFalse(self.pool() & {first, second, third})
 
-            self.next_day()
-            heroes = self.today()["weekly_heroes"]
-            ranking = self.ranking()
+        self.next_day()
+        heroes = self.today()["weekly_heroes"]
         self.assertEqual(
             [
                 (h["character"]["id"], h["place"], h["stars"], h["character"]["rarity"])
                 for h in heroes
             ],
             [
-                (legend, 1, 11, "legend"),
-                (hero, 2, 9, "hero"),
-                (adventurer, 3, 7, "adventurer"),
+                (first, 1, 11, "legend"),
+                (second, 2, 9, "hero"),
+                (third, 3, 7, "adventurer"),
             ],
         )
         self.assertEqual({h["day"] for h in heroes}, {7})
-        pool = self.pool()
-        self.assertLessEqual({legend, hero, adventurer}, pool)
-        # The other challengers stay out of the pool.
-        week = set(self.challengers(2)) | set(self.challengers(3))
-        self.assertFalse(pool & (week - {legend, hero, adventurer}))
-        # Pulled with their new rarities.
-        rarities = {
+        pool = {
             c["id"]: c["rarity"] for c in self.get(f"/servers/{self.code}/pool").json()
         }
-        self.assertEqual(rarities[adventurer], "adventurer")
-
-        self.assertEqual(ranking["max_stars"], 12)
-        crowned = {
-            r["character"]["id"]: (r["place"], r["hero_rarity"])
-            for r in ranking["challengers"]
-        }
-        self.assertEqual(crowned[legend], (1, "legend"))
-        self.assertEqual(crowned[hero], (2, "hero"))
-        self.assertEqual(crowned[adventurer], (3, "adventurer"))
-        self.assertTrue(
-            all(crowned[c][1] is None for c in week - {legend, hero, adventurer})
-        )
-        # A legend among them: only the heroes are rate-up.
-        rate_up = self.get(f"/servers/{self.code}/gacha").json()["rate_up"]
-        self.assertEqual(set(rate_up), {legend, hero, adventurer})
-
-    def test_below_the_thresholds_nobody_is_crowned(self) -> None:
-        # 6 stars each, half of 12.
-        with self.full_server():
-            self.go_to_day(8)
-            self.assertEqual(self.today()["weekly_heroes"], [])
-            ranking = self.ranking()
-        self.assertEqual(len(ranking["challengers"]), 6)
-        self.assertTrue(all(r["hero_rarity"] is None for r in ranking["challengers"]))
-        self.assertEqual(self.get(f"/servers/{self.code}/gacha").json()["rate_up"], [])
-        week = set(self.challengers(2)) | set(self.challengers(3))
-        self.assertFalse(self.pool() & week)
-        # Decided all the same: the next finale is next week's.
-        with self.session_factory() as session:
-            rows = session.scalars(select(WeeklyHero)).all()
-        self.assertEqual([(r.day, r.character_id) for r in rows], [(7, None)])
-
-    def test_a_test_session_counts_the_boosters_it_has(self) -> None:
-        # With 3 players, a challenger has one booster: 6 stars at most.
-        favourite = self.challengers(3)[1]
-        self.boost(favourite, 3)
-        self.go_to_day(8)
-        first = self.today()["weekly_heroes"][0]
         self.assertEqual(
-            (first["character"]["id"], first["place"], first["stars"]),
-            (favourite, 1, 9),
+            [pool.get(c) for c in (first, second, third)],
+            ["legend", "hero", "adventurer"],
+            "pulled with their new rarities",
         )
-        self.assertEqual(first["character"]["rarity"], "legend", "more than 6")
-        self.assertEqual(self.ranking()["max_stars"], 6)
+        # The other challengers stay out of the pool.
+        week = set(self.challengers(2)) | set(self.challengers(3))
+        self.assertFalse(pool.keys() & (week - {first, second, third}))
+
+        ranking = self.ranking()
+        self.assertEqual(
+            [(r["place"], r["hero_rarity"]) for r in ranking["challengers"]],
+            [(1, "legend"), (2, "hero"), (3, "adventurer")]
+            + [(place, None) for place in range(4, 7)],
+        )
+        # Only the heroes are rate-up: no starter legend joins them.
+        rate_up = self.get(f"/servers/{self.code}/gacha").json()["rate_up"]
+        self.assertEqual(set(rate_up), {first, second, third})
+        for subject in PLAYERS:
+            gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
+            self.assertEqual(set(gacha["rate_up"]), set(rate_up))
+
+    def test_every_week_crowns_three_whatever_their_stars(self) -> None:
+        # 6 stars each: the tiebreaks decide.
+        self.go_to_day(8)
+        heroes = self.today()["weekly_heroes"]
+        ranked = self.ranking()["challengers"]
+        self.assertEqual(
+            [
+                (h["character"]["id"], h["place"], h["character"]["rarity"])
+                for h in heroes
+            ],
+            [
+                (r["character"]["id"], place, rarity)
+                for r, place, rarity in zip(
+                    ranked, (1, 2, 3), ("legend", "hero", "adventurer")
+                )
+            ],
+        )
+        self.assertEqual({h["stars"] for h in heroes}, {6})
+
+    def test_ties_go_to_the_artist_most_boosted_then_win_rate_then_the_latest(
+        self,
+    ) -> None:
+        # One more star for a day 2 challenger: its artist's day 3 one ties
+        # with the others on its own stars, but not on its artist's.
+        boosted = self.challengers(2)[0]
+        self.boost(boosted, 1)
+        self.go_to_day(8)
+        ranked = self.ranking()["challengers"]
+        self.assertEqual(ranked[0]["character"]["id"], boosted)
+        by_artist: dict[int, int] = {}
+        for r in ranked:
+            artist = r["character"]["artist_position"]
+            by_artist[artist] = by_artist.get(artist, 0) + r["stars"] - 3
+        for r in ranked:
+            self.assertEqual(
+                r["artist_boost_stars"], by_artist[r["character"]["artist_position"]]
+            )
+        sibling = next(
+            r
+            for r in ranked
+            if r["character"]["artist_position"]
+            == ranked[0]["character"]["artist_position"]
+            and r["character"]["id"] != boosted
+        )
+        self.assertEqual(ranked[1], sibling, "6 stars, but its artist's 7 boost stars")
+        keys = [
+            rules.finale_key(
+                r["stars"] - 3,
+                r["artist_boost_stars"],
+                r["wins"],
+                r["fights"],
+                r["character"]["day"],
+            )
+            for r in ranked
+        ]
+        self.assertEqual(keys, sorted(keys))
+        self.assertEqual([r["place"] for r in ranked], list(range(1, 7)))
 
     def test_everyone_sees_the_ranking_of_every_challenger(self) -> None:
         favourite = self.challengers(2)[0]
@@ -296,47 +317,7 @@ class FinaleTests(FinaleTestCase):
                     "never by its artist",
                 )
 
-    def test_without_a_legend_a_starter_legend_of_the_first_is_rate_up(
-        self,
-    ) -> None:
-        first, second = self.challengers(3)[:2]
-        self.boost(first, 4)
-        self.boost(second, 3)
-        # The setup's legends are of random players: make one of the 1st's.
-        with self.session_factory() as session:
-            server = session.scalar(select(Server).where(Server.code == self.code))
-            legend = session.scalar(
-                select(Character).where(
-                    Character.server_id == server.id,
-                    Character.rarity == "legend",
-                    Character.assignment_id.is_not(None),
-                )
-            )
-            legend.subject_seat_id = session.get(
-                Character, uuid.UUID(first)
-            ).subject_seat_id
-            session.commit()
-            legend = str(legend.id)
-        with self.full_server():
-            self.go_to_day(7)
-            self.assertEqual(
-                self.get(f"/servers/{self.code}/gacha").json()["rate_up"], []
-            )
-            self.next_day()
-            heroes = self.today()["weekly_heroes"]
-        self.assertEqual(
-            [(h["character"]["id"], h["character"]["rarity"]) for h in heroes],
-            [(first, "hero"), (second, "hero")],
-        )
-        rate_up = self.get(f"/servers/{self.code}/gacha").json()["rate_up"]
-        self.assertEqual(set(rate_up), {first, second, legend})
-        # Everyone sees the same rate-up.
-        for subject in PLAYERS:
-            gacha = self.get(f"/servers/{self.code}/gacha", subject).json()
-            self.assertEqual(set(gacha["rate_up"]), set(rate_up))
-
     def test_both_banners_pull_the_weekly_hero(self) -> None:
-        self.boost(self.challengers(3)[0], 3)
         self.go_to_day(8)
         hero = self.today()["weekly_heroes"][0]["character"]["id"]
         gacha = self.get(f"/servers/{self.code}/gacha").json()
@@ -371,7 +352,7 @@ class FinaleTests(FinaleTestCase):
             headers=bearer(make_token(subject)),
         )
 
-    def test_a_week_without_challengers_has_no_hero(self) -> None:
+    def test_a_week_without_challengers_has_no_heroes(self) -> None:
         self.go_to_day(15)
         self.assertEqual(self.today()["weekly_heroes"], [])
         ranking = self.ranking()

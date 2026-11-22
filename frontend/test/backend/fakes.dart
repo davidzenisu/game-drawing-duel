@@ -552,11 +552,10 @@ class FakeBackend {
         return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
-        // Like the API: a boost balance and maximum stars, null unless a test
-        // sets them.
+        // Like the API: a boost balance, null unless a test sets one.
         return _json(200, switch (rankings[code]) {
           null => null,
-          final ranking => {'boost_balance': null, 'max_stars': null, ...ranking},
+          final ranking => {'boost_balance': null, ...ranking},
         });
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'player-stats') {
@@ -1166,19 +1165,10 @@ class FakeBackend {
     };
   }
 
-  /// Like the real API: the latest finale's heroes and, when none of them
-  /// is a legend, the first legend of the pool of a 1st place's player.
-  List<String> _rateUp(String code) {
-    final heroes = [for (final hero in weeklyHeroes[code] ?? const []) hero['character'] as Map<String, Object?>];
-    final first = {
-      for (final hero in weeklyHeroes[code] ?? const [])
-        if (hero['place'] == 1) (hero['character'] as Map<String, Object?>)['subject_position'],
-    };
-    final legend = heroes.any((h) => h['rarity'] == 'legend')
-        ? null
-        : _pool(code).where((c) => c['rarity'] == 'legend' && first.contains(c['subject_position'])).firstOrNull;
-    return [for (final hero in heroes) hero['id'] as String, ?legend?['id'] as String?];
-  }
+  /// Like the real API: the latest finale's heroes.
+  List<String> _rateUp(String code) => [
+    for (final hero in weeklyHeroes[code] ?? const []) (hero['character'] as Map<String, Object?>)['id'] as String,
+  ];
 
   /// Planned like the real API does, with ids made up from seat and prompt.
   List<Map<String, Object?>> _assignments(String code, String playerId) {

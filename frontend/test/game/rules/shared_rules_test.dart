@@ -151,25 +151,16 @@ void main() {
 
   test('finale', () {
     final finale = rules['finale'] as Map<String, dynamic>;
-    expect(Finale.maxHeroes, finale['max_heroes']);
-    expect({for (final (rarity, share) in Finale.rarityShares) rarity.name: share}, finale['rarity_shares']);
-    expect(Finale.maxStars(3), 12, reason: '3 boosters give 3 each');
-    for (final [int maxStars, ...needed] in (finale['thresholds'] as List).cast<List>()) {
-      for (final (i, rarity) in [Rarity.legend, Rarity.hero, Rarity.adventurer].indexed) {
-        expect(Finale.rarity(needed[i] as int, maxStars), rarity, reason: '${needed[i]} of $maxStars');
-        expect(Finale.rarity((needed[i] as int) - 1, maxStars), isNot(rarity));
-      }
-      expect(Finale.rarity((needed.last as int) - 1, maxStars), isNull);
-    }
-    for (final [List ranked, int maxStars, List heroes] in (finale['cases'] as List).cast<List>()) {
+    expect([for (final rarity in Finale.rarities) rarity.name], finale['rarities']);
+    expect(Finale.maxHeroes, Finale.rarities.length);
+    for (final [List ranked, List order] in (finale['cases'] as List).cast<List>()) {
+      final keys = [
+        for (final [int boost, int artistBoost, int wins, int fights, int day] in ranked.cast<List>())
+          (boost, artistBoost, wins, fights, day),
+      ];
       expect(
-        [
-          for (final hero in Finale.heroes([
-            for (final [int stars, int wins, int fights] in ranked.cast<List>()) (stars, wins, fights),
-          ], maxStars))
-            hero == null ? null : [hero.$1, hero.$2.name],
-        ],
-        heroes,
+        [for (var i = 0; i < keys.length; i++) i]..sort((a, b) => Finale.compare(keys[a], keys[b])),
+        order,
         reason: '$ranked',
       );
     }

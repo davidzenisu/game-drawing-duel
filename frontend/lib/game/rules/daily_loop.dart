@@ -438,71 +438,34 @@ abstract final class FightScript {
   }
 }
 
-/// Once a week, the finale: the week's challengers are ranked by their
-/// stars, their own and their boost stars, then by their win rate. A
-/// challenger counts for the week of its fight, two days after it was drawn
-/// (titled on Monday, it's fought on Thursday; titled on Friday, it's fought
-/// on Monday and counts for the next week). Once the week is over (Sunday,
-/// UTC), up to [maxHeroes] of them are crowned weekly heroes and join the
-/// gacha pool, each with a rarity by its share of the week's [maxStars]
-/// ([heroes]).
+/// Once a week, the finale: the week's challengers are ranked ([compare])
+/// by their boost stars, then the boost stars all of their artist's
+/// challengers got that week, then their win rate, then the latest day they
+/// were drawn. A challenger counts for the week of its fight, two days after
+/// it was drawn (titled on Monday, it's fought on Thursday; titled on
+/// Friday, it's fought on Monday and counts for the next week). Once the
+/// week is over (Sunday, UTC), its top [maxHeroes] are crowned weekly heroes
+/// and join the gacha pool, with the [rarities] of their places.
 abstract final class Finale {
   /// Whether [date] (UTC) is the last day of its week, the finale's.
   static bool isFinaleDate(DateTime date) => date.weekday == DateTime.sunday;
 
+  /// The rarities of the weekly heroes: 1st place a legend, 2nd a hero, 3rd
+  /// an adventurer.
+  static const rarities = [Rarity.legend, Rarity.hero, Rarity.adventurer];
   static const maxHeroes = 3;
 
-  /// The share (in percent) of the week's maximum stars a weekly hero needs
-  /// for each rarity, rarest first, rounded up to whole stars.
-  static const rarityShares = [(Rarity.legend, 85), (Rarity.hero, 70), (Rarity.adventurer, 55)];
-
-  /// The most stars a challenger can have in a week where each of its
-  /// [boosters] gives it up to [boostStars]: as many boosters as a player
-  /// boosts challengers a day, in a full server.
-  static int maxStars(int boostStars, {int boosters = Boost.challengers}) =>
-      Stars.challengerBase + boosters * boostStars;
-
-  /// The rarity a weekly hero with [stars] of [maxStars] is crowned with;
-  /// null below every threshold.
-  static Rarity? rarity(int stars, int maxStars) {
-    for (final (rarity, share) in rarityShares) {
-      if (stars * 100 >= share * maxStars) return rarity;
-    }
-    return null;
-  }
-
-  /// Whether [a] ranks above [b], each (stars, fights won, fights): more
-  /// stars, or as many and a better win rate (none without fights).
-  static bool _above((int, int, int) a, (int, int, int) b) {
-    if (a.$1 != b.$1) return a.$1 > b.$1;
-    final (aWins, aFights) = a.$3 == 0 ? (0, 1) : (a.$2, a.$3);
-    final (bWins, bFights) = b.$3 == 0 ? (0, 1) : (b.$2, b.$3);
-    return aWins * bFights > bWins * aFights;
-  }
-
-  /// Each of the week's challengers' place, from its (stars, fights won,
-  /// fights): challengers with the same stars and win rate share theirs.
-  static List<int> places(List<(int, int, int)> ranked) => [
-    for (final entry in ranked) 1 + ranked.where((other) => _above(other, entry)).length,
-  ];
-
-  /// The place and rarity each of the week's challengers is crowned with,
-  /// from its (stars, fights won, fights); null for those who aren't.
-  /// Challengers tied on their [places] take up as many slots: tied for
-  /// 1st, they're all crowned if they fit and none if they don't; tied for
-  /// a later place, none is.
-  static List<(int, Rarity)?> heroes(List<(int, int, int)> ranked, int maxStars) {
-    final placed = places(ranked);
-    return [
-      for (final (i, entry) in ranked.indexed)
-        switch ((rarity(entry.$1, maxStars), placed[i], placed.where((p) => p == placed[i]).length)) {
-          (final crowned?, final place, final tied) when (tied == 1 || place == 1) && place + tied - 1 <= maxHeroes => (
-            place,
-            crowned,
-          ),
-          _ => null,
-        },
-    ];
+  /// Orders two of a week's challengers, each (boost stars, its artist's
+  /// boost stars, fights won, fights, day), best first: negative when [a]
+  /// ranks above [b].
+  static int compare((int, int, int, int, int) a, (int, int, int, int, int) b) {
+    if (a.$1 != b.$1) return b.$1.compareTo(a.$1);
+    if (a.$2 != b.$2) return b.$2.compareTo(a.$2);
+    // The win rates, none without fights.
+    final (aWins, aFights) = a.$4 == 0 ? (0, 1) : (a.$3, a.$4);
+    final (bWins, bFights) = b.$4 == 0 ? (0, 1) : (b.$3, b.$4);
+    if (aWins * bFights != bWins * aFights) return (bWins * aFights).compareTo(aWins * bFights);
+    return b.$5.compareTo(a.$5);
   }
 }
 
@@ -519,8 +482,7 @@ class WeeklyHero {
   /// Its own stars plus its boost stars.
   final int stars;
 
-  /// Its place in the week's ranking, 1 to [Finale.maxHeroes]; heroes tied
-  /// for 1st share it.
+  /// Its place in the week's ranking, 1 to [Finale.maxHeroes].
   final int place;
 }
 
@@ -533,6 +495,7 @@ class RankedChallenger {
     required this.wins,
     this.place = 1,
     this.heroRarity,
+    this.artistBoostStars = 0,
     this.promptAuthor,
     this.defaultPrompt = false,
     this.boosts = const [],
@@ -548,9 +511,13 @@ class RankedChallenger {
   final int fights;
   final int wins;
 
-  /// Its place: by stars, then win rate; challengers tied on both share it.
-  /// A weekly hero's is the one it was crowned with.
+  /// Its place in the ranking ([Finale.compare]); a weekly hero's is the
+  /// one it was crowned with.
   final int place;
+
+  /// The boost stars all of its artist's challengers ranked that week got,
+  /// its own included: the ranking's first tiebreak.
+  final int artistBoostStars;
 
   /// The rarity it was crowned with as a weekly hero; null if it wasn't
   /// (always in speed mode).
@@ -558,14 +525,22 @@ class RankedChallenger {
 
   bool get isWeeklyHero => heroRarity != null;
 
-  /// This one at [place], crowned with [heroRarity] if given.
-  RankedChallenger at(int place, {Rarity? heroRarity}) => RankedChallenger(
+  /// Its fights won out of its fights, in percent; null without any.
+  int? get winPercent => fights == 0 ? null : (100 * wins / fights).round();
+
+  /// What [Finale.compare] ranks it by.
+  (int, int, int, int, int) get rankedBy => (boostStars, artistBoostStars, wins, fights, card.day);
+
+  /// This one at [place], crowned with [heroRarity] if given, with
+  /// [artistBoostStars] if given.
+  RankedChallenger at(int place, {Rarity? heroRarity, int? artistBoostStars}) => RankedChallenger(
     card: card,
     stars: stars,
     fights: fights,
     wins: wins,
     place: place,
     heroRarity: heroRarity ?? this.heroRarity,
+    artistBoostStars: artistBoostStars ?? this.artistBoostStars,
     promptAuthor: promptAuthor,
     defaultPrompt: defaultPrompt,
     boosts: boosts,
@@ -608,15 +583,11 @@ class ChallengerFight {
 /// The latest finished week's challengers, most stars first; the first
 /// joined the gacha pool as a hero.
 class WeekRanking {
-  const WeekRanking({required this.day, required this.challengers, this.maxStars, this.boostBalance});
+  const WeekRanking({required this.day, required this.challengers, this.boostBalance});
 
   /// The last day of the week.
   final int day;
   final List<RankedChallenger> challengers;
-
-  /// The most stars a challenger could have that week, which the weekly
-  /// heroes' rarities are shares of ([Finale.rarity]); null in speed mode.
-  final int? maxStars;
 
   /// Its weekly heroes, by place.
   List<RankedChallenger> get heroes => [

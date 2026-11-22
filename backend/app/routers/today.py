@@ -646,7 +646,7 @@ def get_ranking(
         return drawn.author.position, drawn.premade
 
     entries = []
-    for r, place in zip(ranked, finale.places(ranked), strict=True):
+    for place, r in enumerate(ranked, 1):
         author, premade = prompt_of(r.challenger)
         hero = heroes.get(r.challenger.id)
         entries.append(
@@ -654,6 +654,7 @@ def get_ranking(
                 character=character_response(r.challenger),
                 stars=r.stars,
                 place=place if hero is None else hero.place,
+                artist_boost_stars=r.artist_boost_stars,
                 hero_rarity=None if hero is None else hero.rarity,
                 fights=r.fights,
                 wins=r.wins,
@@ -677,9 +678,6 @@ def get_ranking(
     return RankingResponse(
         day=last_day,
         challengers=entries,
-        max_stars=None
-        if speed.is_speed(server)
-        else finale.max_stars(session, server, last_day),
         boost_balance=None
         if speed.is_speed(server)
         else _balance_response(boost_balance.balance(session, server, last_day + 1)),

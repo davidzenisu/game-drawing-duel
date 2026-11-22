@@ -992,13 +992,12 @@ void main() {
       expect(admin.rateUp, isEmpty);
 
       final [left, right, ...] = [for (final d in backend.drawings.values) d.character];
-      // Crowned a hero, 9 of 12 stars; the 6 stars weren't enough.
+      // Crowned as the 1st place.
       backend.weeklyHeroes['123456'] = [
         {'character': right, 'day': 7, 'stars': 9, 'place': 1},
       ];
       backend.rankings['123456'] = {
         'day': 7,
-        'max_stars': 12,
         'boost_balance': {
           'from_day': 1,
           'to_day': 7,
@@ -1016,7 +1015,8 @@ void main() {
             'fights': 1,
             'wins': 1,
             'place': 1,
-            'hero_rarity': 'hero',
+            'hero_rarity': 'legend',
+            'artist_boost_stars': 8,
             'prompt_author_position': 2,
             'default_prompt': true,
             'boosts': [
@@ -1027,7 +1027,7 @@ void main() {
               {'player_position': 4, 'challenger_won': true},
             ],
           },
-          {'character': left, 'stars': 6, 'fights': 0, 'wins': 0, 'place': 2},
+          {'character': left, 'stars': 6, 'fights': 0, 'wins': 0, 'place': 2, 'hero_rarity': 'hero'},
         ],
       };
       await admin.refreshDay();
@@ -1035,9 +1035,12 @@ void main() {
       expect((hero.card.id, hero.day, hero.stars, hero.place), (right['id'], 7, 9, 1));
       final ranking = (await admin.weekRanking())!;
       expect(backend.requests.last.url.path, '/servers/123456/ranking');
-      expect((ranking.day, ranking.maxStars), (7, 12));
-      expect([for (final r in ranking.challengers) (r.place, r.heroRarity)], [(1, Rarity.hero), (2, null)]);
-      expect(ranking.heroes.single.card.id, right['id']);
+      expect(ranking.day, 7);
+      expect(
+        [for (final r in ranking.challengers) (r.place, r.heroRarity, r.artistBoostStars)],
+        [(1, Rarity.legend, 8), (2, Rarity.hero, 0)],
+      );
+      expect([for (final r in ranking.heroes) r.card.id], [right['id'], left['id']]);
       final balance = ranking.boostBalance!;
       expect((balance.heroWins, balance.challengerWins, balance.heroPercent), (9, 1, 90));
       expect((balance.previousStars, balance.change, balance.stars), (3, 2, 5));
@@ -1058,13 +1061,8 @@ void main() {
       expect(bottom.promptAuthor, isNull);
       expect(bottom.boosts, isEmpty);
       expect(bottom.foughtBy, isEmpty);
-      // The hero is rate-up now, with a starter legend of the same player.
-      expect(admin.rateUp, contains(right['id']));
-      expect(admin.rateUp.length, lessThanOrEqualTo(2));
-      for (final id in admin.rateUp.difference({right['id']})) {
-        final legend = admin.pool.firstWhere((c) => c.id == id);
-        expect((legend.rarity, legend.subject), (Rarity.legend, hero.card.subject));
-      }
+      // The hero is rate-up now, alone.
+      expect(admin.rateUp, {right['id']});
     });
 
     test('the week ranking is kept on the device until the next week is over', () async {
@@ -1093,7 +1091,7 @@ void main() {
       backend.rankings['123456'] = {
         'day': 7,
         'challengers': [
-          {'character': card, 'stars': 6, 'fights': 1, 'wins': 1},
+          {'character': card, 'stars': 6, 'fights': 1, 'wins': 1, 'artist_boost_stars': 3},
         ],
       };
       backend.days['123456'] = 8;
@@ -1104,19 +1102,21 @@ void main() {
       expect((await alex.weekRanking())!.challengers.single.stars, 6, reason: 'from the device');
       expect(rankingRequests(), before + 1, reason: 'kept until the next week is over');
 
-      // One kept before rankings had several weekly heroes is asked again.
+      // One kept before rankings had the artists' boost stars is asked again.
       final kept = jsonDecode(cache.read('ranking:123456')!) as Map<String, dynamic>;
-      (kept['json'] as Map).remove('max_stars');
+      for (final entry in (kept['json'] as Map)['challengers'] as List) {
+        (entry as Map).remove('artist_boost_stars');
+      }
       cache.write('ranking:123456', jsonEncode(kept));
       await alex.weekRanking();
-      expect(rankingRequests(), before + 2, reason: 'no maximum stars kept');
-      expect(cache.read('ranking:123456'), contains('max_stars'));
+      expect(rankingRequests(), before + 2, reason: 'no artist boost stars kept');
+      expect(cache.read('ranking:123456'), contains('artist_boost_stars'));
 
       // Refreshed by hand.
       backend.rankings['123456'] = {
         'day': 7,
         'challengers': [
-          {'character': card, 'stars': 7, 'fights': 1, 'wins': 1},
+          {'character': card, 'stars': 7, 'fights': 1, 'wins': 1, 'artist_boost_stars': 4},
         ],
       };
       expect((await alex.weekRanking(refresh: true))!.challengers.single.stars, 7);

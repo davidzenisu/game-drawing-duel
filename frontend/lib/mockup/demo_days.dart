@@ -92,8 +92,7 @@ class DemoDays {
   /// The boost stars friends gave a challenger: 0 to 4, varying by day and
   /// slot, so some fights are won and some lost. The second one drawn on day
   /// 2, 9, 16… gets 8 and the first one drawn on day 3, 10, 17… 6: every
-  /// week and a speed session have a clear winner, and every finale crowns
-  /// a legend and a hero (of 12 stars at most).
+  /// week and a speed session have a clear winner.
   int friendsBoostStars(CharacterCard challenger) {
     final slot = int.tryParse(challenger.id.split('-').last) ?? 0;
     if (slot == 1 && challenger.day % 7 == 2) return 8;

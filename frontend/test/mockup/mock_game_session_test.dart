@@ -647,18 +647,28 @@ void main() {
     // 1); day 6's are fought on Monday, next week.
     expect(ranked.map((r) => r.card.day).toSet(), {2, 3, 4, 5});
     expect([for (final r in ranked) r.stars], [...ranked.map((r) => r.stars)]..sort((a, b) => b.compareTo(a)));
+    // Ranked like online, ties broken by the artist's boost stars, the win
+    // rate and the latest day.
+    for (var i = 1; i < ranked.length; i++) {
+      expect(Finale.compare(ranked[i - 1].rankedBy, ranked[i].rankedBy), lessThanOrEqualTo(0));
+    }
+    expect([for (final r in ranked) r.place], [for (var i = 1; i <= ranked.length; i++) i]);
+    for (final r in ranked) {
+      expect(
+        r.artistBoostStars,
+        ranked.where((o) => o.card.artist == r.card.artist).fold(0, (sum, o) => sum + o.boostStars),
+      );
+    }
     expect(ranked.first.stars, greaterThan(Stars.challengerBase), reason: 'everyone spreads their stars');
 
-    // 11 of 12 stars make a legend, 9 a hero, 7 an adventurer; the others
-    // aren't crowned.
-    expect(ranking.maxStars, 12);
+    // The top 3 are crowned: a legend, a hero and an adventurer.
     final heroes = game.weeklyHeroes;
     expect(
       [for (final h in heroes) (h.card.id, h.day, h.stars, h.place, h.card.rarity)],
       [
         (ranked[0].card.id, 7, 11, 1, Rarity.legend),
         (ranked[1].card.id, 7, 9, 2, Rarity.hero),
-        (ranked[2].card.id, 7, 7, 3, Rarity.adventurer),
+        (ranked[2].card.id, 7, ranked[2].stars, 3, Rarity.adventurer),
       ],
     );
     expect(
@@ -669,6 +679,9 @@ void main() {
     final pool = {for (final c in game.pool) c.id: c.rarity};
     expect(pool[ranked[0].card.id], Rarity.legend, reason: 'pulled with its new rarity');
     expect(pool[ranked[1].card.id], Rarity.hero);
+    expect(pool[ranked[2].card.id], Rarity.adventurer);
+    // Only they are rate-up.
+    expect(game.rateUp, {for (final h in heroes) h.card.id});
     expect(pool.keys, isNot(contains(ranked.last.card.id)));
   });
 

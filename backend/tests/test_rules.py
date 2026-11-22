@@ -174,9 +174,7 @@ class SharedRulesTest(unittest.TestCase):
         balance = boost["balance"]
         self.assertEqual(rules.BOOST_BALANCE_MIN_FIGHTS, balance["min_fights"])
         self.assertEqual([list(t) for t in rules.BOOST_BALANCE_MORE], balance["more"])
-        self.assertEqual(
-            [list(t) for t in rules.BOOST_BALANCE_FEWER], balance["fewer"]
-        )
+        self.assertEqual([list(t) for t in rules.BOOST_BALANCE_FEWER], balance["fewer"])
         self.assertEqual(
             (rules.BOOST_MIN_STARS, rules.BOOST_MAX_STARS),
             (balance["min_stars"], balance["max_stars"]),
@@ -192,28 +190,11 @@ class SharedRulesTest(unittest.TestCase):
 
     def test_finale(self):
         finale = SHARED["finale"]
-        self.assertEqual(rules.FINALE_MAX_HEROES, finale["max_heroes"])
-        self.assertEqual(
-            {r.value: share for r, share in rules.FINALE_RARITY_SHARES},
-            finale["rarity_shares"],
-        )
-        self.assertEqual(rules.finale_max_stars(3, 3), 12, "3 boosters give 3 each")
-        for max_stars, *needed in finale["thresholds"]:
-            for rarity, stars in zip(["legend", "hero", "adventurer"], needed):
-                self.assertEqual(
-                    rules.finale_rarity(stars, max_stars), rules.Rarity(rarity)
-                )
-                self.assertNotEqual(
-                    rules.finale_rarity(stars - 1, max_stars), rules.Rarity(rarity)
-                )
-            self.assertIsNone(rules.finale_rarity(needed[-1] - 1, max_stars))
-        for ranked, max_stars, heroes in finale["cases"]:
+        self.assertEqual([r.value for r in rules.FINALE_RARITIES], finale["rarities"])
+        for ranked, order in finale["cases"]:
             self.assertEqual(
-                [
-                    None if h is None else [h[0], h[1].value]
-                    for h in rules.finale_heroes([tuple(r) for r in ranked], max_stars)
-                ],
-                heroes,
+                sorted(range(len(ranked)), key=lambda i: rules.finale_key(*ranked[i])),
+                order,
                 ranked,
             )
 
@@ -254,7 +235,9 @@ class SharedRulesTest(unittest.TestCase):
         hurry = SHARED["hurry"]
         self.assertEqual(rules.HURRY_CUT_SECONDS, hurry["cut_seconds"])
         self.assertEqual(rules.HURRY_MESSAGE_MAX_LENGTH, hurry["message_max_length"])
-        self.assertEqual(rules.CHALLENGER_DRAW_SECONDS, SHARED["challenger_draw_seconds"])
+        self.assertEqual(
+            rules.CHALLENGER_DRAW_SECONDS, SHARED["challenger_draw_seconds"]
+        )
         self.assertEqual(
             (rules.HURRY_FIRST_LEFT_SECONDS, rules.HURRY_LAST_LEFT_SECONDS),
             (hurry["first_left_seconds"], hurry["last_left_seconds"]),

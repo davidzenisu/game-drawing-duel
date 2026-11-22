@@ -153,7 +153,7 @@ class WeeklyHeroResponse(BaseModel):
     day: int
     # Its own stars plus its boost stars.
     stars: int
-    # Its place in the week's ranking, 1 to 3; heroes tied for 1st share it.
+    # Its place in the week's ranking, 1 to 3.
     place: int
 
 
@@ -177,9 +177,12 @@ class RankedChallenger(BaseModel):
     character: CharacterResponse
     # Its own stars plus its boost stars.
     stars: int
-    # Its place: by stars, then win rate; challengers tied on both share it.
-    # A weekly hero's is the one it was crowned with.
+    # Its place in the ranking (`app.rules.finale_key`); a weekly hero's
+    # is the one it was crowned with.
     place: int
+    # The boost stars all of its artist's challengers ranked that week got,
+    # its own included: the ranking's first tiebreak.
+    artist_boost_stars: int = 0
     # The `app.rules.Rarity` it was crowned with as a weekly hero; null if
     # it wasn't (always in speed mode).
     hero_rarity: str | None = None
@@ -203,9 +206,6 @@ class RankingResponse(BaseModel):
     # The last day of the week.
     day: int
     challengers: list[RankedChallenger]
-    # The most stars a challenger could have that week, which the weekly
-    # heroes' rarities are shares of; null in speed mode.
-    max_stars: int | None = None
     # The boost stars its fights gave the week after; null in speed mode.
     boost_balance: BoostBalanceResponse | None = None
 
