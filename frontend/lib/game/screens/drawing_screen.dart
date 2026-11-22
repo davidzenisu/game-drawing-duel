@@ -656,12 +656,12 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
                       children: [
                         for (final width in brushWidths) _widthButton(context, width),
                         IconButton(
-                          onPressed: _pad.enabled ? _pad.undo : null,
+                          onPressed: _pad.enabled && _pad.canUndo ? _pad.undo : null,
                           tooltip: 'Undo',
                           icon: const Icon(Icons.undo_rounded),
                         ),
                         IconButton(
-                          onPressed: _pad.enabled ? _pad.clear : null,
+                          onPressed: _pad.enabled && !_pad.isEmpty ? _pad.clear : null,
                           tooltip: 'Clear',
                           icon: const Icon(Icons.delete_outline_rounded),
                         ),

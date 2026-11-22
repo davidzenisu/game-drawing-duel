@@ -548,6 +548,48 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a clear takes one undo to bring the drawing back', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingScreen(subject: 'Sam', prompt: 'Basic', hint: 'Them by day', rarity: Rarity.basic),
+      ),
+    );
+    final pad = tester.widget<SketchPad>(find.byType(SketchPad)).controller;
+    final undo = find.widgetWithIcon(IconButton, Icons.undo_rounded);
+    final clear = find.widgetWithIcon(IconButton, Icons.delete_outline_rounded);
+    bool enabled(Finder button) => tester.widget<IconButton>(button).onPressed != null;
+    expect(enabled(undo), isFalse, reason: 'nothing to undo yet');
+    expect(enabled(clear), isFalse, reason: 'nothing to clear yet');
+
+    final rect = tester.getRect(find.byType(SketchPad));
+    await tester.dragFrom(rect.center, const Offset(80, 40));
+    await tester.dragFrom(rect.center, const Offset(-60, 30));
+    await tester.pump();
+    expect(pad.strokes, hasLength(2));
+
+    await tester.tap(clear);
+    await tester.pump();
+    expect(pad.isEmpty, isTrue);
+    expect(enabled(clear), isFalse);
+    expect(enabled(undo), isTrue, reason: 'the clear can be undone');
+
+    // One undo brings back both strokes, the next ones take them back one by one.
+    await tester.tap(undo);
+    await tester.pump();
+    expect(pad.strokes, hasLength(2));
+    await tester.tap(undo);
+    await tester.pump();
+    expect(pad.strokes, hasLength(1));
+    await tester.tap(undo);
+    await tester.pump();
+    expect(pad.isEmpty, isTrue);
+    expect(enabled(undo), isFalse);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the colours fit one row, without taking the canvas', (tester) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;

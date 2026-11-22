@@ -84,6 +84,10 @@ class SketchView extends StatelessWidget {
 
 class SketchPadController extends ChangeNotifier {
   final List<Stroke> _strokes = [];
+
+  /// What [undo] takes back, latest last: `null` for a stroke drawn, the
+  /// strokes it removed for a clear.
+  final List<List<Stroke>?> _history = [];
   Color color = AppPalette.ink;
   double width = brushWidths[1];
   bool enabled = true;
@@ -105,13 +109,26 @@ class SketchPadController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether there's a stroke or a clear for [undo] to take back.
+  bool get canUndo => _history.isNotEmpty;
+
+  /// Takes back the latest stroke, or brings back every stroke the latest
+  /// clear removed.
   void undo() {
-    if (_strokes.isEmpty) return;
-    _strokes.removeLast();
+    if (_history.isEmpty) return;
+    final cleared = _history.removeLast();
+    if (cleared == null) {
+      _strokes.removeLast();
+    } else {
+      _strokes.addAll(cleared);
+    }
     notifyListeners();
   }
 
+  /// Removes every stroke; [undo] brings them back.
   void clear() {
+    if (_strokes.isEmpty) return;
+    _history.add(List.of(_strokes));
     _strokes.clear();
     notifyListeners();
   }
@@ -129,6 +146,7 @@ class SketchPadController extends ChangeNotifier {
   void _begin(Offset point) {
     if (!enabled) return;
     _strokes.add(Stroke(color: color, width: width, points: [point]));
+    _history.add(null);
     notifyListeners();
   }
 
