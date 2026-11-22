@@ -39,15 +39,18 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 
 **Challengers** lists the challengers you drew (for now only your own, not the ones you fought or boosted), each with its record in its decided fights.
 
-**Rewards** lists your achievements, each with your progress (e.g. "2/5"), its reward in stars and, once reached, a **Collect** button; each is collected once, and celebrated like other stars. Ready ones come first, collected ones last. The Rewards button, and the Heroes button on the hub, count the ones to collect.
+**Rewards** lists your achievements, each with your progress (e.g. "2/5"), its reward in stars and, once reached, a **Collect** button; each is collected once, and celebrated like other stars. Ready ones come first, collected ones last. Wins, streaks and close calls have levels, of which only the next one shows: the lowest not collected yet (reached or not), or the top one once every level is collected. Collecting a level brings up the next. The Rewards button, and the Heroes button on the hub, count the ones to collect among those shown.
 
 | Achievement | Goal | Reward |
 |---|---|---|
 | *Sam's gallery* (one per other player) | Summon every starter hero (setup drawing) that player drew; your own are yours from the start | 15 − players ⭐: 10 with 5 players … 5 with 10 |
 | *Portraits of Sam* / *Your portraits* (one per player) | Summon every starter hero portraying that player | the same |
 | *Every starter Basic / Adventurer / Legend* | Summon every starter hero of that rarity | 10 / 15 / 20 ⭐ |
-| *First win*, *3 wins*, *10 wins* | Win fights you picked the fighters for (not chance's) | 5 ⭐ each |
-| *3 wins in a row*, *5 wins in a row* | Win that many of your fights in a row; a lost one starts over, days without one of your fights don't | 5 ⭐ each |
+| *First win*, *3 wins* … *50 wins* (1, 3, 5, 10, 25, 50) | Win fights you picked the fighters for (not chance's) | 5 ⭐ each level |
+| *3 wins in a row*, *4 wins in a row* … *25 wins in a row* (every number from 3 to 25) | Win that many of your fights in a row; a lost one starts over, days without one of your fights don't | 5 ⭐ each level |
+| *Close Call*, *3 Close Calls* … *50 Close Calls* (1, 3, 5, 10, 25, 50) | Win that many of your fights by exactly one star, extra stars included (like 9 against 8) | 5 ⭐ each level |
+
+Speed mode has at most three fights of your own, so it hides the levels above 3.
 
 **Fight replay** lists the days before today that had fights of yours, with the day number and the calendar date (the first fights are on day 4, so replays start on day 5). For now a player only sees their own fights: picking a day shows the fight they picked the fighters for (not one chance picked for them) and the fight against the challenger they drew, each by its challenger and highlighted. Tapping a challenger replays its fight and shows the result. Today's own fight replays from the fight screen. The list of days is kept on the device for the day and a past day's fights for good, as they're over, so they open without asking the server again; the refresh button in the top right asks for the days anyway.
 

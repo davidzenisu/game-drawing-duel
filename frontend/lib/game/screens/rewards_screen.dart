@@ -7,7 +7,8 @@ import '../widgets/game_action.dart';
 
 /// Your achievements and their rewards, in the heroes menu: collecting
 /// starter heroes and winning fights. A reached one has its stars for you
-/// to collect, once.
+/// to collect, once. Of wins, streaks and close calls, only the next level
+/// shows.
 class RewardsScreen extends StatelessWidget {
   const RewardsScreen({super.key, required this.controller});
 
@@ -27,8 +28,8 @@ class RewardsScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
-        final achievements = controller.achievements;
-        bool aboutFights(Achievement a) => a.kind == AchievementKind.wins || a.kind == AchievementKind.streak;
+        final achievements = AchievementRewards.nextLevels(controller.achievements);
+        bool aboutFights(Achievement a) => a.kind.leveled;
         final sections = [
           (
             'Starter heroes',
@@ -88,6 +89,7 @@ class AchievementTile extends StatelessWidget {
     AchievementKind.rarity => Icons.auto_awesome_rounded,
     AchievementKind.wins => Icons.emoji_events_rounded,
     AchievementKind.streak => Icons.local_fire_department_rounded,
+    AchievementKind.close => Icons.balance_rounded,
   };
 
   @override

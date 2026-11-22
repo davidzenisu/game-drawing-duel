@@ -364,7 +364,8 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> collectChallengerStars(ChallengerRecord challenger);
 
   /// Your achievements: summoning every starter hero of a player, as artist
-  /// or portrayed, or of a rarity, and winning fights, see [Achievement].
+  /// or portrayed, or of a rarity, and winning fights (in a row, or by a
+  /// single star), every level of each, see [Achievement].
   List<Achievement> get achievements;
 
   /// Collects the stars of an achievement you reached
@@ -495,8 +496,9 @@ abstract class GameSession extends ChangeNotifier {
   /// Your challengers with stars to collect, see [collectChallengerStars].
   int get challengersToCollect => challengers.where((r) => r.starsToCollect > 0).length;
 
-  /// Your achievements with stars to collect, see [collectAchievement].
-  int get achievementsToCollect => achievements.where((a) => a.collectable).length;
+  /// Your achievements with stars to collect, as the rewards screen shows
+  /// them (only the next level of each kind), see [collectAchievement].
+  int get achievementsToCollect => AchievementRewards.nextLevels(achievements).where((a) => a.collectable).length;
 
   /// Whether there is still something to do on the current day.
   bool get hasOpenSteps =>

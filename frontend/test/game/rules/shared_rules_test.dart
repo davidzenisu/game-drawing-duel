@@ -166,7 +166,9 @@ void main() {
     }, achievements['rarity_stars']);
     expect(AchievementRewards.wins, achievements['wins']);
     expect(AchievementRewards.streaks, achievements['streaks']);
+    expect(AchievementRewards.closeCalls, achievements['close_calls']);
     expect(AchievementRewards.fightStars, achievements['fight_stars']);
+    expect(AchievementRewards.speedMaxGoal, achievements['speed_max_goal']);
   });
 
   test('hurry', () {

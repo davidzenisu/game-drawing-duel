@@ -209,7 +209,13 @@ class SharedRulesTest(unittest.TestCase):
         )
         self.assertEqual(list(rules.ACHIEVEMENT_WINS), achievements["wins"])
         self.assertEqual(list(rules.ACHIEVEMENT_STREAKS), achievements["streaks"])
+        self.assertEqual(
+            list(rules.ACHIEVEMENT_CLOSE_CALLS), achievements["close_calls"]
+        )
         self.assertEqual(rules.ACHIEVEMENT_FIGHT_STARS, achievements["fight_stars"])
+        self.assertEqual(
+            rules.ACHIEVEMENT_SPEED_MAX_GOAL, achievements["speed_max_goal"]
+        )
         # Every player count gets a reward.
         players = SHARED["players"]
         self.assertEqual(

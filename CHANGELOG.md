@@ -9,6 +9,20 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.25.0] - 2026-11-22
+
+### Added
+- Close Calls: new rewards for winning your fights by exactly one star, like
+  9 against 8, at 1, 3, 5, 10, 25 and 50 close calls.
+- Many more levels of wins and streaks: wins at 1, 3, 5, 10, 25 and 50, and
+  every streak from 3 to 25 wins in a row. Every level is worth 5 stars, and
+  the levels you already reached are ready to collect.
+
+### Changed
+- Rewards show only the next level of wins, streaks and Close Calls;
+  collecting one brings up the next.
+- Speed sessions only show the rewards you can still reach in them.
+
 ## [0.24.0] - 2026-11-22
 
 ### Added

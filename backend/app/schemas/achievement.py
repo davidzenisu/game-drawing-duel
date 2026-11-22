@@ -6,7 +6,7 @@ class AchievementResponse(BaseModel):
 
     # Names it, e.g. "artist:2" or "wins:3"; collect it by it.
     key: str
-    # "artist", "portrait", "rarity", "wins" or "streak".
+    # "artist", "portrait", "rarity", "wins", "streak" or "close".
     kind: str
     # The player of an artist or portrait achievement, by roster position.
     player_position: int | None
