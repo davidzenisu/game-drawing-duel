@@ -727,11 +727,11 @@ class ApiGameSession extends GameSession {
   List<BoostTarget> _boostTargets = const [];
   bool _boostForfeited = false;
   BoostBalance? _boostBalance;
-  WeeklyHero? _weeklyHero;
+  List<WeeklyHero> _weeklyHeroes = const [];
   List<ChallengerRecord> _challengers = const [];
 
   @override
-  WeeklyHero? get weeklyHero => _weeklyHero;
+  List<WeeklyHero> get weeklyHeroes => _weeklyHeroes;
 
   @override
   List<ChallengerRecord> get challengers => _challengers;
@@ -920,15 +920,13 @@ class ApiGameSession extends GameSession {
           else
             throw const FormatException('Unexpected hurry.'),
       ];
-      _weeklyHero = switch (json['weekly_hero']) {
-        null => null,
-        {'character': final character, 'day': int heroDay, 'stars': int stars} => WeeklyHero(
-          card: await _card(server, character),
-          day: heroDay,
-          stars: stars,
-        ),
-        _ => throw const FormatException('Unexpected weekly hero.'),
-      };
+      _weeklyHeroes = [
+        for (final hero in json['weekly_heroes'] as List? ?? const [])
+          if (hero case {'character': final character, 'day': int heroDay, 'stars': int stars, 'place': int place})
+            WeeklyHero(card: await _card(server, character), day: heroDay, stars: stars, place: place)
+          else
+            throw const FormatException('Unexpected weekly hero.'),
+      ];
       return;
     }
     throw const FormatException('Unexpected day response.');
@@ -1383,7 +1381,8 @@ class ApiGameSession extends GameSession {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
         day: day,
-        boostBalance: _parseBoostBalance((json as Map)['boost_balance']),
+        maxStars: (json as Map)['max_stars'] as int?,
+        boostBalance: _parseBoostBalance(json['boost_balance']),
         challengers: [
           for (final entry in challengers)
             if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})
@@ -1392,6 +1391,11 @@ class ApiGameSession extends GameSession {
                 stars: stars,
                 fights: fights,
                 wins: wins,
+                place: entry['place'] as int? ?? 1,
+                heroRarity: switch (entry['hero_rarity']) {
+                  final String rarity => Rarity.values.byName(rarity),
+                  _ => null,
+                },
                 promptAuthor: switch (entry['prompt_author_position']) {
                   final int position => _seat(server, position),
                   _ => null,
@@ -1418,12 +1422,12 @@ class ApiGameSession extends GameSession {
 
   /// Whether a kept week ranking is still the latest: until the next week
   /// is over, the day after its finale, a week later. A speed session's
-  /// ranking is final. One kept before rankings had a boost balance is
-  /// asked again, so its card shows.
+  /// ranking is final. One kept before rankings had several weekly heroes
+  /// (and their maximum stars) is asked again, so they show.
   bool _stillCurrent(ServerSession server, Object? json) =>
       json is Map &&
       json['day'] is int &&
-      json.containsKey('boost_balance') &&
+      json.containsKey('max_stars') &&
       (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override

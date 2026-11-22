@@ -13,33 +13,37 @@ import '../helpers.dart';
 
 /// A mockup game played to the Monday after its first finale.
 Future<MockGameSession> _afterTheFinale() async {
-  // Day 1 is a Monday: the finale is on day 7, its hero joins on day 8.
+  // Day 1 is a Monday: the finale is on day 7, its heroes join on day 8.
   return launchedGame(launchDate: firstMonday, day: 8);
 }
 
 Finder _bannerArt(GachaBanner banner) => find.byWidgetPredicate((w) => w is BannerArt && w.banner == banner);
 
 void main() {
-  testWidgets('the weekly hero and their legend are rate-up, on summon and in the pool', (tester) async {
+  testWidgets('the weekly heroes are rate-up, on summon and in the pool', (tester) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = await _afterTheFinale();
-    final hero = controller.weeklyHero!.card;
-    final legends = [
-      for (final card in controller.pool)
-        if (card.rarity == Rarity.legend && card.subject == hero.subject) card,
-    ];
-    expect(controller.rateUp, {hero.id, for (final legend in legends) legend.id});
+    final heroes = [for (final hero in controller.weeklyHeroes) hero.card];
+    expect([for (final hero in heroes) hero.rarity], [Rarity.legend, Rarity.hero, Rarity.adventurer]);
+    // A legend among them: no starter legend joins them.
+    expect(controller.rateUp, {for (final hero in heroes) hero.id});
+    final hero = heroes[1];
     final chances = GachaMachine.characterChances(controller.pool, controller.rateUp);
 
     await tester.pumpWidget(MaterialApp(home: GachaScreen(controller: controller)));
     await tester.pump();
     final banner = find.ancestor(of: find.text('Rate up this week'), matching: find.byType(Card));
     expect(banner, findsOneWidget);
-    expect(find.descendant(of: banner, matching: find.text(hero.subject)), findsNWidgets(1 + legends.length));
+    for (final subject in heroes.map((card) => card.subject).toSet()) {
+      expect(
+        find.descendant(of: banner, matching: find.text(subject)),
+        findsNWidgets(heroes.where((card) => card.subject == subject).length),
+      );
+    }
     // Titles can repeat: the premade ones of a description are shared.
-    final titles = [hero, ...legends].map((card) => card.title);
+    final titles = heroes.map((card) => card.title);
     for (final title in titles.toSet()) {
       expect(
         find.descendant(of: banner, matching: find.text(title)),
@@ -65,7 +69,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('Rate up'), findsNWidgets(controller.rateUp.length));
-    expect(find.text('Weekly hero'), findsOneWidget);
+    expect(find.text('Weekly hero'), findsNWidgets(heroes.length));
     expect(chances[hero.id], greaterThan(chances[controller.pool.firstWhere((c) => c.rarity == Rarity.basic).id]!));
     await tester.pumpWidget(const SizedBox());
   });
@@ -105,7 +109,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(tester.widget<BannerArt>(_bannerArt(GachaBanner.weekly)).locked, isTrue);
-    expect(find.text('Opens with the first finale'), findsOneWidget);
+    expect(find.text('Opens once a finale crowns weekly heroes'), findsOneWidget);
     for (final label in ['Pull ×1', 'Pull ×10']) {
       final button = find.ancestor(
         of: find.text(label),
@@ -155,7 +159,8 @@ void main() {
 
   test("pulls from the mockup's pool favour its rate-up", () async {
     final controller = await _afterTheFinale();
-    final hero = controller.weeklyHero!.card;
+    // The 3 star of the week's heroes.
+    final hero = controller.weeklyHeroes.firstWhere((h) => h.card.rarity == Rarity.hero).card;
     final heroes = controller.pool.where((c) => c.rarity == Rarity.hero).length;
     final gacha = GachaMachine(random: Random(3));
     var landed = 0, picked = 0;

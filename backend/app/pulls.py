@@ -26,27 +26,27 @@ def in_pool():
 
 
 def rate_up(session: Session, server_id: uuid.UUID) -> set[uuid.UUID]:
-    """This week's rate-up characters: the latest weekly hero, and the
-    legends of the pool drawn of the same player. They rotate every Monday
-    with the finale; a week without a hero has none."""
-    hero_id = session.scalar(
-        select(WeeklyHero.character_id)
-        .where(WeeklyHero.server_id == server_id)
-        .order_by(WeeklyHero.day.desc())
-        .limit(1)
+    """This week's rate-up characters: the heroes of the latest finale, and
+    the starter legend picked with it when none of them is a legend
+    (`app.finale`). They rotate every Monday with the finale; a week
+    without heroes has none."""
+    day = session.scalar(
+        select(func.max(WeeklyHero.day)).where(WeeklyHero.server_id == server_id)
     )
-    if hero_id is None:
+    if day is None:
         return set()
-    hero = session.get(Character, hero_id)
-    legends = session.scalars(
-        select(Character.id).where(
-            Character.server_id == server_id,
-            in_pool(),
-            Character.rarity == Rarity.LEGEND.value,
-            Character.subject_seat_id == hero.subject_seat_id,
+    featured: set[uuid.UUID] = set()
+    for hero_id, legend_id in session.execute(
+        select(WeeklyHero.character_id, WeeklyHero.legend_id).where(
+            WeeklyHero.server_id == server_id,
+            WeeklyHero.day == day,
+            WeeklyHero.character_id.is_not(None),
         )
-    )
-    return {hero_id, *legends}
+    ):
+        featured.add(hero_id)
+        if legend_id is not None:
+            featured.add(legend_id)
+    return featured
 
 
 def grant_launch_bonus(session: Session, seats: list[ServerSeat]) -> None:

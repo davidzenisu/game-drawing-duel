@@ -149,6 +149,32 @@ void main() {
     }
   });
 
+  test('finale', () {
+    final finale = rules['finale'] as Map<String, dynamic>;
+    expect(Finale.maxHeroes, finale['max_heroes']);
+    expect({for (final (rarity, share) in Finale.rarityShares) rarity.name: share}, finale['rarity_shares']);
+    expect(Finale.maxStars(3), 12, reason: '3 boosters give 3 each');
+    for (final [int maxStars, ...needed] in (finale['thresholds'] as List).cast<List>()) {
+      for (final (i, rarity) in [Rarity.legend, Rarity.hero, Rarity.adventurer].indexed) {
+        expect(Finale.rarity(needed[i] as int, maxStars), rarity, reason: '${needed[i]} of $maxStars');
+        expect(Finale.rarity((needed[i] as int) - 1, maxStars), isNot(rarity));
+      }
+      expect(Finale.rarity((needed.last as int) - 1, maxStars), isNull);
+    }
+    for (final [List ranked, int maxStars, List heroes] in (finale['cases'] as List).cast<List>()) {
+      expect(
+        [
+          for (final hero in Finale.heroes([
+            for (final [int stars, int wins, int fights] in ranked.cast<List>()) (stars, wins, fights),
+          ], maxStars))
+            hero == null ? null : [hero.$1, hero.$2.name],
+        ],
+        heroes,
+        reason: '$ranked',
+      );
+    }
+  });
+
   test('stars', () {
     final stars = rules['stars'] as Map<String, dynamic>;
     expect((StarRewards.prompt, StarRewards.challenger), (stars['prompt'], stars['challenger']));

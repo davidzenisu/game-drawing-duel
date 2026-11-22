@@ -173,9 +173,10 @@ class FakeBackend {
   /// tests set them up.
   final Map<String, Map<String, Object?>> winRates = {};
 
-  /// The latest weekly hero by server code, as `GET today` returns it, and
-  /// the latest week's ranking, as `GET ranking` does; tests set them up.
-  final Map<String, Map<String, Object?>> weeklyHeroes = {};
+  /// The latest finale's weekly heroes by server code, as `GET today`
+  /// returns them, and the latest week's ranking, as `GET ranking` does;
+  /// tests set them up.
+  final Map<String, List<Map<String, Object?>>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
   /// The week's boost balance by server code, sent with the boost step;
@@ -551,10 +552,11 @@ class FakeBackend {
         return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
-        // Like the API: a boost balance, null unless a test sets one.
+        // Like the API: a boost balance and maximum stars, null unless a test
+        // sets them.
         return _json(200, switch (rankings[code]) {
           null => null,
-          final ranking => {'boost_balance': null, ...ranking},
+          final ranking => {'boost_balance': null, 'max_stars': null, ...ranking},
         });
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'player-stats') {
@@ -1108,7 +1110,7 @@ class FakeBackend {
             {'by_position': key.$3, 'left_seconds': 39.0, 'message': hurryMessages[key]},
       ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
-      'weekly_hero': weeklyHeroes[code],
+      'weekly_heroes': [...?weeklyHeroes[code]],
     });
   }
 
@@ -1164,16 +1166,18 @@ class FakeBackend {
     };
   }
 
-  /// Like the real API: the latest weekly hero and the pool's legends of
-  /// the same player.
+  /// Like the real API: the latest finale's heroes and, when none of them
+  /// is a legend, the first legend of the pool of a 1st place's player.
   List<String> _rateUp(String code) {
-    final hero = weeklyHeroes[code]?['character'] as Map<String, Object?>?;
-    if (hero == null) return [];
-    return [
-      hero['id'] as String,
-      for (final c in _pool(code))
-        if (c['rarity'] == 'legend' && c['subject_position'] == hero['subject_position']) c['id'] as String,
-    ];
+    final heroes = [for (final hero in weeklyHeroes[code] ?? const []) hero['character'] as Map<String, Object?>];
+    final first = {
+      for (final hero in weeklyHeroes[code] ?? const [])
+        if (hero['place'] == 1) (hero['character'] as Map<String, Object?>)['subject_position'],
+    };
+    final legend = heroes.any((h) => h['rarity'] == 'legend')
+        ? null
+        : _pool(code).where((c) => c['rarity'] == 'legend' && first.contains(c['subject_position'])).firstOrNull;
+    return [for (final hero in heroes) hero['id'] as String, ?legend?['id'] as String?];
   }
 
   /// Planned like the real API does, with ids made up from seat and prompt.

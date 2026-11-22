@@ -162,7 +162,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         hurry_message=hurry_message,
         incoming_hurries=_incoming_hurries(session, server, seat, day),
         day_ended=list(ended),
-        weekly_hero=_weekly_hero(session, server),
+        weekly_heroes=_weekly_heroes(session, server),
     )
 
 
@@ -203,15 +203,16 @@ def _balance_response(
     )
 
 
-def _weekly_hero(session: Session, server: Server) -> WeeklyHeroResponse | None:
-    hero = finale.latest_hero(session, server)
-    if hero is None:
-        return None
-    return WeeklyHeroResponse(
-        character=character_response(hero.character),
-        day=hero.day,
-        stars=hero.stars,
-    )
+def _weekly_heroes(session: Session, server: Server) -> list[WeeklyHeroResponse]:
+    return [
+        WeeklyHeroResponse(
+            character=character_response(hero.character),
+            day=hero.day,
+            stars=hero.stars,
+            place=hero.place,
+        )
+        for hero in finale.latest_heroes(session, server)
+    ]
 
 
 def _hurry_sent(
@@ -261,9 +262,7 @@ def _fight_step(
     yours = fights.fight_of(session, seat, day)
     return FightStep(
         challenger=character_response(challenger),
-        yours=None
-        if yours is None
-        else _fight_response(session, server, yours),
+        yours=None if yours is None else _fight_response(session, server, yours),
     )
 
 
@@ -353,9 +352,7 @@ def draw_challenger(
     def reward() -> None:
         # Besides a won fight, the only pull to earn each day.
         session.add(PullGrant(seat_id=seat.id, reason=f"challenger:day-{day}"))
-        session.add(
-            stars.grant(seat.id, f"challenger:day-{day}", STARS_FOR_CHALLENGER)
-        )
+        session.add(stars.grant(seat.id, f"challenger:day-{day}", STARS_FOR_CHALLENGER))
 
     save_character(
         session,
@@ -411,9 +408,7 @@ def pick_fighters(
             PullGrant(seat_id=seat.id, reason=reason)
             for reason in fights.win_rewards(server, day, fight)
         )
-        session.add(
-            stars.grant(seat.id, f"fight:day-{day}", fight.challenger_stars)
-        )
+        session.add(stars.grant(seat.id, f"fight:day-{day}", fight.challenger_stars))
     try:
         session.commit()
     except IntegrityError as error:
@@ -561,7 +556,9 @@ def _challengers(
             fights=record.fights,
             wins=record.wins,
             stars_to_collect=sum(
-                n for reason, n in rewards[record.challenger.id] if reason not in collected
+                n
+                for reason, n in rewards[record.challenger.id]
+                if reason not in collected
             ),
             stars_collected=sum(
                 n for reason, n in rewards[record.challenger.id] if reason in collected
@@ -611,8 +608,8 @@ def collect_challenger_stars(
 def get_ranking(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> RankingResponse | None:
-    """The latest finished week's challengers, most stars first; the first
-    joined the gacha pool as a hero. Null before the first week is over.
+    """The latest finished week's challengers, most stars first, and its
+    weekly heroes (`app.finale`). Null before the first week is over.
 
     In speed mode, all of the session's challengers once it's over."""
     server, _ = running_game(session, code, player.id)
@@ -624,6 +621,7 @@ def get_ranking(
         fights.complete_boosts(session, server, last_day)
         fights.complete_fights(session, server, last_day)
         ranked = finale.ranking(session, server, last_day + 1)
+        heroes = {}
     else:
         finale.settle(session, server)
         week = finale.latest_finale(session, server)
@@ -631,6 +629,7 @@ def get_ranking(
             return None
         last_day = week.day
         ranked = finale.ranking(session, server, week.day)
+        heroes = finale.heroes_of(session, server, week.day)
     positions = {s.id: s.position for s in server.seats}
     boosts: dict[uuid.UUID, list[Boost]] = defaultdict(list)
     for boost in session.scalars(
@@ -647,12 +646,15 @@ def get_ranking(
         return drawn.author.position, drawn.premade
 
     entries = []
-    for r in ranked:
+    for r, place in zip(ranked, finale.places(ranked), strict=True):
         author, premade = prompt_of(r.challenger)
+        hero = heroes.get(r.challenger.id)
         entries.append(
             RankedChallenger(
                 character=character_response(r.challenger),
                 stars=r.stars,
+                place=place if hero is None else hero.place,
+                hero_rarity=None if hero is None else hero.rarity,
                 fights=r.fights,
                 wins=r.wins,
                 prompt_author_position=author,
@@ -675,6 +677,9 @@ def get_ranking(
     return RankingResponse(
         day=last_day,
         challengers=entries,
+        max_stars=None
+        if speed.is_speed(server)
+        else finale.max_stars(session, server, last_day),
         boost_balance=None
         if speed.is_speed(server)
         else _balance_response(boost_balance.balance(session, server, last_day + 1)),

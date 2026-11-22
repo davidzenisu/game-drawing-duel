@@ -286,8 +286,9 @@ abstract class GameSession extends ChangeNotifier {
 
   GachaStatus get gachaStatus;
 
-  /// This week's rate-up characters' ids: the latest weekly hero and the
-  /// legends of the pool drawn of the same player. A pull landing on their
+  /// This week's rate-up characters' ids: the latest finale's weekly
+  /// heroes and, when none of them is a legend, a starter legend of the 1st
+  /// place's player. A pull landing on their
   /// rarity picks one of them [GachaMachine.rateUp] percent of the time.
   Set<String> get rateUp;
 
@@ -396,8 +397,9 @@ abstract class GameSession extends ChangeNotifier {
   /// there's a drawing tomorrow, i.e. on prompt days.
   bool get canSendHurry => !sessionOver && promptsToday && hurrySentTo == null;
 
-  /// The latest finale's winner, now in the gacha [pool].
-  WeeklyHero? get weeklyHero;
+  /// The latest finale's weekly heroes, by place, now in the gacha [pool];
+  /// empty before the first finale and after a week without any.
+  List<WeeklyHero> get weeklyHeroes;
 
   /// Loads the latest finished week's ranking, see [Finale]; null before the
   /// first week is over. Kept on the device until the next week is over,

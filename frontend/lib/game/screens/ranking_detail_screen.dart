@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../widgets/card_art.dart';
@@ -10,9 +9,8 @@ import '../widgets/sketch_canvas.dart';
 /// screen), who drew it and wrote its prompt, who boosted it with how many
 /// stars, and how its fight went.
 class RankingDetailScreen extends StatelessWidget {
-  const RankingDetailScreen({super.key, required this.place, required this.entry});
+  const RankingDetailScreen({super.key, required this.entry});
 
-  final int place;
   final RankedChallenger entry;
 
   static String _fight(ChallengerFight fight) =>
@@ -22,10 +20,10 @@ class RankingDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final card = entry.card;
     final textTheme = Theme.of(context).textTheme;
-    final hero = place == 1;
+    final heroRarity = entry.heroRarity;
     final author = entry.promptAuthor;
     return Scaffold(
-      appBar: AppBar(title: Text('#$place · ${card.subject}')),
+      appBar: AppBar(title: Text('#${entry.place} · ${card.subject}')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -49,8 +47,10 @@ class RankingDetailScreen extends StatelessWidget {
                   Nameplate(name: card.subject, title: card.title, rarity: card.rarity),
                   const SizedBox(height: 12),
                   Text(
-                    hero ? 'Weekly hero with ${entry.stars} ★' : '${entry.stars} ★ at the end of the week',
-                    style: textTheme.titleMedium?.copyWith(color: hero ? AppPalette.rarityHero : null),
+                    heroRarity == null
+                        ? '${entry.stars} ★ at the end of the week'
+                        : 'Weekly hero (${heroRarity.label}) with ${entry.stars} ★',
+                    style: textTheme.titleMedium?.copyWith(color: heroRarity?.color),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),

@@ -9,6 +9,22 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.26.0] - 2026-11-22
+
+### Changed
+- Each week's finale now crowns up to 3 weekly heroes instead of one. How
+  close a hero came to the most stars a challenger could get that week
+  decides its rarity: ★★★★ legend, ★★★ hero or ★★ adventurer. A challenger
+  with too few stars isn't crowned, so a quiet week can crown fewer heroes,
+  or none.
+- Challengers with as many stars are ranked by their win rate. Challengers
+  still tied share their place: up to 3 tied for 1st are all crowned, while
+  ties for 2nd or 3rd aren't.
+- The weekly banner features every hero of the latest finale. When none of
+  them is a legend, a starter legend of the 1st place's player joins them.
+- Last week's ranking shows the weekly heroes on big cards with their place,
+  framed in their rarity's colour, then the other challengers.
+
 ## [0.25.0] - 2026-11-22
 
 ### Added

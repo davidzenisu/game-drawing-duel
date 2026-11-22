@@ -8,6 +8,7 @@ import random
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from fractions import Fraction
 
 MIN_PLAYERS = 5
 MAX_PLAYERS = 10
@@ -351,6 +352,61 @@ def fighters_win(
     )
 
 
+# The weekly finale (`app.finale`) crowns up to this many of the week's
+# challengers as weekly heroes, with a rarity by their stars: at least a
+# share (in percent) of the week's maximum stars, rounded up to whole stars.
+# The maximum is a challenger's own stars plus the most its boosters could
+# give it. Ranked by stars, then by win rate; challengers still tied share
+# their place and take up as many of the slots: tied for 1st, they're all
+# crowned if they fit, and none if they don't; tied for a later place, none
+# is.
+FINALE_MAX_HEROES = 3
+FINALE_RARITY_SHARES = (
+    (Rarity.LEGEND, 85),
+    (Rarity.HERO, 70),
+    (Rarity.ADVENTURER, 55),
+)
+
+
+def finale_max_stars(boost_stars: int, boosters: int) -> int:
+    """The most stars a challenger can have in a week where each of its
+    `boosters` gives it up to `boost_stars`."""
+    return challenger_stars(boosters * boost_stars)
+
+
+def finale_rarity(stars: int, max_stars: int) -> Rarity | None:
+    """The rarity a weekly hero with `stars` of `max_stars` is crowned with;
+    None below every threshold."""
+    for rarity, share in FINALE_RARITY_SHARES:
+        # At least the share, rounded up to whole stars.
+        if stars * 100 >= share * max_stars:
+            return rarity
+    return None
+
+
+def finale_heroes(
+    ranked: list[tuple[int, int, int]], max_stars: int
+) -> list[tuple[int, Rarity] | None]:
+    """The place and rarity each of the week's challengers is crowned with,
+    from its (stars, fights won, fights); None for those who aren't."""
+    keys = [
+        (stars, Fraction(wins, fights) if fights else Fraction(0))
+        for stars, wins, fights in ranked
+    ]
+    heroes: list[tuple[int, Rarity] | None] = []
+    for key in keys:
+        place = 1 + sum(other > key for other in keys)
+        tied = keys.count(key)
+        rarity = finale_rarity(key[0], max_stars)
+        crowned = (
+            rarity is not None
+            and (tied == 1 or place == 1)
+            and place + tied - 1 <= FINALE_MAX_HEROES
+        )
+        heroes.append((place, rarity) if crowned else None)
+    return heroes
+
+
 # A player's characters get extra stars against another player's after
 # winning more than a share of last week's fights against them: the most
 # extra stars of every share they beat. It takes this many fights to count.
@@ -434,7 +490,9 @@ def hurry_hits(jitters: list[float]) -> list[float]:
     n = len(jitters)
     room = max(
         0.0,
-        HURRY_FIRST_LEFT_SECONDS - HURRY_LAST_LEFT_SECONDS - (n - 1) * HURRY_CUT_SECONDS,
+        HURRY_FIRST_LEFT_SECONDS
+        - HURRY_LAST_LEFT_SECONDS
+        - (n - 1) * HURRY_CUT_SECONDS,
     )
     return [
         HURRY_FIRST_LEFT_SECONDS - i * HURRY_CUT_SECONDS - room / n * (i + jitter)

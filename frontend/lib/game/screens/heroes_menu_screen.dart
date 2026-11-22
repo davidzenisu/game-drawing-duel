@@ -84,7 +84,7 @@ class HeroesMenuScreen extends StatelessWidget {
                             unavailable: Unavailable.winRates(c),
                             // Once the first week is over, so they don't give
                             // away everyone's basic drawing; speed mode has none.
-                            onTap: c.weeklyHero == null || c.server.isSpeed
+                            onTap: c.server.isSpeed || c.weekOf(c.day) <= 1
                                 ? null
                                 : () => open(WinRatesScreen(controller: c)),
                           ),

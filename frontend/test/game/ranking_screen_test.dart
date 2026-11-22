@@ -167,7 +167,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets("last week's challengers: the hero first, then the others, each with its details", (tester) async {
+  testWidgets("last week's challengers: the heroes first, then the others, each with its details", (tester) async {
     _phone(tester);
     final controller = await launchedGame(launchDate: firstMonday);
     for (var day = 1; day < 8; day++) {
@@ -185,8 +185,11 @@ void main() {
     final hero = ranking.challengers.first;
     expect(find.text(hero.card.title), findsWidgets, reason: 'in its nameplate');
     expect(find.text('${hero.stars} ★').first, findsOneWidget);
-    expect(find.text('#1 · Weekly hero'), findsOneWidget, reason: 'the winner on a bigger card');
-    expect(find.text('2'), findsOneWidget, reason: 'the others numbered below');
+    expect(find.textContaining('rarer the closer they came to 12 ★'), findsOneWidget);
+    expect(find.text('#1 · Weekly hero · ★★★★'), findsOneWidget, reason: 'the heroes on bigger cards');
+    expect(find.text('#2 · Weekly hero · ★★★'), findsOneWidget);
+    expect(find.text('#3 · Weekly hero · ★★'), findsOneWidget);
+    expect(find.text('${ranking.challengers[3].place}'), findsWidgets, reason: 'the others numbered below');
     expect(find.textContaining('Drawn by'), findsNothing, reason: 'details are on their own screen');
 
     // The boost balance its fights gave this week, the rules in the tutorial.
@@ -212,15 +215,15 @@ void main() {
     // The refresh button asks again, and keeps the ranking shown.
     await tester.tap(find.byTooltip('Refresh'));
     await tester.pumpAndSettle();
-    expect(find.text('#1 · Weekly hero'), findsOneWidget);
+    expect(find.text('#1 · Weekly hero · ★★★★'), findsOneWidget);
 
     // The details of the weekly hero.
-    await tester.ensureVisible(find.text('#1 · Weekly hero'));
+    await tester.ensureVisible(find.text('#1 · Weekly hero · ★★★★'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('#1 · Weekly hero'));
+    await tester.tap(find.text('#1 · Weekly hero · ★★★★'));
     await tester.pumpAndSettle();
     expect(find.byType(RankingDetailScreen), findsOneWidget);
-    expect(find.text('Weekly hero with ${hero.stars} ★'), findsOneWidget);
+    expect(find.text('Weekly hero (Legend) with ${hero.stars} ★'), findsOneWidget);
     expect(find.text('Drawn by'), findsOneWidget);
     expect(find.text(hero.card.artist), findsOneWidget);
     final author = hero.promptAuthor!;

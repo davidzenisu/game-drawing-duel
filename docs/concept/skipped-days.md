@@ -14,7 +14,7 @@ If a player writes no challenger title, a premade one stands in: the premade tit
 
 # 2. Drawing
 The drawing has no stand-in. Its prompt can only be drawn on its own day; once the day is over, that challenger is never drawn.
-- The player misses the pull a drawing earns, and has no challenger in that week's ranking (or the race to become the weekly hero).
+- The player misses the pull a drawing earns, and has no challenger in that week's ranking (or the race to become one of the weekly heroes).
 - The player can't boost the next day: the boost step is greyed out, saying why, and chance doesn't spread their stars either.
 - The next day, the boosts skip the missing challenger: everyone who would have seen it gets the next one's in that day's shuffled order instead, so some challengers are boosted by more players than others.
 - The day after, the player who would have fought it fights the next one's in that day's shuffled order instead, so that one gets two fights.

@@ -16,7 +16,8 @@ import 'pool_screen.dart';
 import 'pull_reveal_screen.dart';
 
 /// Pulls on a banner of your choice, swiped through as big banners: the
-/// standard one is always there, the weekly one opens with the first finale.
+/// standard one is always there, the weekly one opens once a finale crowns
+/// weekly heroes.
 class GachaScreen extends StatefulWidget {
   const GachaScreen({super.key, required this.controller});
 
@@ -67,14 +68,15 @@ class _GachaScreenState extends State<GachaScreen> {
   }
 
   String _caption(GachaBanner banner) {
-    if (_locked(banner)) return 'Opens with the first finale';
+    if (_locked(banner)) return 'Opens once a finale crowns weekly heroes';
     final beginner = controller.gachaStatus.beginnerPullsLeft;
     return switch (banner) {
       GachaBanner.standard when beginner != null => '★★★★ guaranteed in your next $beginner pulls',
       GachaBanner.standard => 'The setup drawings, and every weekly hero',
-      GachaBanner.weekly => switch (controller.weeklyHero) {
-        final hero? => 'This week\'s hero: ${hero.card.title}',
-        null => 'This week\'s rate-up',
+      GachaBanner.weekly => switch (controller.weeklyHeroes) {
+        [final hero] => 'This week\'s hero: ${hero.card.title}',
+        [] => 'This week\'s rate-up',
+        final heroes => 'This week\'s ${heroes.length} heroes',
       },
     };
   }
@@ -209,9 +211,9 @@ class _GachaScreenState extends State<GachaScreen> {
                           switch (banner) {
                             GachaBanner.standard =>
                               'The characters drawn during the setup, and every weekly hero.'
-                                  '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens with the first finale.'}',
+                                  '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens once a finale crowns weekly heroes.'}',
                             GachaBanner.weekly when !weeklyOpen =>
-                              'The same pool, with this week\'s rate-up. It opens once the first finale crowns a weekly hero.',
+                              'The same pool, with this week\'s rate-up. It opens once a finale crowns weekly heroes.',
                             GachaBanner.weekly => 'The same pool, with this week\'s rate-up.',
                           },
                           textAlign: TextAlign.center,
@@ -319,7 +321,7 @@ class _RateUpBanner extends StatelessWidget {
             Text('Rate up this week', style: textTheme.titleMedium),
             Text(
               'When a pull lands on their rarity, it\'s one of them ${GachaMachine.rateUp}% of the time, or every '
-              'time if they\'re the only one. A new weekly hero takes over every Monday.',
+              'time if they\'re the only one. New weekly heroes take over every Monday.',
               style: textTheme.bodySmall,
             ),
             const SizedBox(height: 8),

@@ -190,6 +190,33 @@ class SharedRulesTest(unittest.TestCase):
                 rules.balanced_boost_stars(previous, step), stars, (previous, step)
             )
 
+    def test_finale(self):
+        finale = SHARED["finale"]
+        self.assertEqual(rules.FINALE_MAX_HEROES, finale["max_heroes"])
+        self.assertEqual(
+            {r.value: share for r, share in rules.FINALE_RARITY_SHARES},
+            finale["rarity_shares"],
+        )
+        self.assertEqual(rules.finale_max_stars(3, 3), 12, "3 boosters give 3 each")
+        for max_stars, *needed in finale["thresholds"]:
+            for rarity, stars in zip(["legend", "hero", "adventurer"], needed):
+                self.assertEqual(
+                    rules.finale_rarity(stars, max_stars), rules.Rarity(rarity)
+                )
+                self.assertNotEqual(
+                    rules.finale_rarity(stars - 1, max_stars), rules.Rarity(rarity)
+                )
+            self.assertIsNone(rules.finale_rarity(needed[-1] - 1, max_stars))
+        for ranked, max_stars, heroes in finale["cases"]:
+            self.assertEqual(
+                [
+                    None if h is None else [h[0], h[1].value]
+                    for h in rules.finale_heroes([tuple(r) for r in ranked], max_stars)
+                ],
+                heroes,
+                ranked,
+            )
+
     def test_stars(self):
         stars = SHARED["stars"]
         self.assertEqual(rules.STARS_FOR_PROMPT, stars["prompt"])
