@@ -235,9 +235,35 @@ class HurryTests(TodayTestCase):
         [incoming] = self.today(SAM)["incoming_hurries"]
         self.assertEqual(incoming["by_position"], 0)
         self.assertTrue(15 <= incoming["left_seconds"] <= 55)
+        self.assertIsNone(incoming["message"], "no message")
         self.assertIsNone(self.today()["hurry_sent_to"])
         self.post("days/next")
         self.assertEqual(self.today(SAM)["incoming_hurries"], [], "a day only")
+
+    def test_a_short_message_shows_when_it_hits(self) -> None:
+        too_long = self.post(
+            "today/hurry", json={"target_position": 1, "message": "x" * 61}
+        )
+        self.assertEqual(too_long.status_code, 422)
+        response = self.post(
+            "today/hurry", json={"target_position": 1, "message": "  Tick tock ⏰ "}
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["hurry_message"], "Tick tock ⏰")
+        self.assertEqual(self.today()["hurry_message"], "Tick tock ⏰")
+        self.assertIsNone(self.today(SAM)["hurry_message"])
+
+        self.post("days/next")
+        [incoming] = self.today(SAM)["incoming_hurries"]
+        self.assertEqual(incoming["message"], "Tick tock ⏰")
+        self.assertIsNone(self.today()["hurry_message"], "a new day")
+
+    def test_a_blank_message_is_none(self) -> None:
+        self.post("today/hurry", json={"target_position": 1, "message": "   "})
+        self.assertIsNone(self.today()["hurry_message"])
+        self.post("days/next")
+        [incoming] = self.today(SAM)["incoming_hurries"]
+        self.assertIsNone(incoming["message"])
 
     def test_only_other_players_who_joined(self) -> None:
         self.assertEqual(

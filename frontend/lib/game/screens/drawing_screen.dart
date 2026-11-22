@@ -15,13 +15,17 @@ import '../widgets/themed_background.dart';
 import '../../platform/leave_guard.dart';
 
 class DrawingResult {
-  const DrawingResult(this.sketch, this.title, {this.hurriedBy = const []});
+  const DrawingResult(this.sketch, this.title, {this.hurries = const []});
 
   final Sketch sketch;
   final String title;
 
-  /// Who sent a hurry against this drawing, in the order they hit.
-  final List<String> hurriedBy;
+  /// The hurries sent against this drawing, with their messages, in the
+  /// order they hit.
+  final List<HurryPlan> hurries;
+
+  /// Who sent them, in the order they hit.
+  List<String> get hurriedBy => [for (final hurry in hurries) hurry.by];
 }
 
 /// Timed drawing of a single character. Pops with a [DrawingResult].
@@ -118,7 +122,8 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   int _hits = 0;
   Duration _cut = Duration.zero;
 
-  /// When the last hurry hit; its banner shows for [_bannerTime].
+  /// When the last hurry hit; its banner shows for [_bannerTime] for each
+  /// of its messages, one after another (and at least once).
   Duration? _hitAt;
 
   /// The first of the hurries that hit at [_hitAt].
@@ -127,7 +132,16 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
 
   bool get _hurried => _hits > 0;
 
-  bool get _showBanner => _hitAt != null && !_timeUp && _stopwatch.elapsed - _hitAt! < _bannerTime;
+  /// The hurries that hit at [_hitAt], and those of them with a message.
+  List<HurryPlan> get _bannerHurries => widget.hurries.sublist(_bannerFrom, _hits);
+  List<HurryPlan> get _bannerMessages => [
+    for (final hurry in _bannerHurries)
+      if (hurry.message != null) hurry,
+  ];
+
+  Duration get _sinceHit => _stopwatch.elapsed - _hitAt!;
+
+  bool get _showBanner => _hitAt != null && !_timeUp && _sinceHit < _bannerTime * max(1, _bannerMessages.length);
 
   Duration? get _limit => widget.timeLimit ?? widget.rarity.drawTime;
 
@@ -223,11 +237,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   bool _saving = false;
 
   Future<void> _submit() async {
-    final result = DrawingResult(
-      _pad.toSketch(),
-      _title.text.trim(),
-      hurriedBy: [for (final hurry in widget.hurries) hurry.by],
-    );
+    final result = DrawingResult(_pad.toSketch(), _title.text.trim(), hurries: widget.hurries);
     // The drawing is done: the clock stops and the canvas closes.
     _ticker?.cancel();
     _stopwatch.stop();
@@ -305,10 +315,15 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
 
   /// Back (unless there's no backing out), who and what to draw, more
   /// about the prompt behind a button, and the clock.
+  /// A hurry's banner floats over it as it hits.
   Widget _topBar(BuildContext context, bool locked) {
-    final textTheme = Theme.of(context).textTheme;
     final canLeave = !locked && (ModalRoute.of(context)?.impliesAppBarDismissal ?? false);
     final info = widget.nameplate || widget.description != null;
+    return Stack(children: [_topBarCard(context, canLeave, info), _hurryBanner(context)]);
+  }
+
+  Widget _topBarCard(BuildContext context, bool canLeave, bool info) {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -445,13 +460,12 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     );
   }
 
-  /// Floats over the top of the canvas, so the canvas never changes size,
-  /// and lets the strokes through.
+  /// Floats over the top bar, leaving the clock in sight, so it never covers
+  /// the canvas or changes its size.
   Widget _hurryBanner(BuildContext context) {
-    return Positioned(
-      top: 8,
-      left: 8,
-      right: 8,
+    return Positioned.fill(
+      // The clock and the padding around it.
+      right: _limit == null ? 0 : 60,
       child: IgnorePointer(
         child: AnimatedSlide(
           offset: _showBanner ? Offset.zero : const Offset(0, -0.3),
@@ -479,26 +493,62 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     };
   }
 
+  /// Who sent the hurries that just hit and the time they took away, and
+  /// their messages below, one after another, e.g. "Robin: No pressure 😇".
   Widget _hurryMessage() {
+    final messages = _bannerMessages;
+    final shown = messages.isEmpty || _hitAt == null
+        ? null
+        : messages[min(messages.length - 1, _sinceHit.inMilliseconds ~/ _bannerTime.inMilliseconds)];
     return Material(
       elevation: 4,
       color: AppPalette.hurry,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            const Icon(Icons.bolt_rounded, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _hurryText([for (final h in widget.hurries.sublist(_bannerFrom, _hits)) h.by]),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        // As high as the top bar: a long message shrinks a little to fit.
+        child: LayoutBuilder(
+          builder: (context, box) => FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: SizedBox(width: box.maxWidth, child: _hurryLines(shown)),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _hurryLines(HurryPlan? shown) {
+    return Row(
+      children: [
+        const Icon(Icons.bolt_rounded, color: Colors.white),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _hurryText([for (final h in _bannerHurries) h.by]),
+                maxLines: shown == null ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              if (shown != null)
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: Text(
+                    '${shown.by}: ${shown.message}',
+                    key: ValueKey(shown),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, height: 1.2),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -542,7 +592,6 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
           fit: StackFit.expand,
           children: [
             SketchPad(controller: _pad),
-            _hurryBanner(context),
             if (!_started) _readyCover(context),
             IgnorePointer(
               child: AnimatedOpacity(

@@ -1,9 +1,15 @@
 import uuid
 from datetime import date, datetime
+from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
-from app.rules import BOOST_CHALLENGERS, BOOST_MAX_STARS, MAX_FIGHTERS
+from app.rules import (
+    BOOST_CHALLENGERS,
+    BOOST_MAX_STARS,
+    HURRY_MESSAGE_MAX_LENGTH,
+    MAX_FIGHTERS,
+)
 from app.schemas.character import CharacterResponse
 
 
@@ -134,6 +140,8 @@ class IncomingHurry(BaseModel):
     by_position: int
     # When it hits: the drawing time left then, in seconds.
     left_seconds: float
+    # The sender's short message, if they added one.
+    message: str | None = None
 
 
 class WeeklyHeroResponse(BaseModel):
@@ -215,6 +223,8 @@ class TodayResponse(BaseModel):
     # The seat you sent today's free hurry to; it hits their drawing
     # tomorrow.
     hurry_sent_to: int | None
+    # The short message you added to it, if any.
+    hurry_message: str | None = None
     # Every hurry sent to you yesterday, for today's challenger drawing, in
     # the order they hit.
     incoming_hurries: list[IncomingHurry]
@@ -250,8 +260,17 @@ class BoostSubmit(BaseModel):
     boosts: list[BoostGiven] = Field(max_length=BOOST_CHALLENGERS)
 
 
+HurryMessage = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, max_length=HURRY_MESSAGE_MAX_LENGTH),
+]
+
+
 class HurrySubmit(BaseModel):
     target_position: int
+    # An optional short message, shown to the target when it hits; blank is
+    # none.
+    message: HurryMessage | None = None
 
 
 class WinRate(BaseModel):

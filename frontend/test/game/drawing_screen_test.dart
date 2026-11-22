@@ -37,7 +37,7 @@ void main() {
     expect(find.text('Alex sent a hurry! -5s'), findsOneWidget);
     // Once the banner is in, the canvas is as big as before.
     await tester.pump(const Duration(milliseconds: 400));
-    expect(tester.getRect(find.byType(SketchPad)), canvas, reason: 'the banner floats over the canvas');
+    expect(tester.getRect(find.byType(SketchPad)), canvas, reason: 'the banner floats over the top bar');
     // The banner goes away after a few seconds.
     await tester.pump(const Duration(seconds: 4));
     expect(
@@ -380,7 +380,15 @@ void main() {
       const MaterialApp(
         home: DrawingRecapScreen(
           subject: 'Sam',
-          result: DrawingResult(sketch, 'Lord of the Top Sauna Bench', hurriedBy: ['Alex', 'Robin', 'Kim']),
+          result: DrawingResult(
+            sketch,
+            'Lord of the Top Sauna Bench',
+            hurries: [
+              HurryPlan(by: 'Alex', left: Duration(seconds: 45)),
+              HurryPlan(by: 'Robin', left: Duration(seconds: 30)),
+              HurryPlan(by: 'Kim', left: Duration(seconds: 20)),
+            ],
+          ),
         ),
       ),
     );
@@ -390,6 +398,105 @@ void main() {
       expect(find.text(text), findsOneWidget, reason: text);
     }
     expect(find.byType(SketchView), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('the recap lists every hurry with its message, in the order they hit', (tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const sketch = Sketch([
+      Stroke(color: Color(0xFF000000), width: 0.01, points: [Offset(0.1, 0.1), Offset(0.9, 0.9)]),
+    ]);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingRecapScreen(
+          subject: 'Sam',
+          result: DrawingResult(
+            sketch,
+            'Lord of the Top Sauna Bench',
+            hurries: [
+              HurryPlan(by: 'Alex', left: Duration(seconds: 45), message: 'Tick tock ⏰'),
+              HurryPlan(by: 'Robin', left: Duration(seconds: 30)),
+              HurryPlan(by: 'Kim', left: Duration(seconds: 20), message: 'Draw faster, Sam! 🐢'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull, reason: 'it all fits one screen');
+    expect(find.text('3 hurries'), findsOneWidget);
+    final lines = [
+      for (final text in tester.widgetList<RichText>(find.byType(RichText)).map((t) => t.text.toPlainText()))
+        if (text.startsWith('Alex') || text.startsWith('Robin') || text.startsWith('Kim')) text,
+    ];
+    expect(lines, ['Alex: Tick tock ⏰', 'Robin', 'Kim: Draw faster, Sam! 🐢']);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a hurry shows its message as it hits, above the canvas, one after another', (tester) async {
+    // A phone browser with its address bar showing.
+    tester.view.physicalSize = const Size(390, 664);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingScreen(
+          subject: 'Daniel',
+          prompt: '"the Missing Guest"',
+          hint: 'Royal Castle',
+          rarity: Rarity.hero,
+          initialTitle: 'the Missing Guest',
+          titleLocked: true,
+          timeLimit: challengerDrawTime,
+          nameplate: true,
+          hurries: [
+            HurryPlan(by: 'Alex', left: Duration(seconds: 45), message: 'Tick tock ⏰'),
+            HurryPlan(
+              by: 'Robin',
+              left: Duration(seconds: 45),
+              message: 'No pressure 😇 but really, a bit of pressure',
+            ),
+          ],
+        ),
+      ),
+    );
+    final canvas = tester.getRect(find.byType(SketchPad));
+
+    // 45s in, both hit at once: Alex's message first, then Robin's.
+    await tester.pump(const Duration(milliseconds: 45200));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Alex and Robin sent hurries! -10s'), findsOneWidget);
+    expect(find.text('Alex: Tick tock ⏰'), findsOneWidget);
+    final banner = tester.getRect(
+      find.ancestor(of: find.text('Alex: Tick tock ⏰'), matching: find.byType(Material)).first,
+    );
+    expect(banner.bottom, lessThanOrEqualTo(canvas.top), reason: "the banner doesn't cover the canvas");
+    expect(
+      banner.right,
+      lessThanOrEqualTo(tester.getRect(find.byType(CircularProgressIndicator)).left),
+      reason: 'the clock stays in sight',
+    );
+    expect(tester.getRect(find.byType(SketchPad)), canvas);
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Robin: No pressure 😇 but really, a bit of pressure'), findsOneWidget);
+    expect(find.text('Alex and Robin sent hurries! -10s'), findsOneWidget, reason: 'still showing');
+    expect(tester.takeException(), isNull);
+
+    // Once each message had its time, the banner goes.
+    await tester.pump(const Duration(seconds: 3));
+    expect(
+      tester
+          .widget<AnimatedOpacity>(
+            find.ancestor(of: find.text('Alex and Robin sent hurries! -10s'), matching: find.byType(AnimatedOpacity)),
+          )
+          .opacity,
+      0,
+    );
     await tester.pumpWidget(const SizedBox());
   });
 

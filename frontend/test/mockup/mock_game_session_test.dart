@@ -620,9 +620,14 @@ void main() {
     expect(await game.sendHurry(game.otherPlayers.last), isFalse);
     expect(game.tickets, tickets);
     expect(game.hurrySentTo, game.otherPlayers.first);
+    expect(game.hurryMessage, isNull, reason: 'none added');
     await game.advanceDay();
     expect(game.hurrySentTo, isNull);
     expect(game.day, 2);
+    expect(await game.sendHurry(game.otherPlayers.first, message: '  Tick tock ⏰  '), isTrue);
+    expect(game.hurryMessage, 'Tick tock ⏰');
+    await game.advanceDay();
+    expect(game.hurryMessage, isNull, reason: 'a new day');
   });
 
   test('once a week is over, its challengers are ranked and the best joins the pool', () async {

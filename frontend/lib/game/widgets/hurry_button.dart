@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../game_session.dart';
+import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../unavailable.dart';
 import 'game_action.dart';
 
 /// The day's free hurry, next to the day's title on the hub: picks a player
-/// whose drawing tomorrow gets shorter. Greyed out once sent, or on a day
-/// without one, saying why when tapped.
+/// whose drawing tomorrow gets shorter, then an optional short message they
+/// see when it hits. Greyed out once sent, or on a day without one, saying
+/// why (and the message sent) when tapped.
 class HurryButton extends StatelessWidget {
   const HurryButton({super.key, required this.controller});
 
@@ -40,7 +42,12 @@ class HurryButton extends StatelessWidget {
       ),
     );
     if (target == null || !context.mounted) return;
-    final sent = await runGameQuery(context, () => controller.sendHurry(target));
+    final message = await showDialog<String>(
+      context: context,
+      builder: (_) => HurryMessageDialog(target: target),
+    );
+    if (message == null || !context.mounted) return;
+    final sent = await runGameQuery(context, () => controller.sendHurry(target, message: message));
     if (sent == true && context.mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -103,6 +110,79 @@ class HurryButton extends StatelessWidget {
       triggerMode: TooltipTriggerMode.tap,
       showDuration: const Duration(seconds: 4),
       child: button,
+    );
+  }
+}
+
+/// The optional short message of a hurry to [target], with quick picks that
+/// fill it in. Pops with the message (empty for none), or null to cancel.
+class HurryMessageDialog extends StatefulWidget {
+  const HurryMessageDialog({super.key, required this.target});
+
+  final Player target;
+
+  @override
+  State<HurryMessageDialog> createState() => _HurryMessageDialogState();
+}
+
+class _HurryMessageDialogState extends State<HurryMessageDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _send() => Navigator.of(context).pop(_controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Hurry ${widget.target.name}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Add a short message if you like: ${widget.target.name} sees it when the hurry hits.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              maxLength: Hurries.messageMaxLength,
+              textCapitalization: TextCapitalization.sentences,
+              onSubmitted: (_) => _send(),
+              decoration: const InputDecoration(
+                labelText: 'Message (optional)',
+                hintText: 'e.g. You can do it 💪',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final pick in Hurries.quickMessages)
+                  ActionChip(
+                    label: Text(pick),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _controller.value = TextEditingValue(
+                      text: pick,
+                      selection: TextSelection.collapsed(offset: pick.length),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        FilledButton.icon(onPressed: _send, icon: const Icon(Icons.bolt_rounded), label: const Text('Send')),
+      ],
     );
   }
 }

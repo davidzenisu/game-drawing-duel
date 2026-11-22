@@ -173,6 +173,7 @@ void main() {
     final hurry = rules['hurry'] as Map<String, dynamic>;
     double seconds(Duration d) => d.inMicroseconds / Duration.microsecondsPerSecond;
     expect(seconds(Hurries.cut), hurry['cut_seconds']);
+    expect(Hurries.messageMaxLength, hurry['message_max_length']);
     expect(challengerDrawTime.inSeconds, rules['challenger_draw_seconds']);
     expect(
       (seconds(Hurries.firstLeft), seconds(Hurries.lastLeft)),

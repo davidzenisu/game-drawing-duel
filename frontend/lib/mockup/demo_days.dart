@@ -107,7 +107,12 @@ class DemoDays {
       if (day % 6 == 3) ...[friends[day % friends.length], friends[(day + 2) % friends.length]],
     ];
     final hits = Hurries.hits([for (final (i, _) in by.indexed) (0.3 + 0.4 * i) % 1]);
-    return [for (final (i, p) in by.indexed) HurryPlan(by: p.name, left: hits[i])];
+    // Most come with a short message, one of them without.
+    const messages = ['No pressure 😇', 'You can do it 💪', null, 'Hurry crew 👩‍🚀', 'Draw faster, slowpoke 🐢'];
+    return [
+      for (final (i, p) in by.indexed)
+        HurryPlan(by: p.name, left: hits[i], message: messages[(day + i) % messages.length]),
+    ];
   }
 
   /// This week's win rates on [day], from last week: none in the first

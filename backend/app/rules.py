@@ -388,6 +388,8 @@ CHALLENGER_DRAW_SECONDS = 90
 HURRY_CUT_SECONDS = 5.0
 HURRY_FIRST_LEFT_SECONDS = 55.0
 HURRY_LAST_LEFT_SECONDS = 15.0
+# The longest short message a hurry's sender can add.
+HURRY_MESSAGE_MAX_LENGTH = 60
 
 # Stars, the currency players collect (`app.stars`): writing a challenger
 # title and drawing a challenger earn these; a won fight earns the

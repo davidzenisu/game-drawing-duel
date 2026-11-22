@@ -310,6 +310,7 @@ class MockGameSession extends GameSession {
     _yourBoosts.clear();
     _weeklyHero = null;
     _hurrySentTo = null;
+    _hurryMessage = null;
     _setPhase(GamePhase.server);
   }
 
@@ -1037,10 +1038,15 @@ class MockGameSession extends GameSession {
   Player? get hurrySentTo => _hurrySentTo;
   Player? _hurrySentTo;
 
+  @override
+  String? get hurryMessage => _hurryMessage;
+  String? _hurryMessage;
+
   void _startDay() {
     _day++;
     _theme = _days.themeOf(_day);
     _hurrySentTo = null;
+    _hurryMessage = null;
     _incomingHurries = promptToDraw == null ? const [] : _days.hurries(_day);
     // A new week: last week's best challenger joins the pool as its hero.
     if (!server.isSpeed && _days.weekStart(_day) == _day && _day > 7) {
@@ -1307,9 +1313,11 @@ class MockGameSession extends GameSession {
 
   /// Hurries are free, once per day. The target only finds out while drawing.
   @override
-  Future<bool> sendHurry(Player target) async {
+  Future<bool> sendHurry(Player target, {String? message}) async {
     if (!canSendHurry || target.isYou) return false;
     _hurrySentTo = target;
+    final text = message?.trim() ?? '';
+    _hurryMessage = text.isEmpty ? null : text;
     notifyListeners();
     return true;
   }

@@ -9,6 +9,20 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.23.0] - 2026-11-21
+
+### Added
+- A hurry can come with a short message of up to 60 characters: write your
+  own or pick "No pressure 😇", "You can do it 💪" or "Hurry crew 👩‍🚀". It
+  stays a surprise until the hurry hits, then shows with the sender's name
+  while drawing, and the drawing's result screen lists every hurry with its
+  message. Tapping the hub's **Hurry sent**
+  button shows whom you hurried and what you wrote.
+
+### Changed
+- The hurry banner shows over the top bar, next to the clock, instead of over
+  the drawing, so it never covers what you draw.
+
 ## [0.22.1] - 2026-11-20
 
 ### Fixed

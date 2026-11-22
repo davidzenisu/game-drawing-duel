@@ -6,6 +6,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    String,
     UniqueConstraint,
     Uuid,
     func,
@@ -13,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, utc_now
+from app.rules import HURRY_MESSAGE_MAX_LENGTH
 
 
 class Hurry(Base):
@@ -35,6 +37,10 @@ class Hurry(Base):
     # day's hurries (`rules.hurry_hits`). Named for when it was the share of
     # the time limit it hit at.
     at_fraction: Mapped[float] = mapped_column(Float, nullable=False)
+    # The sender's short message, shown to the target when it hits.
+    message: Mapped[str | None] = mapped_column(
+        String(HURRY_MESSAGE_MAX_LENGTH), nullable=True
+    )
     sent_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

@@ -720,6 +720,7 @@ class ApiGameSession extends GameSession {
   Set<String> _dayEnded = const {};
   CharacterCard? _fightChallenger;
   Player? _hurrySentTo;
+  String? _hurryMessage;
   List<HurryPlan> _incomingHurries = const [];
   FightSetup? _yourFight;
   Map<String, int> _restDays = const {};
@@ -907,12 +908,14 @@ class ApiGameSession extends GameSession {
         final int position => _seat(server, position),
         _ => null,
       };
+      _hurryMessage = json['hurry_message'] as String?;
       _incomingHurries = [
         for (final hurry in json['incoming_hurries'] as List? ?? const [])
           if (hurry case {'by_position': int by, 'left_seconds': num left})
             HurryPlan(
               by: _seat(server, by).name,
               left: Duration(microseconds: (left * Duration.microsecondsPerSecond).round()),
+              message: hurry['message'] as String?,
             )
           else
             throw const FormatException('Unexpected hurry.'),
@@ -1284,6 +1287,9 @@ class ApiGameSession extends GameSession {
   Player? get hurrySentTo => _hurrySentTo;
 
   @override
+  String? get hurryMessage => _hurryMessage;
+
+  @override
   Future<void> launch() async => _enterServer(await _post('/servers/${server.code}/setup/done'));
 
   @override
@@ -1572,10 +1578,14 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<bool> sendHurry(Player target) async {
+  Future<bool> sendHurry(Player target, {String? message}) async {
     final Object? json;
+    final text = message?.trim() ?? '';
     try {
-      json = await _post('/servers/${server.code}/today/hurry', {'target_position': _seatPosition(target)});
+      json = await _post('/servers/${server.code}/today/hurry', {
+        'target_position': _seatPosition(target),
+        if (text.isNotEmpty) 'message': text,
+      });
     } on ApiException catch (error) {
       if (error.statusCode == 409) return false;
       rethrow;
