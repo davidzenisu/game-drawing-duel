@@ -412,11 +412,16 @@ ACHIEVEMENT_RARITY_STARS = {
     Rarity.ADVENTURER: 15,
     Rarity.LEGEND: 20,
 }
-# - winning this many fights you picked the fighters for, and this many of
-#   them in a row.
-ACHIEVEMENT_WINS = (1, 3, 10)
-ACHIEVEMENT_STREAKS = (3, 5)
+# - winning this many fights you picked the fighters for, this many of them
+#   in a row, and this many of them by exactly one star (close calls), each
+#   level worth the same.
+ACHIEVEMENT_WINS = (1, 3, 5, 10, 25, 50)
+ACHIEVEMENT_STREAKS = tuple(range(1, 26))
+ACHIEVEMENT_CLOSE_CALLS = (1, 3, 5, 10, 25, 50)
 ACHIEVEMENT_FIGHT_STARS = 5
+# A speed mode session has no levels above this one: it has no more fights
+# of your own.
+ACHIEVEMENT_SPEED_MAX_GOAL = 3
 
 
 def hurry_hits(jitters: list[float]) -> list[float]:

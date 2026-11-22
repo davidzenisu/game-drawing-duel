@@ -1110,8 +1110,12 @@ class MockGameSession extends GameSession {
     players: server.players,
     pool: _pool,
     owned: _owned.keys.toSet(),
-    fightsWon: [for (final day in _yourFights.keys.toList()..sort()) _yourFights[day]!.fightersWin],
+    fightMargins: [
+      for (final day in _yourFights.keys.toList()..sort())
+        _yourFights[day]!.fighterTotal - _yourFights[day]!.challengerTotal,
+    ],
     collected: _collectedAchievements,
+    speed: server.isSpeed,
   );
 
   @override

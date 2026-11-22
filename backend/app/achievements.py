@@ -12,20 +12,27 @@ reason is `achievement:<key>`.
   nothing, as everywhere).
 - `streak:<n>`: win n of those fights in a row; a lost one starts over,
   days without one of your own fights don't.
+- `close:<n>`: win n of those fights by exactly one star (a close call),
+  win rate extra stars included, like 9 against 8.
+
+A speed mode session lists no wins, streaks or close calls it can't reach
+(above `ACHIEVEMENT_SPEED_MAX_GOAL`), so they can't be collected there.
 """
 
 from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from app import pulls, stars
+from app import pulls, speed, stars
 from app.models import Character, Fight, Server, ServerSeat, StarGrant
 from app.rules import (
+    ACHIEVEMENT_CLOSE_CALLS,
     ACHIEVEMENT_FIGHT_STARS,
     ACHIEVEMENT_PLAYER_STARS,
     ACHIEVEMENT_RARITY_STARS,
+    ACHIEVEMENT_SPEED_MAX_GOAL,
     ACHIEVEMENT_STREAKS,
     ACHIEVEMENT_WINS,
     Rarity,
@@ -37,7 +44,7 @@ REASON_PREFIX = "achievement:"
 @dataclass(frozen=True)
 class Achievement:
     key: str
-    # "artist", "portrait", "rarity", "wins" or "streak".
+    # "artist", "portrait", "rarity", "wins", "streak" or "close".
     kind: str
     # The player of an artist or portrait achievement.
     position: int | None
@@ -62,29 +69,43 @@ def player_stars(server: Server) -> int:
     return ACHIEVEMENT_PLAYER_STARS[min(max(players, lowest), highest)]
 
 
-def _wins_and_best_streak(session: Session, seat: ServerSeat) -> tuple[int, int]:
-    """How many of the fights `seat` picked the fighters for it won, and the
-    most it won in a row."""
-    outcomes = session.scalars(
-        select(Fight.fighters_win)
+@dataclass(frozen=True)
+class _FightTally:
+    wins: int
+    # The most won in a row.
+    best_streak: int
+    # The wins by exactly one star.
+    close_calls: int
+
+
+def _fight_tally(session: Session, seat: ServerSeat) -> _FightTally:
+    """How the fights `seat` picked the fighters for went."""
+    fights = session.scalars(
+        select(Fight)
         .where(
             Fight.owner_seat_id == seat.id,
             Fight.by_chance.is_(False),
             Fight.fighters_win.is_not(None),
         )
         .order_by(Fight.day)
+        .options(selectinload(Fight.fighters))
     ).all()
-    wins = best = streak = 0
-    for won in outcomes:
+    wins = best = streak = close = 0
+    for fight in fights:
+        won = bool(fight.fighters_win)
         streak = streak + 1 if won else 0
         wins += won
         best = max(best, streak)
-    return wins, best
+        fighters = fight.fighter_stars + sum(f.extra_stars for f in fight.fighters)
+        challenger = fight.challenger_stars + fight.challenger_extra_stars
+        close += won and fighters == challenger + 1
+    return _FightTally(wins, best, close)
 
 
 def of(session: Session, server: Server, seat: ServerSeat) -> list[Achievement]:
     """`seat`'s achievements: the players' first (artists, then portraits),
-    then the rarities, the wins and the streaks."""
+    then the rarities, the wins, the streaks and the close calls, each
+    level from the lowest."""
     owned = set(pulls.copies(session, seat))
     starters = session.scalars(
         select(Character).where(
@@ -150,11 +171,16 @@ def of(session: Session, server: Server, seat: ServerSeat) -> list[Achievement]:
     for rarity, rarity_reward in ACHIEVEMENT_RARITY_STARS.items():
         of_rarity = [c for c in starters if c.rarity == rarity.value]
         add_set(f"rarity:{rarity.value}", "rarity", of_rarity, rarity_reward, rarity=rarity)
-    wins, best = _wins_and_best_streak(session, seat)
-    for n in ACHIEVEMENT_WINS:
-        add(f"wins:{n}", "wins", n, wins, ACHIEVEMENT_FIGHT_STARS)
-    for n in ACHIEVEMENT_STREAKS:
-        add(f"streak:{n}", "streak", n, best, ACHIEVEMENT_FIGHT_STARS)
+    tally = _fight_tally(session, seat)
+    max_goal = ACHIEVEMENT_SPEED_MAX_GOAL if server.mode == speed.SPEED else None
+    for kind, goals, progress in (
+        ("wins", ACHIEVEMENT_WINS, tally.wins),
+        ("streak", ACHIEVEMENT_STREAKS, tally.best_streak),
+        ("close", ACHIEVEMENT_CLOSE_CALLS, tally.close_calls),
+    ):
+        for n in goals:
+            if max_goal is None or n <= max_goal:
+                add(f"{kind}:{n}", kind, n, progress, ACHIEVEMENT_FIGHT_STARS)
     return entries
 
 
@@ -177,4 +203,3 @@ def collect(session: Session, server: Server, seat: ServerSeat, key: str) -> Non
         session.commit()
     except IntegrityError:
         session.rollback()  # Collected at the same time elsewhere.
-

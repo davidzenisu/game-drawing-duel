@@ -16,6 +16,13 @@ enum AchievementKind {
 
   /// Win this many of those fights in a row.
   streak,
+
+  /// Win this many of those fights by exactly one star: a close call.
+  close;
+
+  /// Has levels, of which the rewards screen shows the next one only
+  /// ([AchievementRewards.nextLevels]).
+  bool get leveled => this == wins || this == streak || this == close;
 }
 
 /// A goal you reach on your own, rewarded once with [stars] you collect
@@ -58,7 +65,8 @@ class Achievement {
     AchievementKind.portrait => player!.isYou ? 'Your portraits' : 'Portraits of ${player!.name}',
     AchievementKind.rarity => 'Every starter ${rarity!.label}',
     AchievementKind.wins => goal == 1 ? 'First win' : '$goal wins',
-    AchievementKind.streak => '$goal wins in a row',
+    AchievementKind.streak => goal == 1 ? 'Start a streak' : '$goal wins in a row',
+    AchievementKind.close => goal == 1 ? 'Close Call' : '$goal Close Calls',
   };
 
   String get description => switch (kind) {
@@ -66,7 +74,12 @@ class Achievement {
     AchievementKind.portrait => 'Summon every starter hero portraying ${player!.isYou ? 'you' : player!.name}.',
     AchievementKind.rarity => 'Summon every ${rarity!.stars} star starter hero.',
     AchievementKind.wins => 'Win ${goal == 1 ? 'a fight' : '$goal fights'} you picked the fighters for.',
-    AchievementKind.streak => 'Win $goal of your fights in a row. A lost one starts over.',
+    AchievementKind.streak =>
+      goal == 1
+          ? 'Win one of your fights to start a streak.'
+          : 'Win $goal of your fights in a row. A lost one starts over.',
+    AchievementKind.close =>
+      'Win ${goal == 1 ? 'a fight' : '$goal fights'} you picked the fighters for by exactly one star, like 9 against 8.',
   };
 }
 
@@ -80,10 +93,16 @@ abstract final class AchievementRewards {
   /// For every starter hero of a rarity.
   static const rarityStars = {Rarity.basic: 10, Rarity.adventurer: 15, Rarity.legend: 20};
 
-  /// Fights won, and won in a row, and their reward each.
-  static const wins = [1, 3, 10];
-  static const streaks = [3, 5];
+  /// Fights won, won in a row and won by exactly one star, and the reward
+  /// of each level.
+  static const wins = [1, 3, 5, 10, 25, 50];
+  static final streaks = [for (var n = 1; n <= 25; n++) n];
+  static const closeCalls = [1, 3, 5, 10, 25, 50];
   static const fightStars = 5;
+
+  /// A speed mode session has no fight levels above this one: it has no
+  /// more fights of your own.
+  static const speedMaxGoal = 3;
 
   static int forPlayers(int players) {
     final counts = playerStars.keys;
@@ -91,15 +110,19 @@ abstract final class AchievementRewards {
   }
 
   /// Your achievements, like the backend works them out: the players' first
-  /// (the other artists, then the portraits), then the rarities, the wins
-  /// and the streaks. [pool]'s day 0 cards are the starter heroes;
-  /// [fightsWon] are the outcomes of the fights you picked, in order.
+  /// (the other artists, then the portraits), then the rarities, the wins,
+  /// the streaks and the close calls, each level from the lowest. [pool]'s
+  /// day 0 cards are the starter heroes; [fightMargins] are the fights you
+  /// picked, in order, each by the fighters' stars minus the challenger's
+  /// (extra stars included): won above 0, a close call at 1. A [speed] mode
+  /// session has no levels above [speedMaxGoal].
   static List<Achievement> of({
     required List<Player> players,
     required List<CharacterCard> pool,
     required Set<String> owned,
-    required List<bool> fightsWon,
+    required List<int> fightMargins,
     required Set<String> collected,
+    bool speed = false,
   }) {
     final starters = pool.where((c) => c.day == 0).toList();
     final reward = forPlayers(players.length);
@@ -167,18 +190,42 @@ abstract final class AchievementRewards {
         rarity: rarity,
       );
     }
-    var won = 0, streak = 0, best = 0;
-    for (final win in fightsWon) {
+    var won = 0, streak = 0, best = 0, close = 0;
+    for (final margin in fightMargins) {
+      final win = margin > 0;
       streak = win ? streak + 1 : 0;
       if (win) won++;
+      if (margin == 1) close++;
       if (streak > best) best = streak;
     }
-    for (final n in wins) {
-      add('wins:$n', AchievementKind.wins, n, won, fightStars);
-    }
-    for (final n in streaks) {
-      add('streak:$n', AchievementKind.streak, n, best, fightStars);
+    for (final (kind, goals, progress) in [
+      (AchievementKind.wins, wins, won),
+      (AchievementKind.streak, streaks, best),
+      (AchievementKind.close, closeCalls, close),
+    ]) {
+      for (final n in goals) {
+        if (!speed || n <= speedMaxGoal) add('${kind.name}:$n', kind, n, progress, fightStars);
+      }
     }
     return entries;
+  }
+
+  /// [achievements] as the rewards screen shows them: of a leveled kind
+  /// only the next level, the lowest not collected yet (or the top one once
+  /// every level is collected), in place of the others.
+  static List<Achievement> nextLevels(Iterable<Achievement> achievements) {
+    final next = <AchievementKind, Achievement>{};
+    for (final a in achievements.where((a) => a.kind.leveled)) {
+      final shown = next[a.kind];
+      if (shown == null ||
+          (shown.collected && !a.collected) ||
+          (shown.collected == a.collected && (a.collected ? a.goal > shown.goal : a.goal < shown.goal))) {
+        next[a.kind] = a;
+      }
+    }
+    return [
+      for (final a in achievements)
+        if (!a.kind.leveled || identical(next[a.kind], a)) a,
+    ];
   }
 }
