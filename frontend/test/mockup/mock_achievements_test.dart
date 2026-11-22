@@ -19,7 +19,7 @@ void main() {
     final game = await launchedGame(launchDate: firstMonday);
     final keys = game.achievements.map((a) => a.key);
     expect(keys.where((k) => k.startsWith('artist:')), hasLength(game.server.players.length - 1));
-    expect(keys, containsAll(['wins:1', 'wins:50', 'streak:1', 'streak:25', 'close:1', 'close:50']));
+    expect(keys, containsAll(['wins:1', 'wins:50', 'streak:3', 'streak:25', 'close:1', 'close:50']));
 
     await summonUntilReached(game);
     final reached = game.achievements.firstWhere((a) => a.collectable);
@@ -47,7 +47,7 @@ void main() {
     expect(closeCall.description, 'Win a fight you picked the fighters for by exactly one star, like 9 against 8.');
     const closeCalls = Achievement(key: 'close:3', kind: AchievementKind.close, goal: 3, progress: 0, stars: 5);
     expect(closeCalls.title, '3 Close Calls');
-    const streak = Achievement(key: 'streak:1', kind: AchievementKind.streak, goal: 1, progress: 0, stars: 5);
-    expect(streak.title, 'Start a streak');
+    const streak = Achievement(key: 'streak:3', kind: AchievementKind.streak, goal: 3, progress: 0, stars: 5);
+    expect(streak.title, '3 wins in a row');
   });
 }

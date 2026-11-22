@@ -416,7 +416,7 @@ ACHIEVEMENT_RARITY_STARS = {
 #   in a row, and this many of them by exactly one star (close calls), each
 #   level worth the same.
 ACHIEVEMENT_WINS = (1, 3, 5, 10, 25, 50)
-ACHIEVEMENT_STREAKS = tuple(range(1, 26))
+ACHIEVEMENT_STREAKS = tuple(range(3, 26))
 ACHIEVEMENT_CLOSE_CALLS = (1, 3, 5, 10, 25, 50)
 ACHIEVEMENT_FIGHT_STARS = 5
 # A speed mode session has no levels above this one: it has no more fights

@@ -58,7 +58,7 @@ void main() {
       'portrait:0', 'portrait:1', 'portrait:2',
       'rarity:basic', 'rarity:adventurer', 'rarity:legend',
       for (final n in [1, 3, 5, 10, 25, 50]) 'wins:$n',
-      for (var n = 1; n <= 25; n++) 'streak:$n',
+      for (var n = 3; n <= 25; n++) 'streak:$n',
       for (final n in [1, 3, 5, 10, 25, 50]) 'close:$n',
     ]);
     expect(of().where((a) => a.kind.leveled).map((a) => a.stars).toSet(), {5});
@@ -99,8 +99,6 @@ void main() {
     expect(of(speed: true).where((a) => a.kind.leveled).map((a) => a.key), [
       'wins:1',
       'wins:3',
-      'streak:1',
-      'streak:2',
       'streak:3',
       'close:1',
       'close:3',
@@ -112,13 +110,13 @@ void main() {
       for (final a in AchievementRewards.nextLevels(of(margins: margins, collected: collected)))
         if (a.kind.leveled) a.key,
     ];
-    expect(shown([], {}), ['wins:1', 'streak:1', 'close:1']);
-    expect(shown([2, 2, 2], {'wins:1', 'streak:1', 'streak:3'}), [
+    expect(shown([], {}), ['wins:1', 'streak:3', 'close:1']);
+    expect(shown([2, 2, 2], {'wins:1', 'streak:3', 'streak:5'}), [
       'wins:3',
-      'streak:2',
+      'streak:4',
       'close:1',
     ], reason: 'the lowest not collected, reached or not');
-    final everyStreak = {for (var n = 1; n <= 25; n++) 'streak:$n'};
+    final everyStreak = {for (var n = 3; n <= 25; n++) 'streak:$n'};
     expect(shown([], everyStreak), ['wins:1', 'streak:25', 'close:1'], reason: 'the top one once all are collected');
     List<String> keys(Iterable<Achievement> list) => [
       for (final a in list)

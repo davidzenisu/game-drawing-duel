@@ -65,7 +65,7 @@ class Achievement {
     AchievementKind.portrait => player!.isYou ? 'Your portraits' : 'Portraits of ${player!.name}',
     AchievementKind.rarity => 'Every starter ${rarity!.label}',
     AchievementKind.wins => goal == 1 ? 'First win' : '$goal wins',
-    AchievementKind.streak => goal == 1 ? 'Start a streak' : '$goal wins in a row',
+    AchievementKind.streak => '$goal wins in a row',
     AchievementKind.close => goal == 1 ? 'Close Call' : '$goal Close Calls',
   };
 
@@ -74,10 +74,7 @@ class Achievement {
     AchievementKind.portrait => 'Summon every starter hero portraying ${player!.isYou ? 'you' : player!.name}.',
     AchievementKind.rarity => 'Summon every ${rarity!.stars} star starter hero.',
     AchievementKind.wins => 'Win ${goal == 1 ? 'a fight' : '$goal fights'} you picked the fighters for.',
-    AchievementKind.streak =>
-      goal == 1
-          ? 'Win one of your fights to start a streak.'
-          : 'Win $goal of your fights in a row. A lost one starts over.',
+    AchievementKind.streak => 'Win $goal of your fights in a row. A lost one starts over.',
     AchievementKind.close =>
       'Win ${goal == 1 ? 'a fight' : '$goal fights'} you picked the fighters for by exactly one star, like 9 against 8.',
   };
@@ -96,7 +93,7 @@ abstract final class AchievementRewards {
   /// Fights won, won in a row and won by exactly one star, and the reward
   /// of each level.
   static const wins = [1, 3, 5, 10, 25, 50];
-  static final streaks = [for (var n = 1; n <= 25; n++) n];
+  static final streaks = [for (var n = 3; n <= 25; n++) n];
   static const closeCalls = [1, 3, 5, 10, 25, 50];
   static const fightStars = 5;
 

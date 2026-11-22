@@ -47,7 +47,7 @@ Below them, a **Heroes** button opens the heroes menu with the same big buttons:
 | *Portraits of Sam* / *Your portraits* (one per player) | Summon every starter hero portraying that player | the same |
 | *Every starter Basic / Adventurer / Legend* | Summon every starter hero of that rarity | 10 / 15 / 20 ⭐ |
 | *First win*, *3 wins* … *50 wins* (1, 3, 5, 10, 25, 50) | Win fights you picked the fighters for (not chance's) | 5 ⭐ each level |
-| *Start a streak*, *2 wins in a row* … *25 wins in a row* (every number from 1 to 25) | Win that many of your fights in a row; a lost one starts over, days without one of your fights don't | 5 ⭐ each level |
+| *3 wins in a row*, *4 wins in a row* … *25 wins in a row* (every number from 3 to 25) | Win that many of your fights in a row; a lost one starts over, days without one of your fights don't | 5 ⭐ each level |
 | *Close Call*, *3 Close Calls* … *50 Close Calls* (1, 3, 5, 10, 25, 50) | Win that many of your fights by exactly one star, extra stars included (like 9 against 8) | 5 ⭐ each level |
 
 Speed mode has at most three fights of your own, so it hides the levels above 3.

@@ -15,7 +15,7 @@ the game is in early development (0.x), versions stay below 1.0.
 - Close Calls: new rewards for winning your fights by exactly one star, like
   9 against 8, at 1, 3, 5, 10, 25 and 50 close calls.
 - Many more levels of wins and streaks: wins at 1, 3, 5, 10, 25 and 50, and
-  every streak from 1 to 25 wins in a row. Every level is worth 5 stars, and
+  every streak from 3 to 25 wins in a row. Every level is worth 5 stars, and
   the levels you already reached are ready to collect.
 
 ### Changed

@@ -109,7 +109,7 @@ class AchievementTests(FightTestCase):
             + [f"portrait:{p}" for p in subjects]
             + ["rarity:basic", "rarity:adventurer", "rarity:legend"]
             + [f"wins:{n}" for n in (1, 3, 5, 10, 25, 50)]
-            + [f"streak:{n}" for n in range(1, 26)]
+            + [f"streak:{n}" for n in range(3, 26)]
             + [f"close:{n}" for n in (1, 3, 5, 10, 25, 50)],
             "your own drawings are yours from the start",
         )
@@ -206,7 +206,7 @@ class AchievementTests(FightTestCase):
         ]
         self.assertEqual(
             fights,
-            ["wins:1", "wins:3", "streak:1", "streak:2", "streak:3"]
+            ["wins:1", "wins:3", "streak:3"]
             + ["close:1", "close:3"],
         )
         self.assertEqual(self.collect("wins:5").status_code, 409)
