@@ -25,9 +25,10 @@ void main() {
     expect(game.day, 8);
     expect(game.theme, DailyTheme.forest, reason: 'day 8 is a Monday');
 
-    // Last week is over: ranked, its hero in the pool, and win rates.
+    // Last week is over: ranked, its heroes in the pool, and win rates.
     expect((await game.weekRanking())!.day, 7);
-    expect(game.pool.map((c) => c.id), contains(game.weeklyHero!.card.id));
+    expect(game.weeklyHeroes, isNotEmpty);
+    expect(game.pool.map((c) => c.id), containsAll(game.weeklyHeroes.map((h) => h.card.id)));
     final rates = (await game.winRates())!;
     expect((rates.fromDay, rates.toDay), (1, 7));
     expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty);
@@ -186,7 +187,7 @@ void main() {
     expect(game.sessionOver, isTrue);
     expect(game.hasOpenSteps, isFalse);
     expect(game.canAdvanceDay, isFalse);
-    expect(game.weeklyHero, isNull, reason: 'no weekly finale, even past a Sunday');
+    expect(game.weeklyHeroes, isEmpty, reason: 'no weekly finale, even past a Sunday');
 
     // Every challenger of the session is ranked, most stars first: four a
     // day drawn on days 2 to 4, after the prompt days.
@@ -630,11 +631,11 @@ void main() {
     expect(game.hurryMessage, isNull, reason: 'a new day');
   });
 
-  test('once a week is over, its challengers are ranked and the best joins the pool', () async {
+  test('once a week is over, its challengers are ranked and up to 3 join the pool by their stars', () async {
     // A Monday: day 7 is the Sunday the week ends on.
     final game = await launchedGame(launchDate: DateTime.utc(2026, 10, 5, 12));
     for (var day = 1; day <= 7; day++) {
-      expect(game.weeklyHero, isNull);
+      expect(game.weeklyHeroes, isEmpty);
       expect(await game.weekRanking(), isNull);
       await game.advanceDay();
     }
@@ -646,13 +647,42 @@ void main() {
     // 1); day 6's are fought on Monday, next week.
     expect(ranked.map((r) => r.card.day).toSet(), {2, 3, 4, 5});
     expect([for (final r in ranked) r.stars], [...ranked.map((r) => r.stars)]..sort((a, b) => b.compareTo(a)));
+    // Ranked like online, ties broken by the artist's boost stars, the win
+    // rate and the latest day.
+    for (var i = 1; i < ranked.length; i++) {
+      expect(Finale.compare(ranked[i - 1].rankedBy, ranked[i].rankedBy), lessThanOrEqualTo(0));
+    }
+    expect([for (final r in ranked) r.place], [for (var i = 1; i <= ranked.length; i++) i]);
+    for (final r in ranked) {
+      expect(
+        r.artistBoostStars,
+        ranked.where((o) => o.card.artist == r.card.artist).fold(0, (sum, o) => sum + o.boostStars),
+      );
+    }
     expect(ranked.first.stars, greaterThan(Stars.challengerBase), reason: 'everyone spreads their stars');
 
-    final hero = game.weeklyHero!;
-    expect((hero.card.id, hero.day, hero.stars), (ranked.first.card.id, 7, ranked.first.stars));
-    expect(hero.card.rarity, Rarity.hero);
-    expect(game.pool.map((c) => c.id), contains(hero.card.id));
-    expect(game.pool.map((c) => c.id), isNot(contains(ranked.last.card.id)));
+    // The top 3 are crowned: a legend, a hero and an adventurer.
+    final heroes = game.weeklyHeroes;
+    expect(
+      [for (final h in heroes) (h.card.id, h.day, h.stars, h.place, h.card.rarity)],
+      [
+        (ranked[0].card.id, 7, 11, 1, Rarity.legend),
+        (ranked[1].card.id, 7, 9, 2, Rarity.hero),
+        (ranked[2].card.id, 7, ranked[2].stars, 3, Rarity.adventurer),
+      ],
+    );
+    expect(
+      [for (final r in ranking.heroes) (r.card.id, r.heroRarity)],
+      [for (final h in heroes) (h.card.id, h.card.rarity)],
+    );
+    expect(ranked.skip(3).every((r) => !r.isWeeklyHero), isTrue);
+    final pool = {for (final c in game.pool) c.id: c.rarity};
+    expect(pool[ranked[0].card.id], Rarity.legend, reason: 'pulled with its new rarity');
+    expect(pool[ranked[1].card.id], Rarity.hero);
+    expect(pool[ranked[2].card.id], Rarity.adventurer);
+    // Only they are rate-up.
+    expect(game.rateUp, {for (final h in heroes) h.card.id});
+    expect(pool.keys, isNot(contains(ranked.last.card.id)));
   });
 
   test("from the second week, win rates give extra stars", () async {

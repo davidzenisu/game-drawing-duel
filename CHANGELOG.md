@@ -9,6 +9,22 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.26.0] - 2026-11-22
+
+### Changed
+- Each week's finale now crowns its top 3 challengers as weekly heroes:
+  the 1st as a ★★★★ legend, the 2nd as a ★★★ hero and the 3rd as a ★★
+  adventurer.
+- Challengers with as many boost stars are ranked by the boost stars all the
+  challengers of their artist got that week, then by their win rate, then
+  by the latest day they were drawn.
+- A challenger's details in the ranking show the day it was drawn with that
+  day's theme, its artist's boost stars that week and its win rate.
+- The weekly banner features this week's three heroes only, without the
+  legends of their players.
+- Last week's ranking shows the weekly heroes on big cards with their place,
+  framed in their rarity's colour, then the other challengers.
+
 ## [0.25.0] - 2026-11-22
 
 ### Added

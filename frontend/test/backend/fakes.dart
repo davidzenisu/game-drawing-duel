@@ -173,9 +173,10 @@ class FakeBackend {
   /// tests set them up.
   final Map<String, Map<String, Object?>> winRates = {};
 
-  /// The latest weekly hero by server code, as `GET today` returns it, and
-  /// the latest week's ranking, as `GET ranking` does; tests set them up.
-  final Map<String, Map<String, Object?>> weeklyHeroes = {};
+  /// The latest finale's weekly heroes by server code, as `GET today`
+  /// returns them, and the latest week's ranking, as `GET ranking` does;
+  /// tests set them up.
+  final Map<String, List<Map<String, Object?>>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
   /// The week's boost balance by server code, sent with the boost step;
@@ -1108,7 +1109,7 @@ class FakeBackend {
             {'by_position': key.$3, 'left_seconds': 39.0, 'message': hurryMessages[key]},
       ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
-      'weekly_hero': weeklyHeroes[code],
+      'weekly_heroes': [...?weeklyHeroes[code]],
     });
   }
 
@@ -1164,17 +1165,10 @@ class FakeBackend {
     };
   }
 
-  /// Like the real API: the latest weekly hero and the pool's legends of
-  /// the same player.
-  List<String> _rateUp(String code) {
-    final hero = weeklyHeroes[code]?['character'] as Map<String, Object?>?;
-    if (hero == null) return [];
-    return [
-      hero['id'] as String,
-      for (final c in _pool(code))
-        if (c['rarity'] == 'legend' && c['subject_position'] == hero['subject_position']) c['id'] as String,
-    ];
-  }
+  /// Like the real API: the latest finale's heroes.
+  List<String> _rateUp(String code) => [
+    for (final hero in weeklyHeroes[code] ?? const []) (hero['character'] as Map<String, Object?>)['id'] as String,
+  ];
 
   /// Planned like the real API does, with ids made up from seat and prompt.
   List<Map<String, Object?>> _assignments(String code, String playerId) {

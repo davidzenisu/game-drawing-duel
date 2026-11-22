@@ -8,6 +8,7 @@ import random
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from fractions import Fraction
 
 MIN_PLAYERS = 5
 MAX_PLAYERS = 10
@@ -351,6 +352,22 @@ def fighters_win(
     )
 
 
+# The weekly finale (`app.finale`) crowns the top 3 of the week's ranking as
+# weekly heroes: 1st place a legend, 2nd a hero, 3rd an adventurer.
+FINALE_RARITIES = (Rarity.LEGEND, Rarity.HERO, Rarity.ADVENTURER)
+FINALE_MAX_HEROES = len(FINALE_RARITIES)
+
+
+def finale_key(
+    boost_stars: int, artist_boost_stars: int, wins: int, fights: int, day: int
+) -> tuple:
+    """Sorts a week's challengers best first: the most boost stars, then the
+    most boost stars its artist's challengers got that week, then the best
+    win rate (none without fights), then the latest day it was drawn."""
+    win_rate = Fraction(wins, fights) if fights else Fraction(0)
+    return (-boost_stars, -artist_boost_stars, -win_rate, -day)
+
+
 # A player's characters get extra stars against another player's after
 # winning more than a share of last week's fights against them: the most
 # extra stars of every share they beat. It takes this many fights to count.
@@ -434,7 +451,9 @@ def hurry_hits(jitters: list[float]) -> list[float]:
     n = len(jitters)
     room = max(
         0.0,
-        HURRY_FIRST_LEFT_SECONDS - HURRY_LAST_LEFT_SECONDS - (n - 1) * HURRY_CUT_SECONDS,
+        HURRY_FIRST_LEFT_SECONDS
+        - HURRY_LAST_LEFT_SECONDS
+        - (n - 1) * HURRY_CUT_SECONDS,
     )
     return [
         HURRY_FIRST_LEFT_SECONDS - i * HURRY_CUT_SECONDS - room / n * (i + jitter)

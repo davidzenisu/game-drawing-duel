@@ -17,12 +17,19 @@ from app.models.character import Character
 
 
 class WeeklyHero(Base):
-    """A week's finale, decided once the week is over: the challenger with
-    the most stars joins the server's gacha pool as a hero (`app.finale`). A
-    week without challengers has none (`character_id` null)."""
+    """A weekly hero, crowned by its week's finale once the week is over:
+    the top `rules.FINALE_MAX_HEROES` of the week's ranking join the server's
+    gacha pool, each with the rarity of its place (`app.finale`). A week
+    without challengers has one row without a character (`character_id`
+    null), so it counts as decided."""
 
     __tablename__ = "weekly_hero"
-    __table_args__ = (UniqueConstraint("server_id", "day"),)
+    __table_args__ = (
+        # One row without a character for a week without heroes.
+        UniqueConstraint(
+            "server_id", "day", "character_id", postgresql_nulls_not_distinct=True
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     server_id: Mapped[uuid.UUID] = mapped_column(
@@ -35,6 +42,10 @@ class WeeklyHero(Base):
     )
     # Its stars: its own and its boost stars.
     stars: Mapped[int | None] = mapped_column(Integer)
+    # Its place in the week's ranking, 1 to 3.
+    place: Mapped[int | None] = mapped_column(Integer)
+    # The `app.rules.Rarity` it was crowned with, now the character's.
+    rarity: Mapped[str | None] = mapped_column(String(20))
     decided_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

@@ -145,13 +145,16 @@ class IncomingHurry(BaseModel):
 
 
 class WeeklyHeroResponse(BaseModel):
-    """The latest finale's winner, now in the gacha pool."""
+    """A hero of the latest finale, now in the gacha pool with the rarity it
+    was crowned with (its character's)."""
 
     character: CharacterResponse
-    # The finale day it won on: the last day of its week.
+    # The finale day it was crowned on: the last day of its week.
     day: int
     # Its own stars plus its boost stars.
     stars: int
+    # Its place in the week's ranking, 1 to 3.
+    place: int
 
 
 class RankedBoost(BaseModel):
@@ -174,6 +177,15 @@ class RankedChallenger(BaseModel):
     character: CharacterResponse
     # Its own stars plus its boost stars.
     stars: int
+    # Its place in the ranking (`app.rules.finale_key`); a weekly hero's
+    # is the one it was crowned with.
+    place: int
+    # The boost stars all of its artist's challengers ranked that week got,
+    # its own included: the ranking's first tiebreak.
+    artist_boost_stars: int = 0
+    # The `app.rules.Rarity` it was crowned with as a weekly hero; null if
+    # it wasn't (always in speed mode).
+    hero_rarity: str | None = None
     # Its fights by the end of the week, and how many of them it won.
     fights: int
     wins: int
@@ -188,8 +200,8 @@ class RankedChallenger(BaseModel):
 
 
 class RankingResponse(BaseModel):
-    """The latest finished week's challengers, most stars first; the first
-    joined the gacha pool as a hero."""
+    """The latest finished week's challengers, most stars first; its weekly
+    heroes joined the gacha pool."""
 
     # The last day of the week.
     day: int
@@ -230,7 +242,9 @@ class TodayResponse(BaseModel):
     incoming_hurries: list[IncomingHurry]
     # Test sessions: the seats that ended the day. Empty on regular servers.
     day_ended: list[int]
-    weekly_hero: WeeklyHeroResponse | None
+    # The latest finale's heroes, by place; empty before the first finale
+    # and after a week without any.
+    weekly_heroes: list[WeeklyHeroResponse] = []
 
 
 class ChallengerResponse(BaseModel):

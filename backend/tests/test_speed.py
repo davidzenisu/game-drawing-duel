@@ -243,7 +243,7 @@ class SpeedDayTests(SpeedTestCase):
             self.post("days/next")
         self.post("days/next")
         self.assertEqual(self.server()["phase"], "finished")
-        self.assertIsNone(self.today()["weekly_hero"])
+        self.assertEqual(self.today()["weekly_heroes"], [])
 
         ranking = self.get(f"/servers/{self.code}/ranking").json()
         self.assertEqual(ranking["day"], 6)

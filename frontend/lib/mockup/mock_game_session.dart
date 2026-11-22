@@ -90,16 +90,9 @@ class MockGameSession extends GameSession {
   @override
   GachaStatus get gachaStatus => _gacha.status;
 
+  /// Like online: the latest finale's heroes.
   @override
-  Set<String> get rateUp {
-    final hero = _weeklyHero?.card;
-    if (hero == null) return const {};
-    return {
-      hero.id,
-      for (final card in _pool)
-        if (card.rarity == Rarity.legend && card.subject == hero.subject) card.id,
-    };
-  }
+  Set<String> get rateUp => {for (final hero in _weeklyHeroes) hero.card.id};
 
   @override
   bool get isMockup => true;
@@ -189,7 +182,7 @@ class MockGameSession extends GameSession {
   }
 
   /// Signs up, creates a regular server with five friends and jumps to day
-  /// 8, the Monday of this week: last week's ranking, weekly hero and win
+  /// 8, the Monday of this week: last week's ranking, weekly heroes and win
   /// rates are in place.
   @override
   Future<void> startOnDayEight(String firstName) async {
@@ -308,7 +301,8 @@ class MockGameSession extends GameSession {
     _collectedChallengers.clear();
     _collectedAchievements.clear();
     _yourBoosts.clear();
-    _weeklyHero = null;
+    _weeklyHeroes = const [];
+    _crowned.clear();
     _hurrySentTo = null;
     _hurryMessage = null;
     _setPhase(GamePhase.server);
@@ -902,10 +896,29 @@ class MockGameSession extends GameSession {
 
   // The finale -----------------------------------------------------------------
 
-  WeeklyHero? _weeklyHero;
+  List<WeeklyHero> _weeklyHeroes = const [];
 
   @override
-  WeeklyHero? get weeklyHero => _weeklyHero;
+  List<WeeklyHero> get weeklyHeroes => _weeklyHeroes;
+
+  /// The rarities the finales crowned challengers with, by id.
+  final Map<String, Rarity> _crowned = {};
+
+  /// [card] with the rarity a finale crowned it with, if one did.
+  CharacterCard _asCrowned(CharacterCard card) => switch (_crowned[card.id]) {
+    final rarity? => CharacterCard(
+      id: card.id,
+      subject: card.subject,
+      title: card.title,
+      rarity: rarity,
+      prompt: card.prompt,
+      artist: card.artist,
+      sketch: card.sketch,
+      day: card.day,
+      theme: card.theme,
+    ),
+    null => card,
+  };
 
   /// A challenger in the ranking, with demo details: its prompt by the
   /// player before its artist (premade now and then), the friends' boost
@@ -922,16 +935,16 @@ class MockGameSession extends GameSession {
     ];
     final yours = _yourBoosts.values.fold(0, (sum, given) => sum + (given[c.id] ?? 0));
     final friends = _days.friendsBoostStars(c);
-    final own = min(friends, Boost.stars);
+    // Up to a day's boost stars from each, the first their own.
     final boosts = [
       if (yours > 0) ChallengerBoost(booster: you, stars: yours),
-      if (own > 0 && boosters.isNotEmpty) ChallengerBoost(booster: boosters.first, stars: own),
-      if (friends > own && boosters.length > 1)
-        ChallengerBoost(booster: boosters[1], stars: friends - own, byChance: true),
+      for (final (i, booster) in boosters.indexed)
+        if (min(Boost.stars, friends - i * Boost.stars) case final stars when stars > 0)
+          ChallengerBoost(booster: booster, stars: stars, byChance: i > 0),
     ];
     final won = challengerWins(c.day);
     return RankedChallenger(
-      card: c,
+      card: _asCrowned(c),
       stars: Stars.ofChallenger(_boostStars(c)),
       fights: 1,
       wins: won ? 1 : 0,
@@ -942,15 +955,36 @@ class MockGameSession extends GameSession {
     );
   }
 
-  /// The challengers drawn from [from] to [to], the friends' and yours, most
-  /// stars first. Each had one fight: the [challengerWins] days' ones won it.
-  List<RankedChallenger> _ranked(int from, int to) => [
-    for (var day = from; day <= to; day++)
-      if (_drawnOn(day)) ...[
-        for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
-        ?_yourChallengers[day],
-      ],
-  ].map(_rankedEntry).toList()..sort((a, b) => b.stars.compareTo(a.stars));
+  /// The challengers drawn from [from] to [to], the friends' and yours,
+  /// ranked like online ([Finale.compare]), with their places. Each had one
+  /// fight: the [challengerWins] days' ones won it.
+  List<RankedChallenger> _ranked(int from, int to) {
+    final entries = [
+      for (var day = from; day <= to; day++)
+        if (_drawnOn(day)) ...[
+          for (var slot = 0; slot < DemoDays.slots; slot++) _challenger(day, slot),
+          ?_yourChallengers[day],
+        ],
+    ].map(_rankedEntry).toList();
+    final byArtist = <String, int>{};
+    for (final r in entries) {
+      byArtist[r.card.artist] = (byArtist[r.card.artist] ?? 0) + r.boostStars;
+    }
+    final ranked = [for (final r in entries) r.at(1, artistBoostStars: byArtist[r.card.artist])]
+      ..sort((a, b) => Finale.compare(a.rankedBy, b.rankedBy));
+    return [for (final (i, r) in ranked.indexed) r.at(i + 1)];
+  }
+
+  /// The week that ends on [lastDay]: its challengers, the ones fought that
+  /// week (drawn two days before), its top ones crowned weekly heroes.
+  WeekRanking _week(int lastDay) => WeekRanking(
+    day: lastDay,
+    challengers: [
+      for (final (i, r) in _ranked(lastDay - 8, lastDay - 2).indexed)
+        i < Finale.maxHeroes ? r.at(i + 1, heroRarity: Finale.rarities[i]) : r,
+    ],
+    boostBalance: _boostBalance(lastDay + 1),
+  );
 
   /// The latest finished week's ranking: the challengers fought that week,
   /// drawn two days before.
@@ -963,11 +997,7 @@ class MockGameSession extends GameSession {
     }
     final lastDay = _days.weekStart(_day) - 1;
     if (lastDay < 7) return null;
-    return WeekRanking(
-      day: lastDay,
-      challengers: _ranked(lastDay - 8, lastDay - 2),
-      boostBalance: _boostBalance(lastDay + 1),
-    );
+    return _week(lastDay);
   }
 
   @override
@@ -1048,14 +1078,19 @@ class MockGameSession extends GameSession {
     _hurrySentTo = null;
     _hurryMessage = null;
     _incomingHurries = promptToDraw == null ? const [] : _days.hurries(_day);
-    // A new week: last week's best challenger joins the pool as its hero.
+    // A new week: last week's finale crowns its weekly heroes, who join
+    // the pool with their new rarities.
     if (!server.isSpeed && _days.weekStart(_day) == _day && _day > 7) {
-      final ranked = _ranked(_day - 9, _day - 3);
-      if (ranked.isNotEmpty) {
-        final winner = ranked.first;
-        if (!_pool.any((c) => c.id == winner.card.id)) _pool.add(winner.card);
-        _weeklyHero = WeeklyHero(card: winner.card, day: _day - 1, stars: winner.stars);
+      final heroes = _week(_day - 1).heroes;
+      for (final hero in heroes) {
+        _crowned[hero.card.id] = hero.heroRarity!;
+        _pool.removeWhere((c) => c.id == hero.card.id);
+        _pool.add(_asCrowned(hero.card));
       }
+      _weeklyHeroes = [
+        for (final hero in heroes)
+          WeeklyHero(card: _asCrowned(hero.card), day: _day - 1, stars: hero.stars, place: hero.place),
+      ];
       // Last week's trophies you won, as gifts on the notification board.
       for (final stat in _playerStats(StatPeriod.lastWeek)?.stats ?? const <PlayerStat>[]) {
         if (!stat.players.any((p) => p.player.isYou && p.first)) continue;

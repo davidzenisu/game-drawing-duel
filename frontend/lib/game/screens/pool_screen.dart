@@ -68,7 +68,7 @@ class PoolScreen extends StatelessWidget {
                             chances: chances,
                             rateUp: rateUp,
                             owned: owned,
-                            weeklyHeroId: controller.weeklyHero?.card.id,
+                            weeklyHeroIds: {for (final hero in controller.weeklyHeroes) hero.card.id},
                           )
                         else if (pool.isNotEmpty)
                           Padding(
@@ -109,7 +109,7 @@ class _RaritySection extends StatelessWidget {
     required this.chances,
     required this.rateUp,
     required this.owned,
-    required this.weeklyHeroId,
+    required this.weeklyHeroIds,
   });
 
   final Rarity rarity;
@@ -118,7 +118,7 @@ class _RaritySection extends StatelessWidget {
   final Map<String, double> chances;
   final Set<String> rateUp;
   final Set<String> owned;
-  final String? weeklyHeroId;
+  final Set<String> weeklyHeroIds;
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +166,7 @@ class _RaritySection extends StatelessWidget {
                   _PoolTile(
                     card: card,
                     summoned: owned.contains(card.id),
-                    weeklyHero: card.id == weeklyHeroId,
+                    weeklyHero: weeklyHeroIds.contains(card.id),
                     rateUp: rateUp.contains(card.id),
                   ),
               ],

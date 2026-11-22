@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
+import '../rules/themes.dart';
 import '../widgets/card_art.dart';
 import '../widgets/sketch_canvas.dart';
 
 /// A challenger of the week ranking: its drawing, big (tap it for full
 /// screen), who drew it and wrote its prompt, who boosted it with how many
-/// stars, and how its fight went.
+/// stars, and how its fight went; with what its place was decided by after
+/// its boost stars: its artist's boost stars that week, its win rate, and
+/// the day it was drawn, with that day's theme.
 class RankingDetailScreen extends StatelessWidget {
-  const RankingDetailScreen({super.key, required this.place, required this.entry});
+  const RankingDetailScreen({super.key, required this.entry, required this.dayTheme});
 
-  final int place;
   final RankedChallenger entry;
+
+  /// The theme of the day it was drawn.
+  final DailyTheme dayTheme;
 
   static String _fight(ChallengerFight fight) =>
       "${fight.challengerWon ? 'Won' : 'Lost'} against ${fight.player.name}'s team of heroes";
@@ -22,10 +26,10 @@ class RankingDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final card = entry.card;
     final textTheme = Theme.of(context).textTheme;
-    final hero = place == 1;
+    final heroRarity = entry.heroRarity;
     final author = entry.promptAuthor;
     return Scaffold(
-      appBar: AppBar(title: Text('#$place · ${card.subject}')),
+      appBar: AppBar(title: Text('#${entry.place} · ${card.subject}')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -49,12 +53,19 @@ class RankingDetailScreen extends StatelessWidget {
                   Nameplate(name: card.subject, title: card.title, rarity: card.rarity),
                   const SizedBox(height: 12),
                   Text(
-                    hero ? 'Weekly hero with ${entry.stars} ★' : '${entry.stars} ★ at the end of the week',
-                    style: textTheme.titleMedium?.copyWith(color: hero ? AppPalette.rarityHero : null),
+                    heroRarity == null
+                        ? '${entry.stars} ★ at the end of the week'
+                        : 'Weekly hero (${heroRarity.label}) with ${entry.stars} ★',
+                    style: textTheme.titleMedium?.copyWith(color: heroRarity?.color),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   _Detail(icon: Icons.brush_rounded, label: 'Drawn by', value: card.artist),
+                  _Detail(
+                    icon: Icons.calendar_today_rounded,
+                    label: 'Drawn on',
+                    value: 'Day ${card.day} · ${dayTheme.label}',
+                  ),
                   _Detail(
                     icon: Icons.edit_note_rounded,
                     label: 'Prompt by',
@@ -77,9 +88,22 @@ class RankingDetailScreen extends StatelessWidget {
                     ],
                   ),
                   _Detail(
+                    icon: Icons.palette_rounded,
+                    label: "${card.artist}'s challengers this week",
+                    value: entry.artistBoostStars == 0 ? 'not boosted' : '+${entry.artistBoostStars} ★ boosted',
+                  ),
+                  _Detail(
                     icon: Icons.sports_kabaddi_rounded,
                     label: 'Fight',
                     value: entry.foughtBy.isEmpty ? 'Not fought' : entry.foughtBy.map(_fight).join('\n'),
+                  ),
+                  _Detail(
+                    icon: Icons.percent_rounded,
+                    label: 'Win rate',
+                    value: switch (entry.winPercent) {
+                      final percent? => '$percent% · won ${entry.wins} of ${entry.fights}',
+                      null => 'no fights',
+                    },
                   ),
                 ],
               ),
