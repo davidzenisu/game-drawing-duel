@@ -84,6 +84,13 @@ class SketchView extends StatelessWidget {
 
 class SketchPadController extends ChangeNotifier {
   final List<Stroke> _strokes = [];
+
+  /// What [undo] takes back, latest last.
+  final List<_PadAction> _history = [];
+
+  /// What [redo] brings back, next last: what [undo] took back since the
+  /// last stroke or clear.
+  final List<_PadAction> _undone = [];
   Color color = AppPalette.ink;
   double width = brushWidths[1];
   bool enabled = true;
@@ -105,13 +112,47 @@ class SketchPadController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Whether there's a stroke or a clear for [undo] to take back.
+  bool get canUndo => _history.isNotEmpty;
+
+  /// Whether there's something [undo] took back for [redo] to bring back.
+  bool get canRedo => _undone.isNotEmpty;
+
+  /// Takes back the latest stroke, or brings back every stroke the latest
+  /// clear removed.
   void undo() {
-    if (_strokes.isEmpty) return;
-    _strokes.removeLast();
+    if (_history.isEmpty) return;
+    final action = _history.removeLast();
+    switch (action) {
+      case _Drawn():
+        _strokes.removeLast();
+      case _Cleared(:final strokes):
+        _strokes.addAll(strokes);
+    }
+    _undone.add(action);
     notifyListeners();
   }
 
+  /// Does again what [undo] took back last: draws the stroke again, or
+  /// clears the canvas again.
+  void redo() {
+    if (_undone.isEmpty) return;
+    final action = _undone.removeLast();
+    switch (action) {
+      case _Drawn(:final stroke):
+        _strokes.add(stroke);
+      case _Cleared():
+        _strokes.clear();
+    }
+    _history.add(action);
+    notifyListeners();
+  }
+
+  /// Removes every stroke; [undo] brings them back.
   void clear() {
+    if (_strokes.isEmpty) return;
+    _history.add(_Cleared(List.of(_strokes)));
+    _undone.clear();
     _strokes.clear();
     notifyListeners();
   }
@@ -128,7 +169,10 @@ class SketchPadController extends ChangeNotifier {
 
   void _begin(Offset point) {
     if (!enabled) return;
-    _strokes.add(Stroke(color: color, width: width, points: [point]));
+    final stroke = Stroke(color: color, width: width, points: [point]);
+    _strokes.add(stroke);
+    _history.add(_Drawn(stroke));
+    _undone.clear();
     notifyListeners();
   }
 
@@ -137,6 +181,25 @@ class SketchPadController extends ChangeNotifier {
     _strokes.last.points.add(point);
     notifyListeners();
   }
+}
+
+/// A step [SketchPadController.undo] can take back.
+sealed class _PadAction {
+  const _PadAction();
+}
+
+/// A stroke drawn.
+class _Drawn extends _PadAction {
+  const _Drawn(this.stroke);
+
+  final Stroke stroke;
+}
+
+/// The canvas cleared, with the [strokes] it removed.
+class _Cleared extends _PadAction {
+  const _Cleared(this.strokes);
+
+  final List<Stroke> strokes;
 }
 
 /// Editable drawing surface. Points are stored normalised to its size.
