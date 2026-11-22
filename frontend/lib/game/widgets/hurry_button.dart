@@ -157,7 +157,7 @@ class _HurryMessageDialogState extends State<HurryMessageDialog> {
               onSubmitted: (_) => _send(),
               decoration: const InputDecoration(
                 labelText: 'Message (optional)',
-                hintText: 'e.g. Tick tock ⏰',
+                hintText: 'e.g. You can do it 💪',
                 border: OutlineInputBorder(),
               ),
             ),

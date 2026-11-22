@@ -494,7 +494,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
   }
 
   /// Who sent the hurries that just hit and the time they took away, and
-  /// their messages below, one after another, e.g. "Robin: Tick tock ⏰".
+  /// their messages below, one after another, e.g. "Robin: No pressure 😇".
   Widget _hurryMessage() {
     final messages = _bannerMessages;
     final shown = messages.isEmpty || _hitAt == null

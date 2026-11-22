@@ -191,7 +191,7 @@ abstract final class Hurries {
   static const messageMaxLength = 60;
 
   /// Quick picks for the message, in the send dialog.
-  static const quickMessages = ['Tick tock ⏰', 'Hurry up!', 'No pressure 😇', 'Draw faster! 🐢'];
+  static const quickMessages = ['No pressure 😇', 'You can do it 💪', 'Hurry crew 👩‍🚀'];
 
   /// The time left at which each of a day's hurries hits, in the order they
   /// were sent, from a random share in [0, 1) each (its jitter).

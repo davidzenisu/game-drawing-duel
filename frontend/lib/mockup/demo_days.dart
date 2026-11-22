@@ -108,7 +108,7 @@ class DemoDays {
     ];
     final hits = Hurries.hits([for (final (i, _) in by.indexed) (0.3 + 0.4 * i) % 1]);
     // Most come with a short message, one of them without.
-    const messages = ['Tick tock ⏰', 'Draw faster! 🐢', null, 'No pressure 😇', 'Hurry up!'];
+    const messages = ['No pressure 😇', 'You can do it 💪', null, 'Hurry crew 👩‍🚀', 'Draw faster, slowpoke 🐢'];
     return [
       for (final (i, p) in by.indexed)
         HurryPlan(by: p.name, left: hits[i], message: messages[(day + i) % messages.length]),
