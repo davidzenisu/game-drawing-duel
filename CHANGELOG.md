@@ -9,6 +9,13 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.29.0] - 2026-11-23
+
+### Changed
+- Pulls now give a 1 star 60% of the time and a 2 star 30% (instead of 50%
+  and 40%), on both banners; 3 and 4 stars stay at 8% and 2%. Teams get a
+  little weaker, so challengers win a few more fights.
+
 ## [0.28.0] - 2026-11-23
 
 ### Changed

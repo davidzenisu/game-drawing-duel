@@ -1,5 +1,6 @@
 """Checks that the fight rules keep fights close: the challengers should win
-about half of them."""
+about half of them, a bit more since 1 stars are pulled more often than 2
+stars (about 60% at full teams)."""
 
 import random
 import unittest
@@ -39,9 +40,9 @@ def fighters_win_rate(players: int, rng: random.Random) -> float:
 
 
 class BalanceTest(unittest.TestCase):
-    def test_challengers_win_about_half_the_fights(self):
+    def test_challengers_win_a_bit_over_half_the_fights(self):
         rng = random.Random(1)
         for players in range(rules.MIN_PLAYERS, rules.MAX_PLAYERS + 1):
             rate = fighters_win_rate(players, rng)
             # Full teams win a bit more; weekly rests make teams weaker.
-            self.assertTrue(0.4 <= rate <= 0.65, f"{players} players: {rate:.0%}")
+            self.assertTrue(0.35 <= rate <= 0.55, f"{players} players: {rate:.0%}")

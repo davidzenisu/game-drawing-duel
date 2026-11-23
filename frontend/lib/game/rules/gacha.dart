@@ -48,7 +48,7 @@ class GachaMachine {
   static const launchBonus = 10;
 
   /// Pull chances in percent.
-  static const rates = {Rarity.basic: 50, Rarity.adventurer: 40, Rarity.hero: 8, Rarity.legend: 2};
+  static const rates = {Rarity.basic: 60, Rarity.adventurer: 30, Rarity.hero: 8, Rarity.legend: 2};
 
   /// Within the first pulls on the standard banner, a legend is guaranteed
   /// once.
