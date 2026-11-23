@@ -9,6 +9,27 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.34.0] - 2026-11-23
+
+### Added
+- Music and sound effects, in a retro chiptune style: turn **Music** and
+  **Sound effects** on separately in the account menu (both are off until
+  you do, and your device remembers them).
+- Buttons click like a mouse when you press them, the main ones (like
+  Ready, Done or Save) a little fuller.
+- Fights are heard as they play out: the entrance, "Fight!", every swing
+  and punch, and a booming knockout.
+- Every reward chimes as it comes in: the daily steps, won fights,
+  collected rewards and accepted gifts. Unlocking an upgrade gets a
+  fanfare.
+- The drawing clock ticks each second and beeps for the last 10, a buzzer
+  sounds when time is up, and a chime when your drawing is saved.
+- Boost stars sparkle as they land, and fights end on a fanfare when your
+  fighters win, or a sad little tune when the challenger does.
+- An epic-sounding summon: the box lands with a thud, the tape tears as
+  fast as you swipe, the box rumbles and bursts open, and every rarity gets
+  its own fanfare, the legend's the biggest.
+
 ## [0.33.0] - 2026-11-23
 
 ### Changed

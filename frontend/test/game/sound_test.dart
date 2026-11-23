@@ -1,0 +1,132 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/sound.dart';
+import 'package:frontend/game/widgets/account_menu.dart';
+import 'package:frontend/mockup/mock_game_session.dart';
+import 'package:frontend/theme/app_theme.dart';
+
+Future<void> _choose(WidgetTester tester, String item) async {
+  await tester.tap(find.byTooltip('Account'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(item));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('music and sound effects are each off until turned on in the account menu', (tester) async {
+    addTearDown(() {
+      sound
+        ..setMusic(false)
+        ..setEffects(false);
+    });
+    final game = MockGameSession(seed: 1);
+    await game.signUp('Pat');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(appBar: AppBar(actions: [AccountMenu(session: game)])),
+      ),
+    );
+    expect((sound.music.value, sound.effects.value), (false, false));
+    sound.played.clear();
+    sound.starDrop();
+    expect(sound.played, isEmpty, reason: 'no sound effects while they are off');
+
+    // Music on: the effects stay off.
+    await _choose(tester, 'Music: off');
+    expect((sound.music.value, sound.effects.value), (true, false));
+    sound.starDrop();
+    expect(sound.played, isEmpty);
+
+    // Effects on too, then music off again: the effects stay on.
+    await _choose(tester, 'Sound effects: off');
+    expect((sound.music.value, sound.effects.value), (true, true));
+    sound.starDrop();
+    expect(sound.played, ['star_drop.mp3']);
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
+    await tester.tap(find.text('Music: on'));
+    await tester.pumpAndSettle();
+    expect((sound.music.value, sound.effects.value), (false, true));
+
+    await _choose(tester, 'Sound effects: on');
+    expect((sound.music.value, sound.effects.value), (false, false));
+  });
+
+  testWidgets('with sound effects on, buttons click: the main, filled ones with a brighter blip', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextButton(onPressed: () {}, child: const Text('Back')),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.info_outline)),
+              FilledButton(onPressed: () {}, child: const Text('Done')),
+              const FilledButton(onPressed: null, child: Text('Disabled')),
+            ],
+          ),
+        ),
+      ),
+    );
+    sound.played.clear();
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    expect(sound.played, isEmpty, reason: 'silent while sound effects are off');
+
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    await tester.tap(find.text('Back'));
+    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.text('Done'));
+    await tester.tap(find.text('Disabled'));
+    await tester.pumpAndSettle();
+    expect(sound.played, ['ui_tap.mp3', 'ui_tap.mp3', 'ui_confirm.mp3']);
+  });
+
+  test('every sound the game plays is preloaded and bundled', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    sound
+      ..buttonTap()
+      ..buttonConfirm()
+      ..timerTick()
+      ..timerFinal()
+      ..timeUp()
+      ..drawingSaved()
+      ..starDrop()
+      ..challengerDrops()
+      ..fighterRises()
+      ..fightCall()
+      ..swing()
+      ..blow(hard: false)
+      ..blow(hard: true)
+      ..knockout()
+      ..reward()
+      ..unlock()
+      ..fightResult(won: true)
+      ..fightResult(won: false)
+      ..boxLands()
+      ..tapeTearing()
+      ..tapeCut()
+      ..cardFlips();
+    for (final rarity in Rarity.values) {
+      sound
+        ..boxShakes(rarity)
+        ..boxOpens(rarity)
+        ..cardRises(rarity)
+        ..cardRevealed(rarity);
+    }
+    expect(GameSound.effectFiles, containsAll(sound.played), reason: 'every sound played is preloaded');
+    expect(GameSound.effectFiles.toSet(), sound.played.toSet(), reason: 'and only those');
+    for (final file in [...GameSound.effectFiles, GameSound.musicFile]) {
+      final data = await rootBundle.load('assets/sounds/$file');
+      expect(data.lengthInBytes, greaterThan(0), reason: file);
+    }
+  });
+}

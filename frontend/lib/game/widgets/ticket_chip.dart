@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
+import '../sound.dart';
 
 /// Shows the number of available gacha pulls and pops when it changes. A
 /// tap opens a menu under it with your [stars], the currency.
@@ -133,7 +134,8 @@ class _TicketChipState extends State<TicketChip> with SingleTickerProviderStateM
     }
 
     if ((gained == 0 && gainedStars == 0) || MediaQuery.maybeDisableAnimationsOf(context) == true) {
-      // Already celebrated elsewhere, or animations are off.
+      // Already celebrated elsewhere, or animations are off (still chiming).
+      if (gained > 0 || gainedStars > 0) sound.reward();
       showAll();
       return;
     }
@@ -280,6 +282,13 @@ class PullsReceived extends StatefulWidget {
 class _PullsReceivedState extends State<PullsReceived> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(vsync: this, duration: PullsReceived.duration)
     ..forward().whenComplete(widget.onDone);
+
+  @override
+  void initState() {
+    super.initState();
+    // Every reward chimes as it comes in: daily steps, fights, rewards, gifts.
+    sound.reward();
+  }
 
   // Darkens, pops up, holds, then flies into the chip as the screen clears.
   late final _scrim = TweenSequence<double>([

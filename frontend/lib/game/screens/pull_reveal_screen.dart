@@ -10,6 +10,7 @@ import '../game_session.dart';
 import '../rules/gacha.dart';
 import '../rules/models.dart';
 import '../rules/upgrades.dart';
+import '../sound.dart';
 import '../widgets/card_art.dart';
 import '../widgets/gacha_box.dart';
 
@@ -35,6 +36,17 @@ const _landTime = Duration(milliseconds: 650);
 /// How far above its place a landing box is at [t] of its landing: it drops
 /// in and lands with two small bounces.
 double _dropAt(double t) => -560 * (1 - Curves.bounceOut.transform(t));
+
+/// Plays the landing thud as a landing box first touches down
+/// ([Curves.bounceOut]'s first bounce), not when skipped straight down.
+void _thudOnLanding(AnimationController land) {
+  var heard = false;
+  land.addListener(() {
+    if (heard || land.value < 1 / 2.75) return;
+    heard = true;
+    if (land.isAnimating) sound.boxLands();
+  });
+}
 
 /// The light peeking out of a cut [cut] that far: white, turning to the
 /// [rarest] pull's colour only towards the end.
@@ -80,12 +92,16 @@ GachaBox _box(
 );
 
 /// Cutting a box's tape open by swiping along it, left to right: the phone
-/// buzzes as the cut starts and runs, and once it's through, [onCut].
+/// buzzes as the cut starts and runs, the tape tears as loud as the finger
+/// is fast, and once it's through, it snaps free and [onCut].
 class _TapeCut {
   _TapeCut(this.onCut);
 
   final VoidCallback onCut;
   double progress = 0;
+
+  /// The tearing, while the finger is on the tape.
+  SoundLoop? _tearing;
 
   /// Whether a finger is on the tape.
   bool cutting = false;
@@ -107,14 +123,34 @@ class _TapeCut {
     } else if ((progress * 8).floor() > (before * 8).floor()) {
       HapticFeedback.vibrate();
     }
+    // A full swipe across in about half a second tears at full volume.
+    (_tearing ??= sound.tapeTearing())?.volume = (dx / length / 0.03).clamp(0.3, 1.0);
     if (done) {
       cutting = false;
+      _silence();
+      sound.tapeCut();
       onCut();
     }
   }
 
+  /// The finger left the tape.
+  void release() {
+    cutting = false;
+    _tearing?.volume = 0;
+  }
+
+  void _silence() {
+    _tearing?.stop();
+    _tearing = null;
+  }
+
   /// Skips the cutting.
-  void skip() => progress = 1;
+  void skip() {
+    progress = 1;
+    _silence();
+  }
+
+  void dispose() => _silence();
 }
 
 /// The scissors on the tape: sliding along it to show what to do until the
@@ -192,6 +228,19 @@ class PullRevealScreen extends StatefulWidget {
 
 class _PullRevealScreenState extends State<PullRevealScreen> {
   PullOutcome? _spotlight;
+
+  // The music steps back for the summon's own sounds.
+  @override
+  void initState() {
+    super.initState();
+    sound.duck();
+  }
+
+  @override
+  void dispose() {
+    sound.unduck();
+    super.dispose();
+  }
 
   /// While a multi-pull reveals its cards one by one: how far it got, and
   /// what comes after this card or after skipping the rest.
@@ -310,7 +359,10 @@ class _SingleReveal extends StatefulWidget {
 class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMixin {
   late final _rarity = widget.outcome.card.rarity;
   late final _boxed = widget.boxed && widget.buildUp;
-  late final _cut = _TapeCut(() => _charge.forward());
+  late final _cut = _TapeCut(() {
+    if (!_skipped) sound.boxShakes(_rarity);
+    _charge.forward();
+  });
 
   /// The box dropping in and landing.
   late final _land = AnimationController(vsync: this, duration: _landTime);
@@ -335,29 +387,37 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
       if (status != AnimationStatus.completed) return;
       if (_boxed && _pull.isDismissed) {
         // It opens with a heavy buzz, heavier the rarer the card.
-        if (!_skipped) buzz(openingBuzzFor(_rarity));
+        if (!_skipped) {
+          buzz(openingBuzzFor(_rarity));
+          sound
+            ..boxOpens(_rarity)
+            ..cardRises(_rarity);
+        }
         _pull.forward();
       } else if (!_boxed && _flip.isDismissed) {
-        _flip.forward();
+        _flipCard();
       }
     });
     _pull.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _flip.isDismissed) _flip.forward();
+      if (status == AnimationStatus.completed && _flip.isDismissed) _flipCard();
     });
     _flip.addStatusListener((status) {
       if (status == AnimationStatus.completed && _burst.isDismissed) {
         _sway.stop();
-        _burst.forward();
+        _burstOut();
       }
     });
     if (_boxed) {
       _sway.repeat();
+      _thudOnLanding(_land);
       _land.forward();
     } else {
       _land.value = 1;
       _cut.skip();
       _pull.value = 1;
       if (widget.buildUp) {
+        // On its own, the card rumbles as it builds up.
+        sound.boxShakes(_rarity);
         _charge.forward();
       } else {
         _charge.value = 1;
@@ -371,11 +431,33 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) _showAll();
   }
 
+  void _flipCard() {
+    if (!_skipped && widget.buildUp) sound.cardFlips();
+    _flip.forward();
+  }
+
+  void _burstOut() {
+    if (!_skipped) _revealSound();
+    _burst.forward();
+  }
+
+  /// The reveal's fanfare, once; not for a card shown again from the
+  /// overview.
+  bool _revealHeard = false;
+
+  void _revealSound() {
+    if (_revealHeard || !widget.buildUp) return;
+    _revealHeard = true;
+    sound.cardRevealed(_rarity);
+  }
+
   /// Whether everything was shown at once, so without the opening buzz.
   bool _skipped = false;
 
   void _showAll() {
     _skipped = true;
+    // Skipping still ends on the card's fanfare.
+    _revealSound();
     _land.value = 1;
     _cut.skip();
     _sway.stop();
@@ -397,6 +479,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
 
   @override
   void dispose() {
+    _cut.dispose();
     _land.dispose();
     _sway.dispose();
     _charge.dispose();
@@ -419,7 +502,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
           : (details) {
               if (_land.isCompleted) setState(() => _cut.drag(details.delta.dx, _tapeLength));
             },
-      onHorizontalDragEnd: _cut.done ? null : (_) => setState(() => _cut.cutting = false),
+      onHorizontalDragEnd: _cut.done ? null : (_) => setState(_cut.release),
       child: AnimatedBuilder(
         animation: Listenable.merge([_land, _sway, _charge, _pull, _flip, _burst]),
         builder: (context, _) {
@@ -703,7 +786,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   late final _cut = _TapeCut(_buildUp);
 
   /// The box dropping in and landing.
-  late final _land = AnimationController(vsync: this, duration: _landTime)..forward();
+  late final _land = AnimationController(vsync: this, duration: _landTime);
   var _stage = _Stage.cut;
 
   /// Once cut, the box shakes like a single pull's, for the rarest pull.
@@ -726,6 +809,8 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     _charge.addStatusListener((status) {
       if (status == AnimationStatus.completed) _startCarousel();
     });
+    _thudOnLanding(_land);
+    _land.forward();
   }
 
   @override
@@ -741,6 +826,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   void _buildUp() {
     if (!mounted || _stage != _Stage.cut) return;
     setState(() => _stage = _Stage.buildUp);
+    sound.boxShakes(_rarest);
     _charge.forward();
   }
 
@@ -749,6 +835,9 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     setState(() => _stage = _Stage.carousel);
     // It opens with a heavy buzz, heavier the rarer the best card.
     buzz(openingBuzzFor(_rarest));
+    sound
+      ..boxOpens(_rarest)
+      ..cardRises(_rarest);
     _carousel.forward();
   }
 
@@ -794,6 +883,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   @override
   void dispose() {
     _pause?.cancel();
+    _cut.dispose();
     _land.dispose();
     _sway.dispose();
     _charge.dispose();
@@ -844,7 +934,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
                           if (_land.isCompleted) setState(() => _cut.drag(details.delta.dx, _tapeLength));
                         }
                       : null,
-                  onHorizontalDragEnd: cutting ? (_) => setState(() => _cut.cutting = false) : null,
+                  onHorizontalDragEnd: cutting ? (_) => setState(_cut.release) : null,
                   child: AnimatedBuilder(
                     animation: Listenable.merge([_land, _sway, _charge, _carousel, _spin]),
                     builder: (context, _) => _ring(),

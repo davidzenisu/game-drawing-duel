@@ -5,11 +5,43 @@ import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/screens/drawing_recap_screen.dart';
 import 'package:frontend/game/screens/drawing_screen.dart';
+import 'package:frontend/game/sound.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 import 'package:frontend/theme/palette.dart';
 
 void main() {
+  testWidgets('with sound on, the clock ticks each second, beeps the last 10 and buzzes when time is up', (
+    tester,
+  ) async {
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    tester.view.physicalSize = const Size(1200, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DrawingScreen(
+          subject: 'Sam',
+          prompt: '"Sauna Lord"',
+          hint: 'A challenger prompt',
+          rarity: Rarity.hero,
+          timeLimit: challengerDrawTime,
+        ),
+      ),
+    );
+    for (var i = 0; i < 92; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    final played = sound.played;
+    expect(played.where((s) => s == 'timer_tick.mp3'), hasLength(79), reason: '89 down to 11 seconds left');
+    expect(played.where((s) => s == 'timer_final.mp3'), hasLength(10), reason: '10 down to 1');
+    expect(played.where((s) => s == 'time_up.mp3'), hasLength(1));
+    expect(played.last, 'time_up.mp3');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('every hurry takes 5s when it hits, at its time left', (tester) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;

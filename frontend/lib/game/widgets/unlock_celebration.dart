@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../sound.dart';
+
 /// Celebrates an unlocked upgrade around [child]: it pops, sparkles burst
 /// out in [color] with a ring, and [label] floats up and fades. Plays every
 /// time [count] goes up.
@@ -29,7 +31,10 @@ class _UnlockCelebrationState extends State<UnlockCelebration> with SingleTicker
   @override
   void didUpdateWidget(UnlockCelebration oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.count > oldWidget.count) _controller.forward(from: 0);
+    if (widget.count > oldWidget.count) {
+      sound.unlock();
+      _controller.forward(from: 0);
+    }
   }
 
   @override

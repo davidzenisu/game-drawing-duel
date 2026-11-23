@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../platform/back_guard.dart';
 import '../theme/app_theme.dart';
 import 'game_session.dart';
+import 'sound.dart';
 import 'screens/daily_hub_screen.dart';
 import 'screens/lobby_screen.dart';
 import 'screens/server_screen.dart';
@@ -39,6 +40,9 @@ class _GameAppState extends State<GameApp> {
   void initState() {
     super.initState();
     _backGuard.start(_onBack);
+    sound
+      ..preload()
+      ..startMusic();
   }
 
   Future<void> _onBack() async {

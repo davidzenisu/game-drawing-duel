@@ -6,6 +6,7 @@ import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/pull_reveal_screen.dart';
+import 'package:frontend/game/sound.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/game/widgets/gacha_box.dart';
 
@@ -117,6 +118,56 @@ void main() {
     expect(_theBox(tester).camera.shift.dy, greaterThan(0), reason: 'down in its place');
     await _swipe(tester);
     expect(_theBox(tester).cut, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with sound effects on, the box lands, the tape tears, and it shakes, opens and reveals in its rarity', (
+    tester,
+  ) async {
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    await _open(tester, [_outcome('Sam', Rarity.hero)]);
+    expect(sound.played, ['summon_land.mp3'], reason: 'the box landed');
+    await _swipe(tester);
+    await _wait(tester, const Duration(seconds: 6));
+    expect(sound.played, [
+      'summon_land.mp3',
+      'summon_tape.wav',
+      'summon_cut.mp3',
+      'summon_shake_hero.mp3',
+      'summon_open_hero.mp3',
+      'summon_beam_hero.mp3',
+      'summon_flip.mp3',
+      'summon_reveal_hero.mp3',
+    ]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("with sound effects on, a 10-pull's box lands, tears, shakes and opens for its rarest card", (tester) async {
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    await _open(tester, [for (var i = 0; i < 9; i++) _outcome('Basic $i', Rarity.basic), _outcome('Kim', Rarity.legend)]);
+    await _swipe(tester);
+    await _wait(tester, const Duration(seconds: 2));
+    expect(sound.played.take(6), [
+      'summon_land.mp3',
+      'summon_tape.wav',
+      'summon_cut.mp3',
+      'summon_shake_legend.mp3',
+      'summon_open_legend.mp3',
+      'summon_beam_legend.mp3',
+    ]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with sound off, a summon plays nothing', (tester) async {
+    sound.played.clear();
+    await _open(tester, [_outcome('Sam', Rarity.legend)]);
+    await _swipe(tester);
+    await _wait(tester, const Duration(seconds: 6));
+    expect(sound.played, isEmpty);
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -5,6 +5,7 @@ import '../../platform/leave_guard.dart';
 import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
 import '../game_session.dart';
+import '../sound.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/themed_background.dart';
@@ -56,6 +57,7 @@ class _BoostScreenState extends State<BoostScreen> {
 
   /// Gives a challenger a star, or takes one back: only here, until Done.
   void _give(String challengerId, int change) {
+    if (change > 0) sound.starDrop();
     setState(() {
       final stars = (_draft[challengerId] ?? 0) + change;
       _draft = {..._draft, challengerId: stars}..removeWhere((_, n) => n <= 0);
