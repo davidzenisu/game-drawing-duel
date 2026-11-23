@@ -147,14 +147,15 @@ abstract final class WinRates {
   /// The meetings it takes for a win rate to count.
   static const minFights = 3;
 
-  /// Winning more than a share of the meetings gives these extra stars: the
-  /// most of every share beaten.
-  static const extraStarsByShare = [(0.6, 1), (0.8, 2)];
+  /// Winning at least a share (in whole percent) of the meetings gives these
+  /// extra stars: the most of every share reached.
+  static const extraStarsByShare = [(0.8, 1)];
 
   /// The extra stars for winning [wins] of [fights] last week, by [bands].
+  /// Shares count in whole percent, so 4 of 5 reaches 80%.
   static int extraStars(int wins, int fights, [List<(double, int)> bands = extraStarsByShare]) {
     if (fights < minFights) return 0;
-    return bands.fold(0, (most, tier) => wins > tier.$1 * fights ? max(most, tier.$2) : most);
+    return bands.fold(0, (most, tier) => wins * 100 >= (tier.$1 * 100).round() * fights ? max(most, tier.$2) : most);
   }
 }
 

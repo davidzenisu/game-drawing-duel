@@ -1498,9 +1498,9 @@ class ApiGameSession extends GameSession {
     final server = this.server;
     if (server.isSpeed) return null;
     final json = await _kept(
-      // v2: the bands of 0.22.0 (60% and 80%); the ones kept before are
+      // v3: the band of 0.27.0 (at least 80%); the ones kept before are
       // asked again.
-      'win-rates:v2:${server.code}',
+      'win-rates:v3:${server.code}',
       '/servers/${server.code}/win-rates',
       refresh: refresh,
       // They hold for the week after the one they count.
