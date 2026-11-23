@@ -29,6 +29,13 @@ const _pullOutTime = Duration(milliseconds: 1300);
 @visibleForTesting
 Duration openingBuzzFor(Rarity rarity) => Duration(milliseconds: const [150, 300, 500, 800][rarity.index]);
 
+/// How long a box takes to drop in and land, before its tape can be cut.
+const _landTime = Duration(milliseconds: 650);
+
+/// How far above its place a landing box is at [t] of its landing: it drops
+/// in and lands with two small bounces.
+double _dropAt(double t) => -560 * (1 - Curves.bounceOut.transform(t));
+
 /// The light peeking out of a cut [cut] that far: white, turning to the
 /// [rarest] pull's colour only towards the end.
 Color _peek(double cut, Color rarest) =>
@@ -305,6 +312,9 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
   late final _boxed = widget.boxed && widget.buildUp;
   late final _cut = _TapeCut(() => _charge.forward());
 
+  /// The box dropping in and landing.
+  late final _land = AnimationController(vsync: this, duration: _landTime);
+
   /// The camera swaying round the box, and the scissors' hint.
   late final _sway = AnimationController(vsync: this, duration: const Duration(seconds: 6));
   late final _charge = AnimationController(
@@ -342,7 +352,9 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     });
     if (_boxed) {
       _sway.repeat();
+      _land.forward();
     } else {
+      _land.value = 1;
       _cut.skip();
       _pull.value = 1;
       if (widget.buildUp) {
@@ -364,6 +376,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
 
   void _showAll() {
     _skipped = true;
+    _land.value = 1;
     _cut.skip();
     _sway.stop();
     _charge.value = 1;
@@ -384,6 +397,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
 
   @override
   void dispose() {
+    _land.dispose();
     _sway.dispose();
     _charge.dispose();
     _pull.dispose();
@@ -398,11 +412,16 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _tap,
-      onHorizontalDragStart: _cut.done ? null : (_) => setState(() => _cut.cutting = true),
-      onHorizontalDragUpdate: _cut.done ? null : (details) => setState(() => _cut.drag(details.delta.dx, _tapeLength)),
+      // The tape can be cut once the box has landed.
+      onHorizontalDragStart: _cut.done ? null : (_) => setState(() => _cut.cutting = _land.isCompleted),
+      onHorizontalDragUpdate: _cut.done
+          ? null
+          : (details) {
+              if (_land.isCompleted) setState(() => _cut.drag(details.delta.dx, _tapeLength));
+            },
       onHorizontalDragEnd: _cut.done ? null : (_) => setState(() => _cut.cutting = false),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_sway, _charge, _pull, _flip, _burst]),
+        animation: Listenable.merge([_land, _sway, _charge, _pull, _flip, _burst]),
         builder: (context, _) {
           final charge = _charge.value;
           final burst = _burst.value;
@@ -502,7 +521,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
         ? 0.0
         : (_cut.cutting ? sin(sway * 2 * pi * 90) * (1 + 2 * cut) : 0) +
               _boxShake(charge, _rarity);
-    final pushedIn = _pushedIn(_swaying(sway, shift: const Offset(0, 70), shake: shake), charge);
+    final pushedIn = _pushedIn(_swaying(sway, shift: Offset(0, 70 + _dropAt(_land.value)), shake: shake), charge);
     final camera = BoxCamera.lerp(
       pushedIn,
       pushedIn.copyWith(yaw: -0.12, pitch: 0.25, zoom: 1.2),
@@ -546,7 +565,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
             child: CardBack(width: cardWidth, glow: glow),
           ),
         box(GachaBoxLayer.front),
-        if (!_cut.done) _scissors(camera, _cut, (sway * 4) % 1),
+        if (!_cut.done && _land.isCompleted) _scissors(camera, _cut, (sway * 4) % 1),
       ],
     );
   }
@@ -682,6 +701,9 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 4400));
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
   late final _cut = _TapeCut(_buildUp);
+
+  /// The box dropping in and landing.
+  late final _land = AnimationController(vsync: this, duration: _landTime)..forward();
   var _stage = _Stage.cut;
 
   /// Once cut, the box shakes like a single pull's, for the rarest pull.
@@ -748,6 +770,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   void _toResults() {
     if (!mounted || _stage == _Stage.results) return;
     _pause?.cancel();
+    _land.value = 1;
     _cut.skip();
     _charge.stop();
     _carousel.stop();
@@ -771,6 +794,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   @override
   void dispose() {
     _pause?.cancel();
+    _land.dispose();
     _sway.dispose();
     _charge.dispose();
     _carousel.dispose();
@@ -813,13 +837,16 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
               : GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: _tap,
-                  onHorizontalDragStart: cutting ? (_) => setState(() => _cut.cutting = true) : null,
+                  // The tape can be cut once the box has landed.
+                  onHorizontalDragStart: cutting ? (_) => setState(() => _cut.cutting = _land.isCompleted) : null,
                   onHorizontalDragUpdate: cutting
-                      ? (details) => setState(() => _cut.drag(details.delta.dx, _tapeLength))
+                      ? (details) {
+                          if (_land.isCompleted) setState(() => _cut.drag(details.delta.dx, _tapeLength));
+                        }
                       : null,
                   onHorizontalDragEnd: cutting ? (_) => setState(() => _cut.cutting = false) : null,
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_sway, _charge, _carousel, _spin]),
+                    animation: Listenable.merge([_land, _sway, _charge, _carousel, _spin]),
                     builder: (context, _) => _ring(),
                   ),
                 ),
@@ -869,7 +896,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
             (_cut.cutting ? sin(_sway.value * 2 * pi * 90) * (1 + 2 * _cut.progress) : 0.0) +
             (t == 0 ? _boxShake(_charge.value, _rarest) : 0.0);
         final swaying = _pushedIn(
-          _swaying(_sway.value, zoom: fit, shift: const Offset(0, 20), shake: shake),
+          _swaying(_sway.value, zoom: fit, shift: Offset(0, 20 + _dropAt(_land.value)), shake: shake),
           _charge.value,
         );
         final camera =
@@ -921,7 +948,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
                     ),
                   ),
               if (sink < 1) box(GachaBoxLayer.front),
-              if (_stage == _Stage.cut) _scissors(camera, _cut, (_sway.value * 4) % 1),
+              if (_stage == _Stage.cut && _land.isCompleted) _scissors(camera, _cut, (_sway.value * 4) % 1),
             ],
           ),
         );

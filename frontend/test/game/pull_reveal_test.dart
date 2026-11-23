@@ -70,7 +70,9 @@ Future<ValueNotifier<bool>> _open(
   );
   await tester.tap(find.text('Open'));
   await tester.pump();
+  // The page slides in and the box lands.
   await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 700));
   return closed;
 }
 
@@ -100,6 +102,24 @@ List<String> _buzzes(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets("the box drops in, and its tape can't be cut until it has landed", (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: PullRevealScreen(outcomes: [_outcome('Sam', Rarity.basic)])));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_theBox(tester).camera.shift.dy, lessThan(0), reason: 'still above its place');
+    expect(find.byIcon(Icons.content_cut_rounded), findsNothing, reason: 'no scissors hint yet');
+    await _swipe(tester);
+    expect(_theBox(tester).cut, 0);
+    await _wait(tester, const Duration(milliseconds: 700));
+    expect(find.byIcon(Icons.content_cut_rounded), findsOneWidget);
+    expect(_theBox(tester).camera.shift.dy, greaterThan(0), reason: 'down in its place');
+    await _swipe(tester);
+    expect(_theBox(tester).cut, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('a single pull: you cut the tape open, its rarity peeks out, then it comes out, flips and bursts', (
     tester,
   ) async {
