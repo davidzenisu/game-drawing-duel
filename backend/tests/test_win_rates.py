@@ -10,6 +10,10 @@ from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_fights import PLAYERS, FightTestCase
 
+# The test server's weeks start before `rules.BALANCE_FROM`: these tests count
+# by the current bands.
+NEW_BANDS = patch("app.rules.BALANCE_FROM", date(2026, 10, 5))
+
 
 class WinRateTests(FightTestCase):
     """Last week's fights give this week's extra stars, between players."""
@@ -98,6 +102,7 @@ class WinRateTests(FightTestCase):
                 [list(b) for b in rules.WIN_RATE_EXTRA_STARS],
             )
 
+    @NEW_BANDS
     def test_winning_most_meetings_gives_fighters_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]
@@ -122,7 +127,7 @@ class WinRateTests(FightTestCase):
                     "against_position": against,
                     "fights": 3,
                     "wins": 3,
-                    "extra_stars": 2,
+                    "extra_stars": 1,
                 },
                 {
                     "player_position": against,
@@ -134,15 +139,15 @@ class WinRateTests(FightTestCase):
             ],
         )
 
-        # Two extra stars turn a loss into a win: 3 + 2 against 3 + 3.
+        # One extra star turns a tie, the challenger's, into a win.
         challenger_stars = 3 + self.boost_stars(challenger["id"])
         before = self.get(f"/servers/{self.code}/gacha").json()["stars"]
-        with patch.object(rules, "team_stars", lambda team: challenger_stars - 1):
+        with patch.object(rules, "team_stars", lambda team: challenger_stars):
             fight = self.pick([fighter["id"]]).json()["fight"]["yours"]
-        self.assertEqual([f["extra_stars"] for f in fight["fighters"]], [2])
+        self.assertEqual([f["extra_stars"] for f in fight["fighters"]], [1])
         outcome = fight["outcome"]
         self.assertEqual(
-            (outcome["fighter_extra_stars"], outcome["challenger_extra_stars"]), (2, 0)
+            (outcome["fighter_extra_stars"], outcome["challenger_extra_stars"]), (1, 0)
         )
         self.assertTrue(outcome["fighters_win"])
         # The stars earned are the challenger's own and boost stars.
@@ -150,14 +155,16 @@ class WinRateTests(FightTestCase):
         self.assertEqual(gacha["stars"], before + challenger_stars)
         self.assertEqual(self.today()["fight"]["yours"], fight, "as stored")
 
+    @NEW_BANDS
     def test_winning_most_meetings_gives_challengers_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]
         fighter = self.rival(challenger)
-        # The challenger's player won two of three meetings: one extra star
-        # against each fighter of that player.
-        for owner, win in enumerate((False, False, True)):
-            self.add_fight(owner, 3, challenger["id"], [fighter["id"]], win=win)
+        # The challenger's player won four of five meetings, exactly 80%: one
+        # extra star against each fighter of that player.
+        meetings = [(0, 2, False), (1, 2, False), (2, 2, False), (0, 3, False)]
+        for owner, day, win in [*meetings, (1, 3, True)]:
+            self.add_fight(owner, day, challenger["id"], [fighter["id"]], win=win)
 
         challenger_stars = 3 + self.boost_stars(challenger["id"])
         with patch.object(rules, "team_stars", lambda team: challenger_stars + 1):
@@ -169,6 +176,22 @@ class WinRateTests(FightTestCase):
         self.assertEqual([f["extra_stars"] for f in fight["fighters"]], [0])
         self.assertFalse(outcome["fighters_win"], "a tie goes to the challenger")
 
+    @NEW_BANDS
+    def test_winning_less_than_80_percent_gives_no_extra_stars(self) -> None:
+        self.to_day_eight()
+        challenger = self.today()["fight"]["challenger"]
+        fighter = self.rival(challenger)
+        # Two of three meetings, 67%: not enough.
+        for owner, win in enumerate((True, True, False)):
+            self.add_fight(owner, 1, challenger["id"], [fighter["id"]], win=win)
+        self.assertEqual({r["extra_stars"] for r in self.win_rates()["win_rates"]}, {0})
+        fight = self.pick([fighter["id"]]).json()["fight"]["yours"]
+        outcome = fight["outcome"]
+        self.assertEqual(
+            (outcome["fighter_extra_stars"], outcome["challenger_extra_stars"]), (0, 0)
+        )
+
+    @NEW_BANDS
     def test_too_few_meetings_give_no_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]

@@ -5,7 +5,7 @@ week.
 A character counts for the player it depicts. In a fight, every fighter
 meets the challenger once: the side that won the fight wins that meeting,
 and fighters depicting the challenger's own player don't count. A player who
-won more than a share of at least `rules.WIN_RATE_MIN_FIGHTS` meetings with
+won at least a share of at least `rules.WIN_RATE_MIN_FIGHTS` meetings with
 another player's characters last week gets `rules.win_rate_extra_stars`
 (the bands before `rules.BALANCE_FROM`'s week: `bands`):
 each of their fighters gets them against a challenger of that player, and a

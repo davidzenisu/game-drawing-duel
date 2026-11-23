@@ -17,8 +17,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     expect(find.textContaining('From the fights of days 1 to 7'), findsOneWidget);
-    expect(find.textContaining('more than 60% of at least 3 fights'), findsOneWidget, reason: 'the bands of the rules');
-    expect(find.textContaining('more than 80% for +2 ★'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Win at least 80% of at least 3 fights against a player for +1 ★ against them the next week.',
+      ),
+      findsOneWidget,
+      reason: 'the band of the rules',
+    );
     // Every player is a card with their basic drawing as the preview.
     final players = controller.server.players;
     expect(find.widgetWithText(FilledButton, 'Win rates'), findsNWidgets(players.length));
