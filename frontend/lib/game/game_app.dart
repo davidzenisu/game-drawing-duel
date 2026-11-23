@@ -40,7 +40,9 @@ class _GameAppState extends State<GameApp> {
   void initState() {
     super.initState();
     _backGuard.start(_onBack);
-    sound.startMusic();
+    sound
+      ..preload()
+      ..startMusic();
   }
 
   Future<void> _onBack() async {

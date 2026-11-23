@@ -87,7 +87,7 @@ void main() {
     expect(sound.played, ['ui_tap.mp3', 'ui_tap.mp3', 'ui_confirm.mp3']);
   });
 
-  test('every sound the game plays is bundled', () async {
+  test('every sound the game plays is preloaded and bundled', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
     sound.setEffects(true);
     addTearDown(() => sound.setEffects(false));
@@ -122,7 +122,9 @@ void main() {
         ..cardRises(rarity)
         ..cardRevealed(rarity);
     }
-    for (final file in [...sound.played, 'music.wav']) {
+    expect(GameSound.effectFiles, containsAll(sound.played), reason: 'every sound played is preloaded');
+    expect(GameSound.effectFiles.toSet(), sound.played.toSet(), reason: 'and only those');
+    for (final file in [...GameSound.effectFiles, GameSound.musicFile]) {
       final data = await rootBundle.load('assets/sounds/$file');
       expect(data.lengthInBytes, greaterThan(0), reason: file);
     }

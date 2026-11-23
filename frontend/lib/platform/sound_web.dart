@@ -13,6 +13,10 @@ class SoundOutput {
   web.AudioContext? _context;
   final _buffers = <String, Future<web.AudioBuffer?>>{};
 
+  /// A sound that isn't ready this long after it was asked for is skipped:
+  /// late, it would no longer match what it goes with.
+  static const _maxLate = Duration(milliseconds: 150);
+
   bool savedOn(String key) {
     try {
       return web.window.localStorage.getItem('$_prefix$key') == 'on';
@@ -64,6 +68,14 @@ class SoundOutput {
     }
   });
 
+  void preload(Iterable<String> files) {
+    final context = _audio;
+    if (context == null) return;
+    for (final file in files) {
+      _load(context, file);
+    }
+  }
+
   /// A source for [file] through a gain at [volume], or nothing if it can't play.
   Future<(web.AudioBufferSourceNode, web.GainNode)?> _source(String file, double volume) async {
     final context = _audio;
@@ -78,8 +90,10 @@ class SoundOutput {
   }
 
   void play(String file, {double volume = 1}) async {
+    final asked = DateTime.now();
     try {
       final (source, _) = await _source(file, volume) ?? (null, null);
+      if (DateTime.now().difference(asked) > _maxLate) return;
       source?.start();
     } catch (_) {
       // Not played.

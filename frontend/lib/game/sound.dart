@@ -28,6 +28,43 @@ class GameSound {
   @visibleForTesting
   final played = <String>[];
 
+  /// The background music.
+  static const musicFile = 'music.wav';
+
+  /// Every sound effect, the most frequent first: downloaded and decoded as
+  /// soon as sound effects are on, so each plays right on time (one that
+  /// isn't ready in time is skipped rather than played late).
+  static final effectFiles = [
+    'ui_tap.mp3',
+    'ui_confirm.mp3',
+    'reward.mp3',
+    'summon_land.mp3',
+    'summon_tape.wav',
+    'summon_cut.mp3',
+    for (final rarity in Rarity.values) ...[
+      'summon_shake_${rarity.name}.mp3',
+      'summon_open_${rarity.name}.mp3',
+      'summon_beam_${rarity.name}.mp3',
+      'summon_reveal_${rarity.name}.mp3',
+    ],
+    'summon_flip.mp3',
+    'timer_tick.mp3',
+    'timer_final.mp3',
+    'time_up.mp3',
+    'drawing_saved.mp3',
+    'star_drop.mp3',
+    'fight_drop.mp3',
+    'fight_rise.mp3',
+    'fight_call.mp3',
+    'fight_swing.mp3',
+    'fight_hit.mp3',
+    'fight_hit_hard.mp3',
+    'fight_ko.mp3',
+    'fight_win.mp3',
+    'fight_lose.mp3',
+    'unlock.mp3',
+  ];
+
   static const _musicVolume = 0.35;
   static const _duckedVolume = 0.08;
 
@@ -46,9 +83,19 @@ class GameSound {
   void toggleEffects() => setEffects(!effects.value);
 
   void setEffects(bool on) {
-    if (on) _output.wake();
+    if (on) {
+      _output
+        ..wake()
+        ..preload(effectFiles);
+    }
     effects.value = on;
     _output.save('effects', on);
+  }
+
+  /// Gets the sounds turned on ready ahead of time, e.g. as the game starts.
+  void preload() {
+    if (effects.value) _output.preload(effectFiles);
+    if (music.value) _output.preload([musicFile]);
   }
 
   /// Starts the background music if it's on (stops it if off).
@@ -57,7 +104,7 @@ class GameSound {
       _music?.stop();
       _music = null;
     } else {
-      _music ??= _output.loop('music.wav', volume: _ducks > 0 ? _duckedVolume : _musicVolume);
+      _music ??= _output.loop(musicFile, volume: _ducks > 0 ? _duckedVolume : _musicVolume);
     }
   }
 

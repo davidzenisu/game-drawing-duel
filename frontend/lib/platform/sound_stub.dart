@@ -12,6 +12,9 @@ class SoundOutput {
   /// Lets sound play from now on (called on a tap).
   void wake() {}
 
+  /// Downloads and decodes [files] of `assets/sounds/` ahead of time.
+  void preload(Iterable<String> files) {}
+
   /// Plays [file] of `assets/sounds/` once.
   void play(String file, {double volume = 1}) {}
 
