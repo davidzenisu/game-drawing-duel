@@ -338,21 +338,23 @@ save("summon_flip", flip(), 0.45)
 
 # Music
 save("music", music(), 0.5, loop=True)
-# Buttons: a mechanical switch, a sharp click over a low body knock, then a
-# softer one as it springs back. The main buttons clack deeper and harder.
-def switch(click_hz, body_hz, release_at, heavy=0.0):
-    b = buf(0.14)
-    c = biquad(noise(0.012), "bp", click_hz, 1.4); mix(b, c * expdecay(len(c), 0.0018), 0, 1.0)
-    x = tri(body_hz, 0.05, slide=body_hz * 0.7); mix(b, x * expdecay(len(x), 0.009 + 0.006 * heavy), 0, 0.8 + 0.4 * heavy)
-    k = biquad(noise(0.03, 2), "lp", 700, 0.8); mix(b, k * expdecay(len(k), 0.006), 0.001, 0.5 + 0.5 * heavy)
-    r = biquad(noise(0.008), "bp", click_hz * 1.15, 1.6); mix(b, r * expdecay(len(r), 0.0012), release_at, 0.35)
+# Buttons: a mouse click, a crisp tick as it goes down and a fainter one
+# as it comes back up. The main buttons click a little fuller.
+def mouse_click(ping_hz, release_at, body=0.0):
+    b = buf(0.1)
+    for at, g in [(0, 1.0), (release_at, 0.45)]:
+        t = biquad(noise(0.003), "hp", 3000, 0.7); mix(b, t * expdecay(len(t), 0.0006), at, g)
+        p = biquad(noise(0.012), "bp", ping_hz, 6.0); mix(b, p * expdecay(len(p), 0.0025), at, 1.6 * g)
+    if body:
+        k = biquad(noise(0.02, 2), "bp", 600, 1.2); mix(b, k * expdecay(len(k), 0.004), 0, body)
     return b
 
 
-save("ui_tap", switch(1700, 210, 0.065), 0.4)
-save("ui_confirm", switch(1300, 140, 0.075, heavy=1.0), 0.48)
+save("ui_tap", mouse_click(3400, 0.055), 0.4)
+save("ui_confirm", mouse_click(2700, 0.065, body=0.5), 0.46)
 
-# Fights
+# Fights (their own noise, so changing the sounds above leaves them as they are)
+rng = np.random.default_rng(23)
 b = buf(1.0)                                                                    # the challenger drops onto the stage
 mix(b, boom(120, 26, 0.9, 0.22), 0, 1.0)
 d = biquad(noise(0.5, 2), "lp", np.geomspace(1200, 150, n_(0.5)), 0.8); mix(b, d * expdecay(len(d), 0.12), 0, 0.9)

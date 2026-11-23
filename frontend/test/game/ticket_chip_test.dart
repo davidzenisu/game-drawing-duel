@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/widgets/ticket_chip.dart';
+import 'package:frontend/game/sound.dart';
 
 /// A screen with the chip, its count driven by [tickets].
 Widget _app(ValueNotifier<int> tickets) => MaterialApp(
@@ -33,6 +34,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PullsReceived), findsNothing);
     expect(find.text('5 pulls'), findsOneWidget);
+  });
+
+  testWidgets('with sound effects on, every reward chimes once, and spending is silent', (tester) async {
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    final tickets = ValueNotifier(3);
+    await tester.pumpWidget(_app(tickets));
+    tickets.value = 5;
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(sound.played, ['reward.mp3']);
+    tickets.value = 4;
+    await tester.pumpAndSettle();
+    expect(sound.played, ['reward.mp3'], reason: 'spending is not a reward');
   });
 
   testWidgets('spending pulls is not celebrated', (tester) async {

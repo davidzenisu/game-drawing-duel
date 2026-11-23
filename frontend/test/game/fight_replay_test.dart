@@ -54,14 +54,14 @@ Future<void> _skipToReveal(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('with sound effects on, the entrance, every swing and blow, the K.O. and the reward are heard', (
+  testWidgets('with sound effects on, the entrance, every swing and blow, the K.O. and the verdict are heard', (
     tester,
   ) async {
     sound.setEffects(true);
     addTearDown(() => sound.setEffects(false));
     sound.played.clear();
     await _open(tester, _fight(), rewardPulls: 1);
-    for (var i = 0; i < 400 && !sound.played.contains('reward.mp3'); i++) {
+    for (var i = 0; i < 400 && !sound.played.contains('fight_win.mp3'); i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
     final played = sound.played;
@@ -70,7 +70,7 @@ void main() {
     final blows = played.where((s) => s.startsWith('fight_hit') || s == 'fight_ko.mp3').length;
     expect(swings, greaterThan(1));
     expect(blows, swings, reason: 'every swing lands a blow');
-    expect(played.skip(played.length - 3), ['fight_ko.mp3', 'fight_win.mp3', 'reward.mp3']);
+    expect(played.skip(played.length - 2), ['fight_ko.mp3', 'fight_win.mp3']);
     await tester.pumpWidget(const SizedBox());
   });
 

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../theme/palette.dart';
 import '../game_session.dart';
 import '../rules/achievements.dart';
-import '../sound.dart';
 import '../widgets/game_action.dart';
 
 /// Your achievements and their rewards, in the heroes menu: collecting
@@ -61,11 +60,7 @@ class RewardsScreen extends StatelessWidget {
                           for (final achievement in entries)
                             AchievementTile(
                               achievement: achievement,
-                              onCollect: () async {
-                                if (await runGameAction(context, () => controller.collectAchievement(achievement))) {
-                                  sound.reward();
-                                }
-                              },
+                              onCollect: () => runGameAction(context, () => controller.collectAchievement(achievement)),
                             ),
                           const SizedBox(height: 16),
                         ],

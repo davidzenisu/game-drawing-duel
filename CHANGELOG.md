@@ -15,12 +15,13 @@ the game is in early development (0.x), versions stay below 1.0.
 - Music and sound effects, in a retro chiptune style: turn **Music** and
   **Sound effects** on separately in the account menu (both are off until
   you do, and your device remembers them).
-- Buttons click like a mechanical switch when you press them, and the main
-  ones (like Ready, Done or Save) with a deeper clack.
+- Buttons click like a mouse when you press them, the main ones (like
+  Ready, Done or Save) a little fuller.
 - Fights are heard as they play out: the entrance, "Fight!", every swing
   and punch, and a booming knockout.
-- Rewards chime: a win's pulls, accepted gifts, collected rewards, and a
-  fanfare when an upgrade unlocks.
+- Every reward chimes as it comes in: the daily steps, won fights,
+  collected rewards and accepted gifts. Unlocking an upgrade gets a
+  fanfare.
 - The drawing clock ticks each second and beeps for the last 10, a buzzer
   sounds when time is up, and a chime when your drawing is saved.
 - Boost stars sparkle as they land, and fights end on a fanfare when your

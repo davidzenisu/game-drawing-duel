@@ -14,6 +14,7 @@ import 'package:frontend/game/tutorials.dart';
 import 'package:frontend/game/widgets/hurry_button.dart';
 import 'package:frontend/game/widgets/hub_tile.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
+import 'package:frontend/game/sound.dart';
 
 import '../helpers.dart';
 
@@ -226,7 +227,10 @@ void main() {
     expect(find.byType(DrawingRecapScreen), findsOneWidget);
     expect(controller.tickets, tickets + 1);
 
-    // Back on the hub, the pull is celebrated.
+    // Back on the hub, the pull is celebrated, chiming (with sound effects on).
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
     await tester.tap(find.text('Done · +1 pull'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -234,6 +238,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(PullsReceived), findsOneWidget);
     expect(find.text('+1 pull · +3 stars'), findsOneWidget, reason: 'the pull and the stars together');
+    expect(sound.played.where((s) => s == 'reward.mp3'), hasLength(1));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
   });
