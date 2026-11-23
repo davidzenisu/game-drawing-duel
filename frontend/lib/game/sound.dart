@@ -100,8 +100,18 @@ class GameSound {
   // Boosting.
   void starDrop() => play('star_drop.mp3');
 
-  // Fights.
+  // Fights: the entrance, every swing and blow, and the verdict.
+  void challengerDrops() => play('fight_drop.mp3', volume: 0.8);
+  void fighterRises() => play('fight_rise.mp3', volume: 0.7);
+  void fightCall() => play('fight_call.mp3');
+  void swing() => play('fight_swing.mp3', volume: 0.6);
+  void blow({required bool hard}) => play(hard ? 'fight_hit_hard.mp3' : 'fight_hit.mp3');
+  void knockout() => play('fight_ko.mp3');
   void fightResult({required bool won}) => play(won ? 'fight_win.mp3' : 'fight_lose.mp3');
+
+  // Rewards: pulls or stars received, an upgrade unlocked.
+  void reward() => play('reward.mp3');
+  void unlock() => play('unlock.mp3');
 
   // The summon, for the rarest card in the box.
   void boxLands() => play('summon_land.mp3');

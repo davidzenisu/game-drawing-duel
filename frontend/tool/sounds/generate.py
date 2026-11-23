@@ -338,10 +338,67 @@ save("summon_flip", flip(), 0.45)
 
 # Music
 save("music", music(), 0.5, loop=True)
-# Buttons: a soft tap for any button, a brighter two-note blip for the main ones
-save("ui_tap", blip("C6", 0.05, 0.25, s=0.3, r=0.03), 0.35)
-b = buf(0.2)
-mix(b, blip("G5", 0.05, 0.25, s=0.35, r=0.02), 0)
-mix(b, blip("D6", 0.09, 0.25, s=0.35, r=0.06), 0.05)
-save("ui_confirm", b, 0.38)
+# Buttons: a mechanical switch, a sharp click over a low body knock, then a
+# softer one as it springs back. The main buttons clack deeper and harder.
+def switch(click_hz, body_hz, release_at, heavy=0.0):
+    b = buf(0.14)
+    c = biquad(noise(0.012), "bp", click_hz, 1.4); mix(b, c * expdecay(len(c), 0.0018), 0, 1.0)
+    x = tri(body_hz, 0.05, slide=body_hz * 0.7); mix(b, x * expdecay(len(x), 0.009 + 0.006 * heavy), 0, 0.8 + 0.4 * heavy)
+    k = biquad(noise(0.03, 2), "lp", 700, 0.8); mix(b, k * expdecay(len(k), 0.006), 0.001, 0.5 + 0.5 * heavy)
+    r = biquad(noise(0.008), "bp", click_hz * 1.15, 1.6); mix(b, r * expdecay(len(r), 0.0012), release_at, 0.35)
+    return b
+
+
+save("ui_tap", switch(1700, 210, 0.065), 0.4)
+save("ui_confirm", switch(1300, 140, 0.075, heavy=1.0), 0.48)
+
+# Fights
+b = buf(1.0)                                                                    # the challenger drops onto the stage
+mix(b, boom(120, 26, 0.9, 0.22), 0, 1.0)
+d = biquad(noise(0.5, 2), "lp", np.geomspace(1200, 150, n_(0.5)), 0.8); mix(b, d * expdecay(len(d), 0.12), 0, 0.9)
+save("fight_drop", b, 0.6)
+x = pulse(f("C4"), 0.22, 0.25, slide=f("C5"))                                  # a fighter rises into line
+w = biquad(noise(0.22), "bp", np.geomspace(500, 2500, n_(0.22)), 1.2)
+save("fight_rise", 0.35 * x * env(len(x), 0.01, 0.05, 0.6, 0.08) + 0.6 * w * np.sin(np.linspace(0, np.pi, len(w))), 0.35)
+b = buf(1.6)                                                                    # "Fight!"
+for n in ["C4", "G4", "C5", "E5"]:
+    x = fat(f(n), 0.9, 0.25, vib=0.01); mix(b, x * env(len(x), 0.003, 0.08, 0.5, 0.5), 0, 0.25)
+mix(b, boom(150, 50, 0.4, 0.1), 0, 0.6); mix(b, crash(1.5, 0.45), 0, 0.35)
+save("fight_call", b, 0.55)
+w = biquad(noise(0.2), "bp", np.geomspace(700, 3500, n_(0.2)), 1.3)             # a swing
+save("fight_swing", w * np.sin(np.linspace(0, np.pi, len(w))) ** 2, 0.3)
+
+
+def punch(hard):
+    b = buf(0.5 + 0.3 * hard)
+    mix(b, boom(170 - 40 * hard, 40, 0.3 + 0.2 * hard, 0.06 + 0.06 * hard), 0, 1.0)
+    k = biquad(noise(0.15 + 0.1 * hard, 2), "lp", 1400 - 400 * hard, 0.9); mix(b, k * expdecay(len(k), 0.03 + 0.03 * hard), 0, 1.0)
+    c = pulse(f("A5") if not hard else f("E5"), 0.06, 0.125, slide=f("A3")); mix(b, c * expdecay(len(c), 0.02), 0, 0.3)
+    if hard: mix(b, crash(0.5, 0.12, 4000), 0, 0.25)
+    return b
+
+
+save("fight_hit", punch(0), 0.5)
+save("fight_hit_hard", punch(1), 0.58)
+b = buf(2.2)                                                                    # the knockout blow, in slow motion
+mix(b, punch(1), 0, 1.0)
+mix(b, boom(90, 24, 1.4, 0.45), 0.02, 0.8)
+x = fat(f("C5"), 1.2, 0.25, slide=f("C3")); mix(b, x * env(len(x), 0.005, 0.2, 0.5, 0.6), 0.05, 0.25)
+mix(b, crash(1.8, 0.6), 0, 0.3)
+save("fight_ko", b, 0.62)
+
+# Rewards
+b = buf(1.2)                                                                    # pulls or stars received
+for i, n in enumerate(["B5", "E6"]):
+    mix(b, blip(n, 0.09 if i == 0 else 0.5, 0.5, s=0.5, r=0.4 if i else 0.02), 0.07 * i, 0.5)
+for i, n in enumerate(["E6", "G#6", "B6", "E7"]):
+    x = pulse(f(n), 0.15, 0.125); mix(b, x * expdecay(len(x), 0.05), 0.2 + 0.06 * i, 0.15)
+save("reward", b, 0.45)
+b = buf(2.0)                                                                    # an upgrade unlocked
+mix(b, arp(["C5", "E5", "G5", "C6", "E6", "G6"], 0.05, 0.25, tail=0.08), 0, 1.0)
+for n in ["C5", "E5", "G5", "C6"]:
+    x = fat(f(n), 1.0, 0.25, vib=0.008); mix(b, 0.3 * x * env(len(x), 0.01, 0.15, 0.5, 0.6), 0.3)
+for i, n in enumerate(["C7", "G7", "E7", "C8"]):
+    mix(b, 0.25 * blip(n, 0.08, 0.125, s=0.2, r=0.05), 0.45 + i * 0.12)
+save("unlock", echo(b, 0.13, 0.25, 2), 0.5)
 print("written to", OUT)

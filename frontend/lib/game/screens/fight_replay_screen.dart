@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -76,6 +77,7 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
   late final _reveal = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
 
   bool _verdictHeard = false;
+  Timer? _rewardSound;
 
   @override
   void initState() {
@@ -86,6 +88,10 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
         if (_verdictHeard || _reveal.value < 0.74) return;
         _verdictHeard = true;
         sound.fightResult(won: widget.fight.fightersWin);
+        // A win's pulls chime in once the fanfare is through.
+        if (widget.fight.fightersWin && widget.rewardPulls != null) {
+          _rewardSound = Timer(const Duration(milliseconds: 1300), sound.reward);
+        }
       })
       ..forward();
   }
@@ -98,6 +104,7 @@ class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    _rewardSound?.cancel();
     _reveal.dispose();
     super.dispose();
   }

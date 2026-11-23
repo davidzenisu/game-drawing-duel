@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../game_session.dart';
+import '../sound.dart';
 import 'game_action.dart';
 import 'ticket_chip.dart';
 
@@ -41,9 +42,12 @@ class NotificationBoard extends StatelessWidget {
   final GameSession session;
 
   Future<void> _acceptAll(BuildContext context) async {
+    var received = false;
     for (final gift in [...session.gifts]) {
-      if (!context.mounted || !await runGameAction(context, () => session.acceptGift(gift))) return;
+      if (!context.mounted || !await runGameAction(context, () => session.acceptGift(gift))) break;
+      received |= !gift.justMessage;
     }
+    if (received) sound.reward();
   }
 
   @override
@@ -136,7 +140,9 @@ class _GiftCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: () => runGameAction(context, () => session.acceptGift(gift)),
+              onPressed: () async {
+                if (await runGameAction(context, () => session.acceptGift(gift)) && !gift.justMessage) sound.reward();
+              },
               child: Text(gift.justMessage ? 'OK' : 'Accept'),
             ),
           ],

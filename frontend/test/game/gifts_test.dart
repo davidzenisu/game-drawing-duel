@@ -5,6 +5,7 @@ import 'package:frontend/game/screens/send_gift_screen.dart';
 import 'package:frontend/game/tutorials.dart';
 import 'package:frontend/game/widgets/notification_board.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
+import 'package:frontend/game/sound.dart';
 
 import '../helpers.dart';
 
@@ -44,9 +45,13 @@ void main() {
     expect(find.text('+3 pulls'), findsOneWidget);
     expect(game.tickets, before, reason: 'not before it is accepted');
 
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
     await tester.tap(find.text('Accept'));
     await tester.pumpAndSettle();
     expect(game.tickets, before + 3);
+    expect(sound.played.last, 'reward.mp3', reason: 'the pulls chime in');
     expect(game.gifts, isEmpty);
     expect(find.text('Nothing new. Gifts and news show up here.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());

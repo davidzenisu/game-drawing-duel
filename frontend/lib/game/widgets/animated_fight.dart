@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
+import '../sound.dart';
 import 'fight_stage.dart';
 import 'stroke_effects.dart';
 
@@ -93,9 +94,43 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
 
   bool get _finalBlow => _knockout && _shown == widget.beats.length;
 
+  /// The entrance's sounds still to play: the challenger landing, each
+  /// fighter rising, then "Fight!".
+  late final List<(int, VoidCallback)> _cues = [
+    (_dropMs * 55 ~/ 100, sound.challengerDrops),
+    for (var i = 0; i < widget.fight.fighters.length; i++) (_riseAtMs(i), sound.fighterRises),
+    (_callAtMs, sound.fightCall),
+  ];
+  int _cuesPlayed = 0;
+
+  void _entranceSounds() {
+    if (!_entrance.isAnimating) return;
+    final atMs = _entrance.value * _entranceMs;
+    while (_cuesPlayed < _cues.length && _cues[_cuesPlayed].$1 <= atMs) {
+      _cues[_cuesPlayed++].$2();
+    }
+  }
+
+  /// Whether the current blow's hit was heard.
+  bool _blowHeard = false;
+
+  void _blowSound() {
+    final beat = _current;
+    if (_blowHeard || beat == null || !_beat.isAnimating || _beat.value < _impactAt) return;
+    _blowHeard = true;
+    if (_finalBlow) {
+      sound.knockout();
+    } else {
+      sound.blow(hard: beat.damage >= AnimatedFight.hardHit);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    sound.duck();
+    _entrance.addListener(_entranceSounds);
+    _beat.addListener(_blowSound);
     if (widget.skip) {
       _finish(inBuild: true);
     } else if (widget.entrance) {
@@ -133,6 +168,8 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
       return;
     }
     setState(() => _shown++);
+    _blowHeard = false;
+    sound.swing();
     // The blow that ends the fight plays in slow motion.
     _beat.duration = _finalBlow ? widget.beatDuration * 1.8 : widget.beatDuration;
     _beat.forward(from: 0).whenCompleteOrCancel(_next);
@@ -154,6 +191,7 @@ class _AnimatedFightState extends State<AnimatedFight> with TickerProviderStateM
 
   @override
   void dispose() {
+    sound.unduck();
     _done = true;
     _timer?.cancel();
     _entrance.dispose();

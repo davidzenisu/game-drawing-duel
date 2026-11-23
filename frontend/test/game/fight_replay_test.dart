@@ -4,6 +4,7 @@ import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/fight_replay_screen.dart';
+import 'package:frontend/game/sound.dart';
 
 import '../helpers.dart';
 
@@ -53,6 +54,26 @@ Future<void> _skipToReveal(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('with sound effects on, the entrance, every swing and blow, the K.O. and the reward are heard', (
+    tester,
+  ) async {
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    await _open(tester, _fight(), rewardPulls: 1);
+    for (var i = 0; i < 400 && !sound.played.contains('reward.mp3'); i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final played = sound.played;
+    expect(played.take(4), ['fight_drop.mp3', 'fight_rise.mp3', 'fight_rise.mp3', 'fight_call.mp3']);
+    final swings = played.where((s) => s == 'fight_swing.mp3').length;
+    final blows = played.where((s) => s.startsWith('fight_hit') || s == 'fight_ko.mp3').length;
+    expect(swings, greaterThan(1));
+    expect(blows, swings, reason: 'every swing lands a blow');
+    expect(played.skip(played.length - 3), ['fight_ko.mp3', 'fight_win.mp3', 'reward.mp3']);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the fighters enter, knock the challenger out and the stars reveal the winner', (tester) async {
     final fight = _fight();
     await _open(tester, fight);

@@ -15,8 +15,12 @@ the game is in early development (0.x), versions stay below 1.0.
 - Music and sound effects, in a retro chiptune style: turn **Music** and
   **Sound effects** on separately in the account menu (both are off until
   you do, and your device remembers them).
-- Buttons click when you press them, and the main ones (like Ready, Done
-  or Save) with a brighter blip.
+- Buttons click like a mechanical switch when you press them, and the main
+  ones (like Ready, Done or Save) with a deeper clack.
+- Fights are heard as they play out: the entrance, "Fight!", every swing
+  and punch, and a booming knockout.
+- Rewards chime: a win's pulls, accepted gifts, collected rewards, and a
+  fanfare when an upgrade unlocks.
 - The drawing clock ticks each second and beeps for the last 10, a buzzer
   sounds when time is up, and a chime when your drawing is saved.
 - Boost stars sparkle as they land, and fights end on a fanfare when your
@@ -24,6 +28,7 @@ the game is in early development (0.x), versions stay below 1.0.
 - An epic summon: the box drops in and lands with a thud, the tape tears as
   fast as you swipe, the box rumbles and bursts open, and every rarity gets
   its own fanfare, the legend's the biggest.
+
 ## [0.29.0] - 2026-11-23
 
 ### Changed
