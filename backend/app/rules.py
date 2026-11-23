@@ -358,14 +358,49 @@ FINALE_RARITIES = (Rarity.LEGEND, Rarity.HERO, Rarity.ADVENTURER)
 FINALE_MAX_HEROES = len(FINALE_RARITIES)
 
 
-def finale_key(
-    boost_stars: int, artist_boost_stars: int, wins: int, fights: int, day: int
-) -> tuple:
-    """Sorts a week's challengers best first: the most boost stars, then the
-    most boost stars its artist's challengers got that week, then the best
-    win rate (none without fights), then the latest day it was drawn."""
-    win_rate = Fraction(wins, fights) if fights else Fraction(0)
-    return (-boost_stars, -artist_boost_stars, -win_rate, -day)
+@dataclass(frozen=True)
+class FinaleEntry:
+    """What a week's challenger is ranked by."""
+
+    # Who drew it: any value that tells artists apart.
+    artist: object
+    boost_stars: int
+    # The boost stars all of its artist's challengers ranked that week got.
+    artist_boost_stars: int
+    wins: int
+    fights: int
+    # The day it was drawn.
+    day: int
+
+
+def finale_order(entries: list[FinaleEntry]) -> list[int]:
+    """The indexes of a week's challengers, best first, picked one place at
+    a time: the most boost stars, then one whose artist has no drawing
+    ranked above it yet, then the most boost stars its artist's challengers
+    got that week, then the best win rate (none without fights), then the
+    latest day it was drawn, then the first in `entries`."""
+
+    def key(i: int) -> tuple:
+        e = entries[i]
+        win_rate = Fraction(e.wins, e.fights) if e.fights else Fraction(0)
+        return (
+            -e.boost_stars,
+            e.artist in ranked_artists,
+            -e.artist_boost_stars,
+            -win_rate,
+            -e.day,
+            i,
+        )
+
+    left = list(range(len(entries)))
+    ranked_artists: set[object] = set()
+    order = []
+    while left:
+        best = min(left, key=key)
+        left.remove(best)
+        order.append(best)
+        ranked_artists.add(entries[best].artist)
+    return order
 
 
 # A player's characters get extra stars against another player's after

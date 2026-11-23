@@ -956,7 +956,7 @@ class MockGameSession extends GameSession {
   }
 
   /// The challengers drawn from [from] to [to], the friends' and yours,
-  /// ranked like online ([Finale.compare]), with their places. Each had one
+  /// ranked like online ([Finale.order]), with their places. Each had one
   /// fight: the [challengerWins] days' ones won it.
   List<RankedChallenger> _ranked(int from, int to) {
     final entries = [
@@ -970,9 +970,9 @@ class MockGameSession extends GameSession {
     for (final r in entries) {
       byArtist[r.card.artist] = (byArtist[r.card.artist] ?? 0) + r.boostStars;
     }
-    final ranked = [for (final r in entries) r.at(1, artistBoostStars: byArtist[r.card.artist])]
-      ..sort((a, b) => Finale.compare(a.rankedBy, b.rankedBy));
-    return [for (final (i, r) in ranked.indexed) r.at(i + 1)];
+    final withArtists = [for (final r in entries) r.at(1, artistBoostStars: byArtist[r.card.artist])];
+    final order = Finale.order([for (final r in withArtists) r.rankedBy]);
+    return [for (final (place, i) in order.indexed) withArtists[i].at(place + 1)];
   }
 
   /// The week that ends on [lastDay]: its challengers, the ones fought that

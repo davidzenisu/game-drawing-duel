@@ -193,7 +193,7 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual([r.value for r in rules.FINALE_RARITIES], finale["rarities"])
         for ranked, order in finale["cases"]:
             self.assertEqual(
-                sorted(range(len(ranked)), key=lambda i: rules.finale_key(*ranked[i])),
+                rules.finale_order([rules.FinaleEntry(*r) for r in ranked]),
                 order,
                 ranked,
             )

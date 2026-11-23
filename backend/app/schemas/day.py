@@ -177,7 +177,7 @@ class RankedChallenger(BaseModel):
     character: CharacterResponse
     # Its own stars plus its boost stars.
     stars: int
-    # Its place in the ranking (`app.rules.finale_key`); a weekly hero's
+    # Its place in the ranking (`app.rules.finale_order`); a weekly hero's
     # is the one it was crowned with.
     place: int
     # The boost stars all of its artist's challengers ranked that week got,

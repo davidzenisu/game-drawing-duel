@@ -5,10 +5,11 @@ is through: title, drawing the day after, boosting the next day and the
 fight the day after that, two days after it was drawn. A challenger titled
 on a Monday is fought on Thursday and ranks that week; one titled on a
 Friday is fought on Monday and ranks the next. Its stars are final by its
-fight: its own 3 plus the boost stars it got. Every challenger is ranked
-(`rules.finale_key`): by its boost stars, then the boost stars all of its
-artist's challengers got that week, then its win rate, then the latest day
-it was drawn; everyone can see the ranking.
+fight: its own 3 plus the boost stars it got. Every challenger is ranked,
+one place at a time (`rules.finale_order`): by its boost stars, then
+whether its artist has no drawing ranked above it yet, then the boost stars
+all of its artist's challengers got that week, then its win rate, then the
+latest day it was drawn; everyone can see the ranking.
 
 Once the week is over, its top `rules.FINALE_MAX_HEROES` are crowned weekly
 heroes and join the server's gacha pool: 1st place as a legend, 2nd as a
@@ -62,7 +63,7 @@ class Ranked:
 
 def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
     """The challengers of the week that ends on `day`, its last day, best
-    first (`rules.finale_key`; then the one drawn last): the ones fought
+    first (`rules.finale_order`; then the one drawn last): the ones fought
     that week. Their boosts and fights must be
     complete (`app.fights.complete_boosts`, `app.fights.complete_fights`)."""
     challengers = session.scalars(
@@ -100,12 +101,20 @@ def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
     # Still tied: the one drawn last first.
     entries.sort(key=lambda r: (r.challenger.created_at, str(r.challenger.id)))
     entries.reverse()
-    entries.sort(
-        key=lambda r: rules.finale_key(
-            r.boost_stars, r.artist_boost_stars, r.wins, r.fights, r.challenger.day
-        )
+    order = rules.finale_order(
+        [
+            rules.FinaleEntry(
+                r.challenger.artist_seat_id,
+                r.boost_stars,
+                r.artist_boost_stars,
+                r.wins,
+                r.fights,
+                r.challenger.day,
+            )
+            for r in entries
+        ]
     )
-    return entries
+    return [entries[i] for i in order]
 
 
 def heroes_of(

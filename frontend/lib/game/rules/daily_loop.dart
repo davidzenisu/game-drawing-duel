@@ -438,10 +438,11 @@ abstract final class FightScript {
   }
 }
 
-/// Once a week, the finale: the week's challengers are ranked ([compare])
-/// by their boost stars, then the boost stars all of their artist's
-/// challengers got that week, then their win rate, then the latest day they
-/// were drawn. A challenger counts for the week of its fight, two days after
+/// Once a week, the finale: the week's challengers are ranked one place at
+/// a time ([order]) by their boost stars, then whether their artist has no
+/// drawing ranked above them yet, then the boost stars all of their
+/// artist's challengers got that week, then their win rate, then the latest
+/// day they were drawn. A challenger counts for the week of its fight, two days after
 /// it was drawn (titled on Monday, it's fought on Thursday; titled on
 /// Friday, it's fought on Monday and counts for the next week). Once the
 /// week is over (Sunday, UTC), its top [maxHeroes] are crowned weekly heroes
@@ -455,17 +456,38 @@ abstract final class Finale {
   static const rarities = [Rarity.legend, Rarity.hero, Rarity.adventurer];
   static const maxHeroes = 3;
 
-  /// Orders two of a week's challengers, each (boost stars, its artist's
-  /// boost stars, fights won, fights, day), best first: negative when [a]
-  /// ranks above [b].
-  static int compare((int, int, int, int, int) a, (int, int, int, int, int) b) {
-    if (a.$1 != b.$1) return b.$1.compareTo(a.$1);
-    if (a.$2 != b.$2) return b.$2.compareTo(a.$2);
-    // The win rates, none without fights.
-    final (aWins, aFights) = a.$4 == 0 ? (0, 1) : (a.$3, a.$4);
-    final (bWins, bFights) = b.$4 == 0 ? (0, 1) : (b.$3, b.$4);
-    if (aWins * bFights != bWins * aFights) return (bWins * aFights).compareTo(aWins * bFights);
-    return b.$5.compareTo(a.$5);
+  /// The indexes of a week's challengers, each (artist, boost stars, its
+  /// artist's boost stars, fights won, fights, day), best first, picked one
+  /// place at a time: the most boost stars, then one whose artist has no
+  /// drawing ranked above it yet, then the most boost stars of its artist,
+  /// then the best win rate (none without fights), then the latest day, then
+  /// the first in [entries].
+  static List<int> order(List<(Object, int, int, int, int, int)> entries) {
+    final ranked = <Object>{};
+    // Negative when [a] ranks above [b] for the next place.
+    int compare(int i, int j) {
+      final a = entries[i], b = entries[j];
+      if (a.$2 != b.$2) return b.$2.compareTo(a.$2);
+      final (aRanked, bRanked) = (ranked.contains(a.$1), ranked.contains(b.$1));
+      if (aRanked != bRanked) return aRanked ? 1 : -1;
+      if (a.$3 != b.$3) return b.$3.compareTo(a.$3);
+      // The win rates, none without fights.
+      final (aWins, aFights) = a.$5 == 0 ? (0, 1) : (a.$4, a.$5);
+      final (bWins, bFights) = b.$5 == 0 ? (0, 1) : (b.$4, b.$5);
+      if (aWins * bFights != bWins * aFights) return (bWins * aFights).compareTo(aWins * bFights);
+      if (a.$6 != b.$6) return b.$6.compareTo(a.$6);
+      return i.compareTo(j);
+    }
+
+    final left = [for (var i = 0; i < entries.length; i++) i];
+    final order = <int>[];
+    while (left.isNotEmpty) {
+      final best = left.reduce((i, j) => compare(i, j) <= 0 ? i : j);
+      left.remove(best);
+      order.add(best);
+      ranked.add(entries[best].$1);
+    }
+    return order;
   }
 }
 
@@ -511,7 +533,7 @@ class RankedChallenger {
   final int fights;
   final int wins;
 
-  /// Its place in the ranking ([Finale.compare]); a weekly hero's is the
+  /// Its place in the ranking ([Finale.order]); a weekly hero's is the
   /// one it was crowned with.
   final int place;
 
@@ -528,8 +550,8 @@ class RankedChallenger {
   /// Its fights won out of its fights, in percent; null without any.
   int? get winPercent => fights == 0 ? null : (100 * wins / fights).round();
 
-  /// What [Finale.compare] ranks it by.
-  (int, int, int, int, int) get rankedBy => (boostStars, artistBoostStars, wins, fights, card.day);
+  /// What [Finale.order] ranks it by.
+  (Object, int, int, int, int, int) get rankedBy => (card.artist, boostStars, artistBoostStars, wins, fights, card.day);
 
   /// This one at [place], crowned with [heroRarity] if given, with
   /// [artistBoostStars] if given.

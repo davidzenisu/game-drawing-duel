@@ -77,13 +77,14 @@ A button that isn't available (yet) is greyed out instead of hidden, e.g. everyt
 # At the very end of the week:
 At the end of the week, its top **3** challengers become **weekly heroes**, available to be pulled from the gacha pool, whatever their stars: the 1st place as a ★★★★ legend, the 2nd as a ★★★ hero and the 3rd as a ★★ adventurer. A week with fewer challengers crowns fewer, and one without any crowns none. A crowned challenger takes its new rarity for good: in pulls, upgrades, rest days and fights. Finales before this change crowned one hero, a 3☆, and keep it.
 
-The challengers are ranked by:
-1. their boost stars;
-2. the boost stars all the challengers of the player who drew it got that week (the same as their Grand Artist stat);
-3. their win rate (fights won out of fights, none counting as 0);
-4. the day they were drawn, the later the better.
+The ranking is built one place at a time, each place going to the best challenger left by:
+1. its boost stars;
+2. whether the player who drew it has no drawing ranked above it yet: those who don't come first, so challengers with as many boost stars spread their places across players;
+3. the boost stars all the challengers of the player who drew it got that week (the same as their Grand Artist stat);
+4. its win rate (fights won out of fights, none counting as 0);
+5. the day it was drawn, the later the better.
 
-Challengers tied on all four (which takes two artists drawing on the same day) go by who drew theirs last.
+A challenger with more boost stars always ranks higher, even if its artist already has a drawing above it. Challengers tied on all five (which takes two artists drawing on the same day) go by who drew theirs last.
 
 The full rank list of challengers in order (including the amount of stars) should also be visible to the players after the week.
 

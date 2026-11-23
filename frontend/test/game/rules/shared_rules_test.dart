@@ -154,12 +154,11 @@ void main() {
     expect([for (final rarity in Finale.rarities) rarity.name], finale['rarities']);
     expect(Finale.maxHeroes, Finale.rarities.length);
     for (final [List ranked, List order] in (finale['cases'] as List).cast<List>()) {
-      final keys = [
-        for (final [int boost, int artistBoost, int wins, int fights, int day] in ranked.cast<List>())
-          (boost, artistBoost, wins, fights, day),
-      ];
       expect(
-        [for (var i = 0; i < keys.length; i++) i]..sort((a, b) => Finale.compare(keys[a], keys[b])),
+        Finale.order([
+          for (final [int artist, int boost, int artistBoost, int wins, int fights, int day] in ranked.cast<List>())
+            (artist, boost, artistBoost, wins, fights, day),
+        ]),
         order,
         reason: '$ranked',
       );
