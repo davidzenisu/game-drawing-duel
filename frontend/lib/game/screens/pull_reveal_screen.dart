@@ -10,6 +10,7 @@ import '../game_session.dart';
 import '../rules/gacha.dart';
 import '../rules/models.dart';
 import '../rules/upgrades.dart';
+import '../sound.dart';
 import '../widgets/card_art.dart';
 import '../widgets/gacha_box.dart';
 
@@ -28,6 +29,28 @@ const _pullOutTime = Duration(milliseconds: 1300);
 /// inside, the longer and so the heavier.
 @visibleForTesting
 Duration openingBuzzFor(Rarity rarity) => Duration(milliseconds: const [150, 300, 500, 800][rarity.index]);
+
+/// How long a box takes to drop in and land, before its tape can be cut.
+const _landTime = Duration(milliseconds: 650);
+
+/// When a landing box first hits the ground: [Curves.bounceOut]'s first
+/// bounce. Two small bounces follow.
+const _touchdown = 1 / 2.75;
+
+/// How far above its place a landing box is at [t] of its landing.
+double _dropAt(double t) => -560 * (1 - Curves.bounceOut.transform(t));
+
+/// Drops a box in: [land] runs, and the landing thud plays as it touches
+/// down (not when skipped straight to its end).
+void _dropIn(AnimationController land) {
+  var heard = false;
+  land.addListener(() {
+    if (heard || land.value < _touchdown) return;
+    heard = true;
+    if (land.isAnimating) sound.boxLands();
+  });
+  land.forward();
+}
 
 /// The light peeking out of a cut [cut] that far: white, turning to the
 /// [rarest] pull's colour only towards the end.
@@ -73,12 +96,16 @@ GachaBox _box(
 );
 
 /// Cutting a box's tape open by swiping along it, left to right: the phone
-/// buzzes as the cut starts and runs, and once it's through, [onCut].
+/// buzzes as the cut starts and runs, the tape tears as loud as the finger
+/// is fast, and once it's through, it snaps free and [onCut].
 class _TapeCut {
   _TapeCut(this.onCut);
 
   final VoidCallback onCut;
   double progress = 0;
+
+  /// The tearing, while the finger is on the tape.
+  SoundLoop? _tearing;
 
   /// Whether a finger is on the tape.
   bool cutting = false;
@@ -100,14 +127,34 @@ class _TapeCut {
     } else if ((progress * 8).floor() > (before * 8).floor()) {
       HapticFeedback.vibrate();
     }
+    // A full swipe across in about half a second tears at full volume.
+    (_tearing ??= sound.tapeTearing())?.volume = (dx / length / 0.03).clamp(0.3, 1.0);
     if (done) {
       cutting = false;
+      _silence();
+      sound.tapeCut();
       onCut();
     }
   }
 
+  /// The finger left the tape.
+  void release() {
+    cutting = false;
+    _tearing?.volume = 0;
+  }
+
+  void _silence() {
+    _tearing?.stop();
+    _tearing = null;
+  }
+
   /// Skips the cutting.
-  void skip() => progress = 1;
+  void skip() {
+    progress = 1;
+    _silence();
+  }
+
+  void dispose() => _silence();
 }
 
 /// The scissors on the tape: sliding along it to show what to do until the
@@ -177,6 +224,19 @@ class PullRevealScreen extends StatefulWidget {
 
 class _PullRevealScreenState extends State<PullRevealScreen> {
   PullOutcome? _spotlight;
+
+  // The music steps back for the summon's own sounds.
+  @override
+  void initState() {
+    super.initState();
+    sound.duck();
+  }
+
+  @override
+  void dispose() {
+    sound.unduck();
+    super.dispose();
+  }
 
   /// While a multi-pull reveals its cards one by one: how far it got, and
   /// what comes after this card or after skipping the rest.
@@ -295,7 +355,13 @@ class _SingleReveal extends StatefulWidget {
 class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMixin {
   late final _rarity = widget.outcome.card.rarity;
   late final _boxed = widget.boxed && widget.buildUp;
-  late final _cut = _TapeCut(() => _charge.forward());
+  late final _cut = _TapeCut(() {
+    if (!_skipped) sound.boxShakes(_rarity);
+    _charge.forward();
+  });
+
+  /// The box dropping in and landing.
+  late final _land = AnimationController(vsync: this, duration: _landTime);
 
   /// The camera swaying round the box, and the scissors' hint.
   late final _sway = AnimationController(vsync: this, duration: const Duration(seconds: 6));
@@ -317,27 +383,36 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
       if (status != AnimationStatus.completed) return;
       if (_boxed && _pull.isDismissed) {
         // It opens with a heavy buzz, heavier the rarer the card.
-        if (!_skipped) buzz(openingBuzzFor(_rarity));
+        if (!_skipped) {
+          buzz(openingBuzzFor(_rarity));
+          sound
+            ..boxOpens(_rarity)
+            ..cardRises(_rarity);
+        }
         _pull.forward();
       } else if (!_boxed && _flip.isDismissed) {
-        _flip.forward();
+        _flipCard();
       }
     });
     _pull.addStatusListener((status) {
-      if (status == AnimationStatus.completed && _flip.isDismissed) _flip.forward();
+      if (status == AnimationStatus.completed && _flip.isDismissed) _flipCard();
     });
     _flip.addStatusListener((status) {
       if (status == AnimationStatus.completed && _burst.isDismissed) {
         _sway.stop();
-        _burst.forward();
+        _burstOut();
       }
     });
     if (_boxed) {
       _sway.repeat();
+      _dropIn(_land);
     } else {
+      _land.value = 1;
       _cut.skip();
       _pull.value = 1;
       if (widget.buildUp) {
+        // On its own, the card rumbles as it builds up.
+        sound.boxShakes(_rarity);
         _charge.forward();
       } else {
         _charge.value = 1;
@@ -351,11 +426,34 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) _showAll();
   }
 
+  void _flipCard() {
+    if (!_skipped && widget.buildUp) sound.cardFlips();
+    _flip.forward();
+  }
+
+  void _burstOut() {
+    if (!_skipped) _revealSound();
+    _burst.forward();
+  }
+
+  /// The reveal's fanfare, once; not for a card shown again from the
+  /// overview.
+  bool _revealHeard = false;
+
+  void _revealSound() {
+    if (_revealHeard || !widget.buildUp) return;
+    _revealHeard = true;
+    sound.cardRevealed(_rarity);
+  }
+
   /// Whether everything was shown at once, so without the opening buzz.
   bool _skipped = false;
 
   void _showAll() {
     _skipped = true;
+    // Skipping still ends on the card's fanfare.
+    _revealSound();
+    _land.value = 1;
     _cut.skip();
     _sway.stop();
     _charge.value = 1;
@@ -376,6 +474,8 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
 
   @override
   void dispose() {
+    _cut.dispose();
+    _land.dispose();
     _sway.dispose();
     _charge.dispose();
     _pull.dispose();
@@ -390,11 +490,16 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _tap,
-      onHorizontalDragStart: _cut.done ? null : (_) => setState(() => _cut.cutting = true),
-      onHorizontalDragUpdate: _cut.done ? null : (details) => setState(() => _cut.drag(details.delta.dx, _tapeLength)),
-      onHorizontalDragEnd: _cut.done ? null : (_) => setState(() => _cut.cutting = false),
+      // The tape can be cut once the box has landed.
+      onHorizontalDragStart: _cut.done ? null : (_) => setState(() => _cut.cutting = _land.isCompleted),
+      onHorizontalDragUpdate: _cut.done
+          ? null
+          : (details) {
+              if (_land.isCompleted) setState(() => _cut.drag(details.delta.dx, _tapeLength));
+            },
+      onHorizontalDragEnd: _cut.done ? null : (_) => setState(_cut.release),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_sway, _charge, _pull, _flip, _burst]),
+        animation: Listenable.merge([_land, _sway, _charge, _pull, _flip, _burst]),
         builder: (context, _) {
           final charge = _charge.value;
           final burst = _burst.value;
@@ -494,7 +599,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
         ? 0.0
         : (_cut.cutting ? sin(sway * 2 * pi * 90) * (1 + 2 * cut) : 0) +
               sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5);
-    final swaying = _swaying(sway, shift: const Offset(0, 70), shake: shake);
+    final swaying = _swaying(sway, shift: Offset(0, 70 + _dropAt(_land.value)), shake: shake);
     final pushedIn = BoxCamera.lerp(
       swaying,
       swaying.copyWith(yaw: -0.3, zoom: 1.12),
@@ -543,7 +648,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
             child: CardBack(width: cardWidth, glow: glow),
           ),
         box(GachaBoxLayer.front),
-        if (!_cut.done) _scissors(camera, _cut, (sway * 4) % 1),
+        if (!_cut.done && _land.isCompleted) _scissors(camera, _cut, (sway * 4) % 1),
       ],
     );
   }
@@ -678,6 +783,9 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 4400));
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
   late final _cut = _TapeCut(_startCarousel);
+
+  /// The box dropping in and landing.
+  late final _land = AnimationController(vsync: this, duration: _landTime);
   var _stage = _Stage.cut;
   Timer? _pause;
 
@@ -694,6 +802,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
       // A moment to take in the colours before the reveals.
       if (status == AnimationStatus.completed) _pause = Timer(const Duration(milliseconds: 900), _startReveals);
     });
+    _dropIn(_land);
   }
 
   @override
@@ -711,6 +820,9 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     setState(() => _stage = _Stage.carousel);
     // It opens with a heavy buzz, heavier the rarer the best card.
     buzz(openingBuzzFor(_rarest));
+    sound
+      ..boxOpens(_rarest)
+      ..cardRises(_rarest);
     _carousel.forward();
   }
 
@@ -732,6 +844,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   void _toResults() {
     if (!mounted || _stage == _Stage.results) return;
     _pause?.cancel();
+    _land.value = 1;
     _cut.skip();
     _carousel.stop();
     _sway.stop();
@@ -751,6 +864,8 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   @override
   void dispose() {
     _pause?.cancel();
+    _cut.dispose();
+    _land.dispose();
     _sway.dispose();
     _carousel.dispose();
     _spin.dispose();
@@ -792,13 +907,16 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
               : GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: _tap,
-                  onHorizontalDragStart: cutting ? (_) => setState(() => _cut.cutting = true) : null,
+                  // The tape can be cut once the box has landed.
+                  onHorizontalDragStart: cutting ? (_) => setState(() => _cut.cutting = _land.isCompleted) : null,
                   onHorizontalDragUpdate: cutting
-                      ? (details) => setState(() => _cut.drag(details.delta.dx, _tapeLength))
+                      ? (details) {
+                          if (_land.isCompleted) setState(() => _cut.drag(details.delta.dx, _tapeLength));
+                        }
                       : null,
-                  onHorizontalDragEnd: cutting ? (_) => setState(() => _cut.cutting = false) : null,
+                  onHorizontalDragEnd: cutting ? (_) => setState(_cut.release) : null,
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_sway, _carousel, _spin]),
+                    animation: Listenable.merge([_land, _sway, _carousel, _spin]),
                     builder: (context, _) => _ring(),
                   ),
                 ),
@@ -844,7 +962,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
         // Big in the middle while you cut, then small below the ring.
         final fit = min(1.0, constraints.maxWidth / 360);
         final shake = _cut.cutting ? sin(_sway.value * 2 * pi * 90) * (1 + 2 * _cut.progress) : 0.0;
-        final swaying = _swaying(_sway.value, zoom: fit, shift: const Offset(0, 20), shake: shake);
+        final swaying = _swaying(_sway.value, zoom: fit, shift: Offset(0, 20 + _dropAt(_land.value)), shake: shake);
         final camera =
             BoxCamera.lerp(
               swaying,
@@ -894,7 +1012,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
                     ),
                   ),
               if (sink < 1) box(GachaBoxLayer.front),
-              if (_stage == _Stage.cut) _scissors(camera, _cut, (_sway.value * 4) % 1),
+              if (_stage == _Stage.cut && _land.isCompleted) _scissors(camera, _cut, (_sway.value * 4) % 1),
             ],
           ),
         );

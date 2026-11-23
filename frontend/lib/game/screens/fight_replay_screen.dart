@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
+import '../sound.dart';
 import '../widgets/animated_fight.dart';
 
 /// Plays out a fight that ends with the outcome the stars decided.
@@ -74,10 +75,19 @@ class FightOutcome extends StatefulWidget {
 class _FightOutcomeState extends State<FightOutcome> with SingleTickerProviderStateMixin {
   late final _reveal = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
 
+  bool _verdictHeard = false;
+
   @override
   void initState() {
     super.initState();
-    _reveal.forward();
+    // The verdict's jingle plays as the winner drops in (or at once when tapped).
+    _reveal
+      ..addListener(() {
+        if (_verdictHeard || _reveal.value < 0.74) return;
+        _verdictHeard = true;
+        sound.fightResult(won: widget.fight.fightersWin);
+      })
+      ..forward();
   }
 
   @override

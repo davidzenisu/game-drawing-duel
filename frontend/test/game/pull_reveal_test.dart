@@ -6,6 +6,7 @@ import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/pull_reveal_screen.dart';
+import 'package:frontend/game/sound.dart';
 import 'package:frontend/game/widgets/card_art.dart';
 import 'package:frontend/game/widgets/gacha_box.dart';
 
@@ -70,7 +71,9 @@ Future<ValueNotifier<bool>> _open(
   );
   await tester.tap(find.text('Open'));
   await tester.pump();
+  // The page slides in and the box lands.
   await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 700));
   return closed;
 }
 
@@ -100,6 +103,51 @@ List<String> _buzzes(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('with sound on, the box lands, the tape tears, and it shakes, opens and reveals in its rarity', (
+    tester,
+  ) async {
+    sound.setEnabled(true);
+    addTearDown(() => sound.setEnabled(false));
+    sound.played.clear();
+    await _open(tester, [_outcome('Sam', Rarity.hero)]);
+    expect(sound.played, ['summon_land.mp3'], reason: 'the box landed');
+    await _swipe(tester);
+    await _wait(tester, const Duration(seconds: 6));
+    expect(sound.played, [
+      'summon_land.mp3',
+      'summon_tape.wav',
+      'summon_cut.mp3',
+      'summon_shake_hero.mp3',
+      'summon_open_hero.mp3',
+      'summon_beam_hero.mp3',
+      'summon_flip.mp3',
+      'summon_reveal_hero.mp3',
+    ]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("the tape can't be cut while the box is still landing", (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: PullRevealScreen(outcomes: [_outcome('Sam', Rarity.basic)])));
+    await _swipe(tester);
+    expect(_theBox(tester).cut, 0);
+    await _wait(tester, const Duration(milliseconds: 700));
+    await _swipe(tester);
+    expect(_theBox(tester).cut, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with sound off, a summon plays nothing', (tester) async {
+    sound.played.clear();
+    await _open(tester, [_outcome('Sam', Rarity.legend)]);
+    await _swipe(tester);
+    await _wait(tester, const Duration(seconds: 6));
+    expect(sound.played, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('a single pull: you cut the tape open, its rarity peeks out, then it comes out, flips and bursts', (
     tester,
   ) async {

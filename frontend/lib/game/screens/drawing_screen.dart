@@ -9,6 +9,7 @@ import '../game_session.dart';
 import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../rules/themes.dart';
+import '../sound.dart';
 import '../widgets/card_art.dart';
 import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
@@ -145,6 +146,9 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
 
   Duration? get _limit => widget.timeLimit ?? widget.rarity.drawTime;
 
+  /// The whole seconds left at the last tick, for the ticking sound.
+  int? _secondsHeard;
+
   Duration get _remaining {
     final left = _limit! - _cut - _stopwatch.elapsed;
     return left.isNegative ? Duration.zero : left;
@@ -157,6 +161,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     _shake = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _pad.addListener(_rebuild);
     _title.addListener(_rebuild);
+    sound.duck();
     if (_started) {
       _startClock();
     } else {
@@ -194,7 +199,9 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       _hitAt = _stopwatch.elapsed;
       _shake.forward(from: 0);
     }
+    _tickSound();
     if (_remaining == Duration.zero) {
+      sound.timeUp();
       _ticker?.cancel();
       _stopwatch.stop();
       _pad.lock();
@@ -204,8 +211,19 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
     setState(() {});
   }
 
+  /// A tick each second of the clock, a sharper beep each of the last 10.
+  void _tickSound() {
+    final seconds = (_remaining.inMilliseconds + 999) ~/ 1000;
+    if (seconds == _secondsHeard) return;
+    final first = _secondsHeard == null;
+    _secondsHeard = seconds;
+    if (first || seconds == 0) return;
+    seconds <= 10 ? sound.timerFinal() : sound.timerTick();
+  }
+
   @override
   void dispose() {
+    sound.unduck();
     _leaveGuard.disable();
     _ticker?.cancel();
     _shake.dispose();
@@ -251,6 +269,7 @@ class _DrawingScreenState extends State<DrawingScreen> with SingleTickerProvider
       if (!saved) return;
     }
     _done = true;
+    sound.drawingSaved();
     _leaveGuard.disable();
     final navigator = Navigator.of(context);
     if (widget.then case final then?) {

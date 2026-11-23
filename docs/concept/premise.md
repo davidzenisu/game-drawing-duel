@@ -24,6 +24,8 @@ The daily hub shows the 4 steps of the cycle as big buttons (icon and title, the
 
 When choosing a challenger, picking a player shows only their name, no drawing of them.
 
+The game has chiptune sound effects and music (on the web). Sound is off until the player turns it on in the account menu (**Sound: off / on**); the device remembers it, and the browser lets it play from the first tap. While it's on, a short music loop plays throughout, turned down on the drawing and summon screens. The drawing clock ticks each second and beeps sharper for the last 10, a buzzer sounds when time is up and a chime once the drawing is saved; a boost star sparkles as it lands on a challenger; a fight ends on a fanfare when the fighters win and a sad little tune when the challenger does. The summon has its own sounds (see [Gacha Rates](./gacha-rates.md)).
+
 On the web, the browser's back button goes back one screen at a time (however often it's pressed in a row), like the app's own back arrow, and closes an open dialog first. Screens that can't be left right away keep their rules: a running drawing ignores it, unsaved boosts ask first. On the daily hub (or whatever screen the game starts on), back asks **Leave the game?** before leaving for the page before the game, so it never drops the player on the sign-in page by accident.
 
 Above them, next to the day's title and above the drawing step, a **Send a hurry** button sends the day's free hurry, with an optional short message for the target (greyed out once sent, when tapping it recalls whom you hurried and your message, or on a day without one).
