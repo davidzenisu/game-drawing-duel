@@ -404,10 +404,11 @@ def finale_order(entries: list[FinaleEntry]) -> list[int]:
 
 
 # A player's characters get extra stars against another player's after
-# winning more than a share of last week's fights against them: the most
-# extra stars of every share they beat. It takes this many fights to count.
+# winning at least a share (in whole percent) of last week's fights against
+# them: the most extra stars of every share they reach. It takes this many
+# fights to count.
 WIN_RATE_MIN_FIGHTS = 3
-WIN_RATE_EXTRA_STARS = ((0.6, 1), (0.8, 2))
+WIN_RATE_EXTRA_STARS = ((0.8, 1),)
 
 # The boost balance and the win rate bands above start with the week of this
 # Monday (UTC), so running servers switch between two weeks instead of in the
@@ -422,11 +423,12 @@ def win_rate_extra_stars(
     bands: tuple[tuple[float, int], ...] = WIN_RATE_EXTRA_STARS,
 ) -> int:
     """The extra stars for winning `wins` of `fights` last week, by `bands`
-    of [share, extra stars]."""
+    of [share, extra stars]: the most of every share reached. Shares count
+    in whole percent, so 4 of 5 reaches 80%."""
     if fights < WIN_RATE_MIN_FIGHTS:
         return 0
     return max(
-        (stars for share, stars in bands if wins > share * fights),
+        (stars for share, stars in bands if wins * 100 >= round(share * 100) * fights),
         default=0,
     )
 

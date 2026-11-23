@@ -9,12 +9,20 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
-## [0.27.0] - 2026-11-23
+## [0.28.0] - 2026-11-23
 
 ### Changed
 - In the week ranking, challengers with as many boost stars now rank a
   player's second drawing after everyone else's first, so the weekly heroes
   spread across players. More boost stars still always rank higher.
+
+## [0.27.0] - 2026-11-23
+
+### Changed
+- Win rates now give one extra star for winning at least 80% of the
+  meetings with another player's characters, exactly 80% included. Winning
+  less gives no extra stars, and there are no more two extra stars. It
+  counts from today's fights on.
 
 ## [0.26.0] - 2026-11-22
 

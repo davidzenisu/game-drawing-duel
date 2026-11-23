@@ -13,11 +13,10 @@ This works the following way:
 	- A hero or challenger counts for the player it shows.
 	- In a fight, every hero meets the challenger once; the side that won the fight wins that meeting. Heroes showing the challenger's own player don't count.
 	- It takes at least **3** meetings between two players for a win rate to count.
-	- If a player's heroes and challengers won more than **60%** of their meetings with another player's, they get **one** extra ☆ against that player this week.
-	- If they won more than **80%**, they get **two** extra ☆ instead.
-	- These bands start with the week of Monday, 23 November 2026, like the [Boost Balance](./boost-balance.md); the weeks before gave one extra ☆ for more than 50% and two for more than 75%. The win rates screen explains the bands of its week.
-	- Exactly 60% or 80% isn't more: it gives the smaller bonus. Losing gives no negative stars: a player who won under 40% against another is the one the other player's bonus counts against.
-- The same bands balance the boost stars of the following week (see [Boost Balance](./boost-balance.md)).
+	- If a player's heroes and challengers won at least **80%** of their meetings with another player's, they get **one** extra ☆ against that player this week. Exactly 80% counts, e.g. 4 of 5. Anything below gives no extra ☆.
+	- This band holds from Monday, 23 November 2026 (since 0.27.0; that week started with one extra ☆ for more than 60% and two for more than 80%, like the [Boost Balance](./boost-balance.md)'s bands); the weeks before gave one extra ☆ for 50% and two for 75%. The win rates screen explains the band of its week.
+	- Losing gives no negative stars: a player who won 20% or less against another is the one the other player's bonus counts against.
+- The boost stars of the following week are balanced with bands of their own (see [Boost Balance](./boost-balance.md)).
 - In a fight, each hero gets its extra stars against the challenger's player, and the challenger gets its extra stars once for each hero whose player it beat most of the time. Ties still go to the challenger.
 - The extra stars only decide the fight: the stars and pulls a win earns still come from the challenger's own and boost stars.
 - Speed mode has no weeks, so it has no win rates.
