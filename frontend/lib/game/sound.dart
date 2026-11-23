@@ -161,6 +161,7 @@ class GameSound {
   void unlock() => play('unlock.mp3');
 
   // The summon, for the rarest card in the box.
+  /// For the box landing (#296), played as it first touches down.
   void boxLands() => play('summon_land.mp3');
   SoundLoop? tapeTearing() => loop('summon_tape.wav', volume: 0);
   void tapeCut() => play('summon_cut.mp3');

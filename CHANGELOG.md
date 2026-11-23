@@ -26,9 +26,9 @@ the game is in early development (0.x), versions stay below 1.0.
   sounds when time is up, and a chime when your drawing is saved.
 - Boost stars sparkle as they land, and fights end on a fanfare when your
   fighters win, or a sad little tune when the challenger does.
-- An epic summon: the box drops in and lands with a thud, the tape tears as
-  fast as you swipe, the box rumbles and bursts open, and every rarity gets
-  its own fanfare, the legend's the biggest.
+- An epic-sounding summon: the tape tears as fast as you swipe, the box
+  rumbles and bursts open, and every rarity gets its own fanfare, the
+  legend's the biggest.
 
 ## [0.29.0] - 2026-11-23
 
