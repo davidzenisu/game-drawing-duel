@@ -226,6 +226,15 @@ void main() {
     expect(_theBox(tester).glow, Rarity.legend.color);
     expect(find.text('Tap to hurry'), findsOneWidget);
 
+    // Like a single pull's, the box shakes shut for the rarest (a legend's
+    // build-up), the camera pushing in, before it opens.
+    final cutCamera = _theBox(tester).camera;
+    await _wait(tester, const Duration(milliseconds: 1000));
+    expect(_theBox(tester).open, 0);
+    expect(find.byType(CardBack), findsNothing, reason: 'still in the box');
+    expect(_theBox(tester).camera.zoom, greaterThan(cutCamera.zoom), reason: 'the camera pushes in');
+    await _wait(tester, const Duration(milliseconds: 600));
+
     // The cards come out of the box, then the carousel only glows; no
     // characters yet.
     await _wait(tester, const Duration(milliseconds: 600));
@@ -269,9 +278,12 @@ void main() {
     expect(closed.value, isTrue);
   });
 
-  testWidgets('a tap hurries the carousel, and skip in a reveal skips the rest', (tester) async {
+  testWidgets('a tap hurries the box open and the carousel, and skip in a reveal skips the rest', (tester) async {
     await _open(tester, [for (var i = 0; i < 10; i++) _outcome('Basic $i', Rarity.basic)]);
     await _swipe(tester);
+    await tester.tapAt(const Offset(200, 400));
+    await tester.pump();
+    // The shake skipped, the box opens; the next tap hurries the carousel.
     await tester.tapAt(const Offset(200, 400));
     await tester.pump();
     await tester.tapAt(const Offset(200, 400));

@@ -9,6 +9,13 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.31.0] - 2026-11-23
+
+### Changed
+- A 10-pull's box now shakes and opens like a single pull's, for the rarest
+  card inside: the rarer it is, the longer and harder the box shakes before
+  it opens.
+
 ## [0.29.0] - 2026-11-23
 
 ### Changed
