@@ -71,7 +71,9 @@ Future<ValueNotifier<bool>> _open(
   );
   await tester.tap(find.text('Open'));
   await tester.pump();
+  // The page slides in and the box lands.
   await tester.pump(const Duration(milliseconds: 400));
+  await tester.pump(const Duration(milliseconds: 700));
   return closed;
 }
 
@@ -101,16 +103,36 @@ List<String> _buzzes(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('with sound effects on, the tape tears, and the box shakes, opens and reveals in its rarity', (
+  testWidgets("the box drops in, and its tape can't be cut until it has landed", (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(home: PullRevealScreen(outcomes: [_outcome('Sam', Rarity.basic)])));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_theBox(tester).camera.shift.dy, lessThan(0), reason: 'still above its place');
+    expect(find.byIcon(Icons.content_cut_rounded), findsNothing, reason: 'no scissors hint yet');
+    await _swipe(tester);
+    expect(_theBox(tester).cut, 0);
+    await _wait(tester, const Duration(milliseconds: 700));
+    expect(find.byIcon(Icons.content_cut_rounded), findsOneWidget);
+    expect(_theBox(tester).camera.shift.dy, greaterThan(0), reason: 'down in its place');
+    await _swipe(tester);
+    expect(_theBox(tester).cut, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('with sound effects on, the box lands, the tape tears, and it shakes, opens and reveals in its rarity', (
     tester,
   ) async {
     sound.setEffects(true);
     addTearDown(() => sound.setEffects(false));
     sound.played.clear();
     await _open(tester, [_outcome('Sam', Rarity.hero)]);
+    expect(sound.played, ['summon_land.mp3'], reason: 'the box landed');
     await _swipe(tester);
     await _wait(tester, const Duration(seconds: 6));
     expect(sound.played, [
+      'summon_land.mp3',
       'summon_tape.wav',
       'summon_cut.mp3',
       'summon_shake_hero.mp3',
@@ -118,6 +140,24 @@ void main() {
       'summon_beam_hero.mp3',
       'summon_flip.mp3',
       'summon_reveal_hero.mp3',
+    ]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("with sound effects on, a 10-pull's box lands, tears, shakes and opens for its rarest card", (tester) async {
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    sound.played.clear();
+    await _open(tester, [for (var i = 0; i < 9; i++) _outcome('Basic $i', Rarity.basic), _outcome('Kim', Rarity.legend)]);
+    await _swipe(tester);
+    await _wait(tester, const Duration(seconds: 2));
+    expect(sound.played.take(6), [
+      'summon_land.mp3',
+      'summon_tape.wav',
+      'summon_cut.mp3',
+      'summon_shake_legend.mp3',
+      'summon_open_legend.mp3',
+      'summon_beam_legend.mp3',
     ]);
     await tester.pumpWidget(const SizedBox());
   });
@@ -257,6 +297,15 @@ void main() {
     expect(_theBox(tester).glow, Rarity.legend.color);
     expect(find.text('Tap to hurry'), findsOneWidget);
 
+    // Like a single pull's, the box shakes shut for the rarest (a legend's
+    // build-up), the camera pushing in, before it opens.
+    final cutCamera = _theBox(tester).camera;
+    await _wait(tester, const Duration(milliseconds: 1000));
+    expect(_theBox(tester).open, 0);
+    expect(find.byType(CardBack), findsNothing, reason: 'still in the box');
+    expect(_theBox(tester).camera.zoom, greaterThan(cutCamera.zoom), reason: 'the camera pushes in');
+    await _wait(tester, const Duration(milliseconds: 600));
+
     // The cards come out of the box, then the carousel only glows; no
     // characters yet.
     await _wait(tester, const Duration(milliseconds: 600));
@@ -300,9 +349,12 @@ void main() {
     expect(closed.value, isTrue);
   });
 
-  testWidgets('a tap hurries the carousel, and skip in a reveal skips the rest', (tester) async {
+  testWidgets('a tap hurries the box open and the carousel, and skip in a reveal skips the rest', (tester) async {
     await _open(tester, [for (var i = 0; i < 10; i++) _outcome('Basic $i', Rarity.basic)]);
     await _swipe(tester);
+    await tester.tapAt(const Offset(200, 400));
+    await tester.pump();
+    // The shake skipped, the box opens; the next tap hurries the carousel.
     await tester.tapAt(const Offset(200, 400));
     await tester.pump();
     await tester.tapAt(const Offset(200, 400));

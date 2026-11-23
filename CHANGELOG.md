@@ -9,7 +9,7 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
-## [0.30.0] - 2026-11-23
+## [0.34.0] - 2026-11-23
 
 ### Added
 - Music and sound effects, in a retro chiptune style: turn **Music** and
@@ -26,9 +26,22 @@ the game is in early development (0.x), versions stay below 1.0.
   sounds when time is up, and a chime when your drawing is saved.
 - Boost stars sparkle as they land, and fights end on a fanfare when your
   fighters win, or a sad little tune when the challenger does.
-- An epic-sounding summon: the tape tears as fast as you swipe, the box
-  rumbles and bursts open, and every rarity gets its own fanfare, the
-  legend's the biggest.
+- An epic-sounding summon: the box lands with a thud, the tape tears as
+  fast as you swipe, the box rumbles and bursts open, and every rarity gets
+  its own fanfare, the legend's the biggest.
+
+## [0.33.0] - 2026-11-23
+
+### Changed
+- A 10-pull's box now shakes and opens like a single pull's, for the rarest
+  card inside: the rarer it is, the longer and harder the box shakes before
+  it opens.
+
+## [0.32.0] - 2026-11-23
+
+### Changed
+- When you summon, the box now drops in and lands with a bounce before you
+  cut its tape.
 
 ## [0.29.0] - 2026-11-23
 
