@@ -21,13 +21,13 @@ The gacha chances should be as follows:
 - 3 star (heroes)
 - 4 star (legends)
 
-The rates, with more 1 stars than 2 stars:
-- 1 star: 50%
-- 2 star: 40%
+The rates, with twice as many 1 stars as 2 stars, the same on both banners:
+- 1 star: 60%
+- 2 star: 30%
 - 3 star: 8%
 - 4 star: 2%
 
-(At first stolen from Arknights rates: 40% 1 star and 50% 2 star, the rest the same.)
+(At first stolen from Arknights rates: 40% 1 star and 50% 2 star, the rest the same; then 50% and 40% until 0.29.0.) With these rates, teams of four rolled at random win about 40% of their fights, so challengers win a bit more than half.
 
 Both banners pull from the same pool: the setup drawings and every weekly hero, the top 3 challengers of each week's finale, crowned with the rarity of their place: a 4 star, a 3 star and a 2 star (see the [premise](./premise.md)). The weekly banner (from the first finale on) adds this week's rate-up: the heroes of the latest finale only (the starter legends of their players aren't featured any more). A week without heroes has no rate-up, and the weekly banner stays closed until the next finale crowns some. The standard one has the beginner guarantee. Before the first finale there's no 3 star yet: their 8% goes to the 2 stars.
 

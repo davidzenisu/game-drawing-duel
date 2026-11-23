@@ -99,8 +99,8 @@ void main() {
     });
     // No legends: theirs goes down to the heroes.
     expect(GachaMachine.tierRates({Rarity.basic, Rarity.adventurer, Rarity.hero}), {
-      Rarity.basic: 50,
-      Rarity.adventurer: 40,
+      Rarity.basic: 60,
+      Rarity.adventurer: 30,
       Rarity.hero: 10,
     });
     expect(GachaMachine.tierRates({}), isEmpty);
@@ -143,7 +143,7 @@ void main() {
         closeTo(8 * 0.5 / 3, 1e-9),
       );
       expect(chances[legend.id], closeTo(2 * 0.5, 1e-9));
-      expect(chances[pool.first.id], closeTo(50 / 5, 1e-9));
+      expect(chances[pool.first.id], closeTo(60 / 5, 1e-9));
       // Nothing rate-up: everyone in a rarity alike.
       expect(GachaMachine.characterChances(pool, {})[hero.id], closeTo(8 / 4, 1e-9));
     });

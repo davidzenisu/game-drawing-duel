@@ -16,7 +16,7 @@ from app.rules import Rarity
 LAUNCH_BONUS = 10
 
 # Pull chances in percent.
-RATES = {Rarity.BASIC: 50, Rarity.ADVENTURER: 40, Rarity.HERO: 8, Rarity.LEGEND: 2}
+RATES = {Rarity.BASIC: 60, Rarity.ADVENTURER: 30, Rarity.HERO: 8, Rarity.LEGEND: 2}
 
 # Within the first pulls on the standard banner, a legend is guaranteed once.
 BEGINNER_WINDOW = 10

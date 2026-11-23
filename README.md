@@ -171,8 +171,8 @@ fighters' rarities (1 for a basic up to 4 for a legend; upgrades don't count
 yet) against the challenger's 3 plus its boost stars, which stay secret
 until then. The fighters need more stars to win; ties go to the challenger
 (`rules.fighters_win`, shared with the mockup). With teams of four rolled at
-the gacha rates and boosts spread at random, the fighters win a bit over
-half the fights (`tests/test_balance.py`). A win earns a pull
+the gacha rates and boosts spread at random, the fighters win about 40% of
+the fights (`tests/test_balance.py`). A win earns a pull
 (`fight:day-N`) and the challenger's stars as **victory stars**, a currency
 to spend later (`victory_stars` in `GET gacha`, summed from the won fights).
 A player who picked no fighters gets random ones from their collection once
