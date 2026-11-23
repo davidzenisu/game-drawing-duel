@@ -167,11 +167,12 @@ class FinaleTests(FinaleTestCase):
         )
         self.assertEqual({h["stars"] for h in heroes}, {6})
 
-    def test_ties_go_to_the_artist_most_boosted_then_win_rate_then_the_latest(
+    def test_ties_go_to_artists_not_ranked_yet_then_the_most_boosted(
         self,
     ) -> None:
         # One more star for a day 2 challenger: its artist's day 3 one ties
-        # with the others on its own stars, but not on its artist's.
+        # with the others on its own stars, but not on its artist's. Its
+        # artist is ranked already, though: the other artists come first.
         boosted = self.challengers(2)[0]
         self.boost(boosted, 1)
         self.go_to_day(8)
@@ -192,18 +193,27 @@ class FinaleTests(FinaleTestCase):
             == ranked[0]["character"]["artist_position"]
             and r["character"]["id"] != boosted
         )
-        self.assertEqual(ranked[1], sibling, "6 stars, but its artist's 7 boost stars")
-        keys = [
-            rules.finale_key(
-                r["stars"] - 3,
-                r["artist_boost_stars"],
-                r["wins"],
-                r["fights"],
-                r["character"]["day"],
-            )
-            for r in ranked
-        ]
-        self.assertEqual(keys, sorted(keys))
+        artists = [r["character"]["artist_position"] for r in ranked]
+        self.assertEqual(len(set(artists[:3])), 3, "the top 3 by three artists")
+        self.assertEqual(
+            ranked[3], sibling, "then its artist's 7 boost stars come first"
+        )
+        self.assertEqual(
+            rules.finale_order(
+                [
+                    rules.FinaleEntry(
+                        r["character"]["artist_position"],
+                        r["stars"] - 3,
+                        r["artist_boost_stars"],
+                        r["wins"],
+                        r["fights"],
+                        r["character"]["day"],
+                    )
+                    for r in ranked
+                ]
+            ),
+            list(range(len(ranked))),
+        )
         self.assertEqual([r["place"] for r in ranked], list(range(1, 7)))
 
     def test_everyone_sees_the_ranking_of_every_challenger(self) -> None:

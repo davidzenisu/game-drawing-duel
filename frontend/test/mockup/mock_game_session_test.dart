@@ -647,11 +647,9 @@ void main() {
     // 1); day 6's are fought on Monday, next week.
     expect(ranked.map((r) => r.card.day).toSet(), {2, 3, 4, 5});
     expect([for (final r in ranked) r.stars], [...ranked.map((r) => r.stars)]..sort((a, b) => b.compareTo(a)));
-    // Ranked like online, ties broken by the artist's boost stars, the win
-    // rate and the latest day.
-    for (var i = 1; i < ranked.length; i++) {
-      expect(Finale.compare(ranked[i - 1].rankedBy, ranked[i].rankedBy), lessThanOrEqualTo(0));
-    }
+    // Ranked like online: ties go to artists not ranked yet, then by the
+    // artist's boost stars, the win rate and the latest day.
+    expect(Finale.order([for (final r in ranked) r.rankedBy]), [for (var i = 0; i < ranked.length; i++) i]);
     expect([for (final r in ranked) r.place], [for (var i = 1; i <= ranked.length; i++) i]);
     for (final r in ranked) {
       expect(
