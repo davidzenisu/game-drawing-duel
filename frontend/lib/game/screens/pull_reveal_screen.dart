@@ -141,6 +141,14 @@ Widget _scissors(BoxCamera camera, _TapeCut cut, double hint) {
   );
 }
 
+/// How far a cut box shakes at [charge] of its build-up: harder the rarer
+/// the best card inside.
+double _boxShake(double charge, Rarity rarity) => sin(charge * pi * 18) * charge * (1 + rarity.index * 2.5);
+
+/// [camera] pushing in on a box as its build-up runs, [charge] from 0 to 1.
+BoxCamera _pushedIn(BoxCamera camera, double charge) =>
+    BoxCamera.lerp(camera, camera.copyWith(yaw: -0.3, zoom: camera.zoom * 1.12), Curves.easeInOut.transform(charge));
+
 /// The camera on a box, swaying gently round it as [sway] runs from 0 to
 /// 1, and shaking by [shake].
 BoxCamera _swaying(double sway, {double zoom = 1, Offset shift = Offset.zero, double shake = 0}) {
@@ -512,13 +520,8 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     final shake = pull > 0
         ? 0.0
         : (_cut.cutting ? sin(sway * 2 * pi * 90) * (1 + 2 * cut) : 0) +
-              sin(charge * pi * 18) * charge * (1 + _rarity.index * 2.5);
-    final swaying = _swaying(sway, shift: Offset(0, 70 + _dropAt(_land.value)), shake: shake);
-    final pushedIn = BoxCamera.lerp(
-      swaying,
-      swaying.copyWith(yaw: -0.3, zoom: 1.12),
-      Curves.easeInOut.transform(charge),
-    );
+              _boxShake(charge, _rarity);
+    final pushedIn = _pushedIn(_swaying(sway, shift: Offset(0, 70 + _dropAt(_land.value)), shake: shake), charge);
     final camera = BoxCamera.lerp(
       pushedIn,
       pushedIn.copyWith(yaw: -0.12, pitch: 0.25, zoom: 1.2),
@@ -657,10 +660,11 @@ class _PoppingStars extends StatelessWidget {
   }
 }
 
-enum _Stage { cut, carousel, reveal, results }
+enum _Stage { cut, buildUp, carousel, reveal, results }
 
 /// Several pulls. You cut their box's tape open once, the light of the
-/// rarest pull peeking out of the cut; the box opens, the cards come out of
+/// rarest pull peeking out of the cut; the box shakes and the camera pushes
+/// in like a single pull's, for the rarest pull; the box opens, the cards come out of
 /// it one after another and spin into a carousel face down, every back
 /// lighting up in its rarity's colour at once, then each one gets a reveal
 /// of its own in order, and the overview of them all comes last.
@@ -696,11 +700,14 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
   /// round while their backs light up.
   late final _carousel = AnimationController(vsync: this, duration: const Duration(milliseconds: 4400));
   late final _spin = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat();
-  late final _cut = _TapeCut(_startCarousel);
+  late final _cut = _TapeCut(_buildUp);
 
   /// The box dropping in and landing.
   late final _land = AnimationController(vsync: this, duration: _landTime)..forward();
   var _stage = _Stage.cut;
+
+  /// Once cut, the box shakes like a single pull's, for the rarest pull.
+  late final _charge = AnimationController(vsync: this, duration: _boxBuildUpFor(_rarest));
   Timer? _pause;
 
   /// The rarest of the pulls, whose light peeks out of the cut.
@@ -716,6 +723,9 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
       // A moment to take in the colours before the reveals.
       if (status == AnimationStatus.completed) _pause = Timer(const Duration(milliseconds: 900), _startReveals);
     });
+    _charge.addStatusListener((status) {
+      if (status == AnimationStatus.completed) _startCarousel();
+    });
   }
 
   @override
@@ -728,8 +738,14 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     }
   }
 
-  void _startCarousel() {
+  void _buildUp() {
     if (!mounted || _stage != _Stage.cut) return;
+    setState(() => _stage = _Stage.buildUp);
+    _charge.forward();
+  }
+
+  void _startCarousel() {
+    if (!mounted || _stage != _Stage.buildUp) return;
     setState(() => _stage = _Stage.carousel);
     // It opens with a heavy buzz, heavier the rarer the best card.
     buzz(openingBuzzFor(_rarest));
@@ -756,15 +772,19 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     _pause?.cancel();
     _land.value = 1;
     _cut.skip();
+    _charge.stop();
     _carousel.stop();
     _sway.stop();
     setState(() => _stage = _Stage.results);
   }
 
-  /// Hurries the carousel along; while the tape is whole, swipes cut it.
+  /// Hurries the box open and the carousel along; while the tape is whole,
+  /// swipes cut it.
   void _tap() {
     if (_stage == _Stage.cut) return;
-    if (_carousel.isAnimating) {
+    if (_stage == _Stage.buildUp) {
+      _charge.value = 1;
+    } else if (_carousel.isAnimating) {
       _carousel.value = 1;
     } else {
       _startReveals();
@@ -776,6 +796,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     _pause?.cancel();
     _land.dispose();
     _sway.dispose();
+    _charge.dispose();
     _carousel.dispose();
     _spin.dispose();
     super.dispose();
@@ -825,7 +846,7 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
                       : null,
                   onHorizontalDragEnd: cutting ? (_) => setState(() => _cut.cutting = false) : null,
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([_land, _sway, _carousel, _spin]),
+                    animation: Listenable.merge([_land, _sway, _charge, _carousel, _spin]),
                     builder: (context, _) => _ring(),
                   ),
                 ),
@@ -870,8 +891,14 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
         final order = [for (var i = 0; i < count; i++) i]..sort((a, b) => cos(angle(a)).compareTo(cos(angle(b))));
         // Big in the middle while you cut, then small below the ring.
         final fit = min(1.0, constraints.maxWidth / 360);
-        final shake = _cut.cutting ? sin(_sway.value * 2 * pi * 90) * (1 + 2 * _cut.progress) : 0.0;
-        final swaying = _swaying(_sway.value, zoom: fit, shift: Offset(0, 20 + _dropAt(_land.value)), shake: shake);
+        // It trembles while you cut, then shakes like a single pull's until it opens.
+        final shake =
+            (_cut.cutting ? sin(_sway.value * 2 * pi * 90) * (1 + 2 * _cut.progress) : 0.0) +
+            (t == 0 ? _boxShake(_charge.value, _rarest) : 0.0);
+        final swaying = _pushedIn(
+          _swaying(_sway.value, zoom: fit, shift: Offset(0, 20 + _dropAt(_land.value)), shake: shake),
+          _charge.value,
+        );
         final camera =
             BoxCamera.lerp(
               swaying,
