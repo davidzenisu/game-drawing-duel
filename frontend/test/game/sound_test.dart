@@ -6,43 +6,59 @@ import 'package:frontend/game/sound.dart';
 import 'package:frontend/game/widgets/account_menu.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
+Future<void> _choose(WidgetTester tester, String item) async {
+  await tester.tap(find.byTooltip('Account'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(item));
+  await tester.pumpAndSettle();
+}
+
 void main() {
-  testWidgets('sound is off until turned on in the account menu, and off again from there', (tester) async {
-    addTearDown(() => sound.setEnabled(false));
+  testWidgets('music and sound effects are each off until turned on in the account menu', (tester) async {
+    addTearDown(() {
+      sound
+        ..setMusic(false)
+        ..setEffects(false);
+    });
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          appBar: AppBar(actions: [AccountMenu(session: game)]),
-        ),
+        home: Scaffold(appBar: AppBar(actions: [AccountMenu(session: game)])),
       ),
     );
-    expect(sound.enabled.value, isFalse);
+    expect((sound.music.value, sound.effects.value), (false, false));
     sound.played.clear();
     sound.starDrop();
-    expect(sound.played, isEmpty, reason: 'nothing plays while sound is off');
+    expect(sound.played, isEmpty, reason: 'no sound effects while they are off');
 
-    await tester.tap(find.byTooltip('Account'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound: off'));
-    await tester.pumpAndSettle();
-    expect(sound.enabled.value, isTrue);
+    // Music on: the effects stay off.
+    await _choose(tester, 'Music: off');
+    expect((sound.music.value, sound.effects.value), (true, false));
+    sound.starDrop();
+    expect(sound.played, isEmpty);
+
+    // Effects on too, then music off again: the effects stay on.
+    await _choose(tester, 'Sound effects: off');
+    expect((sound.music.value, sound.effects.value), (true, true));
     sound.starDrop();
     expect(sound.played, ['star_drop.mp3']);
-
     await tester.tap(find.byTooltip('Account'));
     await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
     expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
-    await tester.tap(find.text('Sound: on'));
+    await tester.tap(find.text('Music: on'));
     await tester.pumpAndSettle();
-    expect(sound.enabled.value, isFalse);
+    expect((sound.music.value, sound.effects.value), (false, true));
+
+    await _choose(tester, 'Sound effects: on');
+    expect((sound.music.value, sound.effects.value), (false, false));
   });
 
   test('every sound the game plays is bundled', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    sound.setEnabled(true);
-    addTearDown(() => sound.setEnabled(false));
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
     sound.played.clear();
     sound
       ..timerTick()

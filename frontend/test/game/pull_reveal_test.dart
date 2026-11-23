@@ -106,8 +106,8 @@ void main() {
   testWidgets('with sound on, the box lands, the tape tears, and it shakes, opens and reveals in its rarity', (
     tester,
   ) async {
-    sound.setEnabled(true);
-    addTearDown(() => sound.setEnabled(false));
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
     sound.played.clear();
     await _open(tester, [_outcome('Sam', Rarity.hero)]);
     expect(sound.played, ['summon_land.mp3'], reason: 'the box landed');

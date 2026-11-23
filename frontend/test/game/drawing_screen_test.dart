@@ -14,8 +14,8 @@ void main() {
   testWidgets('with sound on, the clock ticks each second, beeps the last 10 and buzzes when time is up', (
     tester,
   ) async {
-    sound.setEnabled(true);
-    addTearDown(() => sound.setEnabled(false));
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
     sound.played.clear();
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;

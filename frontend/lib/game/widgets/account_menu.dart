@@ -7,10 +7,10 @@ import '../screens/suggestions_screen.dart';
 import 'cancel_server.dart';
 import 'game_action.dart';
 
-enum _AccountAction { rename, sound, whatsNew, suggestions, signOut, cancelServer }
+enum _AccountAction { rename, music, effects, whatsNew, suggestions, signOut, cancelServer }
 
 /// App bar menu for your account: who you're signed in as, changing your
-/// name, turning sound on or off ([GameSound]), what's new in the game (its release notes) and signing out (not in the mockup, which has no account to sign
+/// name, turning music and sound effects on or off ([GameSound]), what's new in the game (its release notes) and signing out (not in the mockup, which has no account to sign
 /// out of). On a server, also its feedback board ([suggestions]) and
 /// cancelling it ([canCancelServer]).
 class AccountMenu extends StatelessWidget {
@@ -40,7 +40,8 @@ class AccountMenu extends StatelessWidget {
       icon: const Icon(Icons.account_circle_rounded),
       onSelected: (action) => switch (action) {
         _AccountAction.rename => _rename(context),
-        _AccountAction.sound => sound.toggle(),
+        _AccountAction.music => sound.toggleMusic(),
+        _AccountAction.effects => sound.toggleEffects(),
         _AccountAction.whatsNew => Navigator.of(
           context,
         ).push(MaterialPageRoute<void>(builder: (_) => const ReleaseNotesScreen())),
@@ -69,11 +70,19 @@ class AccountMenu extends StatelessWidget {
           ),
         ),
         PopupMenuItem(
-          value: _AccountAction.sound,
+          value: _AccountAction.music,
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(sound.enabled.value ? Icons.volume_up_rounded : Icons.volume_off_rounded),
-            title: Text(sound.enabled.value ? 'Sound: on' : 'Sound: off'),
+            leading: Icon(sound.music.value ? Icons.music_note_rounded : Icons.music_off_rounded),
+            title: Text(sound.music.value ? 'Music: on' : 'Music: off'),
+          ),
+        ),
+        PopupMenuItem(
+          value: _AccountAction.effects,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(sound.effects.value ? Icons.volume_up_rounded : Icons.volume_off_rounded),
+            title: Text(sound.effects.value ? 'Sound effects: on' : 'Sound effects: off'),
           ),
         ),
         const PopupMenuItem(

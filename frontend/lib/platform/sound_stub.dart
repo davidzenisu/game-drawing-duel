@@ -1,13 +1,13 @@
-/// No sound outside the web: nothing plays, and whether sound is on is only
-/// kept while the app runs.
+/// No sound outside the web: nothing plays, and the settings are only kept
+/// while the app runs.
 class SoundOutput {
-  bool _on = false;
+  final _saved = <String, bool>{};
 
-  /// Whether sound was turned on on this device.
-  bool get savedOn => _on;
+  /// Whether the setting [key] (e.g. music) was turned on on this device.
+  bool savedOn(String key) => _saved[key] ?? false;
 
-  /// Remembers whether sound is [on].
-  void save(bool on) => _on = on;
+  /// Remembers whether the setting [key] is [on].
+  void save(String key, bool on) => _saved[key] = on;
 
   /// Lets sound play from now on (called on a tap).
   void wake() {}

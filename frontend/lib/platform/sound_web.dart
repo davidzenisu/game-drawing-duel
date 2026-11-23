@@ -7,23 +7,23 @@ import 'package:web/web.dart' as web;
 /// is tapped: the audio context is woken on every tap and key press, so
 /// sound turned on at an earlier visit starts with the first tap.
 class SoundOutput {
-  /// Not under `LocalCache`'s prefix, so signing out keeps it.
-  static const _key = 'drawing-duel-sound';
+  /// Not under `LocalCache`'s prefix, so signing out keeps the settings.
+  static const _prefix = 'drawing-duel-sound-';
 
   web.AudioContext? _context;
   final _buffers = <String, Future<web.AudioBuffer?>>{};
 
-  bool get savedOn {
+  bool savedOn(String key) {
     try {
-      return web.window.localStorage.getItem(_key) == 'on';
+      return web.window.localStorage.getItem('$_prefix$key') == 'on';
     } catch (_) {
       return false;
     }
   }
 
-  void save(bool on) {
+  void save(String key, bool on) {
     try {
-      web.window.localStorage.setItem(_key, on ? 'on' : 'off');
+      web.window.localStorage.setItem('$_prefix$key', on ? 'on' : 'off');
     } catch (_) {
       // Not kept: sound is off again next visit.
     }
