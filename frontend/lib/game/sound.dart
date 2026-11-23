@@ -87,6 +87,10 @@ class GameSound {
     return _output.loop(file, volume: volume);
   }
 
+  // Buttons, through the theme's splash.
+  void buttonTap() => play('ui_tap.mp3', volume: 0.6);
+  void buttonConfirm() => play('ui_confirm.mp3', volume: 0.7);
+
   // The drawing step.
   void timerTick() => play('timer_tick.mp3', volume: 0.7);
   void timerFinal() => play('timer_final.mp3');

@@ -15,6 +15,8 @@ the game is in early development (0.x), versions stay below 1.0.
 - Music and sound effects, in a retro chiptune style: turn **Music** and
   **Sound effects** on separately in the account menu (both are off until
   you do, and your device remembers them).
+- Buttons click when you press them, and the main ones (like Ready, Done
+  or Save) with a brighter blip.
 - The drawing clock ticks each second and beeps for the last 10, a buzzer
   sounds when time is up, and a chime when your drawing is saved.
 - Boost stars sparkle as they land, and fights end on a fanfare when your

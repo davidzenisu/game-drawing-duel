@@ -5,6 +5,7 @@ import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/sound.dart';
 import 'package:frontend/game/widgets/account_menu.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 Future<void> _choose(WidgetTester tester, String item) async {
   await tester.tap(find.byTooltip('Account'));
@@ -55,12 +56,45 @@ void main() {
     expect((sound.music.value, sound.effects.value), (false, false));
   });
 
+  testWidgets('with sound effects on, buttons click: the main, filled ones with a brighter blip', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Column(
+            children: [
+              TextButton(onPressed: () {}, child: const Text('Back')),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.info_outline)),
+              FilledButton(onPressed: () {}, child: const Text('Done')),
+              const FilledButton(onPressed: null, child: Text('Disabled')),
+            ],
+          ),
+        ),
+      ),
+    );
+    sound.played.clear();
+    await tester.tap(find.text('Back'));
+    await tester.pump();
+    expect(sound.played, isEmpty, reason: 'silent while sound effects are off');
+
+    sound.setEffects(true);
+    addTearDown(() => sound.setEffects(false));
+    await tester.tap(find.text('Back'));
+    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.text('Done'));
+    await tester.tap(find.text('Disabled'));
+    await tester.pumpAndSettle();
+    expect(sound.played, ['ui_tap.mp3', 'ui_tap.mp3', 'ui_confirm.mp3']);
+  });
+
   test('every sound the game plays is bundled', () async {
     TestWidgetsFlutterBinding.ensureInitialized();
     sound.setEffects(true);
     addTearDown(() => sound.setEffects(false));
     sound.played.clear();
     sound
+      ..buttonTap()
+      ..buttonConfirm()
       ..timerTick()
       ..timerFinal()
       ..timeUp()

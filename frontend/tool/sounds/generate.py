@@ -338,4 +338,10 @@ save("summon_flip", flip(), 0.45)
 
 # Music
 save("music", music(), 0.5, loop=True)
+# Buttons: a soft tap for any button, a brighter two-note blip for the main ones
+save("ui_tap", blip("C6", 0.05, 0.25, s=0.3, r=0.03), 0.35)
+b = buf(0.2)
+mix(b, blip("G5", 0.05, 0.25, s=0.35, r=0.02), 0)
+mix(b, blip("D6", 0.09, 0.25, s=0.35, r=0.06), 0.05)
+save("ui_confirm", b, 0.38)
 print("written to", OUT)
