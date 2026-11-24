@@ -9,6 +9,16 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.37.0] - 2026-11-24
+
+### Added
+- **Arena winners**: the Monday after its week of votes, the Arena's top 3
+  by everyone's votes join the pool as a ★★★★, a ★★★ and a ★★, like the
+  weekly heroes. The other challengers leave the Arena.
+- **The Arena banner** on Summon, open from the first Arena winners on
+  (the third week): the same pool, with the latest Arena winners rated up.
+  Its box is taped in red.
+
 ## [0.36.0] - 2026-11-24
 
 ### Added

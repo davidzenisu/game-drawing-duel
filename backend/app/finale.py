@@ -158,8 +158,16 @@ def _decide(session: Session, server: Server, day: int) -> list[WeeklyHero]:
 
 def settle(session: Session, server: Server) -> None:
     """Decides every finale that's over and isn't yet, with the trophies of
-    its player stats (`app.player_stats`). Commits. Speed mode sessions have
-    no weeks."""
+    its player stats (`app.player_stats`), then every Arena that's over
+    (`app.arena.settle`). Commits. Speed mode sessions have no weeks."""
+    _settle_finales(session, server)
+    # The Arena of a week holds the challengers its finale didn't crown.
+    from app import arena
+
+    arena.settle(session, server)
+
+
+def _settle_finales(session: Session, server: Server) -> None:
     if speed.is_speed(server):
         return
     today = days.current_day(server)

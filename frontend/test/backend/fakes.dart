@@ -180,11 +180,12 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> rankings = {};
 
   /// The Arena by server code: today's status, as `GET today` and `GET
-  /// arena` send it, and the matchups to vote on in order; tests set them
-  /// up. Votes are recorded, each
+  /// arena` send it, the matchups to vote on in order, and the latest
+  /// Arena's winners; tests set them up. Votes are recorded, each
   /// counting for today, and earn the pack's stars like the API.
   final Map<String, Map<String, Object?>> arenaStatus = {};
   final Map<String, List<List<Map<String, Object?>>>> arenaMatchups = {};
+  final Map<String, List<Map<String, Object?>>> arenaWinners = {};
   final List<Map<String, Object?>> arenaVotes = [];
   final Map<(String, String), int> arenaStars = {};
 
@@ -1151,6 +1152,7 @@ class FakeBackend {
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
       'weekly_heroes': [...?weeklyHeroes[code]],
       'arena': arenaStatus[code],
+      'arena_heroes': [...?arenaWinners[code]],
     });
   }
 
@@ -1201,6 +1203,9 @@ class FakeBackend {
       'pulls_until_legend': 50 - total,
       'beginner_pulls_left': total < 10 ? 10 - total : null,
       'rate_up': _rateUp(code),
+      'arena_rate_up': [
+        for (final winner in arenaWinners[code] ?? const []) (winner['character'] as Map<String, Object?>)['id'],
+      ],
       'stars': _stars(code, playerId),
       'victory_stars': _stars(code, playerId),
     };

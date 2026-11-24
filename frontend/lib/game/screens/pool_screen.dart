@@ -38,7 +38,7 @@ class PoolScreen extends StatelessWidget {
             ],
         };
         final rates = GachaMachine.tierRates({for (final card in pool) card.rarity});
-        final rateUp = banner == GachaBanner.weekly ? controller.rateUp : const <String>{};
+        final rateUp = controller.rateUpOf(banner);
         final chances = GachaMachine.characterChances(pool, rateUp);
         final textTheme = Theme.of(context).textTheme;
         return Scaffold(
@@ -54,7 +54,7 @@ class PoolScreen extends StatelessWidget {
                     children: [
                       Text(
                         '${pool.length} characters. Each pull picks a rarity, then one of its characters, '
-                        'all equally likely${rateUp.isEmpty ? '' : ' but this week\'s rate-up, which get '
+                        'all equally likely${rateUp.isEmpty ? '' : ' but the banner\'s rate-up, which get '
                                   '${GachaMachine.rateUp}% of their rarity between them'}.',
                         style: textTheme.bodyLarge,
                       ),
@@ -69,6 +69,7 @@ class PoolScreen extends StatelessWidget {
                             rateUp: rateUp,
                             owned: owned,
                             weeklyHeroIds: {for (final hero in controller.weeklyHeroes) hero.card.id},
+                            arenaWinnerIds: {for (final winner in controller.arenaWinners) winner.card.id},
                           )
                         else if (pool.isNotEmpty)
                           Padding(
@@ -84,9 +85,9 @@ class PoolScreen extends StatelessWidget {
                         'Chances before guarantees: ${switch (banner) {
                           GachaBanner.standard => 'a ${'★' * Rarity.legend.stars} within your first '
                               '${GachaMachine.beginnerWindow} pulls on this banner, and ',
-                          GachaBanner.weekly => '',
+                          GachaBanner.weekly || GachaBanner.arena => '',
                         }}a ${'★' * Rarity.legend.stars} at the latest every ${GachaMachine.legendPity} pulls, '
-                        'counting both banners.',
+                        'counting every banner.',
                         style: textTheme.bodySmall,
                       ),
                     ],
@@ -110,6 +111,7 @@ class _RaritySection extends StatelessWidget {
     required this.rateUp,
     required this.owned,
     required this.weeklyHeroIds,
+    this.arenaWinnerIds = const {},
   });
 
   final Rarity rarity;
@@ -119,6 +121,7 @@ class _RaritySection extends StatelessWidget {
   final Set<String> rateUp;
   final Set<String> owned;
   final Set<String> weeklyHeroIds;
+  final Set<String> arenaWinnerIds;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +170,7 @@ class _RaritySection extends StatelessWidget {
                     card: card,
                     summoned: owned.contains(card.id),
                     weeklyHero: weeklyHeroIds.contains(card.id),
+                    arenaWinner: arenaWinnerIds.contains(card.id),
                     rateUp: rateUp.contains(card.id),
                   ),
               ],
@@ -179,11 +183,18 @@ class _RaritySection extends StatelessWidget {
 }
 
 class _PoolTile extends StatelessWidget {
-  const _PoolTile({required this.card, required this.summoned, required this.weeklyHero, required this.rateUp});
+  const _PoolTile({
+    required this.card,
+    required this.summoned,
+    required this.weeklyHero,
+    this.arenaWinner = false,
+    required this.rateUp,
+  });
 
   final CharacterCard card;
   final bool summoned;
   final bool weeklyHero;
+  final bool arenaWinner;
   final bool rateUp;
 
   @override
@@ -203,7 +214,7 @@ class _PoolTile extends StatelessWidget {
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
           ),
-          for (final label in [if (weeklyHero) 'Weekly hero', if (rateUp) 'Rate up'])
+          for (final label in [if (weeklyHero) 'Weekly hero', if (arenaWinner) 'Arena winner', if (rateUp) 'Rate up'])
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(

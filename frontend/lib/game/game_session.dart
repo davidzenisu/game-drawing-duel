@@ -409,6 +409,26 @@ abstract class GameSession extends ChangeNotifier {
   /// week and in speed mode. Loaded with the day.
   ArenaStatus? get arena;
 
+  /// The latest Arena's winners, by place, now in the gacha [pool]; empty
+  /// before the first Arena is decided and after one without any.
+  List<ArenaWinner> get arenaWinners;
+
+  /// The Arena banner's rate-up characters' ids: the latest Arena's
+  /// winners. Empty, and the Arena banner closed, until the first Arena
+  /// crowns some.
+  Set<String> get arenaRateUp;
+
+  /// The rate-up characters' ids of [banner]: none on the standard banner.
+  Set<String> rateUpOf(GachaBanner banner) => switch (banner) {
+    GachaBanner.standard => const {},
+    GachaBanner.weekly => rateUp,
+    GachaBanner.arena => arenaRateUp,
+  };
+
+  /// Whether [banner] is open: the standard one always, the others once
+  /// they have rate-up characters.
+  bool bannerOpen(GachaBanner banner) => banner == GachaBanner.standard || rateUpOf(banner).isNotEmpty;
+
   /// Loads your Arena today, with the next matchup to vote on.
   Future<ArenaRound> arenaRound();
 
@@ -688,7 +708,8 @@ abstract class GameSession extends ChangeNotifier {
       Future.error(UnsupportedError('Only content editors can manage the content.'));
 
   /// Spends [count] pulls on [banner]; the weekly one opens with the first
-  /// finale, see [rateUp]. With [topUp], stars buy the pulls you're short of
+  /// finale, see [rateUp], the Arena one with the first Arena's winners, see
+  /// [arenaRateUp]. With [topUp], stars buy the pulls you're short of
   /// first ([pullsToBuy]), in the same step.
   Future<List<PullOutcome>> pull(int count, {GachaBanner banner = GachaBanner.standard, bool topUp = false});
 

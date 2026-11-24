@@ -1,4 +1,4 @@
-from app.models.arena import ArenaVote
+from app.models.arena import ArenaHero, ArenaVote
 from app.models.character import Character
 from app.models.day import ChallengerPrompt, DayEnd, HintAssignment
 from app.models.fight import Boost, Fight, Fighter
@@ -14,6 +14,7 @@ from app.models.theme import ThemeHint
 from app.models.upgrade import Upgrade
 
 __all__ = [
+    "ArenaHero",
     "ArenaVote",
     "Boost",
     "ChallengerPrompt",

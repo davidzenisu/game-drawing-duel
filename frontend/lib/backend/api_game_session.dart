@@ -59,6 +59,7 @@ class ApiGameSession extends GameSession {
   int _stars = 0;
   GachaStatus _gachaStatus = GachaMachine().status;
   Set<String> _rateUp = const {};
+  Set<String> _arenaRateUp = const {};
 
   /// Sketches by character id. A character never changes, so refreshing
   /// only downloads new ones.
@@ -729,6 +730,7 @@ class ApiGameSession extends GameSession {
   BoostBalance? _boostBalance;
   List<WeeklyHero> _weeklyHeroes = const [];
   ArenaStatus? _arena;
+  List<ArenaWinner> _arenaWinners = const [];
   List<ChallengerRecord> _challengers = const [];
 
   @override
@@ -736,6 +738,9 @@ class ApiGameSession extends GameSession {
 
   @override
   ArenaStatus? get arena => _arena;
+
+  @override
+  List<ArenaWinner> get arenaWinners => _arenaWinners;
 
   @override
   List<ChallengerRecord> get challengers => _challengers;
@@ -932,6 +937,13 @@ class ApiGameSession extends GameSession {
             throw const FormatException('Unexpected weekly hero.'),
       ];
       _arena = _parseArenaStatus(json['arena']);
+      _arenaWinners = [
+        for (final winner in json['arena_heroes'] as List? ?? const [])
+          if (winner case {'character': final character, 'week': int week, 'place': int place})
+            ArenaWinner(card: await _card(server, character), week: week, place: place)
+          else
+            throw const FormatException('Unexpected Arena winner.'),
+      ];
       return;
     }
     throw const FormatException('Unexpected day response.');
@@ -971,6 +983,7 @@ class ApiGameSession extends GameSession {
       _tickets = tickets;
       _stars = json['stars'] as int? ?? 0;
       _rateUp = {for (final id in rateUp) id as String};
+      _arenaRateUp = {for (final id in json['arena_rate_up'] as List? ?? const []) id as String};
       _gachaStatus = GachaStatus(
         totalPulls: totalPulls,
         pullsUntilLegend: untilLegend,
@@ -1216,6 +1229,9 @@ class ApiGameSession extends GameSession {
 
   @override
   Set<String> get rateUp => _rateUp;
+
+  @override
+  Set<String> get arenaRateUp => _arenaRateUp;
 
   @override
   List<OwnedCard> get collection => _collection.toList()

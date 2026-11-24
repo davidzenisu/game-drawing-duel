@@ -1065,13 +1065,15 @@ void main() {
       expect(admin.rateUp, {right['id']});
     });
 
-    test("the Arena: today's matchups, votes and the pack's stars", () async {
+    test("the Arena: today's matchups, votes and the pack's stars, and its winners", () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
       await drawAll(admin);
       await admin.launch();
       expect(admin.arena, isNull, reason: 'not in the first week');
       expect((await admin.arenaRound()).status, isNull);
+      expect(admin.arenaRateUp, isEmpty);
+      expect(admin.bannerOpen(GachaBanner.arena), isFalse);
 
       final [left, right, other, ...] = [for (final d in backend.drawings.values) d.character];
       backend.arenaStatus['123456'] = {
@@ -1111,6 +1113,13 @@ void main() {
       expect((next.status!.rewarded, next.status!.canVote), (true, false));
       expect(admin.stars, stars + 3);
       expect(admin.arena!.packLeft, 0, reason: 'the hub knows too');
+
+      backend.arenaWinners['123456'] = [
+        {'character': other, 'week': 7, 'place': 1},
+      ];
+      await admin.refreshDay();
+      final winner = admin.arenaWinners.single;
+      expect((winner.card.id, winner.week, winner.place), (other['id'], 7, 1));
     });
 
     test('the week ranking is kept on the device until the next week is over', () async {

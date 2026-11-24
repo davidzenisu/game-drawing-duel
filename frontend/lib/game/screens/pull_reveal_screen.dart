@@ -88,8 +88,16 @@ GachaBox _box(
   open: open,
   leak: leak,
   glow: glow,
-  tape: banner == GachaBanner.weekly ? Rarity.legend.color : GachaBox.plainTape,
-  label: banner == GachaBanner.weekly ? 'WEEKLY HERO' : 'DRAWING DUEL',
+  tape: switch (banner) {
+    GachaBanner.weekly => Rarity.legend.color,
+    GachaBanner.arena => GachaBox.arenaTape,
+    GachaBanner.standard => GachaBox.plainTape,
+  },
+  label: switch (banner) {
+    GachaBanner.weekly => 'WEEKLY HERO',
+    GachaBanner.arena => 'ARENA',
+    GachaBanner.standard => 'DRAWING DUEL',
+  },
 );
 
 /// Cutting a box's tape open by swiping along it, left to right: the phone

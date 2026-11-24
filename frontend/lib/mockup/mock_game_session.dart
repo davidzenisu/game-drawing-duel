@@ -302,6 +302,7 @@ class MockGameSession extends GameSession {
     _collectedAchievements.clear();
     _yourBoosts.clear();
     _weeklyHeroes = const [];
+    _arenaWinners = const [];
     _arenaVotes.clear();
     _arenaRewarded.clear();
     _crowned.clear();
@@ -1007,6 +1008,15 @@ class MockGameSession extends GameSession {
   /// Your Arena votes: (day, first id, second id, winner id or null).
   final List<(int, String, String, String?)> _arenaVotes = [];
 
+  List<ArenaWinner> _arenaWinners = const [];
+
+  @override
+  List<ArenaWinner> get arenaWinners => _arenaWinners;
+
+  /// Like online: the latest Arena's winners.
+  @override
+  Set<String> get arenaRateUp => {for (final winner in _arenaWinners) winner.card.id};
+
   /// The Arena open on [day]: the last day of the week before; none in the
   /// first week and in speed mode.
   int? _arenaWeek(int day) {
@@ -1114,6 +1124,47 @@ class MockGameSession extends GameSession {
     return arenaRound();
   }
 
+  /// The Arena of [week], decided: the friends' votes are made up, but the
+  /// same every time, and yours count too.
+  ArenaRanking _decideArena(int week) {
+    final entries = _arenaChallengers(week);
+    final scores = <String, double>{};
+    final matchups = <String, int>{};
+    for (final c in entries) {
+      // Six made-up matchups each, won by a hash of its id.
+      matchups[c.id] = 6;
+      scores[c.id] = (c.id.hashCode % 7).abs().clamp(0, 6).toDouble();
+    }
+    for (final (_, a, b, winner) in _arenaVotes) {
+      if (!scores.containsKey(a) || !scores.containsKey(b)) continue;
+      matchups[a] = matchups[a]! + 1;
+      matchups[b] = matchups[b]! + 1;
+      scores[a] = scores[a]! + (winner == null ? 0.5 : (winner == a ? 1 : 0));
+      scores[b] = scores[b]! + (winner == null ? 0.5 : (winner == b ? 1 : 0));
+    }
+    double share(CharacterCard c) => scores[c.id]! / matchups[c.id]!;
+    final order = [...entries.indexed]
+      ..sort((x, y) {
+        final byShare = share(y.$2).compareTo(share(x.$2));
+        return byShare != 0 ? byShare : x.$1.compareTo(y.$1);
+      });
+    return ArenaRanking(
+      week: week,
+      endsOn: week + 7,
+      challengers: [
+        for (final (place, (_, c)) in order.indexed)
+          ArenaRanked(
+            card: c,
+            place: place + 1,
+            score: scores[c.id]!,
+            matchups: matchups[c.id]!,
+            rating: share(c),
+            winnerRarity: place < Arena.maxWinners ? Arena.rarities[place] : null,
+          ),
+      ],
+    );
+  }
+
   @override
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async => _playerStats(period);
 
@@ -1205,6 +1256,20 @@ class MockGameSession extends GameSession {
         for (final hero in heroes)
           WeeklyHero(card: _asCrowned(hero.card), day: _day - 1, stars: hero.stars, place: hero.place),
       ];
+      // The Arena voted on last week, of the week before's challengers,
+      // crowns its winners too.
+      if (_day > 14) {
+        final arena = _decideArena(_day - 8);
+        for (final winner in arena.winners) {
+          _crowned[winner.card.id] = winner.winnerRarity!;
+          _pool.removeWhere((c) => c.id == winner.card.id);
+          _pool.add(_asCrowned(winner.card));
+        }
+        _arenaWinners = [
+          for (final winner in arena.winners)
+            ArenaWinner(card: _asCrowned(winner.card), week: arena.week, place: winner.place),
+        ];
+      }
       // Last week's trophies you won, as gifts on the notification board.
       for (final stat in _playerStats(StatPeriod.lastWeek)?.stats ?? const <PlayerStat>[]) {
         if (!stat.players.any((p) => p.player.isYou && p.first)) continue;
@@ -1485,12 +1550,15 @@ class MockGameSession extends GameSession {
     if (banner == GachaBanner.weekly && rateUp.isEmpty) {
       throw StateError('The weekly banner opens with the first finale.');
     }
+    if (banner == GachaBanner.arena && arenaRateUp.isEmpty) {
+      throw StateError('The Arena banner opens once an Arena crowns winners.');
+    }
     _stars -= buy * StarRewards.pullPrice;
     _tickets += buy;
     _tickets -= count;
     final outcomes = <PullOutcome>[];
     for (var i = 0; i < count; i++) {
-      final card = _gacha.pull(_pool, banner: banner, rateUp: rateUp);
+      final card = _gacha.pull(_pool, banner: banner, rateUp: banner == GachaBanner.arena ? arenaRateUp : rateUp);
       final owned = _owned[card.id];
       if (owned == null) {
         _owned[card.id] = OwnedCard(card);

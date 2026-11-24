@@ -9,6 +9,7 @@ from app.deps import Code, DbSession, running_game
 from app.models import Server, ServerSeat
 from app.responses import character_response
 from app.schemas import (
+    ArenaHeroResponse,
     ArenaResponse,
     ArenaStatus,
     ArenaVoteSubmit,
@@ -30,6 +31,17 @@ def arena_status(state: arena.ArenaState) -> ArenaStatus | None:
         pack_stars=rules.ARENA_PACK_STARS,
         rewarded=state.rewarded,
     )
+
+
+def arena_heroes(session: Session, server: Server) -> list[ArenaHeroResponse]:
+    return [
+        ArenaHeroResponse(
+            character=character_response(hero.character),
+            week=hero.week,
+            place=hero.place,
+        )
+        for hero in arena.latest_winners(session, server)
+    ]
 
 
 def _response(session: Session, server: Server, seat: ServerSeat) -> ArenaResponse:

@@ -177,6 +177,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         arena=arena_routes.arena_status(
             arena.state(session, server, seat, day, with_matchup=False)
         ),
+        arena_heroes=arena_routes.arena_heroes(session, server),
     )
 
 

@@ -10,17 +10,28 @@ from sqlalchemy.orm import Session
 
 from app import stars
 from app.gacha import LAUNCH_BONUS, Banner, GachaState, pick_character, pull_rarity
-from app.models import Character, Pull, PullGrant, ServerSeat, WeeklyHero
+from app.models import (
+    ArenaHero,
+    Character,
+    Pull,
+    PullGrant,
+    ServerSeat,
+    WeeklyHero,
+)
 from app.rules import Rarity
 
 
 def in_pool():
-    """The gacha pool holds the setup drawings and the weekly heroes, the
-    challengers that won a finale (`app.finale`); other challengers stay out."""
+    """The gacha pool holds the setup drawings, the weekly heroes (the
+    challengers a finale crowned, `app.finale`) and the Arena winners
+    (`app.arena`); other challengers stay out."""
     return or_(
         Character.assignment_id.is_not(None),
         Character.id.in_(
             select(WeeklyHero.character_id).where(WeeklyHero.character_id.is_not(None))
+        ),
+        Character.id.in_(
+            select(ArenaHero.character_id).where(ArenaHero.character_id.is_not(None))
         ),
     )
 
@@ -107,12 +118,41 @@ def lock(session: Session, seat_id: uuid.UUID) -> None:
     )
 
 
+def arena_rate_up(session: Session, server_id: uuid.UUID) -> set[uuid.UUID]:
+    """The Arena banner's rate-up characters: the winners of the latest
+    Arena (`app.arena`). They rotate every Monday as an Arena is decided; an
+    Arena without winners has none."""
+    week = session.scalar(
+        select(func.max(ArenaHero.week)).where(ArenaHero.server_id == server_id)
+    )
+    return set(
+        session.scalars(
+            select(ArenaHero.character_id).where(
+                ArenaHero.server_id == server_id,
+                ArenaHero.week == week,
+                ArenaHero.character_id.is_not(None),
+            )
+        )
+    )
+
+
+def featured(session: Session, server_id: uuid.UUID, banner: Banner) -> set[uuid.UUID]:
+    """The rate-up characters of `banner`: none on the standard one."""
+    match banner:
+        case Banner.WEEKLY:
+            return rate_up(session, server_id)
+        case Banner.ARENA:
+            return arena_rate_up(session, server_id)
+    return set()
+
+
 class NotEnoughPulls(Exception):
     pass
 
 
 class BannerClosed(Exception):
-    """The weekly banner opens with the first finale."""
+    """The weekly banner opens with the first finale, the Arena banner with
+    the first Arena's winners."""
 
 
 @dataclass(frozen=True)
@@ -148,8 +188,8 @@ def pull(
     ).all()
     if len(grants) < count:
         raise NotEnoughPulls
-    featured = rate_up(session, seat.server_id) if banner is Banner.WEEKLY else set()
-    if banner is Banner.WEEKLY and not featured:
+    rate_up_ids = featured(session, seat.server_id, banner)
+    if banner is not Banner.STANDARD and not rate_up_ids:
         raise BannerClosed
     by_rarity: dict[Rarity, list[Character]] = defaultdict(list)
     for character in session.scalars(
@@ -166,7 +206,9 @@ def pull(
     outcomes = []
     for grant in grants:
         rarity = pull_rarity(GachaState.after(pulled), banner, set(by_rarity), rng)
-        character = pick_character(by_rarity[rarity], lambda c: c.id in featured, rng)
+        character = pick_character(
+            by_rarity[rarity], lambda c: c.id in rate_up_ids, rng
+        )
         pulled.append((banner, rarity))
         owned[character.id] += 1
         session.add(

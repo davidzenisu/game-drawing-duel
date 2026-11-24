@@ -54,12 +54,13 @@ void main() {
     expect(game.availableFighters, isNotEmpty);
   });
 
-  test("the Arena: last week's challengers, and the pack's stars", () async {
+  test("the Arena: last week's challengers, the pack's stars, then its winners on the Arena banner", () async {
     final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 11, 4, 9));
     await game.startOnDayEight('Pat');
     final heroes = {for (final h in game.weeklyHeroes) h.card.id};
     final status = game.arena!;
     expect((status.week, status.endsOn, status.votesToday, status.pack), (7, 14, 0, Arena.pack));
+    expect(game.bannerOpen(GachaBanner.arena), isFalse, reason: 'no Arena decided yet');
 
     final stars = game.stars;
     var round = await game.arenaRound();
@@ -77,6 +78,24 @@ void main() {
     }
     expect(round.status!.rewarded, isTrue);
     expect(game.arena!.packLeft, 0);
+
+    // The Arena is decided the Monday after its week of votes.
+    while (game.day < 15) {
+      await game.advanceDay();
+    }
+    final winners = game.arenaWinners;
+    expect(
+      [for (final w in winners) (w.place, w.card.rarity, w.week)],
+      [(1, Rarity.legend, 7), (2, Rarity.hero, 7), (3, Rarity.adventurer, 7)],
+    );
+    expect(heroes.intersection({for (final w in winners) w.card.id}), isEmpty);
+    expect(game.pool.map((c) => c.id), containsAll(winners.map((w) => w.card.id)));
+    expect(game.arenaRateUp, {for (final w in winners) w.card.id});
+    expect(game.bannerOpen(GachaBanner.arena), isTrue);
+    expect(game.arena!.week, 14, reason: "this week's Arena holds last week's challengers");
+
+    final pulled = await game.pull(1, banner: GachaBanner.arena, topUp: true);
+    expect(pulled, hasLength(1));
   });
 
   test('you can go by another name on a server, and rename your account', () async {
