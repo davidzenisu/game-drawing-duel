@@ -32,7 +32,9 @@ On a computer, the screens that swipe left and right also work with the keyboard
 
 Above them, next to the day's title and above the drawing step, a **Send a hurry** button sends the day's free hurry, with an optional short message for the target (greyed out once sent, when tapping it recalls whom you hurried and your message, or on a day without one).
 
-Below them, a **Heroes** button opens the heroes menu with the same big buttons:
+Below them, an **Arena** button opens the Arena (see [The Arena](#the-arena) below), with a badge counting the votes left for the day's stars; it's greyed out in the first week ("The Arena opens next week, with this week's challengers.") and in speed mode.
+
+Below it, a **Heroes** button opens the heroes menu with the same big buttons:
 
 | | |
 |---|---|
@@ -104,7 +106,7 @@ A challenger counts for the week of its fight, once it went through all four ste
 | Saturday | Sunday | Monday | Tuesday | the next week |
 | Sunday | Monday | Tuesday | Wednesday | the next week |
 
-**Week ranking** (in the heroes menu, from day 1 on; speed mode has its own final ranking instead) has two views, picked at the top: **Players** and **Challengers**, each for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday). It opens on the players of this week. Weeks are named by number ("Week 1" is the launch week, Monday to Sunday, so it may be short; "Week 2" starts on the Monday after) instead of their days. Before the first week is over, last week says there's no ranking yet. This week's answers are kept on the device for the day, last week's until the next week is over, so the screen opens without asking the server again; the refresh button in the top right asks anyway.
+**Week ranking** (in the heroes menu, from day 1 on; speed mode has its own final ranking instead) has three views, picked at the top: **Players**, **Challengers** and **Arena**, each for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday). It opens on the players of this week. Weeks are named by number ("Week 1" is the launch week, Monday to Sunday, so it may be short; "Week 2" starts on the Monday after) instead of their days. Before the first week is over, last week says there's no ranking yet. This week's answers are kept on the device for the day, last week's until the next week is over, so the screen opens without asking the server again; the refresh button in the top right asks anyway.
 
 **Players** rank every player who joined in three categories, one at a time, picked with a three-part button (Giant Slayer, Grand Artist, Addict):
 
@@ -129,6 +131,26 @@ Speed mode has no player stats.
 | Addict | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. |
 
 Tied players share a place. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Addict in week 1!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept, so players can see how many each won. Weeks are numbered from the launch week ("Week 1", Monday to Sunday, so it may be short). Speed mode has no trophies.
+
+## The Arena
+
+The Arena lets every player, not only the three who boost a challenger, decide which drawings become heroes. It lives alongside the weekly finale, which stays as it is.
+
+| Week | What happens to week X's challengers |
+|---|---|
+| X | drawn, boosted and fought (they count for the week of their fight, like in the finale) |
+| X+1 | the finale crowns its top 3 as weekly heroes, for the weekly banner; **the Arena opens with all the others** |
+| X+2 | the Arena's top 3 become **Arena winners**, for the Arena banner; the rest leave the Arena |
+
+So the Arena only ever holds a past week's challengers, never the present week's: the first one opens in a server's second week, with week 1's challengers, and the first Arena winners come on the Monday of the third week. The challengers that win neither are kept (not deleted), for later modes. Speed mode has no Arena.
+
+- **Matchups**: the Arena screen shows two of its challengers side by side, each with its drawing, who it portrays and its title, but not its artist, stars or place in the finale's ranking: players judge the drawing only. They pick the better one by swiping toward it, tapping it, or with ← or → on a computer; **Can't decide** (or ↓) is a draw. A player never gets a matchup with a drawing of their own, and votes on each pair once. Matchups are picked by the fewest votes the two challengers have between them first, then the pair of players they portray that met the least (so every pair of players gets matchups), then the closest ratings. The vote animates the pick, then the next matchup comes in.
+- **Stars and the daily limit**: a day's first **10** votes earn **3 stars**, shown with a bar on top of the screen ("4 of 10 votes for today's 3 ★"). Players can keep voting after them, unrewarded, up to a daily cap: at most **40** votes a day, and no more than their share of the pairs left (the pairs left at the start of the day divided by the Arena's days left, today included), so there are matchups for every day of the week; always at least the 10, while pairs are left. At the cap the screen says "That's all for today".
+- **Ranking**: once the week of votes is over (on Monday), the Arena's challengers are ranked by their strength from all of its votes at once (a Bradley–Terry rating: beating a strong drawing counts for more than beating a weak one, and the order of the votes doesn't matter; a draw counts a half for each, and every challenger also draws once with a virtual one, so one without votes sits in the middle), then their place in their week's ranking. The ratings stay secret until then.
+- **Arena winners**: the top 3 join the gacha pool with the finale's rarities by place: 1st a ★★★★ legend, 2nd a ★★★ hero, 3rd a ★★ adventurer. As the weekly heroes never enter the Arena, a week adds up to 6 different heroes to the pool. An Arena with fewer challengers crowns fewer; one without any crowns none.
+- **Arena banner**: see [Gacha Rates](./gacha-rates.md).
+- **Week ranking**: the **Arena** view shows, for **This week**, which week's challengers are in the Arena and how many, their ratings secret; for **Last week**, the latest decided Arena: its winners on big cards ("#1 · Arena winner · ★★★★", with who drew it and "Won 6½ of 8 matchups"), then the others with their places and records ("3 of 7"). It's kept on the device until the next Arena is decided.
+- **Tutorial**: the Arena opens with its own intro the first time: last week's challengers, stars for voting, and Arena winners.
 
 *The section below is still in its concept phase, ignore for now!!*
 

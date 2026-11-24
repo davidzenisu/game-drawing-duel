@@ -9,6 +9,26 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.36.0] - 2026-11-24
+
+### Added
+- **The Arena**: from the second week on, vote on matchups of two of last
+  week's challengers (all but its weekly heroes) and pick the better
+  drawing, whatever their boosts were: swipe toward it, tap it, or press
+  ← or →. Can't decide? That's a draw. You never get a drawing of your
+  own, and nobody sees who drew them. Find it on the hub, below the steps.
+- Your first 10 Arena votes of a day earn 3 stars. You can keep voting
+  after them, up to a daily limit that leaves matchups for every day of
+  the week.
+- **Arena winners**: the Monday after its week of votes, the Arena's top 3
+  by everyone's votes join the pool as a ★★★★, a ★★★ and a ★★, like the
+  weekly heroes. The other challengers leave the Arena.
+- **The Arena banner** on Summon, open from the first Arena winners on
+  (the third week): the same pool, with the latest Arena winners rated up.
+  Its box is taped in red.
+- An **Arena** view in the week ranking: this week's Arena, and the latest
+  decided one with its winners and everyone's records.
+
 ## [0.35.0] - 2026-11-24
 
 ### Added
