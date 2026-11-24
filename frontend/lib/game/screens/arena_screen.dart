@@ -186,11 +186,9 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
               const SizedBox(width: 12),
             ],
           ),
-          body: ThemedBackground(
-            theme: controller.theme,
-            child: SafeArea(
-              child: _loading && _status == null ? const Center(child: CircularProgressIndicator()) : _body(context),
-            ),
+          // A plain page: the card brings its own sceneries.
+          body: SafeArea(
+            child: _loading && _status == null ? const Center(child: CircularProgressIndicator()) : _body(context),
           ),
         ),
       ),
@@ -210,7 +208,7 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
       );
     }
     final current = _current;
-    final dark = controller.theme.isDark;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final keys = showsPagerArrows(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -432,8 +430,8 @@ class _VersusCard extends StatelessWidget {
     final plate = size.width - drawing - 2 * _padding - 8;
     final standee = drawing * _standeeHeight;
     // How far a drawing rises above its base, out of step with the other.
-    final lift = drawing * 0.035;
-    double bob(double phase) => lift * (0.5 + 0.5 * sin(2 * pi * (hover + phase)));
+    // How far a standee sways to either side, out of step with the other.
+    double sway(double phase) => drawing * 0.04 * sin(2 * pi * (hover + phase));
     return Material(
       elevation: 8,
       shadowColor: Colors.black54,
@@ -461,7 +459,7 @@ class _VersusCard extends StatelessWidget {
             right: _padding,
             top: _padding,
             width: drawing,
-            child: _Contender(card: right, width: drawing, glow: max(0, lean), dim: max(0, -lean), lift: bob(0)),
+            child: _Contender(card: right, width: drawing, glow: max(0, lean), dim: max(0, -lean), sway: sway(0)),
           ),
           Positioned(
             left: _padding,
@@ -474,7 +472,7 @@ class _VersusCard extends StatelessWidget {
             left: _padding,
             bottom: _padding,
             width: drawing,
-            child: _Contender(card: left, width: drawing, glow: max(0, -lean), dim: max(0, lean), lift: bob(0.5)),
+            child: _Contender(card: left, width: drawing, glow: max(0, -lean), dim: max(0, lean), sway: sway(0.5)),
           ),
           Positioned(
             right: _padding,
@@ -557,15 +555,15 @@ class _Scenery extends StatelessWidget {
   }
 }
 
-/// A challenger of the matchup: its drawing hovering [lift] over its standee
-/// base.
+/// A challenger of the matchup: its drawing on its standee base, the two
+/// swaying together [sway] to the side, leaning into it a little.
 class _Contender extends StatelessWidget {
   const _Contender({
     required this.card,
     required this.width,
     required this.glow,
     required this.dim,
-    required this.lift,
+    required this.sway,
   });
 
   final CharacterCard card;
@@ -575,57 +573,61 @@ class _Contender extends StatelessWidget {
   final double glow;
   final double dim;
 
-  /// How far the drawing hovers over its base.
-  final double lift;
+  /// How far the standee sways to the right (negative: to the left).
+  final double sway;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: '${card.subject}, ${card.title}',
-      child: _Dimmed(
-        dim: dim,
-        radius: 12,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Transform.translate(
-              offset: Offset(0, -lift),
-              child: SizedBox(
-                width: width,
-                height: width / cardAspectRatio,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 6 + lift,
-                            offset: Offset(0, 4 + lift),
-                          ),
-                          if (glow > 0)
+      child: Transform.translate(
+        offset: Offset(sway, 0),
+        child: Transform.rotate(
+          angle: sway / width * 0.35,
+          alignment: Alignment.bottomCenter,
+          child: _Dimmed(
+            dim: dim,
+            radius: 12,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: width,
+                  height: width / cardAspectRatio,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
                             BoxShadow(
-                              color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
-                              blurRadius: 24 * glow,
-                              spreadRadius: 4 * glow,
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 6,
+                              offset: const Offset(0, 4),
                             ),
-                        ],
+                            if (glow > 0)
+                              BoxShadow(
+                                color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
+                                blurRadius: 24 * glow,
+                                spreadRadius: 4 * glow,
+                              ),
+                          ],
+                        ),
+                        child: CardboardCard(child: SketchView(card.sketch)),
                       ),
-                      child: CardboardCard(child: SketchView(card.sketch)),
-                    ),
-                    if (glow > 0)
-                      Align(
-                        alignment: const Alignment(0, -0.75),
-                        child: Opacity(opacity: glow, child: const _Stamp()),
-                      ),
-                  ],
+                      if (glow > 0)
+                        Align(
+                          alignment: const Alignment(0, -0.75),
+                          child: Opacity(opacity: glow, child: const _Stamp()),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+                StandeeBase(width: width * 0.62),
+              ],
             ),
-            StandeeBase(width: width * 0.62),
-          ],
+          ),
         ),
       ),
     );
