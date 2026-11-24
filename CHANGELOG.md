@@ -9,6 +9,23 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.35.0] - 2026-11-24
+
+### Added
+- Play the swipe screens with the keyboard on a computer: ← and → switch
+  banners on Summon, move between challengers on Boost, and turn the pages
+  of the tutorials.
+- On Boost, ↑ gives the challenger in view a star and ↓ takes one back.
+- On a summon, →, Enter or Space cuts the box open, like a swipe, then
+  skips ahead and goes on to the next card.
+- Enter or Space goes on in the tutorials (Next, then Got it).
+- Esc goes back anywhere in the game, like the browser's back button: it
+  closes the menu, dialog or sheet on top, or leaves the screen. Unsaved
+  boosts still ask first, a running drawing ignores it, and it never
+  leaves the game.
+- Big ← and → buttons beside the banners on Summon, the challengers on
+  Boost and the tutorial pages on wide screens.
+
 ## [0.34.0] - 2026-11-23
 
 ### Added
