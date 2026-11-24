@@ -622,6 +622,153 @@ class WeekRanking {
   final BoostBalance? boostBalance;
 }
 
+/// The Arena: everyone votes on matchups of two of the week before's
+/// challengers that its finale didn't crown, never their own drawings, and
+/// once that week of votes is over its top [maxWinners] become Arena
+/// winners, for the Arena banner, with the finale's [rarities] by place.
+///
+/// Week X's challengers are fought in week X; the Arena of week X opens once
+/// its finale is decided (on Monday of week X+1) and is decided once week
+/// X+1 is over, so the first one opens in a server's second week, and the
+/// Arena banner in its third. The server rates and ranks the votes
+/// (`backend/app/arena.py`); both sides check these numbers against
+/// `shared/rules.json`.
+abstract final class Arena {
+  static const rarities = Finale.rarities;
+  static const maxWinners = Finale.maxHeroes;
+
+  /// A day's first matchups earn [packStars] stars once all are voted on;
+  /// voting goes on after them, unrewarded, up to the day's cap ([cap]).
+  static const pack = 10;
+  static const packStars = 3;
+  static const dailyCap = 40;
+
+  /// How many matchups you can vote on today, with [pairsLeft] pairs you
+  /// haven't voted on at the start of the day and [daysLeft] days of the
+  /// Arena, today included: at most [dailyCap], and no more than your share
+  /// of the pairs left, so they last until the Arena ends, but always the
+  /// [pack] while pairs are left.
+  static int cap(int pairsLeft, int daysLeft) {
+    if (pairsLeft <= 0 || daysLeft <= 0) return 0;
+    final share = pairsLeft ~/ daysLeft;
+    return min(pairsLeft, max(min(pack, pairsLeft), min(dailyCap, share)));
+  }
+}
+
+/// The Arena open today, as you see it ([Arena]).
+class ArenaStatus {
+  const ArenaStatus({
+    required this.week,
+    required this.endsOn,
+    required this.challengers,
+    required this.votesToday,
+    required this.cap,
+    required this.pack,
+    this.packStars = Arena.packStars,
+    this.rewarded = false,
+  });
+
+  /// The last day of its challengers' week, and the last day to vote.
+  final int week;
+  final int endsOn;
+
+  /// How many challengers it holds.
+  final int challengers;
+
+  /// Your votes today, and the most you can cast today.
+  final int votesToday;
+  final int cap;
+
+  /// The votes today's [packStars] take: the pack, or the cap if lower.
+  final int pack;
+  final int packStars;
+
+  /// Whether today's pack earned its stars already.
+  final bool rewarded;
+
+  /// The votes left until today's stars; 0 once they're earned.
+  int get packLeft => rewarded ? 0 : max(0, pack - votesToday);
+
+  /// Whether you can vote again today.
+  bool get canVote => votesToday < cap;
+}
+
+/// Your Arena today: its status and the next matchup to vote on, null at
+/// today's cap or without pairs left.
+class ArenaRound {
+  const ArenaRound({required this.status, this.matchup});
+
+  /// Null when no Arena is open (the first week, speed mode).
+  final ArenaStatus? status;
+  final (CharacterCard, CharacterCard)? matchup;
+}
+
+/// A winner of the latest Arena, now in the gacha pool with the rarity it
+/// was crowned with.
+class ArenaWinner {
+  const ArenaWinner({required this.card, required this.week, required this.place});
+
+  final CharacterCard card;
+
+  /// The last day of its challengers' week.
+  final int week;
+
+  /// Its place in the Arena, 1 to [Arena.maxWinners].
+  final int place;
+}
+
+/// A challenger in a decided Arena.
+class ArenaRanked {
+  const ArenaRanked({
+    required this.card,
+    required this.place,
+    required this.score,
+    required this.matchups,
+    this.rating = 1,
+    this.winnerRarity,
+  });
+
+  final CharacterCard card;
+
+  /// Its place: the winners' first, by place, then the others'.
+  final int place;
+
+  /// Its score in its matchups (a draw counts a half), and how many.
+  final double score;
+  final int matchups;
+
+  /// Its strength from all of the Arena's votes.
+  final double rating;
+
+  /// The rarity it was crowned with as an Arena winner; null if it wasn't.
+  final Rarity? winnerRarity;
+
+  bool get isWinner => winnerRarity != null;
+
+  /// Its score as text: "6½ of 8".
+  String get record {
+    final whole = score.floor();
+    final half = score - whole >= 0.5;
+    return '${whole == 0 && half ? '' : whole}${half ? '½' : ''} of $matchups';
+  }
+}
+
+/// The latest decided Arena, best first.
+class ArenaRanking {
+  const ArenaRanking({required this.week, required this.endsOn, required this.challengers});
+
+  /// The last day of its challengers' week, and of its week of votes.
+  final int week;
+  final int endsOn;
+  final List<ArenaRanked> challengers;
+
+  /// Its winners, by place.
+  List<ArenaRanked> get winners => [
+    for (final c in challengers)
+      if (c.isWinner) c,
+  ];
+}
+
 /// The week the player stats count (see [PlayerStats]).
 enum StatPeriod {
   week('week', 'This week'),

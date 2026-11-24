@@ -20,20 +20,25 @@ class GachaStatus {
 
 /// What a pull draws from, like the server's `Banner` (`backend/app/gacha.py`).
 enum GachaBanner {
-  /// Always there: the whole pool (the setup drawings and every week's new
-  /// hero, its finale's winner), with a legend guaranteed within the first
-  /// pulls on it.
+  /// Always there: the whole pool (the setup drawings, the weekly heroes and
+  /// the Arena winners), with a legend guaranteed within the first pulls on
+  /// it.
   standard('Standard'),
 
-  /// From the first finale on: the same pool, with this week's rate-up.
-  weekly('Weekly');
+  /// From the first finale on: the same pool, with this week's rate-up,
+  /// the latest weekly heroes.
+  weekly('Weekly'),
+
+  /// From the first Arena's winners on: the same pool, with the latest Arena
+  /// winners rated up.
+  arena('Arena');
 
   const GachaBanner(this.label);
 
   final String label;
 
-  /// The characters of [pool] this banner pulls from: all of them, on both
-  /// banners; they differ in the rate-up and the beginner guarantee.
+  /// The characters of [pool] this banner pulls from: all of them, on every
+  /// banner; they differ in the rate-up and the beginner guarantee.
   List<CharacterCard> poolOf(List<CharacterCard> pool) => pool;
 }
 
@@ -86,7 +91,8 @@ class GachaMachine {
       GachaStatus(totalPulls: totalPulls, pullsUntilLegend: pullsUntilLegend, beginnerPullsLeft: beginnerPullsLeft);
 
   /// Pulls a character on [banner] from [pool], the whole pool; the ids in
-  /// [rateUp] are this week's rate-up characters on the weekly banner.
+  /// [rateUp] are the banner's rate-up characters (none on the standard
+  /// banner).
   CharacterCard pull(
     List<CharacterCard> pool, {
     GachaBanner banner = GachaBanner.standard,
@@ -99,7 +105,7 @@ class GachaMachine {
     final tier = closestAvailableTier({for (final card in candidates) card.rarity}, rarity, preferHigher: guaranteed);
     final card = pickCharacter(
       candidates.where((card) => card.rarity == tier).toList(),
-      banner == GachaBanner.weekly ? rateUp : const {},
+      banner == GachaBanner.standard ? const {} : rateUp,
       _random,
     );
 

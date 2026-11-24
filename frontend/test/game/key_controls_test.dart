@@ -299,9 +299,12 @@ void main() {
     expect(find.byTooltip('Next banner'), findsOneWidget);
 
     await _press(tester, LogicalKeyboardKey.arrowRight);
-    expect(caption(), startsWith('The same pool'), reason: 'the weekly banner');
+    expect(caption(), contains("this week's rate-up"), reason: 'the weekly banner');
     await _press(tester, LogicalKeyboardKey.arrowRight);
-    expect(caption(), startsWith('The same pool'), reason: 'nothing after the last');
+    expect(caption(), contains('Arena winners'), reason: 'the Arena banner');
+    await _press(tester, LogicalKeyboardKey.arrowRight);
+    expect(caption(), contains('Arena winners'), reason: 'nothing after the last');
+    await _press(tester, LogicalKeyboardKey.arrowLeft);
     await _press(tester, LogicalKeyboardKey.arrowLeft);
     expect(caption(), startsWith('The characters drawn'));
     await tester.tap(find.byTooltip('Next banner'));

@@ -19,6 +19,7 @@ import '../widgets/tutorial_dialog.dart';
 import '../widgets/ticket_chip.dart';
 import '../widgets/hurry_button.dart';
 import '../widgets/hub_tile.dart';
+import 'arena_screen.dart';
 import 'boost_screen.dart';
 import 'drawing_recap_screen.dart';
 import 'drawing_screen.dart';
@@ -247,6 +248,22 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
     ];
   }
 
+  /// The Arena, below the steps: a bonus, open from the second week on,
+  /// with the votes left for today's stars as its badge.
+  Widget _arenaTile() {
+    final c = _controller;
+    final arena = c.arena;
+    return HubTile(
+      icon: Icons.stadium_rounded,
+      title: 'Arena',
+      height: 112,
+      done: arena != null && arena.rewarded,
+      badge: arena?.packLeft ?? 0,
+      unavailable: Unavailable.arena(c),
+      onTap: arena != null && !c.sessionOver ? () => _open(ArenaScreen(controller: c), Tutorial.arena) : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -339,6 +356,8 @@ class _DailyHubScreenState extends State<DailyHubScreen> {
                           if (_controller.canEndDay) _dayEndedCard(),
                           const SizedBox(height: 8),
                           HubGrid(tiles: _steps()),
+                          const SizedBox(height: 4),
+                          _arenaTile(),
                           const SizedBox(height: 4),
                           HubTile(
                             icon: Icons.military_tech_rounded,

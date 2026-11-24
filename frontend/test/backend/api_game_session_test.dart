@@ -1065,6 +1065,79 @@ void main() {
       expect(admin.rateUp, {right['id']});
     });
 
+    test("the Arena: today's matchups, votes and the pack's stars, its winners and ranking", () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+      expect(admin.arena, isNull, reason: 'not in the first week');
+      expect((await admin.arenaRound()).status, isNull);
+      expect(admin.arenaRateUp, isEmpty);
+      expect(admin.bannerOpen(GachaBanner.arena), isFalse);
+
+      final [left, right, other, ...] = [for (final d in backend.drawings.values) d.character];
+      backend.arenaStatus['123456'] = {
+        'week': 7,
+        'ends_on': 14,
+        'challengers': 9,
+        'votes_today': 0,
+        'cap': 2,
+        'pack': 2,
+        'pack_stars': 3,
+        'rewarded': false,
+      };
+      backend.arenaMatchups['123456'] = [
+        [left, right],
+        [right, other],
+      ];
+      await admin.refreshDay();
+      expect((admin.arena!.week, admin.arena!.endsOn, admin.arena!.packLeft), (7, 14, 2));
+      final round = await admin.arenaRound();
+      expect(backend.requests.last.url.path, '/servers/123456/arena');
+      final (first, second) = round.matchup!;
+      expect((first.id, second.id), (left['id'], right['id']));
+
+      final stars = admin.stars;
+      var next = await admin.arenaVote(first, second, winner: second);
+      expect(backend.requests.last.url.path, '/servers/123456/arena/votes');
+      expect(backend.arenaVotes.last, {
+        'challenger_ids': [left['id'], right['id']],
+        'winner_id': right['id'],
+      });
+      expect((next.status!.votesToday, next.status!.rewarded), (1, false));
+      expect(admin.stars, stars);
+      // A draw ("can't decide") finishes the pack: its stars are yours.
+      next = await admin.arenaVote(next.matchup!.$1, next.matchup!.$2);
+      expect(backend.arenaVotes.last['winner_id'], isNull);
+      expect(next.matchup, isNull, reason: "that's all for today");
+      expect((next.status!.rewarded, next.status!.canVote), (true, false));
+      expect(admin.stars, stars + 3);
+      expect(admin.arena!.packLeft, 0, reason: 'the hub knows too');
+
+      backend.arenaWinners['123456'] = [
+        {'character': other, 'week': 7, 'place': 1},
+      ];
+      backend.arenaRankings['123456'] = {
+        'week': 7,
+        'ends_on': 14,
+        'challengers': [
+          {'character': other, 'place': 1, 'hero_rarity': 'legend', 'rating': 2.5, 'score': 3.5, 'matchups': 4},
+          {'character': left, 'place': 2, 'hero_rarity': null, 'rating': 0.5, 'score': 0, 'matchups': 2},
+        ],
+      };
+      await admin.refreshDay();
+      final winner = admin.arenaWinners.single;
+      expect((winner.card.id, winner.week, winner.place), (other['id'], 7, 1));
+      final ranking = (await admin.arenaRanking())!;
+      expect(backend.requests.last.url.path, '/servers/123456/arena/ranking');
+      expect((ranking.week, ranking.endsOn), (7, 14));
+      expect(
+        [for (final r in ranking.winners) (r.card.id, r.winnerRarity, r.record)],
+        [(other['id'], Rarity.legend, '3½ of 4')],
+      );
+      expect(ranking.challengers.last.record, '0 of 2');
+    });
+
     test('the week ranking is kept on the device until the next week is over', () async {
       final cache = FakeLocalCache();
       final alex = ApiGameSession(

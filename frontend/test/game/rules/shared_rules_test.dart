@@ -165,6 +165,15 @@ void main() {
     }
   });
 
+  test('arena', () {
+    final arena = rules['arena'] as Map<String, dynamic>;
+    expect([for (final rarity in Arena.rarities) rarity.name], arena['rarities']);
+    expect((Arena.pack, Arena.packStars, Arena.dailyCap), (arena['pack'], arena['pack_stars'], arena['daily_cap']));
+    for (final [int pairsLeft, int daysLeft, int cap] in (arena['cap_cases'] as List).cast<List>()) {
+      expect(Arena.cap(pairsLeft, daysLeft), cap, reason: '$pairsLeft pairs, $daysLeft days');
+    }
+  });
+
   test('stars', () {
     final stars = rules['stars'] as Map<String, dynamic>;
     expect((StarRewards.prompt, StarRewards.challenger), (stars['prompt'], stars['challenger']));

@@ -228,6 +228,13 @@ class _BannerStyle {
       title: [Color(0xFFFFFFFF), Color(0xFFFFB3EC), AppPalette.rarityHero],
       kicker: 'RATE UP',
     ),
+    // Red and steel, like an arena's banners.
+    GachaBanner.arena => const _BannerStyle(
+      background: [Color(0xFF3D0A0A), Color(0xFFA3231F), Color(0xFF4D1A0A)],
+      glow: Color(0xFFFF6B3D),
+      title: [Color(0xFFFFFFFF), Color(0xFFFFD0B3), Color(0xFFFF6B3D)],
+      kicker: 'ARENA WINNERS',
+    ),
   };
 }
 

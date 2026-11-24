@@ -59,6 +59,7 @@ class ApiGameSession extends GameSession {
   int _stars = 0;
   GachaStatus _gachaStatus = GachaMachine().status;
   Set<String> _rateUp = const {};
+  Set<String> _arenaRateUp = const {};
 
   /// Sketches by character id. A character never changes, so refreshing
   /// only downloads new ones.
@@ -728,10 +729,18 @@ class ApiGameSession extends GameSession {
   bool _boostForfeited = false;
   BoostBalance? _boostBalance;
   List<WeeklyHero> _weeklyHeroes = const [];
+  ArenaStatus? _arena;
+  List<ArenaWinner> _arenaWinners = const [];
   List<ChallengerRecord> _challengers = const [];
 
   @override
   List<WeeklyHero> get weeklyHeroes => _weeklyHeroes;
+
+  @override
+  ArenaStatus? get arena => _arena;
+
+  @override
+  List<ArenaWinner> get arenaWinners => _arenaWinners;
 
   @override
   List<ChallengerRecord> get challengers => _challengers;
@@ -927,6 +936,14 @@ class ApiGameSession extends GameSession {
           else
             throw const FormatException('Unexpected weekly hero.'),
       ];
+      _arena = _parseArenaStatus(json['arena']);
+      _arenaWinners = [
+        for (final winner in json['arena_heroes'] as List? ?? const [])
+          if (winner case {'character': final character, 'week': int week, 'place': int place})
+            ArenaWinner(card: await _card(server, character), week: week, place: place)
+          else
+            throw const FormatException('Unexpected Arena winner.'),
+      ];
       return;
     }
     throw const FormatException('Unexpected day response.');
@@ -966,6 +983,7 @@ class ApiGameSession extends GameSession {
       _tickets = tickets;
       _stars = json['stars'] as int? ?? 0;
       _rateUp = {for (final id in rateUp) id as String};
+      _arenaRateUp = {for (final id in json['arena_rate_up'] as List? ?? const []) id as String};
       _gachaStatus = GachaStatus(
         totalPulls: totalPulls,
         pullsUntilLegend: untilLegend,
@@ -1213,6 +1231,9 @@ class ApiGameSession extends GameSession {
   Set<String> get rateUp => _rateUp;
 
   @override
+  Set<String> get arenaRateUp => _arenaRateUp;
+
+  @override
   List<OwnedCard> get collection => _collection.toList()
     ..sort((a, b) {
       final byRarity = b.card.rarity.stars.compareTo(a.card.rarity.stars);
@@ -1366,6 +1387,104 @@ class ApiGameSession extends GameSession {
     final json = await _get(path);
     if (json != null) _localCache.write(key, jsonEncode({'asked_on': askedOn, 'json': json}));
     return json;
+  }
+
+  static ArenaStatus? _parseArenaStatus(Object? json) => switch (json) {
+    null => null,
+    {
+      'week': int week,
+      'ends_on': int endsOn,
+      'challengers': int challengers,
+      'votes_today': int votesToday,
+      'cap': int cap,
+      'pack': int pack,
+      'pack_stars': int packStars,
+      'rewarded': bool rewarded,
+    } =>
+      ArenaStatus(
+        week: week,
+        endsOn: endsOn,
+        challengers: challengers,
+        votesToday: votesToday,
+        cap: cap,
+        pack: pack,
+        packStars: packStars,
+        rewarded: rewarded,
+      ),
+    _ => throw const FormatException('Unexpected Arena.'),
+  };
+
+  /// A round of the Arena from the API, keeping today's Arena and your stars
+  /// up to date.
+  Future<ArenaRound> _setArenaRound(Object? json) async {
+    if (json is! Map) throw const FormatException('Unexpected Arena round.');
+    final server = this.server;
+    final status = _parseArenaStatus(json['status']);
+    final matchup = switch (json['matchup']) {
+      null => null,
+      [final first, final second] => (await _card(server, first), await _card(server, second)),
+      _ => throw const FormatException('Unexpected Arena matchup.'),
+    };
+    _arena = status;
+    if (json['stars'] case final int stars) _stars = stars;
+    notifyListeners();
+    return ArenaRound(status: status, matchup: matchup);
+  }
+
+  @override
+  Future<ArenaRound> arenaRound() async => _setArenaRound(await _get('/servers/${server.code}/arena'));
+
+  @override
+  Future<ArenaRound> arenaVote(CharacterCard first, CharacterCard second, {CharacterCard? winner}) async =>
+      _setArenaRound(
+        await _post('/servers/${server.code}/arena/votes', {
+          'challenger_ids': [first.id, second.id],
+          'winner_id': winner?.id,
+        }),
+      );
+
+  @override
+  Future<ArenaRanking?> arenaRanking({bool refresh = false}) async {
+    final server = this.server;
+    if (server.isSpeed) return null;
+    final json = await _kept(
+      'arena-ranking:${server.code}',
+      '/servers/${server.code}/arena/ranking',
+      refresh: refresh,
+      // Until the next Arena is decided, the day after its week of votes.
+      stillCurrent: (json, _) => json is Map && json['ends_on'] is int && day <= (json['ends_on'] as int) + 7,
+    );
+    return switch (json) {
+      null => null,
+      {'week': int week, 'ends_on': int endsOn, 'challengers': List challengers} => ArenaRanking(
+        week: week,
+        endsOn: endsOn,
+        challengers: [
+          for (final entry in challengers)
+            if (entry case {
+              'character': final character,
+              'place': int place,
+              'rating': num rating,
+              'score': num score,
+              'matchups': int matchups,
+            })
+              ArenaRanked(
+                card: await _card(server, character),
+                place: place,
+                rating: rating.toDouble(),
+                score: score.toDouble(),
+                matchups: matchups,
+                winnerRarity: switch (entry['hero_rarity']) {
+                  final String rarity => Rarity.values.byName(rarity),
+                  _ => null,
+                },
+              )
+            else
+              throw const FormatException('Unexpected Arena challenger.'),
+        ],
+      ),
+      _ => throw const FormatException('Unexpected Arena ranking.'),
+    };
   }
 
   @override

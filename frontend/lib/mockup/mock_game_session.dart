@@ -302,6 +302,10 @@ class MockGameSession extends GameSession {
     _collectedAchievements.clear();
     _yourBoosts.clear();
     _weeklyHeroes = const [];
+    _arenaWinners = const [];
+    _latestArena = null;
+    _arenaVotes.clear();
+    _arenaRewarded.clear();
     _crowned.clear();
     _hurrySentTo = null;
     _hurryMessage = null;
@@ -1000,6 +1004,165 @@ class MockGameSession extends GameSession {
     return _week(lastDay);
   }
 
+  // The Arena -------------------------------------------------------------------
+
+  /// Your Arena votes: (day, first id, second id, winner id or null).
+  final List<(int, String, String, String?)> _arenaVotes = [];
+
+  List<ArenaWinner> _arenaWinners = const [];
+
+  /// The latest decided Arena, like online: crowned the Monday after its
+  /// week of votes.
+  ArenaRanking? _latestArena;
+
+  @override
+  List<ArenaWinner> get arenaWinners => _arenaWinners;
+
+  /// Like online: the latest Arena's winners.
+  @override
+  Set<String> get arenaRateUp => {for (final winner in _arenaWinners) winner.card.id};
+
+  /// The Arena open on [day]: the last day of the week before; none in the
+  /// first week and in speed mode.
+  int? _arenaWeek(int day) {
+    if (server.isSpeed) return null;
+    final week = _days.weekStart(day) - 1;
+    return week >= 7 ? week : null;
+  }
+
+  /// The Arena of [week]'s challengers: the week's, but its weekly heroes,
+  /// in the order of its ranking.
+  List<CharacterCard> _arenaChallengers(int week) => [
+    for (final (i, r) in _ranked(week - 8, week - 2).indexed)
+      if (i >= Finale.maxHeroes) r.card,
+  ];
+
+  String _pairKey(String a, String b) => a.compareTo(b) < 0 ? '$a|$b' : '$b|$a';
+
+  /// Every pair you can vote on in the Arena of [week]: none with a drawing
+  /// of yours.
+  List<(CharacterCard, CharacterCard)> _arenaPairs(int week) {
+    final theirs = [
+      for (final c in _arenaChallengers(week))
+        if (c.artist != you.name) c,
+    ];
+    return [
+      for (var i = 0; i < theirs.length; i++)
+        for (var j = i + 1; j < theirs.length; j++) (theirs[i], theirs[j]),
+    ];
+  }
+
+  ({ArenaStatus status, (CharacterCard, CharacterCard)? matchup})? _arenaState() {
+    final week = _arenaWeek(_day);
+    if (week == null) return null;
+    final pairs = _arenaPairs(week);
+    final keys = {for (final (a, b) in pairs) _pairKey(a.id, b.id)};
+    final mine = [
+      for (final vote in _arenaVotes)
+        if (keys.contains(_pairKey(vote.$2, vote.$3))) vote,
+    ];
+    final cap = Arena.cap(pairs.length - mine.where((v) => v.$1 < _day).length, week + 7 - _day + 1);
+    final today = mine.where((v) => v.$1 == _day).length;
+    final status = ArenaStatus(
+      week: week,
+      endsOn: week + 7,
+      challengers: _arenaChallengers(week).length,
+      votesToday: today,
+      cap: cap,
+      pack: min(Arena.pack, cap),
+      rewarded: _arenaRewarded.contains(_day),
+    );
+    if (today >= cap) return (status: status, matchup: null);
+    // The fewest votes of yours first, like online's fewest votes.
+    final counts = <String, int>{};
+    for (final (_, a, b, _) in mine) {
+      counts[a] = (counts[a] ?? 0) + 1;
+      counts[b] = (counts[b] ?? 0) + 1;
+    }
+    final voted = {for (final (_, a, b, _) in mine) _pairKey(a, b)};
+    final left = [
+      for (final pair in pairs)
+        if (!voted.contains(_pairKey(pair.$1.id, pair.$2.id))) pair,
+    ];
+    if (left.isEmpty) return (status: status, matchup: null);
+    int votes((CharacterCard, CharacterCard) p) => (counts[p.$1.id] ?? 0) + (counts[p.$2.id] ?? 0);
+    final next = left.reduce((best, p) => votes(p) < votes(best) ? p : best);
+    return (status: status, matchup: (mine.length + _day).isEven ? next : (next.$2, next.$1));
+  }
+
+  /// The days your pack earned its stars on.
+  final Set<int> _arenaRewarded = {};
+
+  @override
+  ArenaStatus? get arena => _arenaState()?.status;
+
+  @override
+  Future<ArenaRound> arenaRound() async {
+    final state = _arenaState();
+    return ArenaRound(status: state?.status, matchup: state?.matchup);
+  }
+
+  @override
+  Future<ArenaRound> arenaVote(CharacterCard first, CharacterCard second, {CharacterCard? winner}) async {
+    final state = _arenaState();
+    if (state == null) throw StateError("The Arena isn't open.");
+    if (!state.status.canVote) throw StateError("That's all for today.");
+    if (_arenaVotes.any((v) => _pairKey(v.$2, v.$3) == _pairKey(first.id, second.id))) {
+      throw StateError('You voted on this matchup already.');
+    }
+    _arenaVotes.add((_day, first.id, second.id, winner?.id));
+    if (!state.status.rewarded && state.status.votesToday + 1 >= state.status.pack) {
+      _arenaRewarded.add(_day);
+      _stars += Arena.packStars;
+    }
+    notifyListeners();
+    return arenaRound();
+  }
+
+  /// The Arena of [week], decided: the friends' votes are made up, but the
+  /// same every time, and yours count too.
+  ArenaRanking _decideArena(int week) {
+    final entries = _arenaChallengers(week);
+    final scores = <String, double>{};
+    final matchups = <String, int>{};
+    for (final c in entries) {
+      // Six made-up matchups each, won by a hash of its id.
+      matchups[c.id] = 6;
+      scores[c.id] = (c.id.hashCode % 7).abs().clamp(0, 6).toDouble();
+    }
+    for (final (_, a, b, winner) in _arenaVotes) {
+      if (!scores.containsKey(a) || !scores.containsKey(b)) continue;
+      matchups[a] = matchups[a]! + 1;
+      matchups[b] = matchups[b]! + 1;
+      scores[a] = scores[a]! + (winner == null ? 0.5 : (winner == a ? 1 : 0));
+      scores[b] = scores[b]! + (winner == null ? 0.5 : (winner == b ? 1 : 0));
+    }
+    double share(CharacterCard c) => scores[c.id]! / matchups[c.id]!;
+    final order = [...entries.indexed]
+      ..sort((x, y) {
+        final byShare = share(y.$2).compareTo(share(x.$2));
+        return byShare != 0 ? byShare : x.$1.compareTo(y.$1);
+      });
+    return ArenaRanking(
+      week: week,
+      endsOn: week + 7,
+      challengers: [
+        for (final (place, (_, c)) in order.indexed)
+          ArenaRanked(
+            card: c,
+            place: place + 1,
+            score: scores[c.id]!,
+            matchups: matchups[c.id]!,
+            rating: share(c),
+            winnerRarity: place < Arena.maxWinners ? Arena.rarities[place] : null,
+          ),
+      ],
+    );
+  }
+
+  @override
+  Future<ArenaRanking?> arenaRanking({bool refresh = false}) async => _latestArena;
+
   @override
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async => _playerStats(period);
 
@@ -1091,6 +1254,21 @@ class MockGameSession extends GameSession {
         for (final hero in heroes)
           WeeklyHero(card: _asCrowned(hero.card), day: _day - 1, stars: hero.stars, place: hero.place),
       ];
+      // The Arena voted on last week, of the week before's challengers,
+      // crowns its winners too.
+      if (_day > 14) {
+        final arena = _decideArena(_day - 8);
+        _latestArena = arena;
+        for (final winner in arena.winners) {
+          _crowned[winner.card.id] = winner.winnerRarity!;
+          _pool.removeWhere((c) => c.id == winner.card.id);
+          _pool.add(_asCrowned(winner.card));
+        }
+        _arenaWinners = [
+          for (final winner in arena.winners)
+            ArenaWinner(card: _asCrowned(winner.card), week: arena.week, place: winner.place),
+        ];
+      }
       // Last week's trophies you won, as gifts on the notification board.
       for (final stat in _playerStats(StatPeriod.lastWeek)?.stats ?? const <PlayerStat>[]) {
         if (!stat.players.any((p) => p.player.isYou && p.first)) continue;
@@ -1371,12 +1549,15 @@ class MockGameSession extends GameSession {
     if (banner == GachaBanner.weekly && rateUp.isEmpty) {
       throw StateError('The weekly banner opens with the first finale.');
     }
+    if (banner == GachaBanner.arena && arenaRateUp.isEmpty) {
+      throw StateError('The Arena banner opens once an Arena crowns winners.');
+    }
     _stars -= buy * StarRewards.pullPrice;
     _tickets += buy;
     _tickets -= count;
     final outcomes = <PullOutcome>[];
     for (var i = 0; i < count; i++) {
-      final card = _gacha.pull(_pool, banner: banner, rateUp: rateUp);
+      final card = _gacha.pull(_pool, banner: banner, rateUp: banner == GachaBanner.arena ? arenaRateUp : rateUp);
       final owned = _owned[card.id];
       if (owned == null) {
         _owned[card.id] = OwnedCard(card);

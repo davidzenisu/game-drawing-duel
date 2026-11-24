@@ -13,10 +13,12 @@ import '../widgets/sketch_canvas.dart';
 import 'player_stats_view.dart';
 import 'ranking_detail_screen.dart';
 
-/// Who sees the week ranking: the players' stats or the challengers.
+/// Who sees the week ranking: the players' stats, the challengers or the
+/// Arena.
 enum RankingView {
   players('Players'),
-  challengers('Challengers');
+  challengers('Challengers'),
+  arena('Arena');
 
   const RankingView(this.label);
 
@@ -32,6 +34,9 @@ enum RankingView {
 ///   last week, the boost balance its fights gave this week, the pie, its
 ///   weekly heroes on big cards framed in their rarity's colour, then its
 ///   other challengers ranked by their stars. Tapping one opens its details.
+/// - **Arena**: this week, which challengers are in the Arena, their
+///   ratings kept secret; last week, the latest decided Arena: its winners
+///   on big cards, then the others with their records.
 ///
 /// Answers are kept on the device: this week's for the day, last week's
 /// until the next week is over; the refresh button asks again.
@@ -59,6 +64,8 @@ class _RankingScreenState extends State<RankingScreen> {
   final Map<StatPeriod, PlayerStats?> _stats = {};
   WeekRanking? _ranking;
   bool _rankingLoaded = false;
+  ArenaRanking? _arena;
+  bool _arenaLoaded = false;
   bool _loading = true;
 
   @override
@@ -72,14 +79,29 @@ class _RankingScreenState extends State<RankingScreen> {
   /// from the player stats.
   bool get _showsRanking => _view == RankingView.challengers && _period == StatPeriod.lastWeek;
 
-  bool get _loaded => _showsRanking ? _rankingLoaded : _stats.containsKey(_period);
+  /// The latest decided Arena; this week's Arena comes with the day.
+  bool get _showsArena => _view == RankingView.arena && _period == StatPeriod.lastWeek;
+
+  bool get _loaded => switch (_view) {
+    RankingView.arena => _period == StatPeriod.week || _arenaLoaded,
+    _ when _showsRanking => _rankingLoaded,
+    _ => _stats.containsKey(_period),
+  };
 
   /// What the current view and week show: as kept on the device, unless
   /// [refresh].
   Future<void> _load({bool refresh = false}) async {
     setState(() => _loading = true);
     final controller = widget.controller;
-    if (_showsRanking) {
+    if (_view == RankingView.arena) {
+      final arena = _showsArena ? await runGameQuery(context, () => controller.arenaRanking(refresh: refresh)) : null;
+      if (!mounted) return;
+      setState(() {
+        if (arena != null || !refresh) _arena = arena ?? _arena;
+        if (_showsArena) _arenaLoaded = true;
+        _loading = false;
+      });
+    } else if (_showsRanking) {
       final ranking = await runGameQuery(context, () => controller.weekRanking(refresh: refresh));
       if (!mounted) return;
       setState(() {
@@ -134,7 +156,11 @@ class _RankingScreenState extends State<RankingScreen> {
                         ButtonSegment(
                           value: view,
                           label: Text(view.label),
-                          icon: Icon(view == RankingView.players ? Icons.people_alt_rounded : Icons.shield_rounded),
+                          icon: Icon(switch (view) {
+                            RankingView.players => Icons.people_alt_rounded,
+                            RankingView.challengers => Icons.shield_rounded,
+                            RankingView.arena => Icons.stadium_rounded,
+                          }),
                         ),
                     ],
                     selected: {_view},
@@ -161,9 +187,15 @@ class _RankingScreenState extends State<RankingScreen> {
                         Padding(
                           padding: const EdgeInsets.all(24),
                           child: Text(
-                            _period == StatPeriod.lastWeek
-                                ? 'No ranking yet. Once the first week is over, it shows here.'
-                                : 'Nothing to rank in this session.',
+                            switch (_view) {
+                              RankingView.arena when widget.controller.server.isSpeed => 'Speed mode has no Arena.',
+                              RankingView.arena =>
+                                'No Arena decided yet. The first one opens once the first week is over, and is '
+                                    'decided a week later.',
+                              _ when _period == StatPeriod.lastWeek =>
+                                'No ranking yet. Once the first week is over, it shows here.',
+                              _ => 'Nothing to rank in this session.',
+                            },
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -179,6 +211,7 @@ class _RankingScreenState extends State<RankingScreen> {
   /// What the current view and week show; null without anything to show.
   Widget? _content(BuildContext context) {
     final players = widget.controller.server.players;
+    if (_view == RankingView.arena) return _arenaContent(context);
     if (_showsRanking) {
       final ranking = _ranking;
       if (ranking == null || ranking.challengers.isEmpty) return null;
@@ -223,6 +256,127 @@ class _RankingScreenState extends State<RankingScreen> {
         const SizedBox(height: 12),
         PlayersDashboard(weeks: PlayerWeek.of(players, {for (final (player, n) in stats.portrayed) player.name: n})),
       ],
+    );
+  }
+}
+
+extension on _RankingScreenState {
+  /// This week's Arena, or the latest decided one; null without one.
+  Widget? _arenaContent(BuildContext context) {
+    final controller = widget.controller;
+    final textTheme = Theme.of(context).textTheme;
+    if (!_showsArena) {
+      final status = controller.arena;
+      if (status == null) return null;
+      return Text(
+        "Week ${controller.weekOf(status.week)}'s ${status.challengers} challengers are in the Arena until Sunday, "
+        "all but that week's weekly heroes. Their ratings stay secret until the Arena is decided on Monday; then "
+        'the top ${Arena.maxWinners} become Arena winners.',
+        style: textTheme.bodyMedium,
+      );
+    }
+    final arena = _arena;
+    if (arena == null || arena.challengers.isEmpty) return null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          "The Arena of week ${controller.weekOf(arena.week)}'s challengers, voted on in week "
+          '${controller.weekOf(arena.endsOn)}: ${arena.challengers.length} challengers, ranked by everyone\'s votes. '
+          'The top ${Arena.maxWinners} became Arena winners: '
+          '${[for (final r in Arena.rarities) '★' * r.stars].join(', ')}.',
+          style: textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 12),
+        for (final winner in arena.winners) ...[
+          _ArenaWinnerCard(entry: winner),
+          const SizedBox(height: 8),
+        ],
+        for (final entry in arena.challengers)
+          if (!entry.isWinner) _ArenaTile(entry: entry),
+      ],
+    );
+  }
+}
+
+/// An Arena winner, before and bigger than the other challengers, framed
+/// in the colour of the rarity it was crowned with.
+class _ArenaWinnerCard extends StatelessWidget {
+  const _ArenaWinnerCard({required this.entry});
+
+  final ArenaRanked entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = entry.card;
+    final text = Theme.of(context).textTheme;
+    final rarity = entry.winnerRarity!;
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: rarity.color, width: 3),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.stadium_rounded, color: rarity.color),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '#${entry.place} · Arena winner · ${'★' * rarity.stars}',
+                    style: text.titleMedium?.copyWith(color: rarity.color),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(width: 160, child: CardboardCard(child: SketchView(card.sketch))),
+            const SizedBox(height: 12),
+            Nameplate(name: card.subject, title: card.title, rarity: card.rarity),
+            const SizedBox(height: 4),
+            Text('Drawn by ${card.artist}', style: text.bodySmall),
+            const SizedBox(height: 8),
+            Text('Won ${entry.record} matchups', style: text.titleMedium?.copyWith(color: rarity.color)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArenaTile extends StatelessWidget {
+  const _ArenaTile({required this.entry});
+
+  final ArenaRanked entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final card = entry.card;
+    final textTheme = Theme.of(context).textTheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 28,
+              child: Text('${entry.place}', style: textTheme.titleMedium, textAlign: TextAlign.center),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(width: 44, child: CardboardCard(child: SketchView(card.sketch))),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Nameplate(name: card.subject, title: card.title, compact: true),
+            ),
+            const SizedBox(width: 12),
+            Text(entry.record, style: textTheme.titleSmall),
+          ],
+        ),
+      ),
     );
   }
 }
