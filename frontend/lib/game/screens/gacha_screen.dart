@@ -10,6 +10,7 @@ import '../../theme/palette.dart';
 import '../widgets/banner_art.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/key_controls.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
 import 'pool_screen.dart';
@@ -47,6 +48,9 @@ class _GachaScreenState extends State<GachaScreen> {
       _weeklyOpen ? const [GachaBanner.weekly, GachaBanner.standard] : const [GachaBanner.standard, GachaBanner.weekly];
 
   GachaBanner get _banner => _banners[_page];
+
+  void _goTo(int page) =>
+      _pages.animateToPage(page, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
 
   bool _locked(GachaBanner banner) => banner == GachaBanner.weekly && !_weeklyOpen;
 
@@ -124,170 +128,177 @@ class _GachaScreenState extends State<GachaScreen> {
         // Text right on the day's scenery follows its brightness, not the
         // app's light or dark mode, like on the hub.
         final onScenery = controller.theme.isDark ? Colors.white : Colors.black87;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Summon'),
-            actions: [
-              TicketChip(tickets: controller.tickets, stars: controller.stars),
-              const SizedBox(width: 12),
-            ],
-          ),
-          body: ThemedBackground(
-            theme: controller.theme,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        LayoutBuilder(
-                          builder: (context, constraints) => SizedBox(
-                            height: (constraints.maxWidth * 0.66).clamp(220.0, 320.0),
-                            // Swipe with a mouse too, on the web.
-                            child: ScrollConfiguration(
-                              behavior: ScrollConfiguration.of(
-                                context,
-                              ).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
-                              child: PageView(
-                                controller: _pages,
-                                onPageChanged: (page) => setState(() => _page = page),
-                                children: [
-                                  for (final (index, option) in _banners.indexed)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                                      child: AnimatedBuilder(
-                                        animation: _pages,
-                                        builder: (context, _) {
-                                          final page = _pages.hasClients && _pages.position.haveDimensions
-                                              ? _pages.page!
-                                              : _page.toDouble();
-                                          return BannerArt(
-                                            banner: option,
-                                            featured: _locked(option) ? const [] : _featured(option),
-                                            caption: _caption(option),
-                                            locked: _locked(option),
-                                            parallax: page - index,
-                                          );
-                                        },
+        final previous = _page > 0 ? () => _goTo(_page - 1) : null;
+        final next = _page < _banners.length - 1 ? () => _goTo(_page + 1) : null;
+        return KeyControls(
+          onLeft: previous,
+          onRight: next,
+          onBack: () => Navigator.maybePop(context),
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Summon'),
+              actions: [
+                TicketChip(tickets: controller.tickets, stars: controller.stars),
+                const SizedBox(width: 12),
+              ],
+            ),
+            body: ThemedBackground(
+              theme: controller.theme,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          LayoutBuilder(
+                            builder: (context, constraints) => SizedBox(
+                              height: (constraints.maxWidth * 0.66).clamp(220.0, 320.0),
+                              // Swipe with a mouse too, on the web.
+                              child: ScrollConfiguration(
+                                behavior: ScrollConfiguration.of(
+                                  context,
+                                ).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+                                child: PageView(
+                                  controller: _pages,
+                                  onPageChanged: (page) => setState(() => _page = page),
+                                  children: [
+                                    for (final (index, option) in _banners.indexed)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                                        child: AnimatedBuilder(
+                                          animation: _pages,
+                                          builder: (context, _) {
+                                            final page = _pages.hasClients && _pages.position.haveDimensions
+                                                ? _pages.page!
+                                                : _page.toDouble();
+                                            return BannerArt(
+                                              banner: option,
+                                              featured: _locked(option) ? const [] : _featured(option),
+                                              caption: _caption(option),
+                                              locked: _locked(option),
+                                              parallax: page - index,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (showsPagerArrows(context))
+                                PagerArrow.previous(onPressed: previous, tooltip: 'Previous banner', color: onScenery),
+                              for (final (index, option) in _banners.indexed)
+                                Semantics(
+                                  button: true,
+                                  label: '${option.label} banner',
+                                  child: GestureDetector(
+                                    onTap: () => _goTo(index),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 250),
+                                      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                      width: index == _page ? 24 : 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: index == _page ? onScenery : onScenery.withValues(alpha: 0.3),
+                                        borderRadius: BorderRadius.circular(4),
                                       ),
                                     ),
+                                  ),
+                                ),
+                              if (showsPagerArrows(context))
+                                PagerArrow.next(onPressed: next, tooltip: 'Next banner', color: onScenery),
+                            ],
+                          ),
+                          Text(
+                            switch (banner) {
+                              GachaBanner.standard =>
+                                'The characters drawn during the setup, and every weekly hero.'
+                                    '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens once a finale crowns weekly heroes.'}',
+                              GachaBanner.weekly when !weeklyOpen =>
+                                'The same pool, with this week\'s rate-up. It opens once a finale crowns weekly heroes.',
+                              GachaBanner.weekly => 'The same pool, with this week\'s rate-up.',
+                            },
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodySmall?.copyWith(color: onScenery),
+                          ),
+                          const SizedBox(height: 16),
+                          if (banner == GachaBanner.weekly && weeklyOpen) ...[
+                            _RateUpBanner(controller: controller),
+                            const SizedBox(height: 16),
+                          ],
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Rates', style: textTheme.titleMedium),
+                                  const SizedBox(height: 8),
+                                  for (final MapEntry(key: rarity, value: rate) in rates.entries)
+                                    Row(
+                                      children: [
+                                        StarRow(rarity: rarity),
+                                        const SizedBox(width: 8),
+                                        Text(rarity.label),
+                                        const Spacer(),
+                                        Text('$rate%'),
+                                      ],
+                                    ),
+                                  const Divider(height: 24),
+                                  if (banner == GachaBanner.standard && gacha.beginnerPullsLeft != null)
+                                    Text('★★★★ guaranteed within your next ${gacha.beginnerPullsLeft} standard pulls'),
+                                  Text('★★★★ guaranteed within ${gacha.pullsUntilLegend} pulls on either banner'),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: () => Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => PoolScreen(controller: controller, banner: banner),
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.visibility_outlined),
+                                      label: const Text('See what you can pull'),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            for (final (index, option) in _banners.indexed)
-                              Semantics(
-                                button: true,
-                                label: '${option.label} banner',
-                                child: GestureDetector(
-                                  onTap: () => _pages.animateToPage(
-                                    index,
-                                    duration: const Duration(milliseconds: 350),
-                                    curve: Curves.easeOutCubic,
-                                  ),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 250),
-                                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                                    width: index == _page ? 24 : 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: index == _page ? onScenery : onScenery.withValues(alpha: 0.3),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        Text(
-                          switch (banner) {
-                            GachaBanner.standard =>
-                              'The characters drawn during the setup, and every weekly hero.'
-                                  '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens once a finale crowns weekly heroes.'}',
-                            GachaBanner.weekly when !weeklyOpen =>
-                              'The same pool, with this week\'s rate-up. It opens once a finale crowns weekly heroes.',
-                            GachaBanner.weekly => 'The same pool, with this week\'s rate-up.',
-                          },
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodySmall?.copyWith(color: onScenery),
-                        ),
-                        const SizedBox(height: 16),
-                        if (banner == GachaBanner.weekly && weeklyOpen) ...[
-                          _RateUpBanner(controller: controller),
                           const SizedBox(height: 16),
-                        ],
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Rates', style: textTheme.titleMedium),
-                                const SizedBox(height: 8),
-                                for (final MapEntry(key: rarity, value: rate) in rates.entries)
-                                  Row(
-                                    children: [
-                                      StarRow(rarity: rarity),
-                                      const SizedBox(width: 8),
-                                      Text(rarity.label),
-                                      const Spacer(),
-                                      Text('$rate%'),
-                                    ],
-                                  ),
-                                const Divider(height: 24),
-                                if (banner == GachaBanner.standard && gacha.beginnerPullsLeft != null)
-                                  Text('★★★★ guaranteed within your next ${gacha.beginnerPullsLeft} standard pulls'),
-                                Text('★★★★ guaranteed within ${gacha.pullsUntilLegend} pulls on either banner'),
-                                const SizedBox(height: 8),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton.icon(
-                                    onPressed: () => Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => PoolScreen(controller: controller, banner: banner),
-                                      ),
-                                    ),
-                                    icon: const Icon(Icons.visibility_outlined),
-                                    label: const Text('See what you can pull'),
-                                  ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.tonalIcon(
+                                  onPressed: canPull && controller.canAffordPull(1) ? () => _pull(context, 1) : null,
+                                  icon: const Icon(Icons.auto_awesome_outlined),
+                                  label: const Text('Pull ×1'),
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton.icon(
+                                  onPressed: canPull && controller.canAffordPull(10) ? () => _pull(context, 10) : null,
+                                  icon: const Icon(Icons.auto_awesome_rounded),
+                                  label: const Text('Pull ×10'),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: FilledButton.tonalIcon(
-                                onPressed: canPull && controller.canAffordPull(1) ? () => _pull(context, 1) : null,
-                                icon: const Icon(Icons.auto_awesome_outlined),
-                                label: const Text('Pull ×1'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: canPull && controller.canAffordPull(10) ? () => _pull(context, 10) : null,
-                                icon: const Icon(Icons.auto_awesome_rounded),
-                                label: const Text('Pull ×10'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

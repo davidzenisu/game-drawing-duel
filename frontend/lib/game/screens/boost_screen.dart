@@ -8,6 +8,7 @@ import '../game_session.dart';
 import '../sound.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
+import '../widgets/key_controls.dart';
 import '../widgets/themed_background.dart';
 
 /// Step 3: spread your boost stars across a few of yesterday's challengers,
@@ -126,50 +127,61 @@ class _BoostScreenState extends State<BoostScreen> {
             BoostTarget(challenger: t.challenger, stars: _draft[t.challenger.id] ?? 0),
         ];
         final current = targets[_page.clamp(0, targets.length - 1)];
+        final previous = _page > 0 ? () => _goTo(_page - 1) : null;
+        final next = _page < targets.length - 1 ? () => _goTo(_page + 1) : null;
         return PopScope(
           canPop: !_dirty,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) _confirmLeave();
           },
-          child: Scaffold(
-            appBar: AppBar(title: Text('Boost challengers ${_page + 1}/${targets.length}')),
-            body: Column(
-              children: [
-                Expanded(
-                  child: ThemedBackground(
-                    theme: current.challenger.scenery,
-                    child: PageView.builder(
-                      controller: _pages,
-                      itemCount: targets.length,
-                      onPageChanged: (page) => setState(() => _page = page),
-                      itemBuilder: (context, index) {
-                        final target = targets[index];
-                        return _ChallengerCard(
-                          key: ValueKey(target.challenger.id),
-                          target: target,
-                          inView: index == _page,
-                          canTake: !_saving,
-                          willAccept: (star) => star.from == null && index == _page && _canGive(target),
-                          onGive: () => _give(target.challenger.id, 1),
-                          onTakeBack: () => _give(target.challenger.id, -1),
-                        );
-                      },
+          // On a computer: ← / → between the challengers, ↑ gives the one in
+          // view a star, ↓ takes one back, Esc leaves (asking first if unsaved).
+          child: KeyControls(
+            onLeft: previous,
+            onRight: next,
+            onUp: _canGive(current) ? () => _give(current.challenger.id, 1) : null,
+            onDown: current.stars > 0 && !_saving ? () => _give(current.challenger.id, -1) : null,
+            onBack: () => Navigator.maybePop(context),
+            child: Scaffold(
+              appBar: AppBar(title: Text('Boost challengers ${_page + 1}/${targets.length}')),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: ThemedBackground(
+                      theme: current.challenger.scenery,
+                      child: PageView.builder(
+                        controller: _pages,
+                        itemCount: targets.length,
+                        onPageChanged: (page) => setState(() => _page = page),
+                        itemBuilder: (context, index) {
+                          final target = targets[index];
+                          return _ChallengerCard(
+                            key: ValueKey(target.challenger.id),
+                            target: target,
+                            inView: index == _page,
+                            canTake: !_saving,
+                            willAccept: (star) => star.from == null && index == _page && _canGive(target),
+                            onGive: () => _give(target.challenger.id, 1),
+                            onTakeBack: () => _give(target.challenger.id, -1),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-                _StarTray(
-                  total: widget.controller.boostStars,
-                  left: _left,
-                  enabled: _canGive(current),
-                  saving: _saving,
-                  unsaved: _dirty,
-                  onGive: () => _give(current.challenger.id, 1),
-                  onTakeBack: (star) => _give(star.from!, -1),
-                  onPrevious: _page > 0 ? () => _goTo(_page - 1) : null,
-                  onNext: _page < targets.length - 1 ? () => _goTo(_page + 1) : null,
-                  onDone: _saving ? null : _done,
-                ),
-              ],
+                  _StarTray(
+                    total: widget.controller.boostStars,
+                    left: _left,
+                    enabled: _canGive(current),
+                    saving: _saving,
+                    unsaved: _dirty,
+                    onGive: () => _give(current.challenger.id, 1),
+                    onTakeBack: (star) => _give(star.from!, -1),
+                    onPrevious: previous,
+                    onNext: next,
+                    onDone: _saving ? null : _done,
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -385,11 +397,14 @@ class _StarTray extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    IconButton(
-                      tooltip: 'Previous challenger',
-                      onPressed: onPrevious,
-                      icon: const Icon(Icons.chevron_left_rounded),
-                    ),
+                    // Bigger on wide screens, like a computer's.
+                    showsPagerArrows(context)
+                        ? PagerArrow.previous(onPressed: onPrevious, tooltip: 'Previous challenger')
+                        : IconButton(
+                            tooltip: 'Previous challenger',
+                            onPressed: onPrevious,
+                            icon: const Icon(Icons.chevron_left_rounded),
+                          ),
                     Expanded(
                       // Up to six stars in a week of many: they shrink to fit.
                       child: FittedBox(
@@ -423,11 +438,13 @@ class _StarTray extends StatelessWidget {
                         ),
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Next challenger',
-                      onPressed: onNext,
-                      icon: const Icon(Icons.chevron_right_rounded),
-                    ),
+                    showsPagerArrows(context)
+                        ? PagerArrow.next(onPressed: onNext, tooltip: 'Next challenger')
+                        : IconButton(
+                            tooltip: 'Next challenger',
+                            onPressed: onNext,
+                            icon: const Icon(Icons.chevron_right_rounded),
+                          ),
                   ],
                 ),
                 Text(

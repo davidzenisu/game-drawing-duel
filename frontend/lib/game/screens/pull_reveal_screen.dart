@@ -13,6 +13,7 @@ import '../rules/upgrades.dart';
 import '../sound.dart';
 import '../widgets/card_art.dart';
 import '../widgets/gacha_box.dart';
+import '../widgets/key_controls.dart';
 
 /// How long a card on its own builds up before it flips: the rarer, the
 /// longer.
@@ -150,7 +151,27 @@ class _TapeCut {
     _silence();
   }
 
-  void dispose() => _silence();
+  /// Cutting on its own, from the keyboard.
+  AnimationController? _auto;
+
+  /// Cuts the tape all the way through on its own, like a full swipe across
+  /// a tape [length] long (from the keyboard), calling [changed] as it goes.
+  void cutThrough(TickerProvider vsync, {required double Function() length, required VoidCallback changed}) {
+    if (done || _auto != null) return;
+    cutting = true;
+    _auto = AnimationController(vsync: vsync, duration: const Duration(milliseconds: 450), value: progress)
+      ..addListener(() {
+        final tape = length();
+        drag((_auto!.value - progress) * tape, tape);
+        changed();
+      })
+      ..forward();
+  }
+
+  void dispose() {
+    _auto?.dispose();
+    _silence();
+  }
 }
 
 /// The scissors on the tape: sliding along it to show what to do until the
@@ -229,6 +250,11 @@ class PullRevealScreen extends StatefulWidget {
 class _PullRevealScreenState extends State<PullRevealScreen> {
   PullOutcome? _spotlight;
 
+  /// The keys reach whichever is in front: the card in the spotlight, or
+  /// the multi-pull's box, carousel and overview.
+  final _multi = GlobalKey<_MultiPullState>();
+  var _spotlightKey = GlobalKey<_SingleRevealState>();
+
   // The music steps back for the summon's own sounds.
   @override
   void initState() {
@@ -252,6 +278,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
 
   void _reveal(PullOutcome outcome, String progress, VoidCallback next, VoidCallback skip) => setState(() {
     _spotlight = outcome;
+    _spotlightKey = GlobalKey();
     _progress = progress;
     _next = next;
     _skip = skip;
@@ -260,6 +287,7 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
   /// Shows a card again from the overview.
   void _inspect(PullOutcome outcome) => setState(() {
     _spotlight = outcome;
+    _spotlightKey = GlobalKey();
     _progress = _next = _skip = null;
   });
 
@@ -274,43 +302,55 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
 
   void _close() => Navigator.of(context).pop();
 
+  /// → , Enter or Space: what a swipe or tap does next.
+  void _advance() {
+    final spotlight = _spotlightKey.currentState;
+    spotlight != null ? spotlight.advance() : _multi.currentState?.advance();
+  }
+
   @override
   Widget build(BuildContext context) {
     final spotlight = _single ? widget.outcomes.single : _spotlight;
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            if (!_single)
-              Positioned.fill(
-                child: _MultiPull(
-                  outcomes: widget.outcomes,
-                  banner: widget.banner,
-                  owned: widget.owned,
-                  onReveal: _reveal,
-                  onInspect: _inspect,
-                  onDone: _close,
+    return KeyControls(
+      onRight: _advance,
+      onConfirm: _advance,
+      onBack: _close,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              if (!_single)
+                Positioned.fill(
+                  child: _MultiPull(
+                    key: _multi,
+                    outcomes: widget.outcomes,
+                    banner: widget.banner,
+                    owned: widget.owned,
+                    onReveal: _reveal,
+                    onInspect: _inspect,
+                    onDone: _close,
+                  ),
                 ),
-              ),
-            if (spotlight != null)
-              Positioned.fill(
-                child: _SingleReveal(
-                  key: ObjectKey(spotlight),
-                  outcome: spotlight,
-                  banner: widget.banner,
-                  owned: widget.owned[spotlight.card.id],
-                  // A single pull comes out of its own box; a multi-pull's
-                  // cards came out of theirs already.
-                  boxed: _single,
-                  // Cards shown again from the overview are face up already.
-                  buildUp: _single || _next != null,
-                  progress: _progress,
-                  onSkip: _skip == null ? null : () => _leave(_skip),
-                  onDone: _single ? _close : () => _leave(_next),
+              if (spotlight != null)
+                Positioned.fill(
+                  child: _SingleReveal(
+                    key: _spotlightKey,
+                    outcome: spotlight,
+                    banner: widget.banner,
+                    owned: widget.owned[spotlight.card.id],
+                    // A single pull comes out of its own box; a multi-pull's
+                    // cards came out of theirs already.
+                    boxed: _single,
+                    // Cards shown again from the overview are face up already.
+                    buildUp: _single || _next != null,
+                    progress: _progress,
+                    onSkip: _skip == null ? null : () => _leave(_skip),
+                    onDone: _single ? _close : () => _leave(_next),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -467,6 +507,14 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     _burst.value = 1;
   }
 
+  /// From the keyboard: cuts the tape once the box is down, then does what
+  /// a tap does.
+  void advance() {
+    if (!_land.isCompleted) return;
+    if (_cut.done) return _tap();
+    _cut.cutThrough(this, length: () => _tapeLength, changed: () => setState(() {}));
+  }
+
   void _tap() {
     // Swipes cut the tape; taps only skip once it's cut.
     if (!_cut.done) return;
@@ -602,8 +650,7 @@ class _SingleRevealState extends State<_SingleReveal> with TickerProviderStateMi
     // It trembles while you cut, then shakes harder the rarer the card.
     final shake = pull > 0
         ? 0.0
-        : (_cut.cutting ? sin(sway * 2 * pi * 90) * (1 + 2 * cut) : 0) +
-              _boxShake(charge, _rarity);
+        : (_cut.cutting ? sin(sway * 2 * pi * 90) * (1 + 2 * cut) : 0) + _boxShake(charge, _rarity);
     final pushedIn = _pushedIn(_swaying(sway, shift: Offset(0, 70 + _dropAt(_land.value)), shake: shake), charge);
     final camera = BoxCamera.lerp(
       pushedIn,
@@ -753,6 +800,7 @@ enum _Stage { cut, buildUp, carousel, reveal, results }
 /// of its own in order, and the overview of them all comes last.
 class _MultiPull extends StatefulWidget {
   const _MultiPull({
+    super.key,
     required this.outcomes,
     required this.banner,
     required this.owned,
@@ -865,6 +913,19 @@ class _MultiPullState extends State<_MultiPull> with TickerProviderStateMixin {
     _carousel.stop();
     _sway.stop();
     setState(() => _stage = _Stage.results);
+  }
+
+  /// From the keyboard: cuts the tape once the box is down, then hurries
+  /// along like a tap, and ends the overview like Done.
+  void advance() {
+    switch (_stage) {
+      case _Stage.cut:
+        if (_land.isCompleted) _cut.cutThrough(this, length: () => _tapeLength, changed: () => setState(() {}));
+      case _Stage.results:
+        widget.onDone();
+      case _Stage.buildUp || _Stage.carousel || _Stage.reveal:
+        _tap();
+    }
   }
 
   /// Hurries the box open and the carousel along; while the tape is whole,
