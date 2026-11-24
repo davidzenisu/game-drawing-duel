@@ -622,6 +622,92 @@ class WeekRanking {
   final BoostBalance? boostBalance;
 }
 
+/// The Arena: everyone votes on matchups of two of the week before's
+/// challengers that its finale didn't crown, never their own drawings, and
+/// once that week of votes is over its top [maxWinners] become Arena
+/// winners, for the Arena banner, with the finale's [rarities] by place.
+///
+/// Week X's challengers are fought in week X; the Arena of week X opens once
+/// its finale is decided (on Monday of week X+1) and is decided once week
+/// X+1 is over, so the first one opens in a server's second week, and the
+/// Arena banner in its third. The server rates and ranks the votes
+/// (`backend/app/arena.py`); both sides check these numbers against
+/// `shared/rules.json`.
+abstract final class Arena {
+  static const rarities = Finale.rarities;
+  static const maxWinners = Finale.maxHeroes;
+
+  /// A day's first matchups earn [packStars] stars once all are voted on;
+  /// voting goes on after them, unrewarded, up to the day's cap ([cap]).
+  static const pack = 10;
+  static const packStars = 3;
+
+  /// How many matchups you can vote on today, with [pairsLeft] pairs you
+  /// haven't voted on at the start of the day and [daysLeft] days of the
+  /// Arena, today included: as many as you like, as long as a [pack]'s
+  /// pairs stay for every day after today, so the daily stars never run out
+  /// before the Arena ends; but always the pack while pairs are left.
+  static int cap(int pairsLeft, int daysLeft) {
+    if (pairsLeft <= 0 || daysLeft <= 0) return 0;
+    final spare = pairsLeft - pack * (daysLeft - 1);
+    return min(pairsLeft, max(pack, spare));
+  }
+}
+
+/// The Arena open today, as you see it ([Arena]).
+class ArenaStatus {
+  const ArenaStatus({
+    required this.week,
+    required this.endsOn,
+    required this.challengers,
+    required this.votesToday,
+    required this.cap,
+    required this.pack,
+    this.packStars = Arena.packStars,
+    this.rewarded = false,
+  });
+
+  /// The last day of its challengers' week, and the last day to vote.
+  final int week;
+  final int endsOn;
+
+  /// How many challengers it holds.
+  final int challengers;
+
+  /// Your votes today, and the most you can cast today.
+  final int votesToday;
+  final int cap;
+
+  /// The votes today's [packStars] take: the pack, or the cap if lower.
+  final int pack;
+  final int packStars;
+
+  /// Whether today's pack earned its stars already.
+  final bool rewarded;
+
+  /// The votes left until today's stars; 0 once they're earned.
+  int get packLeft => rewarded ? 0 : max(0, pack - votesToday);
+
+  /// Whether you can vote again today.
+  bool get canVote => votesToday < cap;
+}
+
+/// Your Arena today: its status and the next matchup to vote on, null at
+/// today's cap or without pairs left, and the one after it, to show below
+/// it (null if the next is today's last vote).
+class ArenaRound {
+  const ArenaRound({required this.status, this.matchup, this.next});
+
+  /// Null when no Arena is open (the first week, speed mode).
+  final ArenaStatus? status;
+  final (CharacterCard, CharacterCard)? matchup;
+  final (CharacterCard, CharacterCard)? next;
+}
+
+/// Whether [a] and [b] are the same pair of challengers, in either order.
+bool samePair((CharacterCard, CharacterCard)? a, (CharacterCard, CharacterCard)? b) =>
+    a != null && b != null && {a.$1.id, a.$2.id}.containsAll([b.$1.id, b.$2.id]);
+
 /// The week the player stats count (see [PlayerStats]).
 enum StatPeriod {
   week('week', 'This week'),

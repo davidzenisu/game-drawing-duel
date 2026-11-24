@@ -28,6 +28,7 @@ enum Tutorial {
   boost('boost', 'Boosting challengers', Icons.keyboard_double_arrow_up_rounded),
   fight('fight', 'Fights and results', Icons.groups_rounded),
   finale('finale', 'The weekly ranking', Icons.emoji_events_rounded),
+  arena('arena', 'The Arena', Icons.stadium_rounded),
   gacha('gacha', 'Summoning', Icons.auto_awesome_rounded),
   upgrades('upgrades', 'Duplicates and upgrades', Icons.collections_rounded);
 
@@ -188,6 +189,24 @@ enum Tutorial {
             'secret until the week is over) and Addict (days in a row with every step done). On Monday, every '
             'first place wins a trophy worth '
             '${StarRewards.weekStat} stars.',
+      ),
+    ],
+    arena => [
+      const TutorialPage(
+        icon: Icons.stadium_rounded,
+        title: "Last week's challengers",
+        text:
+            "Every week, the Arena holds last week's challengers, all but its weekly heroes. Pick the better "
+            'drawing of two, whatever their boosts were: drag the card toward it and let go. Can\'t decide? '
+            "That's a draw.",
+      ),
+      TutorialPage(
+        icon: Icons.star_rounded,
+        title: 'Stars for voting',
+        text:
+            'Your first ${Arena.pack} votes of a day earn ${Arena.packStars} stars. Keep voting after them if you '
+            'like, as long as matchups stay for every day\'s stars until Sunday. You never get a drawing of '
+            'your own, and nobody sees who drew them.',
       ),
     ],
     gacha => [

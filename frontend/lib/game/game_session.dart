@@ -405,6 +405,18 @@ abstract class GameSession extends ChangeNotifier {
   /// unless [refresh].
   Future<WeekRanking?> weekRanking({bool refresh = false});
 
+  /// The Arena open today, with your votes ([Arena]); null in the first
+  /// week and in speed mode. Loaded with the day.
+  ArenaStatus? get arena;
+
+  /// Loads your Arena today, with the next matchup to vote on.
+  Future<ArenaRound> arenaRound();
+
+  /// Votes on today's matchup of [first] and [second]: for [winner], one of
+  /// them, or a draw without one ("can't decide"). Completes with the next
+  /// round; the day's pack stars add to your [stars] with its last vote.
+  Future<ArenaRound> arenaVote(CharacterCard first, CharacterCard second, {CharacterCard? winner});
+
   /// Loads every player's stats and trophies for [period], and who its
   /// challengers portray, see [PlayerStats]; null in speed mode, which has
   /// none, and for last week before the first week is over. Kept on the

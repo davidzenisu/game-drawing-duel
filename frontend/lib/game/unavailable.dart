@@ -60,6 +60,13 @@ abstract final class Unavailable {
       ? null
       : 'The first fights are on day ${LoopStep.fight}: replay them from day ${LoopStep.fight + 1} on.';
 
+  /// The Arena holds last week's challengers, so it opens in the second
+  /// week.
+  static String? arena(GameSession c) {
+    if (c.server.isSpeed) return 'Speed mode has no Arena.';
+    return "The Arena opens next week, with this week's challengers.";
+  }
+
   static String? weekRanking(GameSession c) =>
       c.server.isSpeed ? 'Speed mode ranks all of its challengers at the end instead.' : null;
 
