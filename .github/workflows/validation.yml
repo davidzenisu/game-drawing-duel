@@ -43,6 +43,17 @@ jobs:
           echo "frontend=$([ $((frontend + both)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "backend=$([ $((backend + both)) -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
+      # Binary assets are stored with Git LFS (see .gitattributes). A file
+      # committed without Git LFS installed lands as a plain blob instead.
+      - name: Check that binary files are stored with Git LFS
+        run: |
+          missing=$(comm -23 <(git ls-files ':(attr:filter=lfs)' | sort) <(git lfs ls-files --name-only | sort))
+          if [ -n "$missing" ]; then
+            echo "$missing"
+            echo "::error::These files should be stored with Git LFS. Install Git LFS, then run 'git add --renormalize .' and commit."
+            exit 1
+          fi
+
   frontend:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
@@ -53,6 +64,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -80,6 +93,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
