@@ -22,6 +22,8 @@ class DocsPageTests(unittest.TestCase):
         self.assertEqual(logo.status_code, 200)
         self.assertEqual(logo.headers["content-type"], "image/png")
         self.assertEqual(logo.content, LOGO.read_bytes())
+        # A real PNG, not a Git LFS pointer from a checkout without Git LFS.
+        self.assertTrue(logo.content.startswith(b"\x89PNG\r\n\x1a\n"))
         # Neither is part of the API.
         paths = client.get("/openapi.json").json()["paths"]
         self.assertNotIn("/docs", paths)

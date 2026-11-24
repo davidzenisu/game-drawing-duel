@@ -21,6 +21,14 @@ What changed in each version, with its date: [CHANGELOG.md](CHANGELOG.md). The a
 - [docs/concept/initial-setup.md](docs/concept/initial-setup.md) — roster balance and timing assumptions
 - [docs/concept/visuals.md](docs/concept/visuals.md) — visual style and presentation direction
 
+## Getting the code
+
+Images, sounds and fonts are stored with [Git LFS](https://git-lfs.com)
+(see `.gitattributes`). Install it and run `git lfs install` once before
+cloning; without it those files come out as small text pointers, and the app
+builds but shows no logo and plays no sounds. The images in `docs/` stay
+plain files so the Obsidian vault works without Git LFS.
+
 ## CI/CD
 
 This is a mostly Azure-dependent app.
@@ -35,7 +43,7 @@ For bootstrapping, the following GitHub secrets are required:
 
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
-| `validation.yml` | Every pull request | Runs only the checks for the parts a pull request touches. **Frontend:** `flutter analyze` and `flutter test`. **Backend:** `ruff check` and the unit tests. **Migrations:** applies all migrations to a fresh PostgreSQL, runs `alembic check` to make sure no migration is missing, then downgrades and upgrades again. Ends with the `Validation passed` check |
+| `validation.yml` | Every pull request | Checks that every image, sound and font is stored with Git LFS, then runs only the checks for the parts a pull request touches. **Frontend:** `flutter analyze` and `flutter test`. **Backend:** `ruff check` and the unit tests. **Migrations:** applies all migrations to a fresh PostgreSQL, runs `alembic check` to make sure no migration is missing, then downgrades and upgrades again. Ends with the `Validation passed` check |
 | `azure-swa-deployment.yml` | Pull requests and pushes to `main` touching `frontend/` | Builds the web app and deploys it to Azure Static Web Apps (pull requests get a preview environment with the gameplay mockup enabled) |
 | `azure-functions-deployment.yml` | Pushes to `main` touching `backend/` | Runs the database migrations, stops if `alembic check` finds the models and the migrated schema out of sync, then deploys the Function App |
 
