@@ -16,6 +16,7 @@ from app.deps import (
     running_game,
     your_seat,
 )
+from app.gacha import Banner
 from app.models import Character, ServerSeat
 from app.responses import character_response
 from app.schemas import (
@@ -67,6 +68,7 @@ def _gacha(session: Session, seat: ServerSeat) -> GachaResponse:
         pulls_until_legend=state.pulls_until_legend,
         beginner_pulls_left=state.beginner_pulls_left,
         rate_up=sorted(pulls.rate_up(session, seat.server_id)),
+        arena_rate_up=sorted(pulls.arena_rate_up(session, seat.server_id)),
         stars=balance,
         victory_stars=balance,
     )
@@ -125,7 +127,10 @@ def pull(
     except pulls.BannerClosed as error:
         session.rollback()
         raise HTTPException(
-            status.HTTP_409_CONFLICT, detail="The weekly banner opens with the first finale"
+            status.HTTP_409_CONFLICT,
+            detail="The Arena banner opens once an Arena crowns winners"
+            if body.banner is Banner.ARENA
+            else "The weekly banner opens with the first finale",
         ) from error
     session.commit()
     return PullsResponse(

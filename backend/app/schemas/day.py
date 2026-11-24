@@ -10,6 +10,7 @@ from app.rules import (
     HURRY_MESSAGE_MAX_LENGTH,
     MAX_FIGHTERS,
 )
+from app.schemas.arena import ArenaHeroResponse, ArenaStatus
 from app.schemas.character import CharacterResponse
 
 
@@ -245,6 +246,12 @@ class TodayResponse(BaseModel):
     # The latest finale's heroes, by place; empty before the first finale
     # and after a week without any.
     weekly_heroes: list[WeeklyHeroResponse] = []
+    # The Arena open today (`app.arena`); null in the first week and in
+    # speed mode.
+    arena: ArenaStatus | None = None
+    # The latest Arena's winners, by place; empty before the first one is
+    # decided and after an Arena without any.
+    arena_heroes: list[ArenaHeroResponse] = []
 
 
 class ChallengerResponse(BaseModel):

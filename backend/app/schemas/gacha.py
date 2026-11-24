@@ -20,6 +20,9 @@ class GachaResponse(BaseModel):
     # This week's rate-up characters on the weekly banner, see
     # `app.pulls.rate_up`; none until the first finale, and no weekly banner.
     rate_up: list[uuid.UUID] = []
+    # The Arena banner's rate-up characters, see `app.pulls.arena_rate_up`;
+    # none until the first Arena crowns winners, and no Arena banner.
+    arena_rate_up: list[uuid.UUID] = []
     # Your stars, the currency (`app.stars`).
     stars: int = 0
     # The same: what older apps still read, from before victory stars became
@@ -29,7 +32,8 @@ class GachaResponse(BaseModel):
 
 class PullRequest(BaseModel):
     count: int = Field(ge=1, le=10)
-    # The weekly banner opens with the first finale.
+    # The weekly banner opens with the first finale, the Arena banner with
+    # the first Arena's winners.
     banner: Banner = Banner.STANDARD
     # Buy the pulls you're short of with stars first.
     top_up: bool = False

@@ -9,7 +9,17 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import boost_balance, day_flow, days, fights, finale, speed, stars, win_rates
+from app import (
+    arena,
+    boost_balance,
+    day_flow,
+    days,
+    fights,
+    finale,
+    speed,
+    stars,
+    win_rates,
+)
 from app.auth import CurrentPlayer
 from app.deps import Code, DbSession, running_game
 from app.drawings import save_character
@@ -25,6 +35,7 @@ from app.models import (
     ServerSeat,
 )
 from app.responses import character_response
+from app.routers import arena as arena_routes
 from app.rules import (
     BOOST_BALANCE_MIN_FIGHTS,
     BOOST_STARS,
@@ -163,6 +174,10 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
         incoming_hurries=_incoming_hurries(session, server, seat, day),
         day_ended=list(ended),
         weekly_heroes=_weekly_heroes(session, server),
+        arena=arena_routes.arena_status(
+            arena.state(session, server, seat, day, with_matchup=False)
+        ),
+        arena_heroes=arena_routes.arena_heroes(session, server),
     )
 
 
