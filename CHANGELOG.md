@@ -19,7 +19,7 @@ the game is in early development (0.x), versions stay below 1.0.
   your own, and nobody sees who drew them. Find it on the hub, below the
   steps.
 - Your first 10 Arena votes of a day earn 3 stars. You can keep voting
-  after them, up to 40 a day, as long as there are matchups left for
+  after them as much as you like, as long as there are matchups left for
   every day's stars until Sunday.
 - **Arena winners**: the Monday after its week of votes, the Arena's top 3
   by everyone's votes join the pool as a ★★★★, a ★★★ and a ★★, like the

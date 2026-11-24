@@ -641,17 +641,16 @@ abstract final class Arena {
   /// voting goes on after them, unrewarded, up to the day's cap ([cap]).
   static const pack = 10;
   static const packStars = 3;
-  static const dailyCap = 40;
 
   /// How many matchups you can vote on today, with [pairsLeft] pairs you
   /// haven't voted on at the start of the day and [daysLeft] days of the
-  /// Arena, today included: at most [dailyCap], as long as a [pack]'s pairs
-  /// stay for every day after today, so the daily stars never run out
+  /// Arena, today included: as many as you like, as long as a [pack]'s
+  /// pairs stay for every day after today, so the daily stars never run out
   /// before the Arena ends; but always the pack while pairs are left.
   static int cap(int pairsLeft, int daysLeft) {
     if (pairsLeft <= 0 || daysLeft <= 0) return 0;
     final spare = pairsLeft - pack * (daysLeft - 1);
-    return min(pairsLeft, min(dailyCap, max(pack, spare)));
+    return min(pairsLeft, max(pack, spare));
   }
 }
 

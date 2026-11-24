@@ -13,8 +13,8 @@ and the first one opens in a server's second week.
 A player never gets a matchup with a drawing of their own, and votes on each
 pair once: for one of them, or a draw ("can't decide"). A day's first
 `rules.ARENA_PACK` votes earn `rules.ARENA_PACK_STARS` stars; voting goes on
-after them, unrewarded, up to the day's cap (`rules.arena_daily_cap`), which
-leaves pairs for every day of the Arena. Matchups are picked by the fewest
+after them, unrewarded, up to the day's cap (`rules.arena_daily_cap`): as
+many as they like, as long as a pack's pairs stay for every day left. Matchups are picked by the fewest
 votes first, then balancing the pairs of players the challengers portray,
 then by close ratings. The ratings (`rules.arena_ratings`) are computed from
 all of the Arena's votes at once and stay secret until it's decided. Speed

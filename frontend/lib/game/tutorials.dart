@@ -205,9 +205,8 @@ enum Tutorial {
         title: 'Stars for voting',
         text:
             'Your first ${Arena.pack} votes of a day earn ${Arena.packStars} stars. Keep voting after them if you '
-            'like, up to ${Arena.dailyCap} a day while matchups stay for every day\'s stars. You never get a '
-            'drawing of your own, '
-            'and nobody sees who drew them.',
+            'like, as long as matchups stay for every day\'s stars until Sunday. You never get a drawing of '
+            'your own, and nobody sees who drew them.',
       ),
       TutorialPage(
         icon: Icons.emoji_events_rounded,

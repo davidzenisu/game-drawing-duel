@@ -412,7 +412,6 @@ ARENA_RARITIES = FINALE_RARITIES
 # on after them, unrewarded, up to the day's cap (`arena_daily_cap`).
 ARENA_PACK = 10
 ARENA_PACK_STARS = 3
-ARENA_DAILY_CAP = 40
 # Each challenger also draws once against a virtual one of strength 1, so
 # ratings stay finite and one without votes sits in the middle.
 ARENA_PRIOR_DRAWS = 1
@@ -421,13 +420,13 @@ ARENA_PRIOR_DRAWS = 1
 def arena_daily_cap(pairs_left: int, days_left: int) -> int:
     """How many matchups a player can vote on today, with `pairs_left` pairs
     they haven't voted on at the start of the day and `days_left` days of the
-    Arena, today included: at most `ARENA_DAILY_CAP`, as long as a pack's
-    pairs stay for every day after today, so the daily stars never run out
-    before the Arena ends; but always the pack while pairs are left."""
+    Arena, today included: as many as they like, as long as a pack's pairs
+    stay for every day after today, so the daily stars never run out before
+    the Arena ends; but always the pack while pairs are left."""
     if pairs_left <= 0 or days_left <= 0:
         return 0
     spare = pairs_left - ARENA_PACK * (days_left - 1)
-    return min(pairs_left, ARENA_DAILY_CAP, max(ARENA_PACK, spare))
+    return min(pairs_left, max(ARENA_PACK, spare))
 
 
 def arena_ratings(
