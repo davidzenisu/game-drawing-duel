@@ -463,7 +463,7 @@ class _VersusCard extends StatelessWidget {
           ),
           Positioned(
             left: _padding,
-            top: _padding + standee * 0.45,
+            top: _padding + standee * 0.12,
             width: plate,
             child: _Plate(card: right, dim: max(0, -lean), large: size.width > 420),
           ),
