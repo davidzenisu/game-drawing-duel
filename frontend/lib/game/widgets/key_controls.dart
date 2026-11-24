@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 
 /// Keyboard controls for a screen that swipes left and right, for players on
 /// a computer: ← / → page like a swipe, ↑ / ↓ add or take away, Enter or
-/// Space does the screen's main thing and Esc goes back. Keys without a
-/// callback do nothing.
+/// Space does the screen's main thing. Keys without a callback do nothing;
+/// Esc goes back everywhere ([EscapeGoesBack]).
 ///
 /// It takes the keys while its screen is on top (a dialog over it takes
 /// them first), but leaves them to a text field being typed in, and Enter
@@ -17,7 +17,6 @@ class KeyControls extends StatefulWidget {
     this.onUp,
     this.onDown,
     this.onConfirm,
-    this.onBack,
     required this.child,
   });
 
@@ -28,9 +27,6 @@ class KeyControls extends StatefulWidget {
 
   /// Enter or Space.
   final VoidCallback? onConfirm;
-
-  /// Esc.
-  final VoidCallback? onBack;
 
   final Widget child;
 
@@ -50,14 +46,13 @@ class _KeyControlsState extends State<KeyControls> {
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final focused = FocusManager.instance.primaryFocus;
-    // A text field keeps its arrows, Enter, Space and Esc.
+    // A text field keeps its arrows, Enter and Space.
     if (focused?.context?.findAncestorWidgetOfExactType<EditableText>() != null) return KeyEventResult.ignored;
     final callback = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowLeft => widget.onLeft,
       LogicalKeyboardKey.arrowRight => widget.onRight,
       LogicalKeyboardKey.arrowUp => widget.onUp,
       LogicalKeyboardKey.arrowDown => widget.onDown,
-      LogicalKeyboardKey.escape => widget.onBack,
       // A button focused with Tab presses itself.
       LogicalKeyboardKey.enter ||
       LogicalKeyboardKey.numpadEnter ||
@@ -72,6 +67,35 @@ class _KeyControlsState extends State<KeyControls> {
   @override
   Widget build(BuildContext context) =>
       Focus(focusNode: _focus, autofocus: true, onKeyEvent: _onKey, child: widget.child);
+}
+
+/// Esc goes back one step everywhere in the app, like the browser's back
+/// button: it closes the menu, dialog or sheet on top, or leaves the screen.
+/// Screens keep their rules: unsaved boosts ask first, a running drawing
+/// ignores it. On the first screen it does nothing (it never leaves the
+/// game). In a text field, the first Esc stops typing, the next goes back.
+///
+/// It sits above [navigator], e.g. in `MaterialApp.builder`.
+class EscapeGoesBack extends StatelessWidget {
+  const EscapeGoesBack({super.key, required this.navigator, required this.child});
+
+  final GlobalKey<NavigatorState> navigator;
+  final Widget child;
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape) return KeyEventResult.ignored;
+    final focused = FocusManager.instance.primaryFocus;
+    if (focused?.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
+      focused!.unfocus();
+    } else {
+      navigator.currentState?.maybePop();
+    }
+    return KeyEventResult.handled;
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Focus(canRequestFocus: false, skipTraversal: true, onKeyEvent: _onKey, child: child);
 }
 
 /// Whether the screen is wide enough, like on a computer, for big ← / →

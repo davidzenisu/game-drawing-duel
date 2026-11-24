@@ -135,13 +135,13 @@ class _BoostScreenState extends State<BoostScreen> {
             if (!didPop) _confirmLeave();
           },
           // On a computer: ← / → between the challengers, ↑ gives the one in
-          // view a star, ↓ takes one back, Esc leaves (asking first if unsaved).
+          // view a star, ↓ takes one back. Esc leaves through the PopScope
+          // above, so unsaved boosts ask first.
           child: KeyControls(
             onLeft: previous,
             onRight: next,
             onUp: _canGive(current) ? () => _give(current.challenger.id, 1) : null,
             onDown: current.stars > 0 && !_saving ? () => _give(current.challenger.id, -1) : null,
-            onBack: () => Navigator.maybePop(context),
             child: Scaffold(
               appBar: AppBar(title: Text('Boost challengers ${_page + 1}/${targets.length}')),
               body: Column(

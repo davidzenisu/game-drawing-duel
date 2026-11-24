@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/game_app.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
@@ -72,7 +73,9 @@ void main() {
     final guard = await openGame(tester);
     final navigator = tester.state<NavigatorState>(find.byType(Navigator).first);
     navigator.push(
-      MaterialPageRoute<void>(builder: (_) => const PopScope(canPop: false, child: Scaffold(body: Text('Drawing')))),
+      MaterialPageRoute<void>(
+        builder: (_) => const PopScope(canPop: false, child: Scaffold(body: Text('Drawing'))),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -80,5 +83,98 @@ void main() {
     await back(tester, guard);
     expect(find.text('Drawing'), findsOneWidget);
     expect(find.text('Leave the game?'), findsNothing);
+  });
+
+  Future<void> esc(WidgetTester tester) async {
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('Esc goes back like the browser: menus, dialogs, sheets and screens, but never leaves', (tester) async {
+    final guard = await openGame(tester);
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator).first);
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Menu'),
+            actions: [
+              PopupMenuButton<int>(
+                tooltip: 'Account',
+                itemBuilder: (_) => const [PopupMenuItem(value: 1, child: Text('Sign out'))],
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              TextButton(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const AlertDialog(title: Text('Sure?')),
+                ),
+                child: const Text('Dialog'),
+              ),
+              TextButton(
+                onPressed: () => showModalBottomSheet<void>(context: context, builder: (_) => const Text('Sheet')),
+                child: const Text('Open sheet'),
+              ),
+              const TextField(),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out'), findsOneWidget);
+    await esc(tester);
+    expect(find.text('Sign out'), findsNothing, reason: 'the menu closed');
+    expect(find.text('Menu'), findsOneWidget, reason: 'one step at a time');
+
+    await tester.tap(find.text('Dialog'));
+    await tester.pumpAndSettle();
+    await esc(tester);
+    expect(find.text('Sure?'), findsNothing);
+
+    await tester.tap(find.text('Open sheet'));
+    await tester.pumpAndSettle();
+    await esc(tester);
+    expect(find.text('Sheet'), findsNothing);
+    expect(find.text('Menu'), findsOneWidget);
+
+    // Typing: the first Esc stops typing, the next goes back.
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await esc(tester);
+    expect(find.text('Menu'), findsOneWidget);
+    expect(tester.testTextInput.isVisible, isFalse, reason: 'no longer typing');
+    await esc(tester);
+    expect(find.text('Menu'), findsNothing);
+
+    // On the first screen, Esc never asks to leave the game.
+    await esc(tester);
+    expect(find.text('Leave the game?'), findsNothing);
+    expect(guard.left, isFalse);
+    // But it closes the question when the browser's back asked it.
+    await back(tester, guard);
+    expect(find.text('Leave the game?'), findsOneWidget);
+    await esc(tester);
+    expect(find.text('Leave the game?'), findsNothing);
+    expect(guard.left, isFalse);
+  });
+
+  testWidgets('Esc leaves a screen that blocks back alone', (tester) async {
+    await openGame(tester);
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator).first);
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PopScope(canPop: false, child: Scaffold(body: Text('Drawing'))),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await esc(tester);
+    expect(find.text('Drawing'), findsOneWidget);
   });
 }

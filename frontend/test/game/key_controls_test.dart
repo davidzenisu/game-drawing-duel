@@ -20,12 +20,22 @@ void _screen(WidgetTester tester, {double width = 400}) {
   addTearDown(tester.view.reset);
 }
 
+/// An app on [home] with Esc going back, like the game's (`GameApp`).
+MaterialApp _app(Widget home) {
+  final navigator = GlobalKey<NavigatorState>();
+  return MaterialApp(
+    navigatorKey: navigator,
+    builder: (context, child) => EscapeGoesBack(navigator: navigator, child: child!),
+    home: home,
+  );
+}
+
 /// Opens [screen] from a button, to go back from; [settle] false for a
 /// screen that never stops moving, giving it time to come in.
 Future<void> _push(WidgetTester tester, Widget screen, {bool settle = true}) async {
   await tester.pumpWidget(
-    MaterialApp(
-      home: Builder(
+    _app(
+      Builder(
         builder: (context) => TextButton(
           onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen)),
           child: const Text('Open'),
@@ -123,7 +133,11 @@ void main() {
         expect(await tester.sendKeyEvent(key), isTrue, reason: '$key');
       }
       expect(pressed, ['left', 'right', 'up', 'down', 'confirm', 'confirm']);
-      expect(await tester.sendKeyEvent(LogicalKeyboardKey.escape), isFalse, reason: 'no onBack');
+      expect(
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape),
+        isFalse,
+        reason: 'Esc is the app\'s (EscapeGoesBack)',
+      );
     });
 
     testWidgets('leaves a text field its arrows, and a focused button its Enter', (tester) async {
@@ -191,8 +205,8 @@ void main() {
     const tutorial = Tutorial.welcome;
     expect(tutorial.pages.length, greaterThanOrEqualTo(2));
     await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
+      _app(
+        Builder(
           builder: (context) => TextButton(onPressed: () => showTutorial(context, tutorial), child: const Text('Open')),
         ),
       ),

@@ -11,11 +11,13 @@ import 'screens/setup_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/signup_screen.dart';
+import 'widgets/key_controls.dart';
 
 /// The game for a [GameSession], e.g. the offline mockup enabled through
 /// `FeatureFlags.mockupGameplay`. On the web, the browser's back button
 /// goes back one screen like the app's own, and on the first screen asks
-/// "Leave the game?" ([BackGuard]).
+/// "Leave the game?" ([BackGuard]). On a computer, Esc goes back the same
+/// way, without leaving the game ([EscapeGoesBack]).
 class GameApp extends StatefulWidget {
   const GameApp({super.key, required this.session, this.splash = true, this.backGuard});
 
@@ -71,6 +73,7 @@ class _GameAppState extends State<GameApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       navigatorKey: _navigator,
+      builder: (context, child) => EscapeGoesBack(navigator: _navigator, child: child!),
       home: GameRoot(session: widget.session, splash: widget.splash),
     );
   }

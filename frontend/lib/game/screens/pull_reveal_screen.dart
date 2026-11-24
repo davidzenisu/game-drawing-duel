@@ -314,7 +314,6 @@ class _PullRevealScreenState extends State<PullRevealScreen> {
     return KeyControls(
       onRight: _advance,
       onConfirm: _advance,
-      onBack: _close,
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(

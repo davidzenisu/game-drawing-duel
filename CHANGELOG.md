@@ -18,8 +18,11 @@ the game is in early development (0.x), versions stay below 1.0.
 - On Boost, ↑ gives the challenger in view a star and ↓ takes one back.
 - On a summon, →, Enter or Space cuts the box open, like a swipe, then
   skips ahead and goes on to the next card.
-- Enter or Space goes on in the tutorials (Next, then Got it), and Esc
-  closes them or leaves the screen. Unsaved boosts still ask first.
+- Enter or Space goes on in the tutorials (Next, then Got it).
+- Esc goes back anywhere in the game, like the browser's back button: it
+  closes the menu, dialog or sheet on top, or leaves the screen. Unsaved
+  boosts still ask first, a running drawing ignores it, and it never
+  leaves the game.
 - Big ← and → buttons beside the banners on Summon, the challengers on
   Boost and the tutorial pages on wide screens.
 

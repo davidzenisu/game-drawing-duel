@@ -75,7 +75,6 @@ class _TutorialDialogState extends State<TutorialDialog> {
       onLeft: previous,
       onRight: next,
       onConfirm: next ?? close,
-      onBack: close,
       child: Dialog(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: arrows ? 520 : 420, maxHeight: 440),

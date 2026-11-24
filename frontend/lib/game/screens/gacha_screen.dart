@@ -133,7 +133,6 @@ class _GachaScreenState extends State<GachaScreen> {
         return KeyControls(
           onLeft: previous,
           onRight: next,
-          onBack: () => Navigator.maybePop(context),
           child: Scaffold(
             appBar: AppBar(
               title: const Text('Summon'),
