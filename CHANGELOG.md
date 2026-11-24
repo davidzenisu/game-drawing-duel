@@ -9,6 +9,16 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.39.0] - 2026-11-24
+
+### Changed
+- A challenger needs at least 5 Arena matchups to be ranked and to become
+  an Arena winner. The others are listed below the ranking, unranked; their
+  votes still count for the challengers they met.
+- An Arena where fewer than 3 challengers reach 5 matchups crowns only
+  those; one where none does crowns nobody, and the Arena banner stays
+  closed until an Arena crowns winners again.
+
 ## [0.38.0] - 2026-11-24
 
 ### Added

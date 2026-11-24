@@ -415,6 +415,10 @@ ARENA_PACK_STARS = 3
 # Each challenger also draws once against a virtual one of strength 1, so
 # ratings stay finite and one without votes sits in the middle.
 ARENA_PRIOR_DRAWS = 1
+# A challenger takes part in this many matchups at least to be ranked, and
+# crowned; the others are left unranked. All votes count for the ratings,
+# also the ones against those left out.
+ARENA_MIN_MATCHUPS = 5
 
 
 def arena_daily_cap(pairs_left: int, days_left: int) -> int:
@@ -461,11 +465,31 @@ def arena_ratings(
 
 
 def arena_order(count: int, matchups: list[tuple[int, int, float]]) -> list[int]:
-    """The indexes of an Arena's challengers, best first: the highest rating
-    (`arena_ratings`), then the first in the list (the challengers come in
-    the order of their week's ranking)."""
+    """The indexes of an Arena's challengers, best first: the ones with at
+    least `ARENA_MIN_MATCHUPS` matchups before the others, then the highest
+    rating (`arena_ratings`, from all of the matchups), then the first in the
+    list (the challengers come in the order of their week's ranking)."""
     ratings = arena_ratings(count, matchups)
-    return sorted(range(count), key=lambda i: (-round(ratings[i], 9), i))
+    taken = arena_matchups(count, matchups)
+    return sorted(
+        range(count),
+        key=lambda i: (taken[i] < ARENA_MIN_MATCHUPS, -round(ratings[i], 9), i),
+    )
+
+
+def arena_matchups(count: int, matchups: list[tuple[int, int, float]]) -> list[int]:
+    """How many of `matchups` each of `count` challengers took part in."""
+    taken = [0] * count
+    for i, j, _ in matchups:
+        taken[i] += 1
+        taken[j] += 1
+    return taken
+
+
+def arena_qualified(matchups: int) -> bool:
+    """Whether a challenger with that many matchups is ranked, and can be
+    crowned."""
+    return matchups >= ARENA_MIN_MATCHUPS
 
 
 # A player's characters get extra stars against another player's after

@@ -70,6 +70,9 @@ class ArenaRanked(BaseModel):
     rating: float
     score: float
     matchups: int
+    # Whether it took part in enough matchups to be ranked
+    # (`app.rules.ARENA_MIN_MATCHUPS`); the others come last, unranked.
+    qualified: bool = True
 
 
 class ArenaRankingResponse(BaseModel):
@@ -79,4 +82,6 @@ class ArenaRankingResponse(BaseModel):
     # The last day of its challengers' week, and of its week of votes.
     week: int
     ends_on: int
+    # The matchups a challenger needs to be ranked, and crowned.
+    min_matchups: int
     challengers: list[ArenaRanked]

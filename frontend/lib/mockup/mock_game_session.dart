@@ -1130,15 +1130,18 @@ class MockGameSession extends GameSession {
   }
 
   /// The Arena of [week], decided: the friends' votes are made up, but the
-  /// same every time, and yours count too.
+  /// same every time, and yours count too. Like online, only challengers
+  /// with [Arena.minMatchups] matchups are ranked and crowned.
   ArenaRanking _decideArena(int week) {
     final entries = _arenaChallengers(week);
     final scores = <String, double>{};
     final matchups = <String, int>{};
     for (final c in entries) {
-      // Six made-up matchups each, won by a hash of its id.
-      matchups[c.id] = 6;
-      scores[c.id] = (c.id.hashCode % 7).abs().clamp(0, 6).toDouble();
+      // Three to eight made-up matchups each, so a few fall short of the
+      // minimum, won by a hash of its id.
+      final hash = c.id.hashCode.abs();
+      matchups[c.id] = 3 + hash % 6;
+      scores[c.id] = min(matchups[c.id]!, hash ~/ 6 % 7).toDouble();
     }
     for (final (_, a, b, winner) in _arenaVotes) {
       if (!scores.containsKey(a) || !scores.containsKey(b)) continue;
@@ -1148,8 +1151,10 @@ class MockGameSession extends GameSession {
       scores[b] = scores[b]! + (winner == null ? 0.5 : (winner == b ? 1 : 0));
     }
     double share(CharacterCard c) => scores[c.id]! / matchups[c.id]!;
+    bool qualified(CharacterCard c) => matchups[c.id]! >= Arena.minMatchups;
     final order = [...entries.indexed]
       ..sort((x, y) {
+        if (qualified(x.$2) != qualified(y.$2)) return qualified(x.$2) ? -1 : 1;
         final byShare = share(y.$2).compareTo(share(x.$2));
         return byShare != 0 ? byShare : x.$1.compareTo(y.$1);
       });
@@ -1164,7 +1169,8 @@ class MockGameSession extends GameSession {
             score: scores[c.id]!,
             matchups: matchups[c.id]!,
             rating: share(c),
-            winnerRarity: place < Arena.maxWinners ? Arena.rarities[place] : null,
+            winnerRarity: place < Arena.maxWinners && qualified(c) ? Arena.rarities[place] : null,
+            qualified: qualified(c),
           ),
       ],
     );

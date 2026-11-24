@@ -204,6 +204,7 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.ARENA_PACK, arena["pack"])
         self.assertEqual(rules.ARENA_PACK_STARS, arena["pack_stars"])
         self.assertEqual(rules.ARENA_PRIOR_DRAWS, arena["prior_draws"])
+        self.assertEqual(rules.ARENA_MIN_MATCHUPS, arena["min_matchups"])
         for pairs_left, days_left, cap in arena["cap_cases"]:
             self.assertEqual(
                 rules.arena_daily_cap(pairs_left, days_left),

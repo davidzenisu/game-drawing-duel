@@ -277,23 +277,46 @@ extension on _RankingScreenState {
     }
     final arena = _arena;
     if (arena == null || arena.challengers.isEmpty) return null;
+    final unranked = [
+      for (final entry in arena.challengers)
+        if (!entry.qualified) entry,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           "The Arena of week ${controller.weekOf(arena.week)}'s challengers, voted on in week "
-          '${controller.weekOf(arena.endsOn)}: ${arena.challengers.length} challengers, ranked by everyone\'s votes. '
-          'The top ${Arena.maxWinners} became Arena winners: '
-          '${[for (final r in Arena.rarities) '★' * r.stars].join(', ')}.',
+          '${controller.weekOf(arena.endsOn)}: ${arena.challengers.length} challengers, ranked by everyone\'s votes, '
+          'the ones with at least ${arena.minMatchups} matchups. '
+          '${arena.winners.isEmpty ? '' : 'The top ${Arena.maxWinners} became Arena winners: '
+                    '${[for (final r in Arena.rarities) '★' * r.stars].join(', ')}.'}',
           style: textTheme.bodyMedium,
         ),
         const SizedBox(height: 12),
+        if (arena.winners.isEmpty)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.how_to_vote_outlined),
+              title: const Text('Not enough votes: nobody was crowned this week.'),
+              subtitle: Text('No challenger took part in ${arena.minMatchups} matchups.'),
+            ),
+          ),
         for (final winner in arena.winners) ...[
           _ArenaWinnerCard(entry: winner),
           const SizedBox(height: 8),
         ],
         for (final entry in arena.challengers)
-          if (!entry.isWinner) _ArenaTile(entry: entry),
+          if (!entry.isWinner && entry.qualified) _ArenaTile(entry: entry),
+        if (unranked.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Not enough matchups', style: textTheme.titleMedium),
+          Text(
+            'They took part in fewer than ${arena.minMatchups} matchups, so they weren\'t ranked.',
+            style: textTheme.bodySmall,
+          ),
+          const SizedBox(height: 4),
+          for (final entry in unranked) _ArenaTile(entry: entry, minMatchups: arena.minMatchups),
+        ],
       ],
     );
   }
@@ -348,10 +371,15 @@ class _ArenaWinnerCard extends StatelessWidget {
   }
 }
 
+/// A challenger of a decided Arena in a row: its place and record, or,
+/// unranked without enough matchups, its matchups out of [minMatchups].
 class _ArenaTile extends StatelessWidget {
-  const _ArenaTile({required this.entry});
+  const _ArenaTile({required this.entry, this.minMatchups});
 
   final ArenaRanked entry;
+
+  /// The matchups it needed to be ranked; given for an unranked one.
+  final int? minMatchups;
 
   @override
   Widget build(BuildContext context) {
@@ -364,7 +392,11 @@ class _ArenaTile extends StatelessWidget {
           children: [
             SizedBox(
               width: 28,
-              child: Text('${entry.place}', style: textTheme.titleMedium, textAlign: TextAlign.center),
+              child: Text(
+                entry.qualified ? '${entry.place}' : '–',
+                style: textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
             ),
             const SizedBox(width: 8),
             SizedBox(width: 44, child: CardboardCard(child: SketchView(card.sketch))),
@@ -373,7 +405,10 @@ class _ArenaTile extends StatelessWidget {
               child: Nameplate(name: card.subject, title: card.title, compact: true),
             ),
             const SizedBox(width: 12),
-            Text(entry.record, style: textTheme.titleSmall),
+            Text(
+              entry.qualified ? entry.record : '${entry.matchups} of ${minMatchups ?? Arena.minMatchups} matchups',
+              style: textTheme.titleSmall,
+            ),
           ],
         ),
       ),
