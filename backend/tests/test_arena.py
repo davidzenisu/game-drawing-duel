@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app import arena, rules
 from app.models import (
+    ArenaHero,
     ArenaVote,
     Character,
     Server,
@@ -201,6 +202,73 @@ class ArenaTests(ArenaTestCase):
         self.assertEqual(len(counts), 9, "every challenger met one already")
         # Nobody votes on their own drawings, so it can't always be even.
         self.assertLessEqual(max(counts.values()) - min(counts.values()), 2)
+
+    def test_the_top_three_become_arena_winners_for_the_arena_banner(self) -> None:
+        self.go_to_day(8)
+        heroes = {h["character"]["id"] for h in self.today()["weekly_heroes"]}
+        favourite = next(
+            c["id"] for c in (self.arena(s)["matchup"] for s in PLAYERS) for c in c
+        )
+        self.assertEqual(self.today()["arena_heroes"], [])
+        closed = self.client.post(
+            f"/servers/{self.code}/pulls",
+            json={"count": 1, "banner": "arena"},
+            headers=bearer(make_token(ADMIN)),
+        )
+        self.assertEqual(closed.status_code, 409)
+        self.assertIn("Arena", closed.json()["detail"])
+
+        self.vote_all_week(prefer=favourite)
+        self.assertEqual(self.today()["day"], 14)
+        self.assertEqual(self.today()["arena_heroes"], [], "voting ends on Sunday")
+
+        self.next_day()
+        winners = self.today()["arena_heroes"]
+        self.assertEqual(
+            [(w["place"], w["character"]["rarity"], w["week"]) for w in winners],
+            [(1, "legend", 7), (2, "hero", 7), (3, "adventurer", 7)],
+        )
+        self.assertEqual(winners[0]["character"]["id"], favourite)
+        self.assertFalse({w["character"]["id"] for w in winners} & heroes)
+        pool = {
+            c["id"]: c["rarity"] for c in self.get(f"/servers/{self.code}/pool").json()
+        }
+        self.assertEqual(
+            [pool.get(w["character"]["id"]) for w in winners],
+            ["legend", "hero", "adventurer"],
+        )
+        gacha = self.get(f"/servers/{self.code}/gacha").json()
+        self.assertEqual(
+            set(gacha["arena_rate_up"]), {w["character"]["id"] for w in winners}
+        )
+        with self.session_factory() as session:
+            top = session.scalar(
+                select(ArenaHero).where(ArenaHero.place == 1, ArenaHero.week == 7)
+            )
+            self.assertEqual(top.score, top.matchups, "won every matchup")
+        # The Arena of week 2's challengers is open now.
+        self.assertEqual(self.today()["arena"]["week"], 14)
+
+        self.pull_launch_bonus_on_arena()
+
+    def pull_launch_bonus_on_arena(self) -> None:
+        response = self.client.post(
+            f"/servers/{self.code}/pulls",
+            json={"count": 10, "banner": "arena"},
+            headers=bearer(make_token(ADMIN)),
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()["outcomes"]), 10)
+
+    def test_an_arena_without_challengers_crowns_nobody(self) -> None:
+        # Nobody draws in week 2, so week 2's Arena is empty.
+        self.go_to_day(22)
+        self.assertEqual(self.today()["arena_heroes"], [])
+        with self.session_factory() as session:
+            decided = session.scalars(
+                select(ArenaHero).where(ArenaHero.week == 14)
+            ).all()
+        self.assertEqual([h.character_id for h in decided], [None])
 
 
 class ArenaUnitTests(ArenaTestCase):

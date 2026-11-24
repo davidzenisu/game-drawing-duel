@@ -708,6 +708,72 @@ class ArenaRound {
 bool samePair((CharacterCard, CharacterCard)? a, (CharacterCard, CharacterCard)? b) =>
     a != null && b != null && {a.$1.id, a.$2.id}.containsAll([b.$1.id, b.$2.id]);
 
+/// A winner of the latest Arena, now in the gacha pool with the rarity it
+/// was crowned with.
+class ArenaWinner {
+  const ArenaWinner({required this.card, required this.week, required this.place});
+
+  final CharacterCard card;
+
+  /// The last day of its challengers' week.
+  final int week;
+
+  /// Its place in the Arena, 1 to [Arena.maxWinners].
+  final int place;
+}
+
+/// A challenger in a decided Arena.
+class ArenaRanked {
+  const ArenaRanked({
+    required this.card,
+    required this.place,
+    required this.score,
+    required this.matchups,
+    this.rating = 1,
+    this.winnerRarity,
+  });
+
+  final CharacterCard card;
+
+  /// Its place: the winners' first, by place, then the others'.
+  final int place;
+
+  /// Its score in its matchups (a draw counts a half), and how many.
+  final double score;
+  final int matchups;
+
+  /// Its strength from all of the Arena's votes.
+  final double rating;
+
+  /// The rarity it was crowned with as an Arena winner; null if it wasn't.
+  final Rarity? winnerRarity;
+
+  bool get isWinner => winnerRarity != null;
+
+  /// Its score as text: "6½ of 8".
+  String get record {
+    final whole = score.floor();
+    final half = score - whole >= 0.5;
+    return '${whole == 0 && half ? '' : whole}${half ? '½' : ''} of $matchups';
+  }
+}
+
+/// The latest decided Arena, best first.
+class ArenaRanking {
+  const ArenaRanking({required this.week, required this.endsOn, required this.challengers});
+
+  /// The last day of its challengers' week, and of its week of votes.
+  final int week;
+  final int endsOn;
+  final List<ArenaRanked> challengers;
+
+  /// Its winners, by place.
+  List<ArenaRanked> get winners => [
+    for (final c in challengers)
+      if (c.isWinner) c,
+  ];
+}
+
 /// The week the player stats count (see [PlayerStats]).
 enum StatPeriod {
   week('week', 'This week'),

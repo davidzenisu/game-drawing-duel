@@ -208,6 +208,14 @@ enum Tutorial {
             'like, as long as matchups stay for every day\'s stars until Sunday. You never get a drawing of '
             'your own, and nobody sees who drew them.',
       ),
+      TutorialPage(
+        icon: Icons.emoji_events_rounded,
+        title: 'Arena winners',
+        text:
+            "On Monday, the top ${Arena.maxWinners} by everyone's votes become Arena winners: "
+            '${[for (final r in Arena.rarities) _stars(r.stars)].join(', ')}. They join the pool, rated up on '
+            'the Arena banner for a week; the other challengers leave the Arena.',
+      ),
     ],
     gacha => [
       TutorialPage(
@@ -217,8 +225,9 @@ enum Tutorial {
             'You start with ${GachaMachine.launchBonus} pulls and earn one for every challenger you draw and '
             'every fight you win. '
             'Each pull adds a character of the pool to your collection: the standard banner has the '
-            'characters drawn during the setup, the weekly one from the first finale on the whole pool, with '
-            'this week\'s hero rated up.',
+            'characters drawn during the setup and every crowned challenger, the weekly one from the first '
+            'finale on the whole pool, with this week\'s heroes rated up, and the Arena one the same with the '
+            'latest Arena winners.',
       ),
       TutorialPage(
         icon: Icons.percent_rounded,
@@ -226,7 +235,7 @@ enum Tutorial {
         text:
             '${Rarity.values.map((r) => '${_stars(r.stars)} ${GachaMachine.rates[r]}%').join(' · ')}. '
             'A ${_stars(Rarity.legend.stars)} is guaranteed within your first ${GachaMachine.beginnerWindow} '
-            'pulls on the standard banner, and at the latest every ${GachaMachine.legendPity} pulls on either.',
+            'pulls on the standard banner, and at the latest every ${GachaMachine.legendPity} pulls on any.',
       ),
     ],
     upgrades => [

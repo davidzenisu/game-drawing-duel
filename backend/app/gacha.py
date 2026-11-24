@@ -32,14 +32,17 @@ _STARS = {rarity: stars for stars, rarity in enumerate(Rarity, start=1)}
 
 
 class Banner(StrEnum):
-    """What a pull draws from. Both banners pull from the whole pool: the
-    setup drawings and every week's new hero, its finale's winner. The
-    standard banner is always there, with a legend guaranteed within the
-    first pulls on it. The weekly banner adds this week's rate-up
-    (`app.pulls.rate_up`); it opens with the first finale."""
+    """What a pull draws from. Every banner pulls from the whole pool: the
+    setup drawings, the weekly heroes and the Arena winners. The standard
+    banner is always there, with a legend guaranteed within the first pulls
+    on it. The weekly banner adds this week's rate-up (`app.pulls.rate_up`),
+    the latest weekly heroes; it opens with the first finale. The Arena
+    banner adds the latest Arena winners (`app.pulls.arena_rate_up`); it
+    opens with the first Arena's."""
 
     STANDARD = "standard"
     WEEKLY = "weekly"
+    ARENA = "arena"
 
 
 @dataclass(frozen=True)

@@ -1,11 +1,14 @@
-"""The Arena: every player votes on matchups of two challengers.
+"""The Arena: every player votes on matchups of two challengers, and the
+Arena's top 3 by everyone's votes become Arena winners, for the Arena banner.
 
 Week X's challengers are drawn, boosted and fought in week X (they count for
 the week of their fight, like in the finale). Once week X is over, its
 finale crowns its weekly heroes; the Arena of week X opens with all the
-others, and everyone votes on it through week X+1. So the Arena only ever
-holds a past week's challengers, never the present one's, and the first one
-opens in a server's second week.
+others, and everyone votes on it through week X+1. Once week X+1 is over,
+the Arena's top 3 are crowned Arena winners and join the gacha pool, with the
+finale's rarities by place; the other challengers leave the Arena. So the
+Arena only ever holds a past week's challengers, never the present one's,
+and the first one opens in a server's second week.
 
 A player never gets a matchup with a drawing of their own, and votes on each
 pair once: for one of them, or a draw ("can't decide"). A day's first
@@ -14,7 +17,7 @@ after them, unrewarded, up to the day's cap (`rules.arena_daily_cap`): as
 many as they like, as long as a pack's pairs stay for every day left. Matchups are picked by the fewest
 votes first, then balancing the pairs of players the challengers portray,
 then by close ratings. The ratings (`rules.arena_ratings`) are computed from
-all of the Arena's votes at once and stay secret. Speed
+all of the Arena's votes at once and stay secret until it's decided. Speed
 mode sessions have no weeks, so no Arena.
 """
 
@@ -24,12 +27,12 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import days, finale, rules, speed, stars
-from app.models import ArenaVote, Character, Server, ServerSeat
+from app.models import ArenaHero, ArenaVote, Character, Server, ServerSeat, WeeklyHero
 
 # An Arena is voted on for the 7 days of the week after its challengers'.
 DAYS = 7
@@ -315,3 +318,87 @@ def vote(
     except IntegrityError as error:
         session.rollback()
         raise VoteRejected("You voted on this matchup already") from error
+
+
+def _decide(session: Session, server: Server, week: int) -> list[ArenaHero]:
+    """The Arena's result: the top of its ranking crowned, each character
+    taking the rarity of its place; one row without a character if it had
+    no challengers."""
+    ranked = standings(
+        challengers(session, server, week), _votes(session, server, week)
+    )
+    if not ranked:
+        return [ArenaHero(server_id=server.id, week=week)]
+    heroes = []
+    for place, (s, rarity) in enumerate(zip(ranked, rules.ARENA_RARITIES), 1):
+        s.challenger.rarity = rarity.value
+        heroes.append(
+            ArenaHero(
+                server_id=server.id,
+                week=week,
+                character_id=s.challenger.id,
+                place=place,
+                rarity=rarity.value,
+                rating=s.rating,
+                score=s.score,
+                matchups=s.matchups,
+            )
+        )
+    return heroes
+
+
+def settle(session: Session, server: Server) -> None:
+    """Decides every Arena whose week of votes is over and isn't yet, once
+    its finale is. Commits."""
+    if speed.is_speed(server):
+        return
+    today = days.current_day(server)
+    decided = set(
+        session.scalars(select(ArenaHero.week).where(ArenaHero.server_id == server.id))
+    )
+    finales = set(
+        session.scalars(select(WeeklyHero.day).where(WeeklyHero.server_id == server.id))
+    )
+    heroes = []
+    week = finale.finale_day(server, 1)
+    while ends_on(week) < today:
+        if week not in decided and week in finales:
+            heroes.extend(_decide(session, server, week))
+        week += 7
+    if not heroes:
+        return
+    session.add_all(heroes)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()  # Someone else decided it at the same time.
+
+
+def latest_week(session: Session, server: Server) -> int | None:
+    """The latest decided Arena, with or without winners."""
+    return session.scalar(
+        select(func.max(ArenaHero.week)).where(ArenaHero.server_id == server.id)
+    )
+
+
+def winners_of(session: Session, server: Server, week: int) -> list[ArenaHero]:
+    """The winners the Arena of `week` crowned, by place."""
+    return list(
+        session.scalars(
+            select(ArenaHero)
+            .where(
+                ArenaHero.server_id == server.id,
+                ArenaHero.week == week,
+                ArenaHero.character_id.is_not(None),
+            )
+            .order_by(ArenaHero.place)
+            .options(selectinload(ArenaHero.character))
+        )
+    )
+
+
+def latest_winners(session: Session, server: Server) -> list[ArenaHero]:
+    """The winners of the latest decided Arena, by place; none if it had
+    none, or before the first one."""
+    week = latest_week(session, server)
+    return [] if week is None else winners_of(session, server, week)

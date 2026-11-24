@@ -18,7 +18,7 @@ import 'pull_reveal_screen.dart';
 
 /// Pulls on a banner of your choice, swiped through as big banners: the
 /// standard one is always there, the weekly one opens once a finale crowns
-/// weekly heroes.
+/// weekly heroes, the Arena one once an Arena crowns its winners.
 class GachaScreen extends StatefulWidget {
   const GachaScreen({super.key, required this.controller});
 
@@ -40,29 +40,32 @@ class _GachaScreenState extends State<GachaScreen> {
     super.dispose();
   }
 
-  bool get _weeklyOpen => controller.rateUp.isNotEmpty;
-
-  /// The open banners first: the weekly one once it's open, otherwise the
-  /// standard one, followed by the weekly one locked.
-  List<GachaBanner> get _banners =>
-      _weeklyOpen ? const [GachaBanner.weekly, GachaBanner.standard] : const [GachaBanner.standard, GachaBanner.weekly];
+  /// The open banners first, the weekly and Arena ones before the standard
+  /// one, then the ones still locked.
+  List<GachaBanner> get _banners => [
+    for (final banner in const [GachaBanner.weekly, GachaBanner.arena, GachaBanner.standard])
+      if (controller.bannerOpen(banner)) banner,
+    for (final banner in const [GachaBanner.weekly, GachaBanner.arena])
+      if (!controller.bannerOpen(banner)) banner,
+  ];
 
   GachaBanner get _banner => _banners[_page];
 
   void _goTo(int page) =>
       _pages.animateToPage(page, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
 
-  bool _locked(GachaBanner banner) => banner == GachaBanner.weekly && !_weeklyOpen;
+  bool _locked(GachaBanner banner) => !controller.bannerOpen(banner);
 
   /// The characters a banner shows off: this week's rate-up, or the standard
   /// banner's showcase of the week (see [StandardShowcase]).
   List<CharacterCard> _featured(GachaBanner banner) {
     final pool = banner.poolOf(controller.pool);
     switch (banner) {
-      case GachaBanner.weekly:
+      case GachaBanner.weekly || GachaBanner.arena:
+        final rateUp = controller.rateUpOf(banner);
         return [
           for (final card in pool)
-            if (controller.rateUp.contains(card.id)) card,
+            if (rateUp.contains(card.id)) card,
         ]..sort((a, b) => b.rarity.stars.compareTo(a.rarity.stars));
       case GachaBanner.standard:
         // Speed mode sessions last a single week.
@@ -72,15 +75,24 @@ class _GachaScreenState extends State<GachaScreen> {
   }
 
   String _caption(GachaBanner banner) {
-    if (_locked(banner)) return 'Opens once a finale crowns weekly heroes';
+    if (_locked(banner)) {
+      return banner == GachaBanner.arena
+          ? 'Opens once an Arena crowns its winners'
+          : 'Opens once a finale crowns weekly heroes';
+    }
     final beginner = controller.gachaStatus.beginnerPullsLeft;
     return switch (banner) {
       GachaBanner.standard when beginner != null => '★★★★ guaranteed in your next $beginner pulls',
-      GachaBanner.standard => 'The setup drawings, and every weekly hero',
+      GachaBanner.standard => 'The setup drawings and every crowned challenger',
       GachaBanner.weekly => switch (controller.weeklyHeroes) {
         [final hero] => 'This week\'s hero: ${hero.card.title}',
         [] => 'This week\'s rate-up',
         final heroes => 'This week\'s ${heroes.length} heroes',
+      },
+      GachaBanner.arena => switch (controller.arenaWinners) {
+        [final winner] => 'This week\'s Arena winner: ${winner.card.title}',
+        [] => 'This week\'s Arena rate-up',
+        final winners => 'This week\'s ${winners.length} Arena winners',
       },
     };
   }
@@ -119,7 +131,7 @@ class _GachaScreenState extends State<GachaScreen> {
         final gacha = controller.gachaStatus;
         final textTheme = Theme.of(context).textTheme;
         final banner = _banner;
-        final weeklyOpen = _weeklyOpen;
+        final weeklyOpen = controller.bannerOpen(GachaBanner.weekly);
         final canPull = !_locked(banner);
         final pool = banner.poolOf(controller.pool);
         final rates = pool.isEmpty
@@ -219,18 +231,22 @@ class _GachaScreenState extends State<GachaScreen> {
                           Text(
                             switch (banner) {
                               GachaBanner.standard =>
-                                'The characters drawn during the setup, and every weekly hero.'
+                                'The characters drawn during the setup, every weekly hero and every Arena winner.'
                                     '${weeklyOpen ? '' : ' Swipe to see the weekly banner, which opens once a finale crowns weekly heroes.'}',
                               GachaBanner.weekly when !weeklyOpen =>
                                 'The same pool, with this week\'s rate-up. It opens once a finale crowns weekly heroes.',
                               GachaBanner.weekly => 'The same pool, with this week\'s rate-up.',
+                              GachaBanner.arena when _locked(banner) =>
+                                'The same pool, with the latest Arena winners rated up. It opens once the first '
+                                    'Arena crowns its winners, the Monday after its week of votes.',
+                              GachaBanner.arena => 'The same pool, with the latest Arena winners rated up.',
                             },
                             textAlign: TextAlign.center,
                             style: textTheme.bodySmall?.copyWith(color: onScenery),
                           ),
                           const SizedBox(height: 16),
-                          if (banner == GachaBanner.weekly && weeklyOpen) ...[
-                            _RateUpBanner(controller: controller),
+                          if (banner != GachaBanner.standard && canPull) ...[
+                            _RateUpBanner(controller: controller, banner: banner),
                             const SizedBox(height: 16),
                           ],
                           Card(
@@ -254,7 +270,7 @@ class _GachaScreenState extends State<GachaScreen> {
                                   const Divider(height: 24),
                                   if (banner == GachaBanner.standard && gacha.beginnerPullsLeft != null)
                                     Text('★★★★ guaranteed within your next ${gacha.beginnerPullsLeft} standard pulls'),
-                                  Text('★★★★ guaranteed within ${gacha.pullsUntilLegend} pulls on either banner'),
+                                  Text('★★★★ guaranteed within ${gacha.pullsUntilLegend} pulls on any banner'),
                                   const SizedBox(height: 8),
                                   Align(
                                     alignment: Alignment.centerRight,
@@ -306,17 +322,18 @@ class _GachaScreenState extends State<GachaScreen> {
   }
 }
 
-/// This week's rate-up characters, shown on the weekly banner, with each
-/// one's chance per pull.
+/// A banner's rate-up characters, shown on the weekly and Arena banners,
+/// with each one's chance per pull.
 class _RateUpBanner extends StatelessWidget {
-  const _RateUpBanner({required this.controller});
+  const _RateUpBanner({required this.controller, required this.banner});
 
   final GameSession controller;
+  final GachaBanner banner;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final rateUp = controller.rateUp;
+    final rateUp = controller.rateUpOf(banner);
     final featured = [
       for (final card in controller.pool)
         if (rateUp.contains(card.id)) card,
@@ -331,7 +348,8 @@ class _RateUpBanner extends StatelessWidget {
             Text('Rate up this week', style: textTheme.titleMedium),
             Text(
               'When a pull lands on their rarity, it\'s one of them ${GachaMachine.rateUp}% of the time, or every '
-              'time if they\'re the only one. New weekly heroes take over every Monday.',
+              'time if they\'re the only one. '
+              '${banner == GachaBanner.arena ? 'New Arena winners' : 'New weekly heroes'} take over every Monday.',
               style: textTheme.bodySmall,
             ),
             const SizedBox(height: 8),

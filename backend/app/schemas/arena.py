@@ -45,3 +45,14 @@ class ArenaVoteSubmit(BaseModel):
     challenger_ids: list[uuid.UUID] = Field(min_length=2, max_length=2)
     # The better one; null for a draw ("can't decide").
     winner_id: uuid.UUID | None = None
+
+
+class ArenaHeroResponse(BaseModel):
+    """A winner of the latest Arena, now in the gacha pool with the rarity it
+    was crowned with (its character's)."""
+
+    character: CharacterResponse
+    # The Arena: the last day of its challengers' week.
+    week: int
+    # Its place in the Arena's ranking, 1 to 3.
+    place: int

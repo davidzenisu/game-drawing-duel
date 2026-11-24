@@ -100,6 +100,9 @@ class GachaBox extends StatelessWidget {
 
   static const plainTape = Color(0xFFE6D3A8);
 
+  /// The Arena banner's tape: red, like its banner.
+  static const arenaTape = Color(0xFFD8402F);
+
   /// Where a point [below] the top of its opening, in its middle, shows:
   /// where cards come out.
   static Offset inside(BoxCamera camera, {double below = 0}) => camera.project((x: 0, y: -height / 2 + below, z: 0));
