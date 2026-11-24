@@ -421,15 +421,13 @@ ARENA_PRIOR_DRAWS = 1
 def arena_daily_cap(pairs_left: int, days_left: int) -> int:
     """How many matchups a player can vote on today, with `pairs_left` pairs
     they haven't voted on at the start of the day and `days_left` days of the
-    Arena, today included: at most `ARENA_DAILY_CAP`, and no more than their
-    share of the pairs left, so they never run out before the Arena ends,
-    but always the daily pack while pairs are left."""
+    Arena, today included: at most `ARENA_DAILY_CAP`, as long as a pack's
+    pairs stay for every day after today, so the daily stars never run out
+    before the Arena ends; but always the pack while pairs are left."""
     if pairs_left <= 0 or days_left <= 0:
         return 0
-    share = pairs_left // days_left
-    return min(
-        pairs_left, max(min(ARENA_PACK, pairs_left), min(ARENA_DAILY_CAP, share))
-    )
+    spare = pairs_left - ARENA_PACK * (days_left - 1)
+    return min(pairs_left, ARENA_DAILY_CAP, max(ARENA_PACK, spare))
 
 
 def arena_ratings(

@@ -645,13 +645,13 @@ abstract final class Arena {
 
   /// How many matchups you can vote on today, with [pairsLeft] pairs you
   /// haven't voted on at the start of the day and [daysLeft] days of the
-  /// Arena, today included: at most [dailyCap], and no more than your share
-  /// of the pairs left, so they last until the Arena ends, but always the
-  /// [pack] while pairs are left.
+  /// Arena, today included: at most [dailyCap], as long as a [pack]'s pairs
+  /// stay for every day after today, so the daily stars never run out
+  /// before the Arena ends; but always the pack while pairs are left.
   static int cap(int pairsLeft, int daysLeft) {
     if (pairsLeft <= 0 || daysLeft <= 0) return 0;
-    final share = pairsLeft ~/ daysLeft;
-    return min(pairsLeft, max(min(pack, pairsLeft), min(dailyCap, share)));
+    final spare = pairsLeft - pack * (daysLeft - 1);
+    return min(pairsLeft, min(dailyCap, max(pack, spare)));
   }
 }
 

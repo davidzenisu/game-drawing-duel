@@ -197,14 +197,16 @@ enum Tutorial {
         title: "Last week's challengers",
         text:
             "Every week, the Arena holds last week's challengers, all but its weekly heroes. Pick the better "
-            "drawing of two, whatever their boosts were: swipe toward it or tap it. Can't decide? That's a draw.",
+            'drawing of two, whatever their boosts were: drag the card toward it and let go. Can\'t decide? '
+            "That's a draw.",
       ),
       TutorialPage(
         icon: Icons.star_rounded,
         title: 'Stars for voting',
         text:
             'Your first ${Arena.pack} votes of a day earn ${Arena.packStars} stars. Keep voting after them if you '
-            'like, up to a daily limit that leaves matchups for every day. You never get a drawing of your own, '
+            'like, up to ${Arena.dailyCap} a day while matchups stay for every day\'s stars. You never get a '
+            'drawing of your own, '
             'and nobody sees who drew them.',
       ),
       TutorialPage(
