@@ -198,6 +198,30 @@ class SharedRulesTest(unittest.TestCase):
                 ranked,
             )
 
+    def test_arena(self):
+        arena = SHARED["arena"]
+        self.assertEqual([r.value for r in rules.ARENA_RARITIES], arena["rarities"])
+        self.assertEqual(rules.ARENA_PACK, arena["pack"])
+        self.assertEqual(rules.ARENA_PACK_STARS, arena["pack_stars"])
+        self.assertEqual(rules.ARENA_PRIOR_DRAWS, arena["prior_draws"])
+        for pairs_left, days_left, cap in arena["cap_cases"]:
+            self.assertEqual(
+                rules.arena_daily_cap(pairs_left, days_left),
+                cap,
+                (pairs_left, days_left),
+            )
+        for count, votes, order in arena["order_cases"]:
+            self.assertEqual(
+                rules.arena_order(count, [tuple(v) for v in votes]), order, votes
+            )
+
+    def test_arena_votes_order_doesnt_matter(self):
+        votes = [(0, 1, 1), (1, 2, 1), (2, 0, 0.5), (0, 3, 0), (3, 1, 1)]
+        for a, b in zip(
+            rules.arena_ratings(4, votes), rules.arena_ratings(4, votes[::-1])
+        ):
+            self.assertAlmostEqual(a, b, places=9)
+
     def test_stars(self):
         stars = SHARED["stars"]
         self.assertEqual(rules.STARS_FOR_PROMPT, stars["prompt"])

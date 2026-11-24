@@ -18,6 +18,7 @@ from app.docs_page import configure_docs_page
 from app.routers import (
     achievements,
     admin,
+    arena,
     characters,
     content,
     gifts,
@@ -115,6 +116,7 @@ app.include_router(setup.router, dependencies=_authenticated)
 app.include_router(characters.router, dependencies=_authenticated)
 app.include_router(pool.router, dependencies=_authenticated)
 app.include_router(today.router, dependencies=_authenticated)
+app.include_router(arena.router, dependencies=_authenticated)
 app.include_router(gifts.router, dependencies=_authenticated)
 app.include_router(suggestions.router, dependencies=_authenticated)
 app.include_router(achievements.router, dependencies=_authenticated)

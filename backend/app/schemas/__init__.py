@@ -1,5 +1,10 @@
 from app.schemas.achievement import AchievementResponse
 from app.schemas.admin_drawing import AdminDrawing
+from app.schemas.arena import (
+    ArenaResponse,
+    ArenaStatus,
+    ArenaVoteSubmit,
+)
 from app.schemas.character import (
     ChallengerSubmit,
     CharacterResponse,
@@ -84,6 +89,9 @@ __all__ = [
     "AdminDrawing",
     "AdminPlayer",
     "AdminServer",
+    "ArenaResponse",
+    "ArenaStatus",
+    "ArenaVoteSubmit",
     "AssignmentResponse",
     "BoostBalanceResponse",
     "BoostGiven",
