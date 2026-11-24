@@ -40,7 +40,7 @@ enum _Pick { right, left, draw }
 
 typedef _Matchup = (CharacterCard, CharacterCard);
 
-class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStateMixin {
+class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin {
   GameSession get controller => widget.controller;
 
   ArenaStatus? _status;
@@ -55,6 +55,9 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
   /// out.
   Offset _offset = Offset.zero;
   late final AnimationController _motion;
+
+  /// The challengers' hovering, round and round.
+  late final AnimationController _hover;
   Tween<Offset> _path = Tween(begin: Offset.zero, end: Offset.zero);
 
   /// The size of the card, which the drag is measured against.
@@ -68,6 +71,7 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    _hover = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
     _motion = AnimationController(vsync: this, duration: _flyTime)
       ..addListener(() => setState(() => _offset = _path.transform(Curves.easeOutCubic.transform(_motion.value))));
     // After the first frame, so errors can show in the scaffold.
@@ -76,6 +80,7 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _hover.dispose();
     _motion.dispose();
     super.dispose();
   }
@@ -229,7 +234,17 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
                       : 'Come back tomorrow for more matchups. The Arena runs until Sunday; its winners are '
                             'crowned on Monday.',
                 )
-              : LayoutBuilder(builder: (context, constraints) => _deck(current, constraints)),
+              : LayoutBuilder(
+                  builder: (context, constraints) => AnimatedBuilder(
+                    animation: _hover,
+                    builder: (context, _) => _deck(
+                      current,
+                      constraints,
+                      // Still, for players who turned animations off.
+                      MediaQuery.disableAnimationsOf(context) ? 0 : _hover.value,
+                    ),
+                  ),
+                ),
         ),
         if (current != null)
           Padding(
@@ -253,8 +268,9 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
     );
   }
 
-  /// The matchup's card, as big as the space allows, over the next one.
-  Widget _deck(_Matchup current, BoxConstraints space) {
+  /// The matchup's card, as big as the space allows, over the next one; both
+  /// with their challengers at [hover] (0 to 1 and round again).
+  Widget _deck(_Matchup current, BoxConstraints space, double hover) {
     const pad = 8.0;
     final size = _VersusCard.sizeFor(Size(space.maxWidth - 2 * pad, space.maxHeight - 2 * pad));
     _cardWidth = size.width;
@@ -275,7 +291,7 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
                   angle: 0.045 * (1 - rise),
                   child: Transform.scale(
                     scale: 0.97 + 0.03 * rise,
-                    child: _VersusCard(key: ValueKey(_pairKey(next)), size: size, matchup: next, lean: 0),
+                    child: _VersusCard(key: ValueKey(_pairKey(next)), size: size, matchup: next, lean: 0, hover: hover),
                   ),
                 ),
               ),
@@ -293,6 +309,7 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
                       size: size,
                       matchup: current,
                       lean: _lean.clamp(-1.0, 1.0),
+                      hover: hover,
                     ),
                   ),
                 ),
@@ -368,19 +385,24 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-/// A matchup as a versus card: a curved line splits it from top left to
-/// bottom right. The first challenger stands top right, its nameplate across
-/// the line on the left; the second stands bottom left, its nameplate on the
-/// right. The side the card leans toward lights up with a "BETTER" stamp,
-/// the other dims.
+/// A matchup as a versus card, split from top left to bottom right along a
+/// soft curve: each half shows the scenery of its challenger's day. The
+/// first challenger stands top right, its nameplate beside it on the left,
+/// as in a fight; the second stands bottom left, its nameplate on the
+/// right. Both drawings hover gently over their bases ([hover], 0 to 1 and
+/// round again). The side the card leans toward lights up with a "BETTER"
+/// stamp, the other dims.
 class _VersusCard extends StatelessWidget {
-  const _VersusCard({super.key, required this.size, required this.matchup, required this.lean});
+  const _VersusCard({super.key, required this.size, required this.matchup, required this.lean, this.hover = 0});
 
   final Size size;
   final _Matchup matchup;
 
   /// -1 (all the way to the left one) to 1 (the right one).
   final double lean;
+
+  /// Where the hovering is, 0 to 1 and round again.
+  final double hover;
 
   static const _padding = 12.0;
   static const _maxWidth = 560.0;
@@ -401,57 +423,64 @@ class _VersusCard extends StatelessWidget {
 
   /// The width of each drawing in a card of [size].
   static double drawingWidth(Size size) =>
-      min(size.width * 0.58, (size.height - 2 * _padding) / (2 * _standeeHeight + 0.04));
+      min(size.width * 0.58, (size.height - 2 * _padding) / (2 * _standeeHeight + 0.08));
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final (right, left) = matchup;
     final drawing = drawingWidth(size);
     final plate = size.width - drawing - 2 * _padding - 8;
     final standee = drawing * _standeeHeight;
+    // How far a drawing rises above its base, out of step with the other.
+    final lift = drawing * 0.035;
+    double bob(double phase) => lift * (0.5 + 0.5 * sin(2 * pi * (hover + phase)));
     return Material(
       elevation: 8,
-      color: colors.surfaceContainerLow,
       shadowColor: Colors.black54,
       borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
           Positioned.fill(
-            child: CustomPaint(
-              painter: _VersusPainter(
-                rightSide: Color.lerp(colors.surfaceContainerLow, AppPalette.rarityLegend, 0.18 * max(0, lean))!,
-                leftSide: Color.lerp(colors.surfaceContainerHigh, AppPalette.rarityLegend, 0.18 * max(0, -lean))!,
-                line: colors.onSurface,
-              ),
+            child: ClipPath(
+              clipper: _Half(right: true),
+              child: _Scenery(card: right, glow: max(0, lean)),
             ),
+          ),
+          Positioned.fill(
+            child: ClipPath(
+              clipper: _Half(right: false),
+              child: _Scenery(card: left, glow: max(0, -lean)),
+            ),
+          ),
+          const Positioned.fill(
+            child: IgnorePointer(child: CustomPaint(painter: _SeamPainter())),
           ),
           // The one on the right, top, with its nameplate on the left.
           Positioned(
             right: _padding,
             top: _padding,
             width: drawing,
-            child: _Contender(card: right, width: drawing, glow: max(0, lean), dim: max(0, -lean)),
+            child: _Contender(card: right, width: drawing, glow: max(0, lean), dim: max(0, -lean), lift: bob(0)),
           ),
           Positioned(
             left: _padding,
-            top: _padding + standee * 0.5,
+            top: _padding + standee * 0.45,
             width: plate,
-            child: _Plate(card: right, dim: max(0, -lean), tilt: -0.04),
+            child: _Plate(card: right, dim: max(0, -lean), large: size.width > 420),
           ),
           // The one on the left, bottom, with its nameplate on the right.
           Positioned(
             left: _padding,
             bottom: _padding,
             width: drawing,
-            child: _Contender(card: left, width: drawing, glow: max(0, -lean), dim: max(0, lean)),
+            child: _Contender(card: left, width: drawing, glow: max(0, -lean), dim: max(0, lean), lift: bob(0.5)),
           ),
           Positioned(
             right: _padding,
-            bottom: _padding + standee * 0.42,
+            bottom: _padding + standee * 0.3,
             width: plate,
-            child: _Plate(card: left, dim: max(0, lean), tilt: 0.04),
+            child: _Plate(card: left, dim: max(0, lean), large: size.width > 420),
           ),
         ],
       ),
@@ -459,57 +488,85 @@ class _VersusCard extends StatelessWidget {
   }
 }
 
-/// The two sides of the versus card, split by a curved line from top left
-/// to bottom right.
-class _VersusPainter extends CustomPainter {
-  const _VersusPainter({required this.rightSide, required this.leftSide, required this.line});
+/// The curve that splits the versus card, from top left to bottom right.
+Path _seam(Size size) => Path()
+  ..moveTo(size.width * 0.1, -2)
+  ..cubicTo(
+    size.width * 0.35,
+    size.height * 0.3,
+    size.width * 0.5,
+    size.height * 0.55,
+    size.width * 0.62,
+    size.height * 0.75,
+  )
+  ..quadraticBezierTo(size.width * 0.72, size.height * 0.9, size.width * 0.8, size.height + 2);
 
-  final Color rightSide;
-  final Color leftSide;
-  final Color line;
+/// One half of the versus card: right of the seam (top right) or left of it
+/// (bottom left).
+class _Half extends CustomClipper<Path> {
+  const _Half({required this.right});
 
-  Path _curve(Size size) => Path()
-    ..moveTo(size.width * 0.1, -2)
-    ..cubicTo(
-      size.width * 0.35,
-      size.height * 0.3,
-      size.width * 0.5,
-      size.height * 0.55,
-      size.width * 0.62,
-      size.height * 0.75,
-    )
-    ..quadraticBezierTo(size.width * 0.72, size.height * 0.9, size.width * 0.8, size.height + 2);
+  final bool right;
+
+  @override
+  Path getClip(Size size) {
+    final x = right ? size.width + 2 : -2.0;
+    return Path.from(_seam(size))
+      ..lineTo(x, size.height + 2)
+      ..lineTo(x, -2)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(_Half old) => old.right != right;
+}
+
+/// The seam between the two sceneries: a faint, soft light.
+class _SeamPainter extends CustomPainter {
+  const _SeamPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final curve = _curve(size);
-    final rightPart = Path.from(curve)
-      ..lineTo(size.width + 2, size.height + 2)
-      ..lineTo(size.width + 2, -2)
-      ..close();
-    final leftPart = Path.from(curve)
-      ..lineTo(-2, size.height + 2)
-      ..lineTo(-2, -2)
-      ..close();
-    canvas.drawPath(rightPart, Paint()..color = rightSide);
-    canvas.drawPath(leftPart, Paint()..color = leftSide);
     canvas.drawPath(
-      curve,
+      _seam(size),
       Paint()
-        ..color = line
+        ..color = Colors.white.withValues(alpha: 0.35)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 3
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
     );
   }
 
   @override
-  bool shouldRepaint(_VersusPainter old) => old.rightSide != rightSide || old.leftSide != leftSide || old.line != line;
+  bool shouldRepaint(_SeamPainter old) => false;
 }
 
-/// A challenger of the matchup: its drawing on a standee base.
+/// The scenery of a challenger's day, warmed up as the card leans toward it.
+class _Scenery extends StatelessWidget {
+  const _Scenery({required this.card, required this.glow});
+
+  final CharacterCard card;
+  final double glow;
+
+  @override
+  Widget build(BuildContext context) {
+    return ThemedBackground(
+      theme: card.scenery,
+      child: ColoredBox(color: AppPalette.rarityLegend.withValues(alpha: 0.25 * glow)),
+    );
+  }
+}
+
+/// A challenger of the matchup: its drawing hovering [lift] over its standee
+/// base.
 class _Contender extends StatelessWidget {
-  const _Contender({required this.card, required this.width, required this.glow, required this.dim});
+  const _Contender({
+    required this.card,
+    required this.width,
+    required this.glow,
+    required this.dim,
+    required this.lift,
+  });
 
   final CharacterCard card;
   final double width;
@@ -518,41 +575,53 @@ class _Contender extends StatelessWidget {
   final double glow;
   final double dim;
 
+  /// How far the drawing hovers over its base.
+  final double lift;
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: '${card.subject}, ${card.title}',
-      child: Opacity(
-        opacity: 1 - 0.5 * dim,
+      child: _Dimmed(
+        dim: dim,
+        radius: 12,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: width,
-              height: width / cardAspectRatio,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        if (glow > 0)
+            Transform.translate(
+              offset: Offset(0, -lift),
+              child: SizedBox(
+                width: width,
+                height: width / cardAspectRatio,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
                           BoxShadow(
-                            color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
-                            blurRadius: 24 * glow,
-                            spreadRadius: 4 * glow,
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 6 + lift,
+                            offset: Offset(0, 4 + lift),
                           ),
-                      ],
+                          if (glow > 0)
+                            BoxShadow(
+                              color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
+                              blurRadius: 24 * glow,
+                              spreadRadius: 4 * glow,
+                            ),
+                        ],
+                      ),
+                      child: CardboardCard(child: SketchView(card.sketch)),
                     ),
-                    child: CardboardCard(child: SketchView(card.sketch)),
-                  ),
-                  if (glow > 0)
-                    Align(
-                      alignment: const Alignment(0, -0.75),
-                      child: Opacity(opacity: glow, child: const _Stamp()),
-                    ),
-                ],
+                    if (glow > 0)
+                      Align(
+                        alignment: const Alignment(0, -0.75),
+                        child: Opacity(opacity: glow, child: const _Stamp()),
+                      ),
+                  ],
+                ),
               ),
             ),
             StandeeBase(width: width * 0.62),
@@ -563,50 +632,41 @@ class _Contender extends StatelessWidget {
   }
 }
 
-/// A challenger's nameplate across the line: who it portrays and its title.
-class _Plate extends StatelessWidget {
-  const _Plate({required this.card, required this.dim, required this.tilt});
+/// [child] darkened as the card leans away from it ([dim], 0 to 1): a shade
+/// over it rather than see-through, so the scenery doesn't show through.
+class _Dimmed extends StatelessWidget {
+  const _Dimmed({required this.dim, required this.radius, required this.child});
 
-  final CharacterCard card;
   final double dim;
-  final double tilt;
+  final double radius;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colors = Theme.of(context).colorScheme;
-    return Opacity(
-      opacity: 1 - 0.5 * dim,
-      child: Transform.rotate(
-        angle: tilt,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: colors.onSurface, width: 2.5),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                card.subject,
-                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                card.title,
-                style: textTheme.bodySmall,
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
+    if (dim <= 0) return child;
+    return ColorFiltered(
+      colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.4 * dim), BlendMode.srcATop),
+      child: child,
+    );
+  }
+}
+
+/// A challenger's nameplate beside it, as in a fight: who it portrays, then
+/// its title. Without its rarity's stars, as the Arena judges the drawing
+/// only.
+class _Plate extends StatelessWidget {
+  const _Plate({required this.card, required this.dim, required this.large});
+
+  final CharacterCard card;
+  final double dim;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Dimmed(
+      dim: dim,
+      radius: large ? 16 : 10,
+      child: Nameplate(name: card.subject, title: card.title, nameFirst: true, large: large),
     );
   }
 }
