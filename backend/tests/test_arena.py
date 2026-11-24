@@ -130,6 +130,29 @@ class ArenaTests(ArenaTestCase):
             (status["cap"], status["pack"], status["votes_today"]), (5, 5, 0)
         )
 
+    def test_the_next_matchup_comes_along_to_show_below(self) -> None:
+        self.go_to_day(8)
+        state = self.arena()
+        current = {c["id"] for c in state["matchup"]}
+        upcoming = state["next_matchup"]
+        self.assertEqual(len(upcoming), 2)
+        self.assertNotEqual({c["id"] for c in upcoming}, current, "another pair")
+        self.assertNotIn(self.position(ADMIN), [c["artist_position"] for c in upcoming])
+        self.assertEqual(self.vote(state["matchup"]).status_code, 200)
+        # The app shows the one it had below next, and votes on it.
+        response = self.vote(upcoming, None)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["status"]["votes_today"], 2)
+
+    def test_no_next_matchup_below_the_days_last(self) -> None:
+        self.go_to_day(8)
+        for _ in range(9):
+            self.vote(self.arena()["matchup"])
+        state = self.arena()
+        self.assertEqual(state["status"]["cap"] - state["status"]["votes_today"], 1)
+        self.assertIsNotNone(state["matchup"])
+        self.assertIsNone(state["next_matchup"])
+
     def test_votes_must_be_on_the_arena_and_not_your_own(self) -> None:
         self.go_to_day(8)
         matchup = self.arena()["matchup"]

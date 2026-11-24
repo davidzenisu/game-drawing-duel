@@ -147,8 +147,10 @@ class ArenaState:
     cap: int = 0
     # Whether today's pack earned its stars already.
     rewarded: bool = False
-    # The next matchup to vote on, None at the cap or without pairs left.
+    # The next matchup to vote on, None at the cap or without pairs left,
+    # and the one after it, to show below it (None if it's the day's last).
     matchup: tuple[Character, Character] | None = None
+    next_matchup: tuple[Character, Character] | None = None
 
     @property
     def pack(self) -> int:
@@ -169,21 +171,23 @@ def _pairs(
     return list(itertools.combinations(theirs, 2))
 
 
-def _matchup(
+def _matchups(
     server: Server,
     seat: ServerSeat,
     day: int,
     entries: list[Character],
     votes: list[ArenaVote],
-) -> tuple[Character, Character] | None:
-    """The next pair for `seat` to vote on: the fewest votes between both
-    first, then the pair of portrayed players that met the least, then the
-    closest ratings; random among the rest, the same until something
-    changes. Shown in random order."""
+    count: int,
+) -> list[tuple[Character, Character]]:
+    """The next `count` pairs for `seat` to vote on, the first one first:
+    the fewest votes between both first, then the pair of portrayed players
+    that met the least, then the closest ratings; random among the rest, the
+    same until something changes. The ones after the first are picked as if
+    the ones before were voted on. Each is shown in random order."""
     voted = {(v.first_id, v.second_id) for v in _mine(votes, seat)}
     left = [p for p in _pairs(entries, seat) if _pair(p[0].id, p[1].id) not in voted]
     if not left:
-        return None
+        return []
     counts: Counter[uuid.UUID] = Counter()
     for v in votes:
         counts[v.first_id] += 1
@@ -207,8 +211,16 @@ def _matchup(
             abs(ratings[a.id] - ratings[b.id]),
         )
 
-    a, b = min(left, key=key)
-    return (a, b) if rng.random() < 0.5 else (b, a)
+    picked = []
+    while left and len(picked) < count:
+        a, b = min(left, key=key)
+        left.remove((a, b))
+        picked.append((a, b) if rng.random() < 0.5 else (b, a))
+        # As if it were voted on.
+        counts[a.id] += 1
+        counts[b.id] += 1
+        met[tuple(sorted((str(a.subject_seat_id), str(b.subject_seat_id))))] += 1
+    return picked
 
 
 def _pack_reason(day: int) -> str:
@@ -236,15 +248,19 @@ def state(
         pairs - sum(v.day < day for v in mine), ends_on(week) - day + 1
     )
     today = sum(v.day == day for v in mine)
+    upcoming = (
+        _matchups(server, seat, day, entries, votes, min(2, cap - today))
+        if with_matchup and today < cap
+        else []
+    )
     return ArenaState(
         week=week,
         challengers=len(entries),
         votes_today=today,
         cap=cap,
         rewarded=bool(stars.granted(session, seat.id, [_pack_reason(day)])),
-        matchup=_matchup(server, seat, day, entries, votes)
-        if with_matchup and today < cap
-        else None,
+        matchup=upcoming[0] if upcoming else None,
+        next_matchup=upcoming[1] if len(upcoming) > 1 else None,
     )
 
 

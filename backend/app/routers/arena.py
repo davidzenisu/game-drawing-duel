@@ -54,6 +54,9 @@ def _response(session: Session, server: Server, seat: ServerSeat) -> ArenaRespon
         matchup=None
         if state.matchup is None
         else [character_response(c) for c in state.matchup],
+        next_matchup=None
+        if state.next_matchup is None
+        else [character_response(c) for c in state.next_matchup],
         stars=stars.balance(session, seat.id),
     )
 

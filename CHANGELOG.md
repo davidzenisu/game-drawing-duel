@@ -13,9 +13,10 @@ the game is in early development (0.x), versions stay below 1.0.
 
 ### Added
 - **The Arena**: from the second week on, vote on matchups of two of last
-  week's challengers (all but its weekly heroes) and pick the better
-  drawing, whatever their boosts were: drag the card toward it and let go,
-  or press ← or →. Can't decide? That's a draw. You never get a drawing of
+  week's challengers (all but its weekly heroes), face to face on a versus
+  card, and pick the better drawing, whatever their boosts were: drag the
+  card toward it and let go, or press ← or →. The next matchup is already
+  waiting below. Can't decide? That's a draw. You never get a drawing of
   your own, and nobody sees who drew them. Find it on the hub, below the
   steps.
 - Your first 10 Arena votes of a day earn 3 stars. You can keep voting

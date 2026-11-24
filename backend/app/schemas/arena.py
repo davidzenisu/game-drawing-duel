@@ -33,6 +33,9 @@ class ArenaResponse(BaseModel):
     # The next matchup to vote on, shown in this order; null at the cap or
     # without pairs left.
     matchup: list[CharacterResponse] | None = None
+    # The one after it, to show below it; null if the next is today's last
+    # vote. Voting on it next works too.
+    next_matchup: list[CharacterResponse] | None = None
     # Your stars, with today's pack reward once earned.
     stars: int = 0
 

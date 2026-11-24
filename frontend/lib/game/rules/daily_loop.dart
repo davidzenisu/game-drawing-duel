@@ -693,14 +693,22 @@ class ArenaStatus {
 }
 
 /// Your Arena today: its status and the next matchup to vote on, null at
-/// today's cap or without pairs left.
+/// today's cap or without pairs left, and the one after it, to show below
+/// it (null if the next is today's last vote).
 class ArenaRound {
-  const ArenaRound({required this.status, this.matchup});
+  const ArenaRound({required this.status, this.matchup, this.next});
 
   /// Null when no Arena is open (the first week, speed mode).
   final ArenaStatus? status;
   final (CharacterCard, CharacterCard)? matchup;
+  final (CharacterCard, CharacterCard)? next;
 }
+
+/// Whether [a] and [b] are the same pair of challengers, in either order.
+bool samePair((CharacterCard, CharacterCard)? a, (CharacterCard, CharacterCard)? b) =>
+    a != null &&
+    b != null &&
+    {a.$1.id, a.$2.id}.containsAll([b.$1.id, b.$2.id]);
 
 /// A winner of the latest Arena, now in the gacha pool with the rarity it
 /// was crowned with.

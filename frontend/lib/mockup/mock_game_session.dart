@@ -1052,7 +1052,8 @@ class MockGameSession extends GameSession {
     ];
   }
 
-  ({ArenaStatus status, (CharacterCard, CharacterCard)? matchup})? _arenaState() {
+  ({ArenaStatus status, (CharacterCard, CharacterCard)? matchup, (CharacterCard, CharacterCard)? next})?
+  _arenaState() {
     final week = _arenaWeek(_day);
     if (week == null) return null;
     final pairs = _arenaPairs(week);
@@ -1072,7 +1073,7 @@ class MockGameSession extends GameSession {
       pack: min(Arena.pack, cap),
       rewarded: _arenaRewarded.contains(_day),
     );
-    if (today >= cap) return (status: status, matchup: null);
+    if (today >= cap) return (status: status, matchup: null, next: null);
     // The fewest votes of yours first, like online's fewest votes.
     final counts = <String, int>{};
     for (final (_, a, b, _) in mine) {
@@ -1084,10 +1085,20 @@ class MockGameSession extends GameSession {
       for (final pair in pairs)
         if (!voted.contains(_pairKey(pair.$1.id, pair.$2.id))) pair,
     ];
-    if (left.isEmpty) return (status: status, matchup: null);
+    if (left.isEmpty) return (status: status, matchup: null, next: null);
     int votes((CharacterCard, CharacterCard) p) => (counts[p.$1.id] ?? 0) + (counts[p.$2.id] ?? 0);
-    final next = left.reduce((best, p) => votes(p) < votes(best) ? p : best);
-    return (status: status, matchup: (mine.length + _day).isEven ? next : (next.$2, next.$1));
+    (CharacterCard, CharacterCard) pick() {
+      final best = left.reduce((best, p) => votes(p) < votes(best) ? p : best);
+      left.remove(best);
+      // As if it were voted on.
+      counts[best.$1.id] = (counts[best.$1.id] ?? 0) + 1;
+      counts[best.$2.id] = (counts[best.$2.id] ?? 0) + 1;
+      return (mine.length + _day + left.length).isEven ? best : (best.$2, best.$1);
+    }
+
+    final matchup = pick();
+    final next = left.isEmpty || today + 1 >= cap ? null : pick();
+    return (status: status, matchup: matchup, next: next);
   }
 
   /// The days your pack earned its stars on.
@@ -1099,7 +1110,7 @@ class MockGameSession extends GameSession {
   @override
   Future<ArenaRound> arenaRound() async {
     final state = _arenaState();
-    return ArenaRound(status: state?.status, matchup: state?.matchup);
+    return ArenaRound(status: state?.status, matchup: state?.matchup, next: state?.next);
   }
 
   @override

@@ -46,7 +46,19 @@ void main() {
     await gesture.moveBy(const Offset(-30, 0));
     await tester.pump();
     expect(find.text('BETTER'), findsOneWidget);
-    await gesture.moveBy(const Offset(50, 0));
+    expect(
+      tester.getCenter(find.text('BETTER')).dy,
+      greaterThan(tester.getCenter(card).dy),
+      reason: 'dragged left: the one bottom left',
+    );
+    await gesture.moveBy(const Offset(120, 0));
+    await tester.pump();
+    expect(
+      tester.getCenter(find.text('BETTER')).dy,
+      lessThan(tester.getCenter(card).dy),
+      reason: 'dragged right: the one top right',
+    );
+    await gesture.moveBy(const Offset(-70, 0));
     await gesture.up();
     await voted(0);
     expect(find.text('BETTER'), findsNothing, reason: 'back in the middle');
@@ -78,7 +90,7 @@ void main() {
   testWidgets('the drawings take up the screen, on a phone and on a computer', (tester) async {
     final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 11, 4, 9));
     await game.startOnDayEight('Pat');
-    for (final (size, minWidth) in [(const Size(400, 900), 160.0), (const Size(1400, 900), 280.0)]) {
+    for (final (size, minWidth) in [(const Size(400, 900), 190.0), (const Size(1400, 900), 200.0)]) {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(
@@ -87,8 +99,9 @@ void main() {
         ),
       );
       await _settle(tester);
-      expect(find.byType(SketchView), findsNWidgets(2));
-      final width = tester.getSize(find.byType(SketchView).first).width;
+      // Both drawings of the matchup, and of the next one below.
+      expect(find.byType(SketchView), findsNWidgets(4));
+      final width = tester.getSize(find.byType(SketchView).last).width;
       expect(width, greaterThan(minWidth), reason: '$size');
       expect(tester.takeException(), isNull);
     }

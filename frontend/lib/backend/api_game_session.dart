@@ -1420,15 +1420,17 @@ class ApiGameSession extends GameSession {
     if (json is! Map) throw const FormatException('Unexpected Arena round.');
     final server = this.server;
     final status = _parseArenaStatus(json['status']);
-    final matchup = switch (json['matchup']) {
+    Future<(CharacterCard, CharacterCard)?> pair(Object? json) async => switch (json) {
       null => null,
       [final first, final second] => (await _card(server, first), await _card(server, second)),
       _ => throw const FormatException('Unexpected Arena matchup.'),
     };
+    final matchup = await pair(json['matchup']);
+    final next = await pair(json['next_matchup']);
     _arena = status;
     if (json['stars'] case final int stars) _stars = stars;
     notifyListeners();
-    return ArenaRound(status: status, matchup: matchup);
+    return ArenaRound(status: status, matchup: matchup, next: next);
   }
 
   @override

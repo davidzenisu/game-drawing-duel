@@ -64,6 +64,8 @@ void main() {
 
     final stars = game.stars;
     var round = await game.arenaRound();
+    expect(round.next, isNotNull, reason: 'the next matchup comes along, to show below');
+    expect(samePair(round.matchup, round.next), isFalse);
     final seen = <String>{};
     for (var vote = 1; vote <= Arena.pack; vote++) {
       final (first, second) = round.matchup!;

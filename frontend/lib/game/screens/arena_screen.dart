@@ -14,14 +14,17 @@ import '../widgets/sketch_canvas.dart';
 import '../widgets/themed_background.dart';
 import '../widgets/ticket_chip.dart';
 
-/// The Arena ([Arena]): two of last week's challengers on one big card, and
-/// you pick the better drawing, whatever their boosts were. Drag the card
-/// toward it (left for the left one, right for the right one) and let go:
-/// it flies off that way and the next matchup comes up. On a computer, ← and
-/// → throw it the same way. "Can't decide" (or ↓) is a draw: the card drops.
-/// The artists stay hidden, and you never get a drawing of your own. Today's
-/// first [ArenaStatus.pack] votes earn [ArenaStatus.packStars] stars; you can
-/// go on, unrewarded, up to today's cap.
+/// The Arena ([Arena]): two of last week's challengers face off on one tall
+/// card, split by a curved line like a versus screen: one stands top right,
+/// its nameplate across the line on the left; the other stands bottom left,
+/// its nameplate on the right. You pick the better drawing, whatever their
+/// boosts were: drag the card right for the one on the right, left for the
+/// one on the left, and let go; it flies off and the next matchup, already
+/// waiting below, comes up. On a computer, → and ← throw it the same way.
+/// "Can't decide" (or ↓) is a draw: the card drops. The artists stay hidden,
+/// and you never get a drawing of your own. Today's first
+/// [ArenaStatus.pack] votes earn [ArenaStatus.packStars] stars; you can go
+/// on, unrewarded, up to today's cap.
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key, required this.controller});
 
@@ -31,22 +34,30 @@ class ArenaScreen extends StatefulWidget {
   State<ArenaScreen> createState() => _ArenaScreenState();
 }
 
-/// How the current matchup was decided.
-enum _Pick { first, second, draw }
+/// How a matchup was decided: for the one on the right (top), the one on the
+/// left (bottom), or a draw.
+enum _Pick { right, left, draw }
+
+typedef _Matchup = (CharacterCard, CharacterCard);
 
 class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStateMixin {
   GameSession get controller => widget.controller;
 
-  ArenaRound? _round;
+  ArenaStatus? _status;
   bool _loading = true;
   bool _voting = false;
 
-  /// Where the card is: dragged by the finger, or on its way back or out.
+  /// The matchup on top, and the one waiting below it.
+  _Matchup? _current;
+  _Matchup? _next;
+
+  /// Where the card on top is: dragged by the finger, or on its way back or
+  /// out.
   Offset _offset = Offset.zero;
   late final AnimationController _motion;
   Tween<Offset> _path = Tween(begin: Offset.zero, end: Offset.zero);
 
-  /// The width of the card, which the drag is measured against.
+  /// The size of the card, which the drag is measured against.
   double _cardWidth = 400;
 
   static const _flyTime = Duration(milliseconds: 280);
@@ -73,7 +84,11 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
     final round = await runGameQuery(context, controller.arenaRound);
     if (!mounted) return;
     setState(() {
-      _round = round ?? _round;
+      if (round != null) {
+        _status = round.status;
+        _current = round.matchup;
+        _next = round.next;
+      }
       _loading = false;
     });
   }
@@ -90,37 +105,38 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
   void _onDragEnd(DragEndDetails details) {
     final flung = details.velocity.pixelsPerSecond.dx;
     if (_lean <= -1 || flung < -900) {
-      _vote(_Pick.first);
+      _vote(_Pick.left);
     } else if (_lean >= 1 || flung > 900) {
-      _vote(_Pick.second);
+      _vote(_Pick.right);
     } else {
       _animateTo(Offset.zero);
     }
   }
 
   Future<void> _vote(_Pick pick) async {
-    final matchup = _round?.matchup;
+    final matchup = _current;
     if (matchup == null || _voting) return;
-    final (first, second) = matchup;
-    final rewardedBefore = _round?.status?.rewarded ?? false;
+    // The first stands on the right, the second on the left.
+    final (right, left) = matchup;
+    final rewardedBefore = _status?.rewarded ?? false;
     setState(() => _voting = true);
     GameSound.instance.buttonConfirm();
     // The card flies off toward the pick (or drops, for a draw) while the
-    // vote is sent.
-    final away = _cardWidth * 1.6;
+    // vote is sent; the next one is already below.
+    final away = _cardWidth * 1.8;
     final flight = _animateTo(switch (pick) {
-      _Pick.first => Offset(-away, _offset.dy + 40),
-      _Pick.second => Offset(away, _offset.dy + 40),
+      _Pick.left => Offset(-away, _offset.dy + 60),
+      _Pick.right => Offset(away, _offset.dy + 60),
       _Pick.draw => Offset(0, away),
     });
     final round = await runGameQuery(
       context,
       () => controller.arenaVote(
-        first,
-        second,
+        right,
+        left,
         winner: switch (pick) {
-          _Pick.first => first,
-          _Pick.second => second,
+          _Pick.right => right,
+          _Pick.left => left,
           _Pick.draw => null,
         },
       ),
@@ -130,21 +146,32 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
     if (round?.status?.rewarded == true && !rewardedBefore) GameSound.instance.reward();
     _motion.reset();
     setState(() {
-      _round = round ?? _round;
-      _voting = false;
       _offset = Offset.zero;
+      _voting = false;
+      if (round == null) return; // The vote failed: the same card again.
+      _status = round.status;
+      final canVote = round.status?.canVote ?? false;
+      // The card that waited below comes up; after it, whichever the server
+      // picks next that isn't it.
+      final waiting = _next;
+      _current = !canVote ? null : (waiting ?? round.matchup);
+      _next = !canVote || _current == null
+          ? null
+          : samePair(round.matchup, _current)
+          ? round.next
+          : round.matchup;
+      if (round.status != null && round.status!.votesToday + 1 >= round.status!.cap) _next = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final round = _round;
-    final canPick = round?.matchup != null && !_voting;
+    final canPick = _current != null && !_voting;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) => KeyControls(
-        onLeft: canPick ? () => _vote(_Pick.first) : null,
-        onRight: canPick ? () => _vote(_Pick.second) : null,
+        onLeft: canPick ? () => _vote(_Pick.left) : null,
+        onRight: canPick ? () => _vote(_Pick.right) : null,
         onDown: canPick ? () => _vote(_Pick.draw) : null,
         child: Scaffold(
           appBar: AppBar(
@@ -157,9 +184,7 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
           body: ThemedBackground(
             theme: controller.theme,
             child: SafeArea(
-              child: _loading && round == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : _body(context, round),
+              child: _loading && _status == null ? const Center(child: CircularProgressIndicator()) : _body(context),
             ),
           ),
         ),
@@ -167,8 +192,8 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _body(BuildContext context, ArenaRound? round) {
-    final status = round?.status;
+  Widget _body(BuildContext context) {
+    final status = _status;
     if (status == null) {
       return _Message(
         icon: Icons.stadium_rounded,
@@ -179,7 +204,9 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
                   'everyone votes on them for a week, and the top ${Arena.maxWinners} become Arena winners.',
       );
     }
-    final matchup = round!.matchup;
+    final current = _current;
+    final dark = controller.theme.isDark;
+    final keys = showsPagerArrows(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -187,13 +214,13 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
+              constraints: const BoxConstraints(maxWidth: 560),
               child: _StatusBar(status: status, week: controller.weekOf(status.week)),
             ),
           ),
         ),
         Expanded(
-          child: matchup == null
+          child: current == null
               ? _Message(
                   icon: status.canVote ? Icons.done_all_rounded : Icons.bedtime_rounded,
                   title: status.canVote ? 'Every matchup voted on' : "That's all for today",
@@ -202,28 +229,22 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
                       : 'Come back tomorrow for more matchups. The Arena runs until Sunday; its winners are '
                             'crowned on Monday.',
                 )
-              : LayoutBuilder(builder: (context, constraints) => _deck(context, matchup, status, constraints)),
+              : LayoutBuilder(builder: (context, constraints) => _deck(current, constraints)),
         ),
-        if (matchup != null)
+        if (current != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: _ScenicHint(
-                    dark: controller.theme.isDark,
-                    text: showsPagerArrows(context) ? '← or drag left' : 'Drag left',
-                  ),
+                  child: _ScenicHint(dark: dark, text: keys ? '← or drag left' : '← Drag left'),
                 ),
                 const SizedBox(width: 12),
                 _CantDecideButton(onPressed: _voting ? null : () => _vote(_Pick.draw)),
                 const SizedBox(width: 12),
                 Flexible(
-                  child: _ScenicHint(
-                    dark: controller.theme.isDark,
-                    text: showsPagerArrows(context) ? 'Drag right or →' : 'Drag right',
-                  ),
+                  child: _ScenicHint(dark: dark, text: keys ? 'Drag right or →' : 'Drag right →'),
                 ),
               ],
             ),
@@ -232,32 +253,30 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
     );
   }
 
-  /// The matchup's card, as big as the space allows, over a blank one when
-  /// more matchups are to come today.
-  Widget _deck(BuildContext context, (CharacterCard, CharacterCard) matchup, ArenaStatus status, BoxConstraints space) {
-    const pad = 12.0;
-    final size = _MatchupCard.sizeFor(Size(space.maxWidth - 2 * pad, space.maxHeight - 2 * pad));
+  /// The matchup's card, as big as the space allows, over the next one.
+  Widget _deck(_Matchup current, BoxConstraints space) {
+    const pad = 8.0;
+    final size = _VersusCard.sizeFor(Size(space.maxWidth - 2 * pad, space.maxHeight - 2 * pad));
     _cardWidth = size.width;
-    final lean = _lean.clamp(-1.0, 1.0);
-    final card = _MatchupCard(
-      key: ValueKey('${matchup.$1.id}-${matchup.$2.id}'),
-      size: size,
-      first: matchup.$1,
-      second: matchup.$2,
-      lean: lean,
-    );
+    final next = _next;
+    // The card below grows into place as the one on top goes.
+    final rise = min(1.0, _offset.distance / _cardWidth);
     return Center(
       child: SizedBox.fromSize(
         size: size,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // The next card waiting below, once this one is on its way.
-            if (status.votesToday + 1 < status.cap)
+            if (next != null)
               Positioned.fill(
-                child: Transform.scale(
-                  scale: 0.94 + 0.06 * min(1.0, _offset.distance / _cardWidth),
-                  child: const _BlankCard(),
+                // Tilted a little, so it peeks out from behind; it
+                // straightens as the one on top goes.
+                child: Transform.rotate(
+                  angle: 0.045 * (1 - rise),
+                  child: Transform.scale(
+                    scale: 0.97 + 0.03 * rise,
+                    child: _VersusCard(key: ValueKey(_pairKey(next)), size: size, matchup: next, lean: 0),
+                  ),
                 ),
               ),
             Positioned.fill(
@@ -267,7 +286,15 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
                 onPanEnd: _voting ? null : _onDragEnd,
                 child: Transform.translate(
                   offset: _offset,
-                  child: Transform.rotate(angle: _offset.dx / _cardWidth * 0.25, child: card),
+                  child: Transform.rotate(
+                    angle: _offset.dx / _cardWidth * 0.25,
+                    child: _VersusCard(
+                      key: ValueKey(_pairKey(current)),
+                      size: size,
+                      matchup: current,
+                      lean: _lean.clamp(-1.0, 1.0),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -276,6 +303,8 @@ class _ArenaScreenState extends State<ArenaScreen> with SingleTickerProviderStat
       ),
     );
   }
+
+  static String _pairKey(_Matchup m) => '${m.$1.id}-${m.$2.id}';
 }
 
 /// Today's votes in one line: the pack and its stars, or what's left today.
@@ -339,67 +368,151 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-/// The matchup: both challengers side by side on one card, each drawing as
-/// big as it fits, with who it portrays and its title below. The side the
-/// card leans toward lights up, the other one dims.
-class _MatchupCard extends StatelessWidget {
-  const _MatchupCard({super.key, required this.size, required this.first, required this.second, required this.lean});
+/// A matchup as a versus card: a curved line splits it from top left to
+/// bottom right. The first challenger stands top right, its nameplate across
+/// the line on the left; the second stands bottom left, its nameplate on the
+/// right. The side the card leans toward lights up with a "BETTER" stamp,
+/// the other dims.
+class _VersusCard extends StatelessWidget {
+  const _VersusCard({super.key, required this.size, required this.matchup, required this.lean});
 
   final Size size;
-  final CharacterCard first;
-  final CharacterCard second;
+  final _Matchup matchup;
 
   /// -1 (all the way to the left one) to 1 (the right one).
   final double lean;
 
-  static const _padding = 10.0;
-  static const _gap = 10.0;
-  static const _labels = 50.0;
-  static const _maxWidth = 960.0;
+  static const _padding = 12.0;
+  static const _maxWidth = 560.0;
 
-  /// The biggest card that fits [space].
+  /// A standee's height for its width: the drawing and its base.
+  static const _standeeHeight = 1 / cardAspectRatio + 0.62 * 0.32;
+
+  /// The biggest card that fits [space]: as wide as it can be, and at most
+  /// twice as tall as wide; never so flat that the two standees won't fit
+  /// one above the other.
   static Size sizeFor(Size space) {
-    final width = min(space.width, _maxWidth);
-    // Two drawings side by side, each [cardAspectRatio].
-    double heightFor(double width) => (width - 2 * _padding - _gap) / 2 / cardAspectRatio + 2 * _padding + _labels;
-    if (heightFor(width) <= space.height) return Size(width, heightFor(width));
-    final drawing = max(40.0, space.height - 2 * _padding - _labels) * cardAspectRatio;
-    return Size(2 * drawing + 2 * _padding + _gap, space.height);
+    var width = min(space.width, _maxWidth);
+    final height = min(space.height, width * 2);
+    // The standees take up most of the height, the nameplates beside them.
+    width = min(width, height / 1.35);
+    return Size(width, height);
   }
+
+  /// The width of each drawing in a card of [size].
+  static double drawingWidth(Size size) =>
+      min(size.width * 0.58, (size.height - 2 * _padding) / (2 * _standeeHeight + 0.04));
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final (right, left) = matchup;
+    final drawing = drawingWidth(size);
+    final plate = size.width - drawing - 2 * _padding - 8;
+    final standee = drawing * _standeeHeight;
     return Material(
       elevation: 8,
       color: colors.surfaceContainerLow,
       shadowColor: Colors.black54,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(24),
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(_padding),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _Side(card: first, glow: max(0, -lean), dim: max(0, lean)),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _VersusPainter(
+                rightSide: Color.lerp(colors.surfaceContainerLow, AppPalette.rarityLegend, 0.18 * max(0, lean))!,
+                leftSide: Color.lerp(colors.surfaceContainerHigh, AppPalette.rarityLegend, 0.18 * max(0, -lean))!,
+                line: colors.onSurface,
+              ),
             ),
-            const SizedBox(width: _gap),
-            Expanded(
-              child: _Side(card: second, glow: max(0, lean), dim: max(0, -lean)),
-            ),
-          ],
-        ),
+          ),
+          // The one on the right, top, with its nameplate on the left.
+          Positioned(
+            right: _padding,
+            top: _padding,
+            width: drawing,
+            child: _Contender(card: right, width: drawing, glow: max(0, lean), dim: max(0, -lean)),
+          ),
+          Positioned(
+            left: _padding,
+            top: _padding + standee * 0.5,
+            width: plate,
+            child: _Plate(card: right, dim: max(0, -lean), tilt: -0.04),
+          ),
+          // The one on the left, bottom, with its nameplate on the right.
+          Positioned(
+            left: _padding,
+            bottom: _padding,
+            width: drawing,
+            child: _Contender(card: left, width: drawing, glow: max(0, -lean), dim: max(0, lean)),
+          ),
+          Positioned(
+            right: _padding,
+            bottom: _padding + standee * 0.42,
+            width: plate,
+            child: _Plate(card: left, dim: max(0, lean), tilt: 0.04),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// One challenger of the matchup.
-class _Side extends StatelessWidget {
-  const _Side({required this.card, required this.glow, required this.dim});
+/// The two sides of the versus card, split by a curved line from top left
+/// to bottom right.
+class _VersusPainter extends CustomPainter {
+  const _VersusPainter({required this.rightSide, required this.leftSide, required this.line});
+
+  final Color rightSide;
+  final Color leftSide;
+  final Color line;
+
+  Path _curve(Size size) => Path()
+    ..moveTo(size.width * 0.1, -2)
+    ..cubicTo(
+      size.width * 0.35,
+      size.height * 0.3,
+      size.width * 0.5,
+      size.height * 0.55,
+      size.width * 0.62,
+      size.height * 0.75,
+    )
+    ..quadraticBezierTo(size.width * 0.72, size.height * 0.9, size.width * 0.8, size.height + 2);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final curve = _curve(size);
+    final rightPart = Path.from(curve)
+      ..lineTo(size.width + 2, size.height + 2)
+      ..lineTo(size.width + 2, -2)
+      ..close();
+    final leftPart = Path.from(curve)
+      ..lineTo(-2, size.height + 2)
+      ..lineTo(-2, -2)
+      ..close();
+    canvas.drawPath(rightPart, Paint()..color = rightSide);
+    canvas.drawPath(leftPart, Paint()..color = leftSide);
+    canvas.drawPath(
+      curve,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_VersusPainter old) => old.rightSide != rightSide || old.leftSide != leftSide || old.line != line;
+}
+
+/// A challenger of the matchup: its drawing on a standee base.
+class _Contender extends StatelessWidget {
+  const _Contender({required this.card, required this.width, required this.glow, required this.dim});
 
   final CharacterCard card;
+  final double width;
 
   /// How much the card leans toward it, and away from it: 0 to 1.
   final double glow;
@@ -407,62 +520,91 @@ class _Side extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: '${card.subject}, ${card.title}',
       child: Opacity(
         opacity: 1 - 0.5 * dim,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: cardAspectRatio,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            if (glow > 0)
-                              BoxShadow(
-                                color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
-                                blurRadius: 24 * glow,
-                                spreadRadius: 4 * glow,
-                              ),
-                          ],
-                        ),
-                        child: CardboardCard(child: SketchView(card.sketch)),
-                      ),
-                      if (glow > 0)
-                        Align(
-                          alignment: const Alignment(0, -0.75),
-                          child: Opacity(opacity: glow, child: const _Stamp()),
-                        ),
-                    ],
+            SizedBox(
+              width: width,
+              height: width / cardAspectRatio,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        if (glow > 0)
+                          BoxShadow(
+                            color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
+                            blurRadius: 24 * glow,
+                            spreadRadius: 4 * glow,
+                          ),
+                      ],
+                    ),
+                    child: CardboardCard(child: SketchView(card.sketch)),
                   ),
-                ),
+                  if (glow > 0)
+                    Align(
+                      alignment: const Alignment(0, -0.75),
+                      child: Opacity(opacity: glow, child: const _Stamp()),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              card.subject,
-              style: textTheme.titleSmall,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              card.title,
-              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            StandeeBase(width: width * 0.62),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A challenger's nameplate across the line: who it portrays and its title.
+class _Plate extends StatelessWidget {
+  const _Plate({required this.card, required this.dim, required this.tilt});
+
+  final CharacterCard card;
+  final double dim;
+  final double tilt;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    return Opacity(
+      opacity: 1 - 0.5 * dim,
+      child: Transform.rotate(
+        angle: tilt,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.onSurface, width: 2.5),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                card.subject,
+                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                card.title,
+                style: textTheme.bodySmall,
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -493,22 +635,6 @@ class _Stamp extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// The next matchup's card, face down below the current one.
-class _BlankCard extends StatelessWidget {
-  const _BlankCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 2,
-      color: colors.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(20),
-      child: Center(child: Icon(Icons.stadium_rounded, size: 64, color: colors.outlineVariant)),
     );
   }
 }
