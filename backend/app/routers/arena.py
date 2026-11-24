@@ -107,6 +107,7 @@ def get_arena_ranking(
     return ArenaRankingResponse(
         week=week,
         ends_on=arena.ends_on(week),
+        min_matchups=rules.ARENA_MIN_MATCHUPS,
         challengers=[
             ArenaRanked(
                 character=character_response(s.challenger),
@@ -117,6 +118,7 @@ def get_arena_ranking(
                 rating=s.rating,
                 score=s.score,
                 matchups=s.matchups,
+                qualified=s.qualified,
             )
             for place, s in enumerate(arena.ranking(session, server, week), 1)
         ],

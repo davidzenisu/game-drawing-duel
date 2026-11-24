@@ -105,10 +105,17 @@ class Standing:
     score: float
     matchups: int
 
+    @property
+    def qualified(self) -> bool:
+        """Whether it took part in enough matchups to be ranked, and
+        crowned (`rules.ARENA_MIN_MATCHUPS`)."""
+        return rules.arena_qualified(self.matchups)
+
 
 def standings(entries: list[Character], votes: list[ArenaVote]) -> list[Standing]:
-    """The Arena's challengers best first (`rules.arena_order`), from
-    `entries` in the order of their week's ranking."""
+    """The Arena's challengers best first (`rules.arena_order`): the ones
+    with enough matchups ranked by their rating, then the others, unranked.
+    From `entries` in the order of their week's ranking."""
     index = {c.id: i for i, c in enumerate(entries)}
     matchups = []
     for vote in votes:
@@ -321,12 +328,17 @@ def vote(
 
 
 def _decide(session: Session, server: Server, week: int) -> list[ArenaHero]:
-    """The Arena's result: the top of its ranking crowned, each character
-    taking the rarity of its place; one row without a character if it had
-    no challengers."""
-    ranked = standings(
-        challengers(session, server, week), _votes(session, server, week)
-    )
+    """The Arena's result: the top of its ranking crowned, as many as took
+    part in enough matchups (up to `rules.ARENA_RARITIES`), each character
+    taking the rarity of its place; one row without a character if none
+    did, so it counts as decided."""
+    ranked = [
+        s
+        for s in standings(
+            challengers(session, server, week), _votes(session, server, week)
+        )
+        if s.qualified
+    ]
     if not ranked:
         return [ArenaHero(server_id=server.id, week=week)]
     heroes = []
@@ -406,7 +418,8 @@ def latest_winners(session: Session, server: Server) -> list[ArenaHero]:
 
 def ranking(session: Session, server: Server, week: int) -> list[Standing]:
     """The decided Arena of `week`, best first: its winners first, by place,
-    then the others by their standing."""
+    then the others by their standing, the ones without enough matchups
+    last."""
     ranked = standings(
         challengers(session, server, week), _votes(session, server, week)
     )

@@ -1461,6 +1461,7 @@ class ApiGameSession extends GameSession {
       {'week': int week, 'ends_on': int endsOn, 'challengers': List challengers} => ArenaRanking(
         week: week,
         endsOn: endsOn,
+        minMatchups: (json as Map)['min_matchups'] as int? ?? Arena.minMatchups,
         challengers: [
           for (final entry in challengers)
             if (entry case {
@@ -1480,6 +1481,7 @@ class ApiGameSession extends GameSession {
                   final String rarity => Rarity.values.byName(rarity),
                   _ => null,
                 },
+                qualified: entry['qualified'] as bool? ?? true,
               )
             else
               throw const FormatException('Unexpected Arena challenger.'),

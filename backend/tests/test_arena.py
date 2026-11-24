@@ -270,6 +270,80 @@ class ArenaTests(ArenaTestCase):
         self.assertEqual(self.arena_ranking()["challengers"], [])
         self.assertEqual(self.arena_ranking()["week"], 14)
 
+    def test_without_enough_votes_nobody_is_crowned_and_the_banner_stays_closed(
+        self,
+    ) -> None:
+        # Only two votes all week: nobody reaches the matchups it takes.
+        self.go_to_day(8)
+        self.vote(self.arena()["matchup"])
+        self.vote(self.arena(SAM)["matchup"], 0, SAM)
+        self.go_to_day(15)
+        self.assertEqual(self.today()["arena_heroes"], [])
+        ranking = self.arena_ranking()
+        self.assertEqual(ranking["min_matchups"], rules.ARENA_MIN_MATCHUPS)
+        self.assertEqual(len(ranking["challengers"]), 9)
+        self.assertFalse(any(r["qualified"] for r in ranking["challengers"]))
+        self.assertFalse(any(r["hero_rarity"] for r in ranking["challengers"]))
+        gacha = self.get(f"/servers/{self.code}/gacha").json()
+        self.assertEqual(gacha["arena_rate_up"], [])
+        closed = self.client.post(
+            f"/servers/{self.code}/pulls",
+            json={"count": 1, "banner": "arena"},
+            headers=bearer(make_token(ADMIN)),
+        )
+        self.assertEqual(closed.status_code, 409, "the Arena banner stays closed")
+
+    def test_only_challengers_with_enough_matchups_are_crowned(self) -> None:
+        self.go_to_day(8)
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            first, second, third = arena.challengers(session, server, 7)[:3]
+            seats = session.scalars(
+                select(ServerSeat.id).where(ServerSeat.server_id == server.id)
+            ).all()
+
+            def votes(a, b, winner, voters):
+                for voter in voters:
+                    x, y = arena._pair(a.id, b.id)
+                    session.add(
+                        ArenaVote(
+                            server_id=server.id,
+                            voter_seat_id=voter,
+                            week=7,
+                            day=8,
+                            first_id=x,
+                            second_id=y,
+                            winner_id=winner.id,
+                        )
+                    )
+
+            # The first two meet three times and the third twice each: 5
+            # matchups for the first two, 4 for the third, though it won all
+            # of its own and has the best rating.
+            votes(first, second, first, seats[:3])
+            votes(third, first, third, seats[:2])
+            votes(third, second, third, seats[:2])
+            session.commit()
+            ids = (str(first.id), str(second.id), str(third.id))
+        self.go_to_day(15)
+        winners = self.today()["arena_heroes"]
+        self.assertEqual(
+            [
+                (w["character"]["id"], w["place"], w["character"]["rarity"])
+                for w in winners
+            ],
+            [(ids[0], 1, "legend"), (ids[1], 2, "hero")],
+            "as many as took part in enough matchups",
+        )
+        ranking = {r["character"]["id"]: r for r in self.arena_ranking()["challengers"]}
+        self.assertEqual(
+            [(ranking[i]["matchups"], ranking[i]["qualified"]) for i in ids],
+            [(5, True), (5, True), (4, False)],
+        )
+        third_entry = ranking[ids[2]]
+        self.assertGreater(third_entry["rating"], ranking[ids[0]]["rating"])
+        self.assertIsNone(third_entry["hero_rarity"])
+
 
 class ArenaUnitTests(ArenaTestCase):
     def test_the_pack_reward_is_granted_once(self) -> None:

@@ -169,6 +169,7 @@ void main() {
     final arena = rules['arena'] as Map<String, dynamic>;
     expect([for (final rarity in Arena.rarities) rarity.name], arena['rarities']);
     expect((Arena.pack, Arena.packStars), (arena['pack'], arena['pack_stars']));
+    expect(Arena.minMatchups, arena['min_matchups']);
     for (final [int pairsLeft, int daysLeft, int cap] in (arena['cap_cases'] as List).cast<List>()) {
       expect(Arena.cap(pairsLeft, daysLeft), cap, reason: '$pairsLeft pairs, $daysLeft days');
     }

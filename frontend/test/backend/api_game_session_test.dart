@@ -1120,9 +1120,18 @@ void main() {
       backend.arenaRankings['123456'] = {
         'week': 7,
         'ends_on': 14,
+        'min_matchups': 5,
         'challengers': [
           {'character': other, 'place': 1, 'hero_rarity': 'legend', 'rating': 2.5, 'score': 3.5, 'matchups': 4},
-          {'character': left, 'place': 2, 'hero_rarity': null, 'rating': 0.5, 'score': 0, 'matchups': 2},
+          {
+            'character': left,
+            'place': 2,
+            'hero_rarity': null,
+            'rating': 0.5,
+            'score': 0,
+            'matchups': 2,
+            'qualified': false,
+          },
         ],
       };
       await admin.refreshDay();
@@ -1136,6 +1145,8 @@ void main() {
         [(other['id'], Rarity.legend, '3½ of 4')],
       );
       expect(ranking.challengers.last.record, '0 of 2');
+      expect([for (final r in ranking.challengers) r.qualified], [true, false]);
+      expect(ranking.minMatchups, Arena.minMatchups, reason: 'as the API sends it');
     });
 
     test('the week ranking is kept on the device until the next week is over', () async {

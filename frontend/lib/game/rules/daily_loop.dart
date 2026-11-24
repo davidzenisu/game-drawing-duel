@@ -642,6 +642,11 @@ abstract final class Arena {
   static const pack = 10;
   static const packStars = 3;
 
+  /// A challenger takes part in this many matchups at least to be ranked,
+  /// and crowned; the others are left unranked. An Arena where none does
+  /// crowns nobody.
+  static const minMatchups = 5;
+
   /// How many matchups you can vote on today, with [pairsLeft] pairs you
   /// haven't voted on at the start of the day and [daysLeft] days of the
   /// Arena, today included: as many as you like, as long as a [pack]'s
@@ -731,6 +736,7 @@ class ArenaRanked {
     required this.matchups,
     this.rating = 1,
     this.winnerRarity,
+    this.qualified = true,
   });
 
   final CharacterCard card;
@@ -750,6 +756,10 @@ class ArenaRanked {
 
   bool get isWinner => winnerRarity != null;
 
+  /// Whether it took part in enough matchups to be ranked, and crowned
+  /// ([Arena.minMatchups]); the others come last, unranked.
+  final bool qualified;
+
   /// Its score as text: "6½ of 8".
   String get record {
     final whole = score.floor();
@@ -760,12 +770,20 @@ class ArenaRanked {
 
 /// The latest decided Arena, best first.
 class ArenaRanking {
-  const ArenaRanking({required this.week, required this.endsOn, required this.challengers});
+  const ArenaRanking({
+    required this.week,
+    required this.endsOn,
+    required this.challengers,
+    this.minMatchups = Arena.minMatchups,
+  });
 
   /// The last day of its challengers' week, and of its week of votes.
   final int week;
   final int endsOn;
   final List<ArenaRanked> challengers;
+
+  /// The matchups a challenger needed to be ranked, and crowned.
+  final int minMatchups;
 
   /// Its winners, by place.
   List<ArenaRanked> get winners => [
