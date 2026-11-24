@@ -1446,6 +1446,50 @@ class ApiGameSession extends GameSession {
       );
 
   @override
+  Future<ArenaRanking?> arenaRanking({bool refresh = false}) async {
+    final server = this.server;
+    if (server.isSpeed) return null;
+    final json = await _kept(
+      'arena-ranking:${server.code}',
+      '/servers/${server.code}/arena/ranking',
+      refresh: refresh,
+      // Until the next Arena is decided, the day after its week of votes.
+      stillCurrent: (json, _) => json is Map && json['ends_on'] is int && day <= (json['ends_on'] as int) + 7,
+    );
+    return switch (json) {
+      null => null,
+      {'week': int week, 'ends_on': int endsOn, 'challengers': List challengers} => ArenaRanking(
+        week: week,
+        endsOn: endsOn,
+        challengers: [
+          for (final entry in challengers)
+            if (entry case {
+              'character': final character,
+              'place': int place,
+              'rating': num rating,
+              'score': num score,
+              'matchups': int matchups,
+            })
+              ArenaRanked(
+                card: await _card(server, character),
+                place: place,
+                rating: rating.toDouble(),
+                score: score.toDouble(),
+                matchups: matchups,
+                winnerRarity: switch (entry['hero_rarity']) {
+                  final String rarity => Rarity.values.byName(rarity),
+                  _ => null,
+                },
+              )
+            else
+              throw const FormatException('Unexpected Arena challenger.'),
+        ],
+      ),
+      _ => throw const FormatException('Unexpected Arena ranking.'),
+    };
+  }
+
+  @override
   Future<WeekRanking?> weekRanking({bool refresh = false}) async {
     final server = this.server;
     final json = await _kept(
