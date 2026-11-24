@@ -403,6 +403,71 @@ def finale_order(entries: list[FinaleEntry]) -> list[int]:
     return order
 
 
+# The Arena (`app.arena`): every player votes on matchups of two of the week
+# before's challengers that the finale didn't crown. Once the week of votes
+# is over, the top 3 by their rating are crowned Arena winners, with the
+# finale's rarities by place.
+ARENA_RARITIES = FINALE_RARITIES
+# A day's first matchups earn these stars once all are voted on; voting goes
+# on after them, unrewarded, up to the day's cap (`arena_daily_cap`).
+ARENA_PACK = 10
+ARENA_PACK_STARS = 3
+# Each challenger also draws once against a virtual one of strength 1, so
+# ratings stay finite and one without votes sits in the middle.
+ARENA_PRIOR_DRAWS = 1
+
+
+def arena_daily_cap(pairs_left: int, days_left: int) -> int:
+    """How many matchups a player can vote on today, with `pairs_left` pairs
+    they haven't voted on at the start of the day and `days_left` days of the
+    Arena, today included: as many as they like, as long as a pack's pairs
+    stay for every day after today, so the daily stars never run out before
+    the Arena ends; but always the pack while pairs are left."""
+    if pairs_left <= 0 or days_left <= 0:
+        return 0
+    spare = pairs_left - ARENA_PACK * (days_left - 1)
+    return min(pairs_left, max(ARENA_PACK, spare))
+
+
+def arena_ratings(
+    count: int, matchups: list[tuple[int, int, float]], iterations: int = 500
+) -> list[float]:
+    """The Bradley–Terry strengths of `count` challengers from `matchups` of
+    (i, j, i's score: 1 a win, 0.5 a draw, 0 a loss), computed from all of
+    them at once, so their order doesn't matter. Each challenger also has
+    `ARENA_PRIOR_DRAWS` draws against a virtual one of strength 1."""
+    wins = [ARENA_PRIOR_DRAWS * 0.5] * count
+    opponents: list[list[int]] = [[] for _ in range(count)]
+    for i, j, score in matchups:
+        wins[i] += score
+        wins[j] += 1 - score
+        opponents[i].append(j)
+        opponents[j].append(i)
+    strengths = [1.0] * count
+    for _ in range(iterations):
+        new = [
+            wins[i]
+            / (
+                ARENA_PRIOR_DRAWS / (strengths[i] + 1)
+                + sum(1 / (strengths[i] + strengths[j]) for j in opponents[i])
+            )
+            for i in range(count)
+        ]
+        done = all(abs(n - s) <= 1e-12 * max(s, 1) for n, s in zip(new, strengths))
+        strengths = new
+        if done:
+            break
+    return strengths
+
+
+def arena_order(count: int, matchups: list[tuple[int, int, float]]) -> list[int]:
+    """The indexes of an Arena's challengers, best first: the highest rating
+    (`arena_ratings`), then the first in the list (the challengers come in
+    the order of their week's ranking)."""
+    ratings = arena_ratings(count, matchups)
+    return sorted(range(count), key=lambda i: (-round(ratings[i], 9), i))
+
+
 # A player's characters get extra stars against another player's after
 # winning at least a share (in whole percent) of last week's fights against
 # them: the most extra stars of every share they reach. It takes this many
