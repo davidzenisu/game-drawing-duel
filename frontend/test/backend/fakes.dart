@@ -179,6 +179,15 @@ class FakeBackend {
   final Map<String, List<Map<String, Object?>>> weeklyHeroes = {};
   final Map<String, Map<String, Object?>> rankings = {};
 
+  /// The Arena by server code: today's status, as `GET today` and `GET
+  /// arena` send it, and the matchups to vote on in order; tests set them
+  /// up. Votes are recorded, each
+  /// counting for today, and earn the pack's stars like the API.
+  final Map<String, Map<String, Object?>> arenaStatus = {};
+  final Map<String, List<List<Map<String, Object?>>>> arenaMatchups = {};
+  final List<Map<String, Object?>> arenaVotes = [];
+  final Map<(String, String), int> arenaStars = {};
+
   /// The week's boost balance by server code, sent with the boost step;
   /// none (the base stars) unless a test sets one up.
   final Map<String, Map<String, Object?>> boostBalances = {};
@@ -551,6 +560,29 @@ class FakeBackend {
         if (speedServers.contains(code)) return _json(409, {'detail': 'Speed mode sessions have no win rates'});
         return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
       }
+      if (path.length >= 3 && path[2] == 'arena') {
+        final status = arenaStatus[code];
+        Map<String, Object?> round() => {
+          'status': status,
+          'matchup': status == null || (status['votes_today'] as int) >= (status['cap'] as int)
+              ? null
+              : arenaMatchups[code]?.firstOrNull,
+          'stars': _stars(code, myId),
+        };
+        if (request.method == 'GET' && path.length == 3) return _json(200, round());
+        if (request.method == 'POST' && path.length == 4 && path[3] == 'votes') {
+          if (status == null) return _json(409, {'detail': "The Arena isn't open"});
+          arenaVotes.add(body!);
+          arenaMatchups[code]?.removeAt(0);
+          final votes = (status['votes_today'] as int) + 1;
+          status['votes_today'] = votes;
+          if (votes == status['pack'] && status['rewarded'] != true) {
+            status['rewarded'] = true;
+            arenaStars[(code, myId)] = (arenaStars[(code, myId)] ?? 0) + (status['pack_stars'] as int);
+          }
+          return _json(200, round());
+        }
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
         // Like the API: a boost balance, null unless a test sets one.
         return _json(200, switch (rankings[code]) {
@@ -860,7 +892,15 @@ class FakeBackend {
       for (final a in _achievements(code, playerId))
         if (a['collected'] == true) a['stars'] as int,
     ].fold(0, (a, b) => a + b);
-    return 3 * written + 3 * drawn + won + collected + gifted + achieved - 10 * (starPulls[(code, playerId)] ?? 0);
+    final arena = arenaStars[(code, playerId)] ?? 0;
+    return 3 * written +
+        3 * drawn +
+        won +
+        collected +
+        gifted +
+        achieved +
+        arena -
+        10 * (starPulls[(code, playerId)] ?? 0);
   }
 
   /// Like the real API, but only the fight achievements: 1, 3 and 10 fights
@@ -1110,6 +1150,7 @@ class FakeBackend {
       ],
       'day_ended': [...?dayEnded[(code, today)]]..sort(),
       'weekly_heroes': [...?weeklyHeroes[code]],
+      'arena': arenaStatus[code],
     });
   }
 

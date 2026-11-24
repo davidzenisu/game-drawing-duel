@@ -32,7 +32,9 @@ On a computer, the screens that swipe left and right also work with the keyboard
 
 Above them, next to the day's title and above the drawing step, a **Send a hurry** button sends the day's free hurry, with an optional short message for the target (greyed out once sent, when tapping it recalls whom you hurried and your message, or on a day without one).
 
-Below them, a **Heroes** button opens the heroes menu with the same big buttons:
+Below them, an **Arena** button opens the Arena (see [The Arena](#the-arena) below), with a badge counting the votes left for the day's stars; it's greyed out in the first week ("The Arena opens next week, with this week's challengers.") and in speed mode.
+
+Below it, a **Heroes** button opens the heroes menu with the same big buttons:
 
 | | |
 |---|---|
@@ -129,6 +131,22 @@ Speed mode has no player stats.
 | Addict | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. |
 
 Tied players share a place. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Addict in week 1!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept, so players can see how many each won. Weeks are numbered from the launch week ("Week 1", Monday to Sunday, so it may be short). Speed mode has no trophies.
+
+## The Arena
+
+The Arena lets every player, not only the three who boost a challenger, decide which drawings become heroes. It lives alongside the weekly finale, which stays as it is.
+
+| Week | What happens to week X's challengers |
+|---|---|
+| X | drawn, boosted and fought (they count for the week of their fight, like in the finale) |
+| X+1 | the finale crowns its top 3 as weekly heroes, for the weekly banner; **the Arena opens with all the others** |
+| X+2 | the Arena of week X is over; its top 3 will become Arena winners (coming next) |
+
+So the Arena only ever holds a past week's challengers, never the present week's: the first one opens in a server's second week, with week 1's challengers. Speed mode has no Arena.
+
+- **Matchups**: the Arena screen shows two of its challengers on one tall card, as large as the screen allows, like a versus screen: a soft seam curves from top left to bottom right, and each half shows the scenery of its challenger's day (the theme it was drawn for). One challenger stands on its standee base top right with its nameplate beside it on the left (who it portrays, then its title, as in a fight, without stars), the other stands bottom left with its nameplate on the right. Both standees, drawing and base together, sway gently from side to side, out of step (still when the device asks for reduced motion). Behind the card, the screen is plain, without the day's scenery, so it doesn't get too busy. Their artists, stars and places in the finale's ranking don't show: players judge the drawing only. They drag the card toward the better one (right for the one on the right, left for the one on the left): the card tilts, the side it leans toward lights up with a "BETTER" stamp and the other darkens, and let go far enough (or flung), it flies off that way; a short drag springs back. On a computer, → and ← throw it the same way. **Can't decide** (or ↓), a solid button below the card, is a draw: the card drops. The next matchup already waits below, tilted a little so it peeks out, and comes up as the card goes: the server sends it along with the current one (and voting on it works even if the server would now pick another). A player never gets a matchup with a drawing of their own, and votes on each pair once. Matchups are picked by the fewest votes the two challengers have between them first, then the pair of players they portray that met the least (so every pair of players gets matchups), then the closest ratings. The vote animates the pick, then the next matchup comes in.
+- **Stars and the daily limit**: a day's first **10** votes earn **3 stars**, shown with a bar on top of the screen ("4 of 10 for 3 ★", then "3 ★ earned · 12 more today"). Players can keep voting after them, unrewarded, as much as they like, as long as 10 pairs (a pack's) stay for every day of the Arena after today, so there are matchups for the daily stars until Sunday; always at least the 10, while pairs are left. Once only that reserve is left, the screen says "That's all for today". (In a 10-player server with everyone drawing, that's over 1,700 votes on the first day.)
+- **Tutorial**: the Arena opens with its own intro the first time: last week's challengers, and stars for voting.
 
 *The section below is still in its concept phase, ignore for now!!*
 

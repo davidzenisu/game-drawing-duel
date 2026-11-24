@@ -54,6 +54,31 @@ void main() {
     expect(game.availableFighters, isNotEmpty);
   });
 
+  test("the Arena: last week's challengers, and the pack's stars", () async {
+    final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 11, 4, 9));
+    await game.startOnDayEight('Pat');
+    final heroes = {for (final h in game.weeklyHeroes) h.card.id};
+    final status = game.arena!;
+    expect((status.week, status.endsOn, status.votesToday, status.pack), (7, 14, 0, Arena.pack));
+
+    final stars = game.stars;
+    var round = await game.arenaRound();
+    expect(round.next, isNotNull, reason: 'the next matchup comes along, to show below');
+    expect(samePair(round.matchup, round.next), isFalse);
+    final seen = <String>{};
+    for (var vote = 1; vote <= Arena.pack; vote++) {
+      final (first, second) = round.matchup!;
+      expect(heroes.intersection({first.id, second.id}), isEmpty, reason: 'not the weekly heroes');
+      expect([first.artist, second.artist], isNot(contains('Pat')), reason: 'never your own');
+      final pair = ([first.id, second.id]..sort()).join();
+      expect(seen.add(pair), isTrue, reason: 'each pair once');
+      round = await game.arenaVote(first, second, winner: vote.isEven ? first : null);
+      expect(game.stars, stars + (vote == Arena.pack ? Arena.packStars : 0));
+    }
+    expect(round.status!.rewarded, isTrue);
+    expect(game.arena!.packLeft, 0);
+  });
+
   test('you can go by another name on a server, and rename your account', () async {
     final game = MockGameSession(seed: 1);
     await game.signUp('Pat');

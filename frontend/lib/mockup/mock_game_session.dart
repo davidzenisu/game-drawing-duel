@@ -302,6 +302,8 @@ class MockGameSession extends GameSession {
     _collectedAchievements.clear();
     _yourBoosts.clear();
     _weeklyHeroes = const [];
+    _arenaVotes.clear();
+    _arenaRewarded.clear();
     _crowned.clear();
     _hurrySentTo = null;
     _hurryMessage = null;
@@ -998,6 +1000,118 @@ class MockGameSession extends GameSession {
     final lastDay = _days.weekStart(_day) - 1;
     if (lastDay < 7) return null;
     return _week(lastDay);
+  }
+
+  // The Arena -------------------------------------------------------------------
+
+  /// Your Arena votes: (day, first id, second id, winner id or null).
+  final List<(int, String, String, String?)> _arenaVotes = [];
+
+  /// The Arena open on [day]: the last day of the week before; none in the
+  /// first week and in speed mode.
+  int? _arenaWeek(int day) {
+    if (server.isSpeed) return null;
+    final week = _days.weekStart(day) - 1;
+    return week >= 7 ? week : null;
+  }
+
+  /// The Arena of [week]'s challengers: the week's, but its weekly heroes,
+  /// in the order of its ranking.
+  List<CharacterCard> _arenaChallengers(int week) => [
+    for (final (i, r) in _ranked(week - 8, week - 2).indexed)
+      if (i >= Finale.maxHeroes) r.card,
+  ];
+
+  String _pairKey(String a, String b) => a.compareTo(b) < 0 ? '$a|$b' : '$b|$a';
+
+  /// Every pair you can vote on in the Arena of [week]: none with a drawing
+  /// of yours.
+  List<(CharacterCard, CharacterCard)> _arenaPairs(int week) {
+    final theirs = [
+      for (final c in _arenaChallengers(week))
+        if (c.artist != you.name) c,
+    ];
+    return [
+      for (var i = 0; i < theirs.length; i++)
+        for (var j = i + 1; j < theirs.length; j++) (theirs[i], theirs[j]),
+    ];
+  }
+
+  ({ArenaStatus status, (CharacterCard, CharacterCard)? matchup, (CharacterCard, CharacterCard)? next})? _arenaState() {
+    final week = _arenaWeek(_day);
+    if (week == null) return null;
+    final pairs = _arenaPairs(week);
+    final keys = {for (final (a, b) in pairs) _pairKey(a.id, b.id)};
+    final mine = [
+      for (final vote in _arenaVotes)
+        if (keys.contains(_pairKey(vote.$2, vote.$3))) vote,
+    ];
+    final cap = Arena.cap(pairs.length - mine.where((v) => v.$1 < _day).length, week + 7 - _day + 1);
+    final today = mine.where((v) => v.$1 == _day).length;
+    final status = ArenaStatus(
+      week: week,
+      endsOn: week + 7,
+      challengers: _arenaChallengers(week).length,
+      votesToday: today,
+      cap: cap,
+      pack: min(Arena.pack, cap),
+      rewarded: _arenaRewarded.contains(_day),
+    );
+    if (today >= cap) return (status: status, matchup: null, next: null);
+    // The fewest votes of yours first, like online's fewest votes.
+    final counts = <String, int>{};
+    for (final (_, a, b, _) in mine) {
+      counts[a] = (counts[a] ?? 0) + 1;
+      counts[b] = (counts[b] ?? 0) + 1;
+    }
+    final voted = {for (final (_, a, b, _) in mine) _pairKey(a, b)};
+    final left = [
+      for (final pair in pairs)
+        if (!voted.contains(_pairKey(pair.$1.id, pair.$2.id))) pair,
+    ];
+    if (left.isEmpty) return (status: status, matchup: null, next: null);
+    int votes((CharacterCard, CharacterCard) p) => (counts[p.$1.id] ?? 0) + (counts[p.$2.id] ?? 0);
+    (CharacterCard, CharacterCard) pick() {
+      final best = left.reduce((best, p) => votes(p) < votes(best) ? p : best);
+      left.remove(best);
+      // As if it were voted on.
+      counts[best.$1.id] = (counts[best.$1.id] ?? 0) + 1;
+      counts[best.$2.id] = (counts[best.$2.id] ?? 0) + 1;
+      return (mine.length + _day + left.length).isEven ? best : (best.$2, best.$1);
+    }
+
+    final matchup = pick();
+    final next = left.isEmpty || today + 1 >= cap ? null : pick();
+    return (status: status, matchup: matchup, next: next);
+  }
+
+  /// The days your pack earned its stars on.
+  final Set<int> _arenaRewarded = {};
+
+  @override
+  ArenaStatus? get arena => _arenaState()?.status;
+
+  @override
+  Future<ArenaRound> arenaRound() async {
+    final state = _arenaState();
+    return ArenaRound(status: state?.status, matchup: state?.matchup, next: state?.next);
+  }
+
+  @override
+  Future<ArenaRound> arenaVote(CharacterCard first, CharacterCard second, {CharacterCard? winner}) async {
+    final state = _arenaState();
+    if (state == null) throw StateError("The Arena isn't open.");
+    if (!state.status.canVote) throw StateError("That's all for today.");
+    if (_arenaVotes.any((v) => _pairKey(v.$2, v.$3) == _pairKey(first.id, second.id))) {
+      throw StateError('You voted on this matchup already.');
+    }
+    _arenaVotes.add((_day, first.id, second.id, winner?.id));
+    if (!state.status.rewarded && state.status.votesToday + 1 >= state.status.pack) {
+      _arenaRewarded.add(_day);
+      _stars += Arena.packStars;
+    }
+    notifyListeners();
+    return arenaRound();
   }
 
   @override
