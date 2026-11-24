@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/screens/arena_screen.dart';
+import 'package:frontend/game/screens/ranking_screen.dart';
 import 'package:frontend/game/widgets/sketch_canvas.dart';
 import 'package:frontend/mockup/mock_game_session.dart';
 
@@ -113,5 +114,39 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: ArenaScreen(controller: game)));
     await _settle(tester);
     expect(find.text('The Arena opens next week'), findsOneWidget);
+  });
+
+  testWidgets("the week ranking's Arena view: this week's Arena, then the latest decided one", (tester) async {
+    _phone(tester);
+    final game = MockGameSession(seed: 1, launchDate: DateTime.utc(2026, 11, 4, 9));
+    await game.startOnDayEight('Pat');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RankingScreen(controller: game, view: RankingView.arena),
+      ),
+    );
+    await _settle(tester);
+    expect(find.textContaining("Week 1's"), findsOneWidget);
+    expect(find.textContaining('ratings stay secret'), findsOneWidget);
+    await tester.tap(find.text('Last week'));
+    await _settle(tester);
+    expect(find.textContaining('No Arena decided yet'), findsOneWidget);
+
+    while (game.day < 15) {
+      await game.advanceDay();
+    }
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RankingScreen(
+          key: const ValueKey('decided'),
+          controller: game,
+          view: RankingView.arena,
+          period: StatPeriod.lastWeek,
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(find.textContaining('Arena winner'), findsWidgets);
+    expect(find.textContaining('#1 · Arena winner · ★★★★'), findsOneWidget);
   });
 }

@@ -56,3 +56,27 @@ class ArenaHeroResponse(BaseModel):
     week: int
     # Its place in the Arena's ranking, 1 to 3.
     place: int
+
+
+class ArenaRanked(BaseModel):
+    character: CharacterResponse
+    # Its place: the winners' first, by place, then the others'.
+    place: int
+    # The `app.rules.Rarity` it was crowned with as an Arena winner; null if
+    # it wasn't.
+    hero_rarity: str | None = None
+    # Its rating (`app.rules.arena_ratings`), its score in its matchups (a
+    # draw counts a half) and how many.
+    rating: float
+    score: float
+    matchups: int
+
+
+class ArenaRankingResponse(BaseModel):
+    """The latest decided Arena, best first; its winners joined the gacha
+    pool."""
+
+    # The last day of its challengers' week, and of its week of votes.
+    week: int
+    ends_on: int
+    challengers: list[ArenaRanked]

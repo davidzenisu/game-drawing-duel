@@ -92,6 +92,8 @@ void main() {
     expect(game.pool.map((c) => c.id), containsAll(winners.map((w) => w.card.id)));
     expect(game.arenaRateUp, {for (final w in winners) w.card.id});
     expect(game.bannerOpen(GachaBanner.arena), isTrue);
+    final ranking = (await game.arenaRanking())!;
+    expect([for (final r in ranking.winners) r.card.id], [for (final w in winners) w.card.id]);
     expect(game.arena!.week, 14, reason: "this week's Arena holds last week's challengers");
 
     final pulled = await game.pull(1, banner: GachaBanner.arena, topUp: true);

@@ -303,6 +303,7 @@ class MockGameSession extends GameSession {
     _yourBoosts.clear();
     _weeklyHeroes = const [];
     _arenaWinners = const [];
+    _latestArena = null;
     _arenaVotes.clear();
     _arenaRewarded.clear();
     _crowned.clear();
@@ -1010,6 +1011,10 @@ class MockGameSession extends GameSession {
 
   List<ArenaWinner> _arenaWinners = const [];
 
+  /// The latest decided Arena, like online: crowned the Monday after its
+  /// week of votes.
+  ArenaRanking? _latestArena;
+
   @override
   List<ArenaWinner> get arenaWinners => _arenaWinners;
 
@@ -1166,6 +1171,9 @@ class MockGameSession extends GameSession {
   }
 
   @override
+  Future<ArenaRanking?> arenaRanking({bool refresh = false}) async => _latestArena;
+
+  @override
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async => _playerStats(period);
 
   /// Made-up player stats: at random, but the same for a period and day.
@@ -1260,6 +1268,7 @@ class MockGameSession extends GameSession {
       // crowns its winners too.
       if (_day > 14) {
         final arena = _decideArena(_day - 8);
+        _latestArena = arena;
         for (final winner in arena.winners) {
           _crowned[winner.card.id] = winner.winnerRarity!;
           _pool.removeWhere((c) => c.id == winner.card.id);

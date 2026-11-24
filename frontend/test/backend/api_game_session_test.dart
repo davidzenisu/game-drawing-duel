@@ -1065,7 +1065,7 @@ void main() {
       expect(admin.rateUp, {right['id']});
     });
 
-    test("the Arena: today's matchups, votes and the pack's stars, and its winners", () async {
+    test("the Arena: today's matchups, votes and the pack's stars, its winners and ranking", () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
       await drawAll(admin);
@@ -1117,9 +1117,25 @@ void main() {
       backend.arenaWinners['123456'] = [
         {'character': other, 'week': 7, 'place': 1},
       ];
+      backend.arenaRankings['123456'] = {
+        'week': 7,
+        'ends_on': 14,
+        'challengers': [
+          {'character': other, 'place': 1, 'hero_rarity': 'legend', 'rating': 2.5, 'score': 3.5, 'matchups': 4},
+          {'character': left, 'place': 2, 'hero_rarity': null, 'rating': 0.5, 'score': 0, 'matchups': 2},
+        ],
+      };
       await admin.refreshDay();
       final winner = admin.arenaWinners.single;
       expect((winner.card.id, winner.week, winner.place), (other['id'], 7, 1));
+      final ranking = (await admin.arenaRanking())!;
+      expect(backend.requests.last.url.path, '/servers/123456/arena/ranking');
+      expect((ranking.week, ranking.endsOn), (7, 14));
+      expect(
+        [for (final r in ranking.winners) (r.card.id, r.winnerRarity, r.record)],
+        [(other['id'], Rarity.legend, '3½ of 4')],
+      );
+      expect(ranking.challengers.last.record, '0 of 2');
     });
 
     test('the week ranking is kept on the device until the next week is over', () async {

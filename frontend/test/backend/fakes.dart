@@ -180,12 +180,13 @@ class FakeBackend {
   final Map<String, Map<String, Object?>> rankings = {};
 
   /// The Arena by server code: today's status, as `GET today` and `GET
-  /// arena` send it, the matchups to vote on in order, and the latest
-  /// Arena's winners; tests set them up. Votes are recorded, each
+  /// arena` send it, the matchups to vote on in order, the latest Arena's
+  /// winners and its ranking; tests set them up. Votes are recorded, each
   /// counting for today, and earn the pack's stars like the API.
   final Map<String, Map<String, Object?>> arenaStatus = {};
   final Map<String, List<List<Map<String, Object?>>>> arenaMatchups = {};
   final Map<String, List<Map<String, Object?>>> arenaWinners = {};
+  final Map<String, Map<String, Object?>> arenaRankings = {};
   final List<Map<String, Object?>> arenaVotes = [];
   final Map<(String, String), int> arenaStars = {};
 
@@ -582,6 +583,9 @@ class FakeBackend {
             arenaStars[(code, myId)] = (arenaStars[(code, myId)] ?? 0) + (status['pack_stars'] as int);
           }
           return _json(200, round());
+        }
+        if (request.method == 'GET' && path.length == 4 && path[3] == 'ranking') {
+          return _json(200, arenaRankings[code]);
         }
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {

@@ -402,3 +402,16 @@ def latest_winners(session: Session, server: Server) -> list[ArenaHero]:
     none, or before the first one."""
     week = latest_week(session, server)
     return [] if week is None else winners_of(session, server, week)
+
+
+def ranking(session: Session, server: Server, week: int) -> list[Standing]:
+    """The decided Arena of `week`, best first: its winners first, by place,
+    then the others by their standing."""
+    ranked = standings(
+        challengers(session, server, week), _votes(session, server, week)
+    )
+    places = {h.character_id: h.place for h in winners_of(session, server, week)}
+    return sorted(
+        ranked,
+        key=lambda s: places.get(s.challenger.id, len(places) + 1 + ranked.index(s)),
+    )

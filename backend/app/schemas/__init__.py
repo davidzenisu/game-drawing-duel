@@ -2,6 +2,8 @@ from app.schemas.achievement import AchievementResponse
 from app.schemas.admin_drawing import AdminDrawing
 from app.schemas.arena import (
     ArenaHeroResponse,
+    ArenaRanked,
+    ArenaRankingResponse,
     ArenaResponse,
     ArenaStatus,
     ArenaVoteSubmit,
@@ -91,6 +93,8 @@ __all__ = [
     "AdminPlayer",
     "AdminServer",
     "ArenaHeroResponse",
+    "ArenaRanked",
+    "ArenaRankingResponse",
     "ArenaResponse",
     "ArenaStatus",
     "ArenaVoteSubmit",

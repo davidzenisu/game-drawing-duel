@@ -3,14 +3,7 @@ import uuid
 from sqlalchemy import select
 
 from app import arena, rules
-from app.models import (
-    ArenaHero,
-    ArenaVote,
-    Character,
-    Server,
-    ServerSeat,
-    StarGrant,
-)
+from app.models import ArenaVote, Character, Server, ServerSeat, StarGrant
 from tests.helpers import bearer, make_token
 from tests.test_fights import ADMIN, PLAYERS, ROBIN, SAM
 from tests.test_finale import FinaleTestCase
@@ -41,6 +34,11 @@ class ArenaTestCase(FinaleTestCase):
             },
             headers=bearer(make_token(subject)),
         )
+
+    def arena_ranking(self, subject: str = ADMIN):
+        response = self.get(f"/servers/{self.code}/arena/ranking", subject)
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
 
     def stars(self, subject: str = ADMIN) -> int:
         return self.get(f"/servers/{self.code}/gacha", subject).json()["stars"]
@@ -217,6 +215,7 @@ class ArenaTests(ArenaTestCase):
         )
         self.assertEqual(closed.status_code, 409)
         self.assertIn("Arena", closed.json()["detail"])
+        self.assertIsNone(self.arena_ranking(), "secret until it's decided")
 
         self.vote_all_week(prefer=favourite)
         self.assertEqual(self.today()["day"], 14)
@@ -241,11 +240,15 @@ class ArenaTests(ArenaTestCase):
         self.assertEqual(
             set(gacha["arena_rate_up"]), {w["character"]["id"] for w in winners}
         )
-        with self.session_factory() as session:
-            top = session.scalar(
-                select(ArenaHero).where(ArenaHero.place == 1, ArenaHero.week == 7)
-            )
-            self.assertEqual(top.score, top.matchups, "won every matchup")
+        ranking = self.arena_ranking()
+        self.assertEqual((ranking["week"], ranking["ends_on"]), (7, 14))
+        self.assertEqual(len(ranking["challengers"]), 9)
+        self.assertEqual(
+            [(r["place"], r["hero_rarity"]) for r in ranking["challengers"][:4]],
+            [(1, "legend"), (2, "hero"), (3, "adventurer"), (4, None)],
+        )
+        top = ranking["challengers"][0]
+        self.assertEqual(top["score"], top["matchups"], "won every matchup")
         # The Arena of week 2's challengers is open now.
         self.assertEqual(self.today()["arena"]["week"], 14)
 
@@ -264,11 +267,8 @@ class ArenaTests(ArenaTestCase):
         # Nobody draws in week 2, so week 2's Arena is empty.
         self.go_to_day(22)
         self.assertEqual(self.today()["arena_heroes"], [])
-        with self.session_factory() as session:
-            decided = session.scalars(
-                select(ArenaHero).where(ArenaHero.week == 14)
-            ).all()
-        self.assertEqual([h.character_id for h in decided], [None])
+        self.assertEqual(self.arena_ranking()["challengers"], [])
+        self.assertEqual(self.arena_ranking()["week"], 14)
 
 
 class ArenaUnitTests(ArenaTestCase):

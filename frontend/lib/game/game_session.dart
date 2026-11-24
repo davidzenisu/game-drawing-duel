@@ -437,6 +437,11 @@ abstract class GameSession extends ChangeNotifier {
   /// round; the day's pack stars add to your [stars] with its last vote.
   Future<ArenaRound> arenaVote(CharacterCard first, CharacterCard second, {CharacterCard? winner});
 
+  /// Loads the latest decided Arena, best first; null before the first one
+  /// is decided and in speed mode. Kept on the device until the next one is
+  /// decided, unless [refresh].
+  Future<ArenaRanking?> arenaRanking({bool refresh = false});
+
   /// Loads every player's stats and trophies for [period], and who its
   /// challengers portray, see [PlayerStats]; null in speed mode, which has
   /// none, and for last week before the first week is over. Kept on the
