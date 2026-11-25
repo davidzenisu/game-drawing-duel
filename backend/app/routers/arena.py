@@ -47,8 +47,9 @@ def arena_heroes(session: Session, server: Server) -> list[ArenaHeroResponse]:
     ]
 
 
-def _response(session: Session, server: Server, seat: ServerSeat) -> ArenaResponse:
-    state = arena.state(session, server, seat, days.current_day(server))
+def _response(
+    session: Session, seat: ServerSeat, state: arena.ArenaState
+) -> ArenaResponse:
     return ArenaResponse(
         status=arena_status(state),
         matchup=None
@@ -66,7 +67,9 @@ def get_arena(code: Code, player: CurrentPlayer, session: DbSession) -> ArenaRes
     """Your Arena today, with the next matchup to vote on."""
     server, seat = running_game(session, code, player.id)
     finale.settle(session, server)
-    return _response(session, server, seat)
+    return _response(
+        session, seat, arena.state(session, server, seat, days.current_day(server))
+    )
 
 
 @router.post("/{code}/arena/votes", response_model=ArenaResponse)
@@ -79,7 +82,7 @@ def vote(
     finale.settle(session, server)
     first, second = body.challenger_ids
     try:
-        arena.vote(
+        after = arena.vote(
             session,
             server,
             seat,
@@ -89,7 +92,7 @@ def vote(
         )
     except arena.VoteRejected as error:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(error)) from error
-    return _response(session, server, seat)
+    return _response(session, seat, after)
 
 
 @router.get("/{code}/arena/ranking", response_model=ArenaRankingResponse | None)

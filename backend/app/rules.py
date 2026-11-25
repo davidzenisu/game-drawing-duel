@@ -439,37 +439,52 @@ def arena_ratings(
     """The Bradley–Terry strengths of `count` challengers from `matchups` of
     (i, j, i's score: 1 a win, 0.5 a draw, 0 a loss), computed from all of
     them at once, so their order doesn't matter. Each challenger also has
-    `ARENA_PRIOR_DRAWS` draws against a virtual one of strength 1."""
+    `ARENA_PRIOR_DRAWS` draws against a virtual one of strength 1.
+
+    Each iteration goes through the pairs that met (with how often), not
+    every vote, until no strength moves by more than a 1e-10 share."""
     wins = [ARENA_PRIOR_DRAWS * 0.5] * count
-    opponents: list[list[int]] = [[] for _ in range(count)]
+    met: dict[tuple[int, int], int] = {}
     for i, j, score in matchups:
         wins[i] += score
         wins[j] += 1 - score
-        opponents[i].append(j)
-        opponents[j].append(i)
+        pair = (i, j) if i < j else (j, i)
+        met[pair] = met.get(pair, 0) + 1
+    opponents: list[list[tuple[int, int]]] = [[] for _ in range(count)]
+    for (i, j), times in sorted(met.items()):
+        opponents[i].append((j, times))
+        opponents[j].append((i, times))
     strengths = [1.0] * count
     for _ in range(iterations):
         new = [
             wins[i]
             / (
                 ARENA_PRIOR_DRAWS / (strengths[i] + 1)
-                + sum(1 / (strengths[i] + strengths[j]) for j in opponents[i])
+                + sum(
+                    times / (strengths[i] + strengths[j]) for j, times in opponents[i]
+                )
             )
             for i in range(count)
         ]
-        done = all(abs(n - s) <= 1e-12 * max(s, 1) for n, s in zip(new, strengths))
+        done = all(abs(n - s) <= 1e-10 * max(s, 1) for n, s in zip(new, strengths))
         strengths = new
         if done:
             break
     return strengths
 
 
-def arena_order(count: int, matchups: list[tuple[int, int, float]]) -> list[int]:
+def arena_order(
+    count: int,
+    matchups: list[tuple[int, int, float]],
+    ratings: list[float] | None = None,
+) -> list[int]:
     """The indexes of an Arena's challengers, best first: the ones with at
     least `ARENA_MIN_MATCHUPS` matchups before the others, then the highest
-    rating (`arena_ratings`, from all of the matchups), then the first in the
-    list (the challengers come in the order of their week's ranking)."""
-    ratings = arena_ratings(count, matchups)
+    rating (`arena_ratings`, from all of the matchups; computed unless
+    given), then the first in the list (the challengers come in the order of
+    their week's ranking)."""
+    if ratings is None:
+        ratings = arena_ratings(count, matchups)
     taken = arena_matchups(count, matchups)
     return sorted(
         range(count),

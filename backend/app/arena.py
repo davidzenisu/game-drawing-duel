@@ -136,7 +136,7 @@ def standings(entries: list[Character], votes: list[ArenaVote]) -> list[Standing
         counts[j] += 1
     return [
         Standing(entries[i], ratings[i], scores[i], counts[i])
-        for i in rules.arena_order(len(entries), matchups)
+        for i in rules.arena_order(len(entries), matchups, ratings)
     ]
 
 
@@ -188,17 +188,22 @@ def _matchups(
 ) -> list[tuple[Character, Character]]:
     """The next `count` pairs for `seat` to vote on, the first one first:
     the fewest votes between both first, then the pair of portrayed players
-    that met the least, then the closest ratings; random among the rest, the
-    same until something changes. The ones after the first are picked as if
-    the ones before were voted on. Each is shown in random order."""
+    that met the least, then the closest win shares (their score per
+    matchup, with a draw to start from: as quick as it gets, unlike the
+    ratings, which only the ranking needs); random among the rest, the same
+    until something changes. The ones after the first are picked as if the
+    ones before were voted on. Each is shown in random order."""
     voted = {(v.first_id, v.second_id) for v in _mine(votes, seat)}
     left = [p for p in _pairs(entries, seat) if _pair(p[0].id, p[1].id) not in voted]
     if not left:
         return []
     counts: Counter[uuid.UUID] = Counter()
+    scores: Counter[uuid.UUID] = Counter()
     for v in votes:
         counts[v.first_id] += 1
         counts[v.second_id] += 1
+        for side in (v.first_id, v.second_id):
+            scores[side] += 0.5 if v.winner_id is None else float(v.winner_id == side)
     subjects = {c.id: c.subject_seat_id for c in entries}
     met: Counter[tuple[str, str]] = Counter()
     for v in votes:
@@ -206,7 +211,7 @@ def _matchups(
             met[
                 tuple(sorted(map(str, (subjects[v.first_id], subjects[v.second_id]))))
             ] += 1
-    ratings = {s.challenger.id: s.rating for s in standings(entries, votes)}
+    shares = {c.id: (scores[c.id] + 0.5) / (counts[c.id] + 1) for c in entries}
     rng = random.Random(f"{server.id}:{seat.id}:{day}:{len(voted)}:{len(votes)}")
     rng.shuffle(left)
 
@@ -215,7 +220,7 @@ def _matchups(
         return (
             counts[a.id] + counts[b.id],
             met[tuple(sorted((str(a.subject_seat_id), str(b.subject_seat_id))))],
-            abs(ratings[a.id] - ratings[b.id]),
+            abs(shares[a.id] - shares[b.id]),
         )
 
     picked = []
@@ -243,12 +248,30 @@ def state(
     with_matchup: bool = True,
 ) -> ArenaState:
     """`seat`'s Arena on `day`, with its next matchup unless not
-    `with_matchup` (cheaper). The finales must be decided (`finale.settle`)."""
+    `with_matchup`. The finales must be decided (`finale.settle`). Two
+    queries for the Arena, whatever its size: its challengers (not ranked:
+    matchups don't need their week's ranking) and its votes."""
     week = open_week(server, day)
     if week is None:
         return ArenaState()
-    entries = challengers(session, server, week, ranked=with_matchup)
+    entries = challengers(session, server, week, ranked=False)
     votes = _votes(session, server, week)
+    return _state(session, server, seat, day, week, entries, votes, with_matchup)
+
+
+def _state(
+    session: Session,
+    server: Server,
+    seat: ServerSeat,
+    day: int,
+    week: int,
+    entries: list[Character],
+    votes: list[ArenaVote],
+    with_matchup: bool,
+    rewarded: bool | None = None,
+) -> ArenaState:
+    """`seat`'s Arena of `week` on `day`, from its challengers and votes;
+    whether today's pack earned its stars is looked up unless `rewarded`."""
     mine = _mine(votes, seat)
     pairs = len(_pairs(entries, seat))
     cap = rules.arena_daily_cap(
@@ -265,7 +288,9 @@ def state(
         challengers=len(entries),
         votes_today=today,
         cap=cap,
-        rewarded=bool(stars.granted(session, seat.id, [_pack_reason(day)])),
+        rewarded=bool(stars.granted(session, seat.id, [_pack_reason(day)]))
+        if rewarded is None
+        else rewarded,
         matchup=upcoming[0] if upcoming else None,
         next_matchup=upcoming[1] if len(upcoming) > 1 else None,
     )
@@ -282,9 +307,11 @@ def vote(
     day: int,
     pair: tuple[uuid.UUID, uuid.UUID],
     winner: uuid.UUID | None,
-) -> None:
+) -> ArenaState:
     """Votes for `winner`, one of `pair`, or a draw without one; earns the
-    day's pack stars with its last vote. Commits. Raises `VoteRejected`."""
+    day's pack stars with its last vote. Commits. Raises `VoteRejected`.
+    Answers with the Arena after the vote, its next matchups picked from the
+    challengers and votes loaded for it, so it's loaded once."""
     week = open_week(server, day)
     if week is None:
         raise VoteRejected("The Arena isn't open")
@@ -293,38 +320,51 @@ def vote(
         raise VoteRejected("A matchup takes two challengers")
     if winner is not None and winner not in pair:
         raise VoteRejected("The winner must be one of the matchup")
-    current = state(session, server, seat, day, with_matchup=False)
+    in_arena = challengers(session, server, week, ranked=False)
+    votes = _votes(session, server, week)
+    current = _state(
+        session, server, seat, day, week, in_arena, votes, with_matchup=False
+    )
     if current.votes_today >= current.cap:
         raise VoteRejected("That's all for today")
-    entries = {c.id: c for c in challengers(session, server, week, ranked=False)}
+    entries = {c.id: c for c in in_arena}
     if a not in entries or b not in entries:
         raise VoteRejected("Both challengers must be in the Arena")
     if seat.id in (entries[a].artist_seat_id, entries[b].artist_seat_id):
         raise VoteRejected("You can't vote on your own drawings")
     first, second = _pair(a, b)
-    session.add(
-        ArenaVote(
-            server_id=server.id,
-            voter_seat_id=seat.id,
-            week=week,
-            day=day,
-            first_id=first,
-            second_id=second,
-            winner_id=winner,
-        )
+    if (first, second) in {(v.first_id, v.second_id) for v in _mine(votes, seat)}:
+        raise VoteRejected("You voted on this matchup already")
+    cast = ArenaVote(
+        server_id=server.id,
+        voter_seat_id=seat.id,
+        week=week,
+        day=day,
+        first_id=first,
+        second_id=second,
+        winner_id=winner,
     )
-    try:
-        session.flush()
-    except IntegrityError as error:
-        session.rollback()
-        raise VoteRejected("You voted on this matchup already") from error
-    if current.votes_today + 1 >= current.pack and not current.rewarded:
+    session.add(cast)
+    earned = current.votes_today + 1 >= current.pack and not current.rewarded
+    if earned:
         session.add(stars.grant(seat.id, _pack_reason(day), rules.ARENA_PACK_STARS))
     try:
         session.commit()
     except IntegrityError as error:
+        # Cast at the same time elsewhere.
         session.rollback()
         raise VoteRejected("You voted on this matchup already") from error
+    return _state(
+        session,
+        server,
+        seat,
+        day,
+        week,
+        in_arena,
+        [*votes, cast],
+        with_matchup=True,
+        rewarded=current.rewarded or earned,
+    )
 
 
 def _decide(session: Session, server: Server, week: int) -> list[ArenaHero]:

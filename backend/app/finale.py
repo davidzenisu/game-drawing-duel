@@ -17,15 +17,15 @@ hero, 3rd as an adventurer (`rules.FINALE_RARITIES`).
 """
 
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, replace
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app import days, fights, player_stats, rules, speed
-from app.models import Character, Fight, Server, WeeklyHero
+from app.models import Boost, Character, Fight, Fighter, Server, WeeklyHero
 
 # A challenger is fought this many days after it was drawn (its prompt is
 # written the day before): boosted the day after, fought the day after that.
@@ -65,7 +65,10 @@ def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
     """The challengers of the week that ends on `day`, its last day, best
     first (`rules.finale_order`; then the one drawn last): the ones fought
     that week. Their boosts and fights must be
-    complete (`app.fights.complete_boosts`, `app.fights.complete_fights`)."""
+    complete (`app.fights.complete_boosts`, `app.fights.complete_fights`).
+
+    A few queries whatever the number of challengers: the challengers, all of
+    their fights with the fighters, and all of their boost stars at once."""
     challengers = session.scalars(
         select(Character)
         .where(
@@ -77,19 +80,31 @@ def ranking(session: Session, server: Server, day: int) -> list[Ranked]:
         )
         .options(selectinload(Character.artist), selectinload(Character.subject))
     ).all()
+    ids = [c.id for c in challengers]
+    fought: defaultdict[uuid.UUID, list[Fight]] = defaultdict(list)
+    for fight in session.scalars(
+        select(Fight)
+        .where(Fight.challenger_id.in_(ids), Fight.day <= day)
+        .order_by(Fight.day, Fight.id)
+        .options(selectinload(Fight.fighters).selectinload(Fighter.character))
+    ):
+        fought[fight.challenger_id].append(fight)
+    boosted = dict(
+        session.execute(
+            select(Boost.challenger_id, func.coalesce(func.sum(Boost.stars), 0))
+            .where(Boost.challenger_id.in_(ids))
+            .group_by(Boost.challenger_id)
+        ).all()
+    )
     entries = []
     for challenger in challengers:
-        against = session.scalars(
-            select(Fight)
-            .where(Fight.challenger_id == challenger.id, Fight.day <= day)
-            .options(selectinload(Fight.fighters))
-        ).all()
+        against = fought[challenger.id]
         won = [
             (f.owner_seat_id, not fights.outcome(session, f).fighters_win)
             for f in against
         ]
         wins = sum(w for _, w in won)
-        stars = rules.challenger_stars(fights.boost_stars(session, challenger.id))
+        stars = rules.challenger_stars(boosted.get(challenger.id, 0))
         entries.append(Ranked(challenger, stars, len(against), wins, tuple(won)))
     by_artist: Counter[uuid.UUID] = Counter()
     for r in entries:

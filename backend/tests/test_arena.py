@@ -1,8 +1,8 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 
-from app import arena, rules
+from app import arena, finale, rules
 from app.models import ArenaVote, Character, Server, ServerSeat, StarGrant
 from tests.helpers import bearer, make_token
 from tests.test_fights import ADMIN, PLAYERS, ROBIN, SAM
@@ -343,6 +343,38 @@ class ArenaTests(ArenaTestCase):
         third_entry = ranking[ids[2]]
         self.assertGreater(third_entry["rating"], ranking[ids[0]]["rating"])
         self.assertIsNone(third_entry["hero_rarity"])
+
+    def count_queries(self, call) -> int:
+        """How many statements `call` sends to the database."""
+        statements = []
+
+        def count(*_) -> None:
+            statements.append(1)
+
+        event.listen(self.engine, "before_cursor_execute", count)
+        try:
+            call()
+        finally:
+            event.remove(self.engine, "before_cursor_execute", count)
+        return len(statements)
+
+    def test_matchups_and_votes_take_a_few_queries_whatever_the_arena(
+        self,
+    ) -> None:
+        # Each is a round trip to the database: they must not grow with the
+        # Arena's challengers (#315). Loading the player, the server and
+        # settling the finales count too.
+        self.go_to_day(8)
+        self.assertLessEqual(self.count_queries(self.arena), 11)
+        matchup = self.arena()["matchup"]
+        self.assertLessEqual(self.count_queries(lambda: self.vote(matchup)), 12)
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            self.assertLessEqual(
+                self.count_queries(lambda: finale.ranking(session, server, 7)),
+                7,
+                "the challengers, their fights and fighters, and their boosts",
+            )
 
 
 class ArenaUnitTests(ArenaTestCase):
