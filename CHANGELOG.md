@@ -9,6 +9,17 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.41.0] - 2026-11-26
+
+### Added
+- The **Progress** screen of the **Hero List** has a dropdown to see any
+  other player's progress on the server: the same numbers as yours.
+
+### Changed
+- The ring at the top of **Progress** shows the heroes you collected out of
+  all the heroes you can summon, instead of the ones maxed out. Maxed out
+  moved to the list next to it.
+
 ## [0.40.0] - 2026-11-26
 
 ### Changed

@@ -6,6 +6,7 @@ import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
 import '../game/rules/gacha.dart';
 import '../game/rules/models.dart';
+import '../game/rules/progress.dart';
 import '../game/rules/setup_plan.dart';
 import '../game/rules/themes.dart';
 import '../game/rules/upgrades.dart';
@@ -1238,6 +1239,29 @@ class MockGameSession extends GameSession {
       ],
       boostBalance: period == StatPeriod.week ? _boostBalance(_day) : null,
     );
+  }
+
+  @override
+  Future<Map<Rarity, Progress>> playerProgress(Player player) async {
+    if (player.isYou) return Progress.byRarity(_pool, collection);
+    // Made-up collections: at random, but the same for a player and day,
+    // about as far along as yours.
+    final index = server.players.indexWhere((p) => p.id == player.id);
+    final rng = Random(_day * 1009 + index * 31 + 7);
+    final share = (_owned.length / max(_pool.length, 1) + rng.nextDouble() * 0.4 - 0.2).clamp(0.1, 1.0);
+    final owned = [
+      for (final card in _pool)
+        if (rng.nextDouble() < share)
+          () {
+            final o = OwnedCard(card)..copies = 1 + rng.nextInt(_day + 2);
+            for (final (i, effect) in o.path.indexed) {
+              if (o.upgradePoints < o.costs[i]) break;
+              o.unlocked.add(effect);
+            }
+            return o;
+          }(),
+    ];
+    return Progress.byRarity(_pool, owned);
   }
 
   @override

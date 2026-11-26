@@ -5,6 +5,7 @@ import 'rules/achievements.dart';
 import 'rules/daily_loop.dart';
 import 'rules/gacha.dart';
 import 'rules/models.dart';
+import 'rules/progress.dart';
 import 'rules/setup_plan.dart';
 import 'rules/themes.dart';
 import 'rules/upgrades.dart';
@@ -458,6 +459,11 @@ abstract class GameSession extends ChangeNotifier {
   /// null in speed mode, which has none. Kept on the device for the week,
   /// unless [refresh].
   Future<WeekWinRates?> winRates({bool refresh = false});
+
+  /// Loads how far another [player]'s collection has come, per rarity: only
+  /// the totals, not which characters they own. Yours is worked out from
+  /// your [collection] instead, see [Progress.byRarity].
+  Future<Map<Rarity, Progress>> playerProgress(Player player);
 
   /// The keys of the intros you saw (see `Tutorial`), so each shows once.
   /// Online they're kept with your account, on every device.

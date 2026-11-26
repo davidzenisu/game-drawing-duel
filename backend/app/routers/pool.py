@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app import finale, pulls, stars, upgrades
+from app import finale, progress, pulls, stars, upgrades
 from app.auth import CurrentPlayer
 from app.deps import (
     Code,
@@ -26,9 +26,11 @@ from app.schemas import (
     ElementRequest,
     GachaResponse,
     OwnedCharacterResponse,
+    ProgressResponse,
     PullOutcomeResponse,
     PullRequest,
     PullsResponse,
+    RarityProgressResponse,
     UpgradeRequest,
 )
 
@@ -154,6 +156,29 @@ def get_collection(
     pulled, with how many copies you own."""
     _, seat = running_game(session, code, player.id)
     return _collection(session, seat)
+
+
+@router.get("/{code}/seats/{position}/progress", response_model=ProgressResponse)
+def get_progress(
+    code: Code, position: int, player: CurrentPlayer, session: DbSession
+) -> ProgressResponse:
+    """How far the collection of the player at `position` has come, per
+    rarity: yours or any other player's on the server. Only totals, not
+    which characters they own, see `app.progress`."""
+    server, _ = running_game(session, code, player.id)
+    seat = next((s for s in server.seats if s.position == position), None)
+    if seat is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No such player")
+    # A week's hero joins the pool once its finale is over.
+    finale.settle(session, server)
+    by_rarity = progress.by_rarity(session, seat)
+    return ProgressResponse(
+        player_position=position,
+        rarities=[
+            RarityProgressResponse(rarity=rarity, **vars(p))
+            for rarity, p in by_rarity.items()
+        ],
+    )
 
 
 def _collection(
