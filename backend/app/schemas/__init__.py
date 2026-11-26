@@ -74,6 +74,7 @@ from app.schemas.player_stats import (
     PlayerStatsResponse,
     PortrayedPlayer,
 )
+from app.schemas.progress import ProgressResponse, RarityProgressResponse
 from app.schemas.server import (
     AssignmentResponse,
     CleanupResponse,
@@ -135,6 +136,7 @@ __all__ = [
     "PlayerStatsResponse",
     "PlayerUpdate",
     "PortrayedPlayer",
+    "ProgressResponse",
     "PromptSubmit",
     "PromptToDrawResponse",
     "PullOutcomeResponse",
@@ -144,6 +146,7 @@ __all__ = [
     "RankedChallenger",
     "RankedFight",
     "RankingResponse",
+    "RarityProgressResponse",
     "SeatResponse",
     "ServerCreate",
     "ServerResponse",

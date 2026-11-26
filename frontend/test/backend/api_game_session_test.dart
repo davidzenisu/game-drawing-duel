@@ -13,6 +13,7 @@ import 'package:frontend/game/rules/content.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/gacha.dart';
 import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/rules/progress.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/rules/themes.dart';
 import 'package:frontend/game/rules/upgrades.dart';
@@ -661,6 +662,22 @@ void main() {
         'pulls': 1,
         'stars': 0,
       });
+    });
+
+    test("loads another player's progress totals", () async {
+      await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+      await admin.startSetup();
+      await drawAll(admin);
+      await admin.launch();
+
+      final other = admin.otherPlayers.first;
+      final progress = await admin.playerProgress(other);
+      final request = backend.requests.last;
+      expect(request.url.path, '/servers/123456/seats/1/progress');
+      expect(progress.keys, Rarity.values);
+      final total = progress.values.fold(Progress.empty, (a, b) => a + b);
+      expect(total.inPool, admin.pool.length);
+      expect(total.collected, 0, reason: 'nobody plays that seat');
     });
 
     test('pulls spend tickets and add copies to the collection', () async {

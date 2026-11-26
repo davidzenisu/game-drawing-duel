@@ -506,6 +506,35 @@ class FakeBackend {
       if (request.method == 'GET' && path.length == 3 && path[2] == 'pool') {
         return _json(200, _pool(code));
       }
+      if (request.method == 'GET' && path.length == 5 && path[2] == 'seats' && path[4] == 'progress') {
+        // Totals of the player at the seat: the pool and their copies, no
+        // upgrades.
+        final position = int.parse(path[3]);
+        final seats = servers[code]!.seats;
+        if (position >= seats.length) return _json(404, {'detail': 'No such player'});
+        final copies = switch (seats[position]['player']) {
+          final String player => _copies(code, player),
+          _ => <String, int>{},
+        };
+        final pool = _pool(code);
+        return _json(200, {
+          'player_position': position,
+          'rarities': [
+            for (final rarity in ['basic', 'adventurer', 'hero', 'legend'])
+              {
+                'rarity': rarity,
+                'in_pool': pool.where((c) => c['rarity'] == rarity).length,
+                'collected': pool.where((c) => c['rarity'] == rarity && copies.containsKey(c['id'])).length,
+                'owned': pool.where((c) => c['rarity'] == rarity && copies.containsKey(c['id'])).length,
+                'maxed': 0,
+                'unlocked_steps': 0,
+                'steps': 0,
+                'duplicates_to_max': 0,
+                'spare_duplicates': 0,
+              },
+          ],
+        });
+      }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'collection') {
         final copies = _copies(code, myId);
         return _json(200, [

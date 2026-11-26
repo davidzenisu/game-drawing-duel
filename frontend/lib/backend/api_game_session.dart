@@ -9,6 +9,7 @@ import '../game/rules/content.dart';
 import '../game/rules/daily_loop.dart';
 import '../game/rules/gacha.dart';
 import '../game/rules/models.dart';
+import '../game/rules/progress.dart';
 import '../game/rules/setup_plan.dart';
 import '../game/rules/themes.dart';
 import '../game/rules/upgrades.dart';
@@ -1621,6 +1622,39 @@ class ApiGameSession extends GameSession {
         ),
       _ => throw const FormatException('Unexpected player stats.'),
     };
+  }
+
+  @override
+  Future<Map<Rarity, Progress>> playerProgress(Player player) async {
+    final json = await _get('/servers/${server.code}/seats/${_seatPosition(player)}/progress');
+    final result = {for (final rarity in Rarity.values) rarity: Progress.empty};
+    if (json case {'rarities': List rarities}) {
+      for (final entry in rarities) {
+        if (entry case {
+          'rarity': String rarity,
+          'in_pool': int inPool,
+          'collected': int collected,
+          'owned': int owned,
+          'maxed': int maxed,
+          'unlocked_steps': int unlockedSteps,
+          'steps': int steps,
+          'duplicates_to_max': int duplicatesToMax,
+          'spare_duplicates': int spareDuplicates,
+        } when Rarity.values.asNameMap().containsKey(rarity)) {
+          result[Rarity.values.byName(rarity)] = Progress(
+            inPool: inPool,
+            collected: collected,
+            owned: owned,
+            maxed: maxed,
+            unlockedSteps: unlockedSteps,
+            steps: steps,
+            duplicatesToMax: duplicatesToMax,
+            spareDuplicates: spareDuplicates,
+          );
+        }
+      }
+    }
+    return result;
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
+import 'package:frontend/game/rules/progress.dart';
 import 'package:frontend/game/rules/upgrades.dart';
 import 'package:frontend/game/screens/collection_screen.dart';
 import 'package:frontend/game/screens/progress_screen.dart';
@@ -264,10 +265,43 @@ void main() {
     expect(find.byType(ProgressScreen), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     final owned = game.collection.length;
-    expect(find.text('1/$owned'), findsOneWidget, reason: 'one maxed out');
-    expect(find.text('$owned/${game.pool.length}'), findsOneWidget, reason: 'collected');
+    final ring = find.byType(CircularProgressIndicator);
+    expect(
+      find.descendant(of: find.ancestor(of: ring, matching: find.byType(Stack)), matching: find.text('$owned/${game.pool.length}')),
+      findsOneWidget,
+      reason: 'the ring shows the collected ones out of the pool',
+    );
+    expect(tester.widget<CircularProgressIndicator>(ring).value, closeTo(owned / game.pool.length, 1e-9));
+    final maxedOut = find.ancestor(of: find.text('Maxed out').first, matching: find.byType(Row)).first;
+    expect(find.descendant(of: maxedOut, matching: find.text('1/$owned')), findsOneWidget, reason: 'one maxed out');
     final spare = find.ancestor(of: find.text('Spare duplicates'), matching: find.byType(Row));
     expect(find.descendant(of: spare, matching: find.text('2')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("the progress view shows another player's progress", (tester) async {
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final game = await launchedGame();
+    final sam = game.otherPlayers.firstWhere((p) => p.name == 'Sam');
+    final theirs = (await game.playerProgress(sam)).values.fold(Progress.empty, (a, b) => a + b);
+
+    await tester.pumpWidget(MaterialApp(home: ProgressScreen(controller: game)));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('You'), findsOneWidget, reason: 'yours first');
+    await tester.tap(find.text('You'));
+    await tester.pumpAndSettle();
+    for (final player in game.server.players.where((p) => !p.isYou)) {
+      expect(find.text(player.name), findsWidgets, reason: 'every player of the server');
+    }
+    await tester.tap(find.text('Sam').last);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('${theirs.collected}/${theirs.inPool}'), findsWidgets);
+    final spare = find.ancestor(of: find.text('Spare duplicates'), matching: find.byType(Row));
+    expect(find.descendant(of: spare, matching: find.text('${theirs.spareDuplicates}')), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
