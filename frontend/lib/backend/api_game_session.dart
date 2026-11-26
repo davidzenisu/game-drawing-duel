@@ -728,6 +728,7 @@ class ApiGameSession extends GameSession {
   List<BoostTarget> _boostTargets = const [];
   bool _boostForfeited = false;
   BoostBalance? _boostBalance;
+  bool _boostNextWeek = false;
   List<WeeklyHero> _weeklyHeroes = const [];
   ArenaStatus? _arena;
   List<ArenaWinner> _arenaWinners = const [];
@@ -901,6 +902,10 @@ class ApiGameSession extends GameSession {
       _boostBalance = switch (json['boost']) {
         {'balance': final balance} => _parseBoostBalance(balance),
         _ => null,
+      };
+      _boostNextWeek = switch (json['boost']) {
+        {'next_week': true} => true,
+        _ => false,
       };
       _boostTargets = switch (json['boost']) {
         null => const [],
@@ -1273,6 +1278,9 @@ class ApiGameSession extends GameSession {
   @override
   BoostBalance? get boostBalance => _boostBalance;
 
+  @override
+  bool get boostNextWeek => _boostNextWeek;
+
   /// A week's boost stars and why, from the API; null stays null.
   static BoostBalance? _parseBoostBalance(Object? json) => switch (json) {
     null => null,
@@ -1504,7 +1512,6 @@ class ApiGameSession extends GameSession {
       null => null,
       {'day': int day, 'challengers': List challengers} => WeekRanking(
         day: day,
-        boostBalance: _parseBoostBalance((json as Map)['boost_balance']),
         challengers: [
           for (final entry in challengers)
             if (entry case {'character': final character, 'stars': int stars, 'fights': int fights, 'wins': int wins})
@@ -1550,7 +1557,6 @@ class ApiGameSession extends GameSession {
   bool _stillCurrent(ServerSession server, Object? json) =>
       json is Map &&
       json['day'] is int &&
-      json.containsKey('boost_balance') &&
       json['challengers'] is List &&
       (json['challengers'] as List).every((c) => c is Map && c.containsKey('artist_boost_stars')) &&
       (server.isSpeed || day <= (json['day'] as int) + 7);
@@ -1611,6 +1617,7 @@ class ApiGameSession extends GameSession {
               else
                 throw const FormatException('Unexpected portrayed player.'),
           ],
+          boostBalance: _parseBoostBalance(json['boost_balance']),
         ),
       _ => throw const FormatException('Unexpected player stats.'),
     };

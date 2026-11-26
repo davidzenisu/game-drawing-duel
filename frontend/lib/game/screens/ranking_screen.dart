@@ -30,10 +30,11 @@ enum RankingView {
 /// - **Players** (the default, this week): every player ranked in the
 ///   player stats' categories (`PlayerStatsView`), this week's boosts kept
 ///   secret.
-/// - **Challengers**: this week, only who its challengers portray, as a pie;
-///   last week, the boost balance its fights gave this week, the pie, its
-///   weekly heroes on big cards framed in their rarity's colour, then its
-///   other challengers ranked by their stars. Tapping one opens its details.
+/// - **Challengers**: this week, the boost stars its challengers are
+///   boosted with and only who they portray, as a pie; last week, the pie,
+///   its weekly heroes on big cards framed in their rarity's colour, then
+///   its other challengers ranked by their stars. Tapping one opens its
+///   details.
 /// - **Arena**: this week, which challengers are in the Arena, their
 ///   ratings kept secret; last week, the latest decided Arena: its winners
 ///   on big cards, then the others with their records.
@@ -224,10 +225,6 @@ class _RankingScreenState extends State<RankingScreen> {
             'latest day. The top ${Finale.maxHeroes} became weekly heroes: ★★★★, ★★★ and ★★.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          if (ranking.boostBalance case final balance?) ...[
-            const SizedBox(height: 12),
-            BoostBalanceCard(balance: balance),
-          ],
           const SizedBox(height: 12),
           PlayersDashboard(weeks: PlayerWeek.ofRanking(players, ranking)),
           const SizedBox(height: 12),
@@ -253,6 +250,10 @@ class _RankingScreenState extends State<RankingScreen> {
           'Their stars stay secret until the week is over; then they are ranked.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
+        if (stats.boostBalance case final balance?) ...[
+          const SizedBox(height: 12),
+          BoostBalanceCard(balance: balance),
+        ],
         const SizedBox(height: 12),
         PlayersDashboard(weeks: PlayerWeek.of(players, {for (final (player, n) in stats.portrayed) player.name: n})),
       ],
@@ -416,9 +417,9 @@ class _ArenaTile extends StatelessWidget {
   }
 }
 
-/// The boost balance a week's fights gave the week after: the boost stars
-/// to give a day, and how they changed with the heroes' win rate. The rules
-/// behind it are in the boost tutorial.
+/// This week's boost balance, from last week's fights: the boost stars its
+/// challengers are boosted with a day, and how they changed with the
+/// heroes' win rate. The rules behind it are in the boost tutorial.
 class BoostBalanceCard extends StatelessWidget {
   const BoostBalanceCard({super.key, required this.balance});
 

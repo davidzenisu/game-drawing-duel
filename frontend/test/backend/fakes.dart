@@ -194,6 +194,9 @@ class FakeBackend {
   /// none (the base stars) unless a test sets one up.
   final Map<String, Map<String, Object?>> boostBalances = {};
 
+  /// The servers whose boost stars are next week's today, as on Sunday.
+  final Set<String> boostNextWeek = {};
+
   /// The player stats by server code and period, as the API answers them.
   final Map<(String, String), Map<String, Object?>> playerStats = {};
 
@@ -589,11 +592,7 @@ class FakeBackend {
         }
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'ranking') {
-        // Like the API: a boost balance, null unless a test sets one.
-        return _json(200, switch (rankings[code]) {
-          null => null,
-          final ranking => {'boost_balance': null, ...ranking},
-        });
+        return _json(200, rankings[code]);
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'player-stats') {
         if (speedServers.contains(code)) return _json(404, {'detail': 'Speed mode has no player stats'});
@@ -1139,6 +1138,7 @@ class FakeBackend {
           'stars': boostBalances[code]?['stars'] ?? 3,
           'max_per_challenger': boostBalances[code]?['stars'] ?? 3,
           'balance': boostBalances[code],
+          'next_week': boostNextWeek.contains(code),
         },
       },
       'boost_forfeited': missedDrawing(today),

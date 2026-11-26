@@ -120,6 +120,7 @@ void main() {
     expect(find.textContaining('Week 1, so far: $total challengers drawn for this week'), findsOneWidget);
     expect(find.textContaining('#1'), findsNothing, reason: 'no ranking before the week is over');
     expect(find.byType(CardboardCard), findsNothing, reason: 'nor their drawings');
+    expect(find.text('Boost balance'), findsNothing, reason: 'the first week has the base stars');
 
     // No last week yet, in either view.
     await tester.tap(find.text('Last week'));
@@ -130,6 +131,27 @@ void main() {
     expect(find.textContaining('No ranking yet'), findsOneWidget);
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("this week's challengers: the boost stars they're boosted with, and why", (tester) async {
+    _phone(tester);
+    final controller = await launchedGame(launchDate: firstMonday, day: 8);
+    final balance = (await controller.playerStats(StatPeriod.week))!.boostBalance!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RankingScreen(controller: controller, view: RankingView.challengers),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+    // The rules behind it are in the boost tutorial.
+    expect(find.text('Boost balance'), findsOneWidget);
+    expect(find.text('${balance.stars} ★ a day'), findsOneWidget);
+    expect(
+      find.text('Up from ${balance.previousStars} ★ from last week (hero win rate ${balance.heroPercent}%)'),
+      findsOneWidget,
+      reason: "the mockup's heroes won about three fights in four",
+    );
   });
 
   testWidgets("last week: the players' trophies", (tester) async {
@@ -192,15 +214,7 @@ void main() {
     expect(find.text('${ranking.challengers[3].place}'), findsWidgets, reason: 'the others numbered below');
     expect(find.textContaining('Drawn by'), findsNothing, reason: 'details are on their own screen');
 
-    // The boost balance its fights gave this week, the rules in the tutorial.
-    final balance = ranking.boostBalance!;
-    expect(find.text('Boost balance'), findsOneWidget);
-    expect(find.text('${balance.stars} ★ a day'), findsOneWidget);
-    expect(
-      find.text('Up from ${balance.previousStars} ★ from last week (hero win rate ${balance.heroPercent}%)'),
-      findsOneWidget,
-      reason: "the mockup's heroes won about three fights in four",
-    );
+    expect(find.text('Boost balance'), findsNothing, reason: "it's in this week's overview");
 
     // How often each player was chosen as a challenger, as a pie and a legend.
     expect(find.byType(PlayersDashboard), findsOneWidget);

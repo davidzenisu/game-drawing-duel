@@ -861,27 +861,31 @@ class MockGameSession extends GameSession {
   /// the boost balance gives +1 ★ a week (see [boostBalance]).
   static bool challengerWins(int day) => day % 4 == 2;
 
-  /// Like online: the week before's fights balance the week's boost stars.
+  /// Like online: the week before's fights balance the boost stars of the
+  /// week today's boosted challengers are fought in, on Sunday next week's.
   @override
-  BoostBalance? get boostBalance => _boostBalance(_day);
+  BoostBalance? get boostBalance => _boostBalance(_day + 1);
+
+  @override
+  bool get boostNextWeek => !server.isSpeed && _days.weekStart(_day + 1) > _days.weekStart(_day);
 
   /// The boost balance of [day]'s week, every week since the first stacking
-  /// up: the fights of a week are those of the challengers drawn two days
-  /// before each of its days ([weekRanking]). None in the first week and
-  /// in speed mode.
+  /// up: the fights of a week from Monday to Saturday are those of the
+  /// challengers drawn two days before each of those days ([weekRanking]).
+  /// None in the first week and in speed mode.
   BoostBalance? _boostBalance(int day) {
     if (server.isSpeed) return null;
     final week = _days.weekStart(day);
     BoostBalance? balance;
     var stars = Boost.stars;
     for (var start = _days.weekStart(1); start < week; start += 7) {
-      final ranked = _ranked(start - 2, start + 4);
+      final ranked = _ranked(start - 2, start + 3);
       final fights = ranked.fold(0, (n, c) => n + c.fights);
       final heroWins = ranked.fold(0, (n, c) => n + c.fights - c.wins);
       final step = WeeklyBoost.step(heroWins, fights);
       balance = BoostBalance(
         fromDay: start,
-        toDay: start + 6,
+        toDay: start + 5,
         fights: fights,
         heroWins: heroWins,
         previousStars: stars,
@@ -987,7 +991,6 @@ class MockGameSession extends GameSession {
       for (final (i, r) in _ranked(lastDay - 8, lastDay - 2).indexed)
         i < Finale.maxHeroes ? r.at(i + 1, heroRarity: Finale.rarities[i]) : r,
     ],
-    boostBalance: _boostBalance(lastDay + 1),
   );
 
   /// The latest finished week's ranking: the challengers fought that week,
@@ -1233,6 +1236,7 @@ class MockGameSession extends GameSession {
         // The challengers fought that week, drawn two days before, so far.
         for (final player in server.players) (player, portrayed.where((c) => c.card.subject == player.name).length),
       ],
+      boostBalance: period == StatPeriod.week ? _boostBalance(_day) : null,
     );
   }
 

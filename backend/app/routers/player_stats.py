@@ -5,9 +5,10 @@ from enum import StrEnum
 
 from fastapi import APIRouter, HTTPException, status
 
-from app import days, finale, player_stats, speed
+from app import boost_balance, days, finale, player_stats, speed
 from app.auth import CurrentPlayer
 from app.deps import Code, DbSession, running_game
+from app.responses import balance_response
 from app.rules import STARS_FOR_WEEK_STAT
 from app.schemas import (
     PlacedPlayer,
@@ -31,8 +32,8 @@ def get_player_stats(
     """Every player's stats, each a ranking of all players with their
     trophies so far, and who the week's challengers portray: in the ongoing
     week (up to today; the secret ones without values) or the latest
-    finished week (null before the first is over). Speed mode sessions have
-    none."""
+    finished week (null before the first is over). The ongoing week comes
+    with its boost balance. Speed mode sessions have none."""
     server, _ = running_game(session, code, player.id)
     if speed.is_speed(server):
         raise HTTPException(
@@ -40,6 +41,7 @@ def get_player_stats(
         )
     today = days.current_day(server)
     finale.settle(session, server)
+    balance = None
     if period is Period.LAST_WEEK:
         week = finale.latest_finale(session, server)
         if week is None:
@@ -49,6 +51,10 @@ def get_player_stats(
         # Yesterday's boosts and fights nobody finished aren't completed
         # here: chance's only count for Grand Artist, secret this week.
         first, last = days.week_start(server, today), today
+        # The week's boost stars, from the week before's fights up to
+        # Saturday: completed for its first boosts, Sunday's
+        # (`app.fights.complete_boosts`).
+        balance = boost_balance.week_balance(session, server, today)
     values = player_stats.values(session, server, first, last)
     trophies = player_stats.trophies(session, server)
     portrayed = player_stats.portrayed(session, server, first + 6)
@@ -95,4 +101,5 @@ def get_player_stats(
             )
             for s in sorted(server.seats, key=lambda s: s.position)
         ],
+        boost_balance=balance_response(balance),
     )

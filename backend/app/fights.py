@@ -204,6 +204,9 @@ def complete_boosts(session: Session, server: Server, day: int) -> None:
     day before have none. Commits."""
     if day < FIRST_BOOST_DAY:
         return
+    if boost_balance.last_counted_day(server, day) == day - 1:
+        # Sunday's stars are next week's, from the fights up to Saturday.
+        _complete_fights(session, server, day - 1)
     to_give = boost_balance.stars(session, server, day)
     for seat in days.active_seats(server):
         given = given_boosts(session, seat, day)

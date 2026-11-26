@@ -292,13 +292,19 @@ REST_DAYS = {
 BOOST_CHALLENGERS = 3
 BOOST_STARS = 3
 
+# The boost balance starts with the week of this Monday (UTC): the weeks
+# before kept `BOOST_STARS` a day, and it stacks from there.
+BOOST_BALANCE_FROM = date(2026, 11, 23)
+
 # Each week starts from the week before's boost stars and changes them by
-# the heroes' share of the week before's decided fights, once there were at
-# least this many: winning more than a share of `MORE` gives that many more
-# stars (the most of every share beaten), less than a share of `FEWER` that
-# many fewer (the most of every share undercut). Never fewer than the
-# minimum or more than the maximum.
-BOOST_BALANCE_MIN_FIGHTS = 7
+# the heroes' share of the week before's decided fights from Monday to
+# Saturday, once there were at least this many: winning more than a share of
+# `MORE` gives that many more stars (the most of every share beaten), less
+# than a share of `FEWER` that many fewer (the most of every share
+# undercut). Never fewer than the minimum or more than the maximum. A week's
+# stars are the ones its challengers are boosted with: from the Sunday
+# before (boosted challengers are fought the day after) to its Saturday.
+BOOST_BALANCE_MIN_FIGHTS = 6
 BOOST_BALANCE_MORE = ((0.6, 1), (0.8, 2))
 BOOST_BALANCE_FEWER = ((0.4, 1), (0.2, 2))
 BOOST_MIN_STARS = 3
@@ -514,25 +520,19 @@ def arena_qualified(matchups: int) -> bool:
 WIN_RATE_MIN_FIGHTS = 3
 WIN_RATE_EXTRA_STARS = ((0.8, 1),)
 
-# The boost balance and the win rate bands above start with the week of this
-# Monday (UTC), so running servers switch between two weeks instead of in the
-# middle of one. The weeks before keep `BOOST_STARS` a day and these bands.
-BALANCE_FROM = date(2026, 11, 23)
-WIN_RATE_EXTRA_STARS_BEFORE = ((0.5, 1), (0.75, 2))
 
-
-def win_rate_extra_stars(
-    wins: int,
-    fights: int,
-    bands: tuple[tuple[float, int], ...] = WIN_RATE_EXTRA_STARS,
-) -> int:
-    """The extra stars for winning `wins` of `fights` last week, by `bands`
-    of [share, extra stars]: the most of every share reached. Shares count
-    in whole percent, so 4 of 5 reaches 80%."""
+def win_rate_extra_stars(wins: int, fights: int) -> int:
+    """The extra stars for winning `wins` of `fights` last week, by
+    `WIN_RATE_EXTRA_STARS` of [share, extra stars]: the most of every share
+    reached. Shares count in whole percent, so 4 of 5 reaches 80%."""
     if fights < WIN_RATE_MIN_FIGHTS:
         return 0
     return max(
-        (stars for share, stars in bands if wins * 100 >= round(share * 100) * fights),
+        (
+            stars
+            for share, stars in WIN_RATE_EXTRA_STARS
+            if wins * 100 >= round(share * 100) * fights
+        ),
         default=0,
     )
 

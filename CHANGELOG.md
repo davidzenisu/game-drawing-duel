@@ -9,6 +9,19 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.40.0] - 2026-11-26
+
+### Changed
+- The boost balance follows the week the boosted challengers are fought in:
+  next week's boost stars start on Sunday already, as Sunday's challengers
+  are fought on Monday. Every challenger of a week ranking is now boosted
+  with the same stars.
+- The boost stars change with the heroes' win rate from Monday to Saturday;
+  Sunday's fights don't count. It takes 6 fights instead of 7.
+- On Sunday, the boost tray says the stars are next week's.
+- The **Boost balance** card moved to this week's **Challengers** in the
+  week ranking: the stars this week's challengers are boosted with, and why.
+
 ## [0.39.0] - 2026-11-24
 
 ### Changed

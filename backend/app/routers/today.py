@@ -34,20 +34,19 @@ from app.models import (
     Server,
     ServerSeat,
 )
-from app.responses import character_response
+from app.responses import balance_response, character_response
 from app.routers import arena as arena_routes
 from app.rules import (
-    BOOST_BALANCE_MIN_FIGHTS,
     BOOST_STARS,
     SPEED_DAYS,
     STARS_FOR_CHALLENGER,
     STARS_FOR_PROMPT,
+    WIN_RATE_EXTRA_STARS,
     WIN_RATE_MIN_FIGHTS,
     Rarity,
     hurry_hits,
 )
 from app.schemas import (
-    BoostBalanceResponse,
     BoostStep,
     BoostSubmit,
     BoostTarget,
@@ -197,24 +196,8 @@ def _boost_step(
         ],
         stars=to_give,
         max_per_challenger=to_give,
-        balance=_balance_response(balance),
-    )
-
-
-def _balance_response(
-    balance: boost_balance.Balance | None,
-) -> BoostBalanceResponse | None:
-    if balance is None:
-        return None
-    return BoostBalanceResponse(
-        from_day=balance.from_day,
-        to_day=balance.to_day,
-        fights=balance.fights,
-        hero_wins=balance.hero_wins,
-        min_fights=BOOST_BALANCE_MIN_FIGHTS,
-        previous_stars=balance.previous_stars,
-        step=balance.step,
-        stars=balance.stars,
+        balance=balance_response(balance),
+        next_week=boost_balance.next_week(server, day),
     )
 
 
@@ -444,7 +427,7 @@ def boost(
     the stars you left."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
-    # Last week's fights give this week's boost stars (`app.boost_balance`).
+    # The fights of the week before give the boost stars (`app.boost_balance`).
     fights.complete_boosts(session, server, day - 1)
     fights.complete_fights(session, server, day - 1)
     given = {b.challenger_id: b.stars for b in body.boosts}
@@ -693,9 +676,6 @@ def get_ranking(
     return RankingResponse(
         day=last_day,
         challengers=entries,
-        boost_balance=None
-        if speed.is_speed(server)
-        else _balance_response(boost_balance.balance(session, server, last_day + 1)),
     )
 
 
@@ -721,7 +701,7 @@ def get_win_rates(
         from_day=first,
         to_day=last,
         min_fights=WIN_RATE_MIN_FIGHTS,
-        extra_stars=list(win_rates.bands(server, day)),
+        extra_stars=list(WIN_RATE_EXTRA_STARS),
         win_rates=[
             WinRate(
                 player_position=positions[r.player],

@@ -871,16 +871,20 @@ void main() {
         'to_day': 0,
         'fights': 10,
         'hero_wins': 9,
-        'min_fights': 7,
+        'min_fights': 6,
         'previous_stars': 3,
         'step': 2,
         'stars': 5,
       };
+      backend.boostNextWeek.add(robin.server.code);
       await robin.refreshDay();
       expect((robin.boostStars, robin.boostStarsLeft), (5, 5));
       expect((robin.boostBalance!.heroPercent, robin.boostBalance!.change), (90, 2));
+      expect(robin.boostNextWeek, isTrue, reason: "on Sunday, next week's stars");
       backend.boostBalances.clear();
+      backend.boostNextWeek.clear();
       await robin.refreshDay();
+      expect(robin.boostNextWeek, isFalse);
       expect(robin.challengers.map((c) => c.card.id), isNot(contains(samsChallenger)));
       await robin.setBoosts({samsChallenger: 2});
       final put = backend.requests.lastWhere((r) => r.method == 'PUT');
@@ -998,16 +1002,6 @@ void main() {
       ];
       backend.rankings['123456'] = {
         'day': 7,
-        'boost_balance': {
-          'from_day': 1,
-          'to_day': 7,
-          'fights': 10,
-          'hero_wins': 9,
-          'min_fights': 7,
-          'previous_stars': 3,
-          'step': 2,
-          'stars': 5,
-        },
         'challengers': [
           {
             'character': right,
@@ -1041,9 +1035,6 @@ void main() {
         [(1, Rarity.legend, 8), (2, Rarity.hero, 0)],
       );
       expect([for (final r in ranking.heroes) r.card.id], [right['id'], left['id']]);
-      final balance = ranking.boostBalance!;
-      expect((balance.heroWins, balance.challengerWins, balance.heroPercent), (9, 1, 90));
-      expect((balance.previousStars, balance.change, balance.stars), (3, 2, 5));
       expect(
         [for (final r in ranking.challengers) (r.card.id, r.stars, r.fights, r.wins)],
         [(right['id'], 9, 1, 1), (left['id'], 6, 0, 0)],
@@ -1263,6 +1254,17 @@ void main() {
           {'player_position': 0, 'challengers': 0},
           {'player_position': 1, 'challengers': 2},
         ],
+        if (period == 'week')
+          'boost_balance': {
+            'from_day': -6,
+            'to_day': -1,
+            'fights': 10,
+            'hero_wins': 9,
+            'min_fights': 6,
+            'previous_stars': 3,
+            'step': 2,
+            'stars': 5,
+          },
       };
 
       expect(await alex.playerStats(StatPeriod.lastWeek), isNull, reason: 'before the first week is over');
@@ -1283,6 +1285,9 @@ void main() {
       expect(wins.players.first.player.isYou, isTrue);
       expect((boosted.secret, boosted.players.single.value, boosted.players.single.place), (true, null, null));
       expect([for (final (player, n) in week.portrayed) (player.name, n)], [('Alex', 0), ('Sam', 2)]);
+      final balance = week.boostBalance!;
+      expect((balance.heroWins, balance.challengerWins, balance.heroPercent), (9, 1, 90));
+      expect((balance.previousStars, balance.change, balance.stars, balance.minFights), (3, 2, 5, 6));
       final before = statsRequests();
       backend.playerStats[('123456', 'week')] = answer('week', 1, 1, 3, secret: true);
       expect((await alex.playerStats(StatPeriod.week))!.stats.first.players.first.value, 2, reason: 'kept for the day');

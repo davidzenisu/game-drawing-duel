@@ -52,14 +52,16 @@ abstract final class Boost {
 }
 
 /// Each week starts from the week before's boost stars and changes them by
-/// the heroes' share of the week before's decided fights, once there were
-/// at least [minFights]: winning more than a share of [more] gives that many
-/// more stars (the most of every share beaten), less than a share of
-/// [fewer] that many fewer (the most of every share undercut). Never fewer
-/// than [minStars] or more than [maxStars]. Speed mode sessions have no
-/// weeks, so they keep [Boost.stars].
+/// the heroes' share of the week before's decided fights from Monday to
+/// Saturday, once there were at least [minFights]: winning more than a share
+/// of [more] gives that many more stars (the most of every share beaten),
+/// less than a share of [fewer] that many fewer (the most of every share
+/// undercut). Never fewer than [minStars] or more than [maxStars]. A week's
+/// stars are the ones its challengers are boosted with: boosted the day
+/// before they're fought, from the Sunday before to its Saturday. Speed mode
+/// sessions have no weeks, so they keep [Boost.stars].
 abstract final class WeeklyBoost {
-  static const minFights = 7;
+  static const minFights = 6;
   static const more = [(0.6, 1), (0.8, 2)];
   static const fewer = [(0.4, 1), (0.2, 2)];
   static const minStars = 3;
@@ -79,9 +81,10 @@ abstract final class WeeklyBoost {
   static int stars(int previous, int step) => (previous + step).clamp(minStars, maxStars);
 }
 
-/// A week's boost stars a day, and why: the week before's ([previousStars])
-/// changed by [step], the heroes having won [heroWins] of its decided
-/// [fights], from [fromDay] to [toDay].
+/// A week's boost stars a day, the ones its challengers are boosted with,
+/// and why: the week before's ([previousStars]) changed by [step], the
+/// heroes having won [heroWins] of its decided [fights], from [fromDay] to
+/// [toDay] (Monday to Saturday).
 class BoostBalance {
   const BoostBalance({
     required this.fromDay,
@@ -606,7 +609,7 @@ class ChallengerFight {
 /// The latest finished week's challengers, most stars first; the first
 /// joined the gacha pool as a hero.
 class WeekRanking {
-  const WeekRanking({required this.day, required this.challengers, this.boostBalance});
+  const WeekRanking({required this.day, required this.challengers});
 
   /// The last day of the week.
   final int day;
@@ -617,9 +620,6 @@ class WeekRanking {
     for (final c in challengers)
       if (c.isWeeklyHero) c,
   ]..sort((a, b) => a.place.compareTo(b.place));
-
-  /// The boost stars its fights gave the week after; null in speed mode.
-  final BoostBalance? boostBalance;
 }
 
 /// The Arena: everyone votes on matchups of two of the week before's
@@ -886,6 +886,7 @@ class PlayerStats {
     required this.trophyStars,
     required this.stats,
     this.portrayed = const [],
+    this.boostBalance,
   });
 
   final StatPeriod period;
@@ -898,6 +899,10 @@ class PlayerStats {
   /// ranks (fought that week) portray them, drawn so far; without their
   /// stars.
   final List<(Player, int)> portrayed;
+
+  /// This week only: its boost stars, the ones its challengers are boosted
+  /// with, and why; null in the first week.
+  final BoostBalance? boostBalance;
 }
 
 /// How [player]'s characters did against [against]'s last week, and the

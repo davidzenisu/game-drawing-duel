@@ -367,6 +367,4 @@ class FinaleTests(FinaleTestCase):
         self.assertEqual(self.today()["weekly_heroes"], [])
         ranking = self.ranking()
         self.assertEqual((ranking["day"], ranking["challengers"]), (14, []))
-        self.assertIsNone(
-            ranking["boost_balance"], "launched before the balance's first week"
-        )
+        self.assertNotIn("boost_balance", ranking, "this week's overview has it")

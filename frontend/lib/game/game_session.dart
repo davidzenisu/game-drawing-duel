@@ -351,9 +351,14 @@ abstract class GameSession extends ChangeNotifier {
   /// You skipped yesterday's challenger drawing, so you can't boost today.
   bool get boostForfeited;
 
-  /// Why this week has [boostStars]: the week before's fights balance them
-  /// ([WeeklyBoost]). Null in the first week and in speed mode.
+  /// Why the week of today's boosted challengers' fights has [boostStars]:
+  /// the week before's fights balance them ([WeeklyBoost]). Null in the
+  /// first week and in speed mode.
   BoostBalance? get boostBalance;
+
+  /// Whether [boostStars] are next week's: on Sunday, as the challengers
+  /// boosted today are fought on Monday.
+  bool get boostNextWeek;
 
   /// The challengers you drew, newest first (for now only your own, not the
   /// ones you fought or boosted). They don't join the gacha [pool].
