@@ -25,13 +25,14 @@ void main() {
     expect(game.day, 8);
     expect(game.theme, DailyTheme.forest, reason: 'day 8 is a Monday');
 
-    // Last week is over: ranked, its heroes in the pool, and win rates.
+    // Last week is over: ranked and its heroes in the pool; no win rates
+    // before the first Arena is over.
     expect((await game.weekRanking())!.day, 7);
     expect(game.weeklyHeroes, isNotEmpty);
     expect(game.pool.map((c) => c.id), containsAll(game.weeklyHeroes.map((h) => h.card.id)));
     final rates = (await game.winRates())!;
     expect((rates.fromDay, rates.toDay), (1, 7));
-    expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty);
+    expect(rates.rates, isEmpty);
     // You led the Addict streak: its trophy waits on the notification board.
     final trophy = game.gifts.singleWhere((g) => g.message.startsWith('Trophy: '));
     expect(trophy.message, 'Trophy: Addict in week 1!');
@@ -729,15 +730,20 @@ void main() {
     expect(pool.keys, isNot(contains(ranked.last.card.id)));
   });
 
-  test("from the second week, win rates give extra stars", () async {
-    // A Monday: days 1 to 7 are the first week.
+  test("from the third week, the first Arena's win rates give extra stars", () async {
+    // A Monday: days 1 to 7 are the first week, the Arena of its
+    // challengers is voted on during days 8 to 14.
     final game = await launchedGame(launchDate: firstMonday);
     expect((await game.winRates())!.rates, isEmpty, reason: 'none in the first week');
     while (game.day < 8) {
       await game.advanceDay();
     }
+    expect((await game.winRates())!.rates, isEmpty, reason: 'nor in the second');
+    while (game.day < 15) {
+      await game.advanceDay();
+    }
     final rates = (await game.winRates())!;
-    expect((rates.fromDay, rates.toDay), (1, 7));
+    expect((rates.fromDay, rates.toDay), (8, 14));
     expect(rates.rates.where((r) => r.extraStars > 0), isNotEmpty);
     expect(rates.rates.where((r) => r.player.isYou || r.against.isYou), isNotEmpty, reason: 'you are in it');
 

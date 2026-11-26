@@ -1,18 +1,48 @@
+import itertools
+import unittest
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from sqlalchemy import delete, select
 
-from app import rules
-from app.models import Fight, Fighter, Server, ServerSeat
+from app import rules, win_rates
+from app.models import ArenaVote, Character, Fight, Fighter, Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_fights import PLAYERS, FightTestCase
 
+# The Arena whose votes give the win rates of days 15 to 21: the one of the
+# challengers of days 1 to 7, voted on during days 8 to 14.
+ARENA = 7
+
+
+class MeetingTests(unittest.TestCase):
+    """How Arena votes count as meetings between players."""
+
+    def test_a_vote_is_a_meeting_its_winners_player_won(self) -> None:
+        self.assertEqual(
+            win_rates.meetings([("v", "sam", "alex"), ("w", "alex", "sam")], None),
+            {("sam", "alex"): (1, 2), ("alex", "sam"): (1, 2)},
+        )
+
+    def test_portraits_of_the_same_player_count_for_nothing(self) -> None:
+        self.assertEqual(win_rates.meetings([("v", "sam", "sam")], None), {})
+
+    def test_each_voters_first_votes_on_a_pair_of_players_count(self) -> None:
+        votes = [("v", "sam", "alex")] * 2 + [
+            ("v", "alex", "sam"),
+            ("w", "alex", "sam"),
+        ]
+        self.assertEqual(
+            win_rates.meetings(votes, 2),
+            {("sam", "alex"): (2, 3), ("alex", "sam"): (1, 3)},
+        )
+
 
 class WinRateTests(FightTestCase):
-    """Last week's fights give this week's extra stars, between players."""
+    """Last week's Arena votes give this week's extra stars, between the
+    players the challengers portray."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -32,40 +62,87 @@ class WinRateTests(FightTestCase):
             )
         return super().next_day()
 
-    def to_day_eight(self) -> None:
-        """Moves on to day 8, the next Monday, leaving last week without any
-        fighters but the ones `add_fight` adds."""
+    def to_day(self, day: int) -> None:
         # Chance picks fighters for everyone every day: a seat without a fight
         # would get one picked once the fighters are gone.
         with self.without_rest():
-            while self.today()["day"] < 8:
+            while self.today()["day"] < day:
                 self.next_day()
+        # No one rests from the fights chance picked: the fighters are free.
         with self.session_factory() as session:
             session.execute(delete(Fighter))
             session.commit()
 
-    def add_fight(self, owner: int, day: int, challenger: str, fighters, win: bool):
-        """A decided fight of last week's, owner and day unique."""
+    def seats(self) -> list[uuid.UUID]:
         with self.session_factory() as session:
-            seat = session.scalar(
-                select(ServerSeat.id)
-                .join(Server, Server.id == ServerSeat.server_id)
-                .where(Server.code == self.code, ServerSeat.position == owner)
+            return list(
+                session.scalars(
+                    select(ServerSeat.id)
+                    .join(Server, Server.id == ServerSeat.server_id)
+                    .where(Server.code == self.code)
+                    .order_by(ServerSeat.position)
+                )
             )
-            fight = Fight(
-                owner_seat_id=seat,
-                day=day,
-                challenger_id=uuid.UUID(challenger),
-                boosts=0,
-                fighter_stars=1,
-                challenger_stars=3,
-                fighters_win=win,
-            )
-            fight.fighters = [
-                Fighter(position=i, character_id=uuid.UUID(c))
-                for i, c in enumerate(fighters)
-            ]
-            session.add(fight)
+
+    def add_votes(
+        self,
+        player: int,
+        against: int,
+        results: list[bool | None],
+        *,
+        voters: list[int] | None = None,
+        week: int = ARENA,
+    ) -> None:
+        """Arena votes on matchups of characters portraying the players at
+        roster positions `player` and `against`, in order: a win for
+        `player`'s (True), for `against`'s (False) or a draw (None), each on
+        another pair, by the voters (positions) taking turns."""
+        seats = self.seats()
+        voters = voters or list(range(len(seats)))
+        with self.session_factory() as session:
+
+            def portraits(position: int) -> list[uuid.UUID]:
+                return list(
+                    session.scalars(
+                        select(Character.id)
+                        .where(Character.subject_seat_id == seats[position])
+                        .order_by(Character.id)
+                    )
+                )
+
+            pairs = itertools.product(portraits(player), portraits(against))
+            used = {
+                (v.voter_seat_id, v.first_id, v.second_id)
+                for v in session.scalars(select(ArenaVote))
+            }
+            start = datetime(2026, 10, 12, 9, tzinfo=UTC)
+            for i, result in enumerate(results):
+                voter = seats[voters[i % len(voters)]]
+                ours, theirs = next(
+                    (a, b)
+                    for a, b in pairs
+                    if (voter, *sorted((a, b), key=str)) not in used
+                )
+                first, second = sorted((ours, theirs), key=str)
+                used.add((voter, first, second))
+                session.add(
+                    ArenaVote(
+                        server_id=session.scalar(
+                            select(Server.id).where(Server.code == self.code)
+                        ),
+                        voter_seat_id=voter,
+                        week=week,
+                        day=week + 3,
+                        first_id=first,
+                        second_id=second,
+                        winner_id=None
+                        if result is None
+                        else ours
+                        if result
+                        else theirs,
+                        voted_at=start + timedelta(minutes=len(used)),
+                    )
+                )
             session.commit()
 
     def win_rates(self) -> dict:
@@ -80,10 +157,11 @@ class WinRateTests(FightTestCase):
             if o["character"]["subject_position"] != challenger["subject_position"]
         )
 
-    def test_the_first_week_has_no_win_rates(self) -> None:
+    def test_the_first_weeks_have_no_win_rates(self) -> None:
         rates = self.win_rates()
         self.assertEqual((rates["from_day"], rates["to_day"]), (-6, 0))
-        self.assertEqual(rates["min_fights"], rules.WIN_RATE_MIN_FIGHTS)
+        self.assertEqual(rates["min_matchups"], rules.WIN_RATE_MIN_MATCHUPS)
+        self.assertEqual(rates["matchups_per_voter"], rules.WIN_RATE_MATCHUPS_PER_VOTER)
         self.assertEqual(rates["win_rates"], [])
 
     def test_the_bands_come_with_the_win_rates(self) -> None:
@@ -92,37 +170,40 @@ class WinRateTests(FightTestCase):
             [list(b) for b in rules.WIN_RATE_EXTRA_STARS],
         )
 
-    def test_winning_most_meetings_gives_fighters_extra_stars(self) -> None:
-        self.to_day_eight()
-        challenger = self.today()["fight"]["challenger"]
-        fighter = self.rival(challenger)
-        # Three meetings last week, all won by the fighter's player, and one
-        # with a fighter of the challenger's own player, which doesn't count.
-        for owner in range(3):
-            self.add_fight(owner, 1, challenger["id"], [fighter["id"]], win=True)
-        self.add_fight(0, 2, challenger["id"], [challenger["id"]], win=True)
-
+    def test_the_fights_dont_count(self) -> None:
+        self.to_day(8)
+        with self.session_factory() as session:
+            fought = session.scalar(select(Fight.id).where(Fight.day < 8))
+        self.assertIsNotNone(fought, "last week had fights")
         rates = self.win_rates()
         self.assertEqual((rates["from_day"], rates["to_day"]), (1, 7))
+        self.assertEqual(rates["win_rates"], [], "no Arena was voted on last week")
+
+    def test_winning_most_matchups_gives_fighters_extra_stars(self) -> None:
+        self.to_day(15)
+        challenger = self.today()["fight"]["challenger"]
+        fighter = self.rival(challenger)
         player, against = fighter["subject_position"], challenger["subject_position"]
+        # 6 of 10, exactly 60%; draws don't count.
+        self.add_votes(player, against, [True] * 6 + [False] * 4 + [None] * 3)
+
+        rates = self.win_rates()
+        self.assertEqual((rates["from_day"], rates["to_day"]), (8, 14))
         self.assertEqual(
-            sorted(
-                rates["win_rates"],
-                key=lambda r: r["player_position"] != player,
-            ),
+            sorted(rates["win_rates"], key=lambda r: r["player_position"] != player),
             [
                 {
                     "player_position": player,
                     "against_position": against,
-                    "fights": 3,
-                    "wins": 3,
+                    "matchups": 10,
+                    "wins": 6,
                     "extra_stars": 1,
                 },
                 {
                     "player_position": against,
                     "against_position": player,
-                    "fights": 3,
-                    "wins": 0,
+                    "matchups": 10,
+                    "wins": 4,
                     "extra_stars": 0,
                 },
             ],
@@ -144,15 +225,15 @@ class WinRateTests(FightTestCase):
         self.assertEqual(gacha["stars"], before + challenger_stars)
         self.assertEqual(self.today()["fight"]["yours"], fight, "as stored")
 
-    def test_winning_most_meetings_gives_challengers_extra_stars(self) -> None:
-        self.to_day_eight()
+    def test_winning_most_matchups_gives_challengers_extra_stars(self) -> None:
+        self.to_day(15)
         challenger = self.today()["fight"]["challenger"]
         fighter = self.rival(challenger)
-        # The challenger's player won four of five meetings, exactly 80%: one
-        # extra star against each fighter of that player.
-        meetings = [(0, 2, False), (1, 2, False), (2, 2, False), (0, 3, False)]
-        for owner, day, win in [*meetings, (1, 3, True)]:
-            self.add_fight(owner, day, challenger["id"], [fighter["id"]], win=win)
+        self.add_votes(
+            challenger["subject_position"],
+            fighter["subject_position"],
+            [True] * 7 + [False] * 3,
+        )
 
         challenger_stars = 3 + self.boost_stars(challenger["id"])
         with patch.object(rules, "team_stars", lambda team: challenger_stars + 1):
@@ -164,13 +245,16 @@ class WinRateTests(FightTestCase):
         self.assertEqual([f["extra_stars"] for f in fight["fighters"]], [0])
         self.assertFalse(outcome["fighters_win"], "a tie goes to the challenger")
 
-    def test_winning_less_than_80_percent_gives_no_extra_stars(self) -> None:
-        self.to_day_eight()
+    def test_less_than_60_percent_or_too_few_give_no_extra_stars(self) -> None:
+        self.to_day(15)
         challenger = self.today()["fight"]["challenger"]
         fighter = self.rival(challenger)
-        # Two of three meetings, 67%: not enough.
-        for owner, win in enumerate((True, True, False)):
-            self.add_fight(owner, 1, challenger["id"], [fighter["id"]], win=win)
+        player, against = fighter["subject_position"], challenger["subject_position"]
+        # 7 of 12, 58%: not enough.
+        self.add_votes(player, against, [True] * 7 + [False] * 5)
+        third = ({0, 1, 2} - {player, against}).pop()
+        # 9 of 9: too few.
+        self.add_votes(third, against, [True] * 9)
         self.assertEqual({r["extra_stars"] for r in self.win_rates()["win_rates"]}, {0})
         fight = self.pick([fighter["id"]]).json()["fight"]["yours"]
         outcome = fight["outcome"]
@@ -178,12 +262,18 @@ class WinRateTests(FightTestCase):
             (outcome["fighter_extra_stars"], outcome["challenger_extra_stars"]), (0, 0)
         )
 
-    def test_too_few_meetings_give_no_extra_stars(self) -> None:
-        self.to_day_eight()
-        challenger = self.today()["fight"]["challenger"]
-        fighter = self.rival(challenger)
-        for owner in range(2):
-            self.add_fight(owner, 1, challenger["id"], [fighter["id"]], win=True)
-        self.assertEqual({r["extra_stars"] for r in self.win_rates()["win_rates"]}, {0})
-        fight = self.pick([fighter["id"]]).json()["fight"]["yours"]
-        self.assertEqual(fight["outcome"]["fighter_extra_stars"], 0)
+    def test_only_each_voters_first_votes_on_a_pair_count(self) -> None:
+        self.to_day(15)
+        cap = rules.WIN_RATE_MATCHUPS_PER_VOTER
+        # One voter: 5 wins and 5 losses, then 5 more wins that don't count.
+        self.add_votes(0, 1, [True, False] * 5 + [True] * 5, voters=[2])
+        (rate,) = [
+            r for r in self.win_rates()["win_rates"] if r["player_position"] == 0
+        ]
+        self.assertEqual((rate["matchups"], rate["wins"]), (cap, 5))
+
+    def test_only_the_arena_voted_on_last_week_counts(self) -> None:
+        self.to_day(15)
+        self.add_votes(0, 1, [True] * 10, week=ARENA - 7)
+        self.add_votes(0, 1, [True] * 10, week=ARENA + 7)
+        self.assertEqual(self.win_rates()["win_rates"], [])

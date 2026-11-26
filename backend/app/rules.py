@@ -514,24 +514,27 @@ def arena_qualified(matchups: int) -> bool:
 
 
 # A player's characters get extra stars against another player's after
-# winning at least a share (in whole percent) of last week's fights against
-# them: the most extra stars of every share they reach. It takes this many
-# fights to count.
-WIN_RATE_MIN_FIGHTS = 3
-WIN_RATE_EXTRA_STARS = ((0.8, 1),)
+# their portraits won at least a share (in whole percent) of their meetings
+# in last week's Arena (`app.win_rates`): the most extra stars of every share
+# they reach. It takes this many meetings to count, and each voter's first
+# few votes on a pair of players count. From a simulation of Arena weeks
+# (`simulations.win_rates`).
+WIN_RATE_MIN_MATCHUPS = 10
+WIN_RATE_MATCHUPS_PER_VOTER = 10
+WIN_RATE_EXTRA_STARS = ((0.6, 1),)
 
 
-def win_rate_extra_stars(wins: int, fights: int) -> int:
-    """The extra stars for winning `wins` of `fights` last week, by
-    `WIN_RATE_EXTRA_STARS` of [share, extra stars]: the most of every share
-    reached. Shares count in whole percent, so 4 of 5 reaches 80%."""
-    if fights < WIN_RATE_MIN_FIGHTS:
+def win_rate_extra_stars(wins: int, matchups: int) -> int:
+    """The extra stars for winning `wins` of `matchups` in last week's Arena,
+    by `WIN_RATE_EXTRA_STARS` of [share, extra stars]: the most of every
+    share reached. Shares count in whole percent, so 6 of 10 reaches 60%."""
+    if matchups < WIN_RATE_MIN_MATCHUPS:
         return 0
     return max(
         (
             stars
             for share, stars in WIN_RATE_EXTRA_STARS
-            if wins * 100 >= round(share * 100) * fights
+            if wins * 100 >= round(share * 100) * matchups
         ),
         default=0,
     )

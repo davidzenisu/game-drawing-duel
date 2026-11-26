@@ -281,8 +281,7 @@ def new_fight(
     """A fight with the fighters' upgrades as they are now, without the
     effects their owner switched off, decided right away with both sides'
     win rate extra stars (`app.win_rates`). The boosts of the day before
-    must be complete (`complete_boosts`), and the fights of the week before
-    (`complete_fights`)."""
+    must be complete (`complete_boosts`)."""
     unlocked = upgrades.unlocked(session, seat.id)
     fighter_stars = rules.team_stars([Rarity(c.rarity) for c in fighters])
     boosted = boost_stars(session, challenger.id)
@@ -352,8 +351,8 @@ def resting(
 def complete_fights(session: Session, server: Server, day: int) -> None:
     """Once `day` is over, picks fighters by chance for everyone who picked
     none, out of their characters that don't rest (`resting`). The week
-    before's last day first: its fights give `day`'s win rates
-    (`app.win_rates`). Commits."""
+    before's last day first: its fights count for the week before's results
+    (`app.boost_balance`, `app.finale`). Commits."""
     if not speed.is_speed(server):
         _complete_fights(session, server, days.week_start(server, day) - 1)
     _complete_fights(session, server, day)

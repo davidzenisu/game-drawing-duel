@@ -298,30 +298,35 @@ class HurrySubmit(BaseModel):
 
 
 class WinRate(BaseModel):
-    """How a player's characters did against another player's last week, and
-    the extra stars that gives them against that player this week."""
+    """How a player's portraits did against another player's in last week's
+    Arena, and the extra stars that gives their characters against that
+    player this week."""
 
     player_position: int
     against_position: int
-    # The fighters and challengers of both that met, and how many of those
-    # meetings `player_position` won.
-    fights: int
+    # The Arena matchups of both that counted, and how many of those
+    # `player_position` won.
+    matchups: int
     wins: int
     extra_stars: int
 
 
 class WinRatesResponse(BaseModel):
-    """This week's win rates, from last week's fights: every fighter meets
-    the challenger once, and characters count for the player they depict."""
+    """This week's win rates, from the Arena voted on last week: a vote for
+    a challenger portraying one player over one portraying another is a
+    matchup the first player won."""
 
-    # The first and last day of the week whose fights count.
+    # The first and last day of the Arena's votes, the week before this one;
+    # its challengers are the ones of the week before that.
     from_day: int
     to_day: int
-    # The meetings it takes for a win rate to give extra stars, and the
-    # extra stars for winning more than a share of them: [share, stars].
-    min_fights: int
+    # The matchups it takes for a win rate to give extra stars, how many of
+    # each voter's on a pair of players count, and the extra stars for
+    # winning more than a share of them: [share, stars].
+    min_matchups: int
+    matchups_per_voter: int
     extra_stars: list[tuple[float, int]]
-    # Every pair of players whose characters met, both ways.
+    # Every pair of players whose portraits met, both ways.
     win_rates: list[WinRate]
 
 

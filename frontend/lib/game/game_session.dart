@@ -455,7 +455,7 @@ abstract class GameSession extends ChangeNotifier {
   /// next week is over.
   Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false});
 
-  /// Loads this week's win rates, from last week's fights (see [WinRates]);
+  /// Loads this week's win rates, from last week's Arena (see [WinRates]);
   /// null in speed mode, which has none. Kept on the device for the week,
   /// unless [refresh].
   Future<WeekWinRates?> winRates({bool refresh = false});

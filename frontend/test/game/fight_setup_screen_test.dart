@@ -15,13 +15,14 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final controller = await launchedGame(launchDate: firstMonday, numberedTitles: true);
-    // Last week's fights give this week's win rates; find a day whose
-    // challenger meets a player your characters have a win rate against.
+    // Last week's Arena gives this week's win rates, from the third week
+    // on; find a day whose challenger meets a player your characters have a
+    // win rate against.
     late OwnedCard pick;
     late int change;
     for (var found = false; !found;) {
       await controller.advanceDay();
-      expect(controller.day, lessThan(15), reason: 'a star change within the second week');
+      expect(controller.day, lessThan(22), reason: 'a star change within the third week');
       final rates = (await controller.winRates())!;
       final against = controller.fightChallenger?.subject;
       if (against == null) continue;

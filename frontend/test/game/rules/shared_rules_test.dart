@@ -117,12 +117,13 @@ void main() {
 
   test('win rates', () {
     final winRates = rules['win_rates'] as Map<String, dynamic>;
-    expect(WinRates.minFights, winRates['min_fights']);
+    expect(WinRates.minMatchups, winRates['min_matchups']);
+    expect(WinRates.matchupsPerVoter, winRates['matchups_per_voter']);
     expect([
       for (final (share, stars) in WinRates.extraStarsByShare) [share, stars],
     ], winRates['extra_stars']);
-    for (final [int wins, int fights, int extraStars] in (winRates['cases'] as List).cast<List>()) {
-      expect(WinRates.extraStars(wins, fights), extraStars, reason: '$wins of $fights');
+    for (final [int wins, int matchups, int extraStars] in (winRates['cases'] as List).cast<List>()) {
+      expect(WinRates.extraStars(wins, matchups), extraStars, reason: '$wins of $matchups');
     }
     expect(Stars.fightersWin(4, 1, fighterExtraStars: 1), isTrue, reason: "the fighters' extra stars count");
     expect(Stars.fightersWin(5, 1, challengerExtraStars: 1), isFalse);

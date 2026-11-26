@@ -9,6 +9,19 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.43.0] - 2026-11-26
+
+### Changed
+- **Win rates** come from the **Arena** votes instead of the fights: a vote
+  for a challenger showing Sam over one showing Alex is a matchup Sam won
+  against Alex. Win at least 60% of at least 10 matchups against a player
+  in last week's Arena for +1 ★ in fights against them this week. Draws
+  don't count, and only each voter's first 10 votes on a pair of players
+  do. The fights themselves are decided as before.
+- Win rates start from scratch: the first ones come once the first Arena is
+  over, in a server's third week. Past fights don't count.
+- The Arena's intro has a new page about the win rates its votes set.
+
 ## [0.42.0] - 2026-11-26
 
 ### Added
