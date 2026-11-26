@@ -220,6 +220,15 @@ enum Tutorial {
             '${[for (final r in Arena.rarities) _stars(r.stars)].join(', ')}. They join the pool, rated up on '
             'the Arena banner for a week; the other challengers leave the Arena.',
       ),
+      TutorialPage(
+        icon: Icons.percent_rounded,
+        title: 'Win rates',
+        text:
+            'The votes also set the next week\'s win rates: a vote for a challenger showing Sam over one showing '
+            'Alex is a matchup Sam won against Alex. Win at least ${_percent(WinRates.extraStarsByShare.first.$1)} '
+            'of at least ${WinRates.minMatchups} matchups against a player for '
+            '+${WinRates.extraStarsByShare.first.$2} ★ in fights against them.',
+      ),
     ],
     gacha => [
       TutorialPage(

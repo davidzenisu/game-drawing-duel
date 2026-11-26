@@ -116,27 +116,28 @@ class DemoDays {
     ];
   }
 
-  /// This week's win rates on [day], from last week: none in the first
-  /// week, then the same sample table, with you in it.
+  /// This week's win rates on [day], from last week's Arena: none before
+  /// the first Arena is over (the third week), then the same sample table,
+  /// with you in it.
   WeekWinRates winRates(int day, Player you) {
     final start = weekStart(day);
     final f = friends;
-    WinRate rate(Player a, Player b, int fights, int wins) =>
-        WinRate(player: a, against: b, fights: fights, wins: wins);
+    WinRate rate(Player a, Player b, int matchups, int wins) =>
+        WinRate(player: a, against: b, matchups: matchups, wins: wins);
     return WeekWinRates(
       fromDay: start - 7,
       toDay: start - 1,
-      rates: start - 7 < 1
+      rates: start < weekStart(1) + 14
           ? const []
           : [
-              rate(f[0], f[1], 5, 4),
-              rate(f[1], f[0], 5, 1),
-              rate(f[2], you, 4, 3),
-              rate(you, f[2], 4, 1),
-              rate(you, f[3], 3, 2),
-              rate(f[3], you, 3, 1),
-              rate(f[1], f[2], 2, 2),
-              rate(f[2], f[1], 2, 0),
+              rate(f[0], f[1], 24, 16),
+              rate(f[1], f[0], 24, 8),
+              rate(f[2], you, 18, 11),
+              rate(you, f[2], 18, 7),
+              rate(you, f[3], 15, 8),
+              rate(f[3], you, 15, 7),
+              rate(f[1], f[2], 9, 9),
+              rate(f[2], f[1], 9, 0),
             ],
     );
   }

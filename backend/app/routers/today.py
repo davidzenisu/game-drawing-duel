@@ -42,7 +42,8 @@ from app.rules import (
     STARS_FOR_CHALLENGER,
     STARS_FOR_PROMPT,
     WIN_RATE_EXTRA_STARS,
-    WIN_RATE_MIN_FIGHTS,
+    WIN_RATE_MATCHUPS_PER_VOTER,
+    WIN_RATE_MIN_MATCHUPS,
     Rarity,
     hurry_hits,
 )
@@ -683,30 +684,28 @@ def get_ranking(
 def get_win_rates(
     code: Code, player: CurrentPlayer, session: DbSession
 ) -> WinRatesResponse:
-    """This week's win rates, from last week's fights: a player's characters
-    get extra stars against another player's after winning most of their
-    meetings, every fighter meeting the challenger once. Speed mode sessions
-    have none."""
+    """This week's win rates, from the Arena voted on last week: a player's
+    characters get extra stars against another player's after their
+    portraits won most of their matchups. Speed mode sessions have none."""
     server, _ = running_game(session, code, player.id)
     if speed.is_speed(server):
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Speed mode sessions have no win rates"
         )
     day = days.current_day(server)
-    fights.complete_fights(session, server, day - 1)
-    fights.decide_fights(session, server)
     positions = {s.id: s.position for s in server.seats}
     first, last = win_rates.counted_week(server, day)
     return WinRatesResponse(
         from_day=first,
         to_day=last,
-        min_fights=WIN_RATE_MIN_FIGHTS,
+        min_matchups=WIN_RATE_MIN_MATCHUPS,
+        matchups_per_voter=WIN_RATE_MATCHUPS_PER_VOTER,
         extra_stars=list(WIN_RATE_EXTRA_STARS),
         win_rates=[
             WinRate(
                 player_position=positions[r.player],
                 against_position=positions[r.against],
-                fights=r.fights,
+                matchups=r.matchups,
                 wins=r.wins,
                 extra_stars=r.extra_stars,
             )

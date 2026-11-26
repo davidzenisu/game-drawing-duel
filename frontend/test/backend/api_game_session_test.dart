@@ -1331,7 +1331,7 @@ void main() {
       expect(statsRequests(), before + 5, reason: 'the next week is over');
     });
 
-    test("this week's win rates, from last week's fights", () async {
+    test("this week's win rates, from last week's Arena", () async {
       await admin.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
       await admin.startSetup();
       await drawAll(admin);
@@ -1339,25 +1339,26 @@ void main() {
       expect((await admin.winRates())!.rates, isEmpty, reason: 'none in the first week');
 
       backend.winRates['123456'] = {
-        'from_day': 1,
-        'to_day': 7,
-        'min_fights': 3,
+        'from_day': 8,
+        'to_day': 14,
+        'min_matchups': 10,
+        'matchups_per_voter': 10,
         'win_rates': [
-          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 4, 'extra_stars': 1},
-          {'player_position': 2, 'against_position': 1, 'fights': 4, 'wins': 0, 'extra_stars': 0},
+          {'player_position': 1, 'against_position': 2, 'matchups': 12, 'wins': 8, 'extra_stars': 1},
+          {'player_position': 2, 'against_position': 1, 'matchups': 12, 'wins': 4, 'extra_stars': 0},
         ],
       };
       final rates = (await admin.winRates())!;
       expect(backend.requests.last.url.path, '/servers/123456/win-rates');
-      expect((rates.fromDay, rates.toDay), (1, 7));
+      expect((rates.fromDay, rates.toDay), (8, 14));
       expect(
-        [for (final r in rates.rates) (r.player.name, r.against.name, r.fights, r.wins, r.extraStars)],
-        [('Sam', 'Robin', 4, 4, 1), ('Robin', 'Sam', 4, 0, 0)],
+        [for (final r in rates.rates) (r.player.name, r.against.name, r.matchups, r.wins, r.extraStars)],
+        [('Sam', 'Robin', 12, 8, 1), ('Robin', 'Sam', 12, 4, 0)],
       );
       expect(rates.bands, WinRates.extraStarsByShare, reason: 'the rules\' without bands from the server');
 
-      // The weeks before the boost balance keep the old bands: 2 of 4
-      // reaches 50%, and gives +1 there.
+      // The bands the server sends count: 6 of 12 reaches 50%, and gives
+      // +1 there.
       backend.winRates['123456'] = {
         ...backend.winRates['123456']!,
         'extra_stars': [
@@ -1365,12 +1366,12 @@ void main() {
           [0.75, 2],
         ],
         'win_rates': [
-          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 2, 'extra_stars': 1},
+          {'player_position': 1, 'against_position': 2, 'matchups': 12, 'wins': 6, 'extra_stars': 1},
         ],
       };
       final before = (await admin.winRates(refresh: true))!;
       expect(before.bands, [(0.5, 1), (0.75, 2)]);
-      expect(before.rates.single.extraStars, 1, reason: 'not 80%, but 50%');
+      expect(before.rates.single.extraStars, 1, reason: 'not 60%, but 50%');
       expect((rates.extraStars('Sam', 'Robin'), rates.extraStars('Robin', 'Sam')), (1, 0));
     });
 
@@ -1396,7 +1397,7 @@ void main() {
       expect((await alex.winRates())!.rates, isEmpty);
       expect((await alex.winRates())!.rates, isEmpty);
       expect(requests('/win-rates'), 1, reason: 'from the device');
-      expect(cache.entries.keys, contains('win-rates:v3:123456'), reason: 'not the ones kept with the old bands');
+      expect(cache.entries.keys, contains('win-rates:v4:123456'), reason: 'not the ones kept from the fights');
       backend.days['123456'] = 7;
       await alex.refreshDay();
       expect((await alex.winRates())!.rates, isEmpty, reason: 'the week of days 1 to 7 is not over');
@@ -1406,9 +1407,9 @@ void main() {
       backend.winRates['123456'] = {
         'from_day': 1,
         'to_day': 7,
-        'min_fights': 3,
+        'min_matchups': 10,
         'win_rates': [
-          {'player_position': 1, 'against_position': 2, 'fights': 4, 'wins': 4, 'extra_stars': 2},
+          {'player_position': 1, 'against_position': 2, 'matchups': 12, 'wins': 12, 'extra_stars': 1},
         ],
       };
       backend.days['123456'] = 8;

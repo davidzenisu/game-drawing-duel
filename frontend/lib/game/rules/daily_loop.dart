@@ -143,22 +143,28 @@ abstract final class Stars {
 }
 
 /// After each week, a player's characters get extra stars this week against
-/// the players whose characters they beat most of the time last week.
-/// Characters count for the player they depict, and every fighter meets the
-/// challenger once. Speed mode sessions have none.
+/// the players whose portraits theirs beat most of the time in last week's
+/// Arena. A vote for a challenger portraying one player over one portraying
+/// another is a matchup the first player won; draws and matchups of two
+/// portraits of the same player don't count, and each voter's first
+/// [matchupsPerVoter] votes on a pair of players count. The server counts
+/// them. Speed mode sessions have none.
 abstract final class WinRates {
-  /// The meetings it takes for a win rate to count.
-  static const minFights = 3;
+  /// The matchups it takes for a win rate to count.
+  static const minMatchups = 10;
 
-  /// Winning at least a share (in whole percent) of the meetings gives these
-  /// extra stars: the most of every share reached.
-  static const extraStarsByShare = [(0.8, 1)];
+  /// How many of each voter's votes on a pair of players count.
+  static const matchupsPerVoter = 10;
 
-  /// The extra stars for winning [wins] of [fights] last week, by [bands].
-  /// Shares count in whole percent, so 4 of 5 reaches 80%.
-  static int extraStars(int wins, int fights, [List<(double, int)> bands = extraStarsByShare]) {
-    if (fights < minFights) return 0;
-    return bands.fold(0, (most, tier) => wins * 100 >= (tier.$1 * 100).round() * fights ? max(most, tier.$2) : most);
+  /// Winning at least a share (in whole percent) of the matchups gives
+  /// these extra stars: the most of every share reached.
+  static const extraStarsByShare = [(0.6, 1)];
+
+  /// The extra stars for winning [wins] of [matchups] last week, by
+  /// [bands]. Shares count in whole percent, so 6 of 10 reaches 60%.
+  static int extraStars(int wins, int matchups, [List<(double, int)> bands = extraStarsByShare]) {
+    if (matchups < minMatchups) return 0;
+    return bands.fold(0, (most, tier) => wins * 100 >= (tier.$1 * 100).round() * matchups ? max(most, tier.$2) : most);
   }
 }
 
@@ -917,13 +923,14 @@ class PlayerStats {
   final BoostBalance? boostBalance;
 }
 
-/// How [player]'s characters did against [against]'s last week, and the
-/// extra stars that gives them against that player this week.
+/// How [player]'s portraits did against [against]'s in last week's Arena,
+/// and the extra stars that gives their characters against that player this
+/// week.
 class WinRate {
   const WinRate({
     required this.player,
     required this.against,
-    required this.fights,
+    required this.matchups,
     required this.wins,
     this.bands = WinRates.extraStarsByShare,
   });
@@ -931,18 +938,20 @@ class WinRate {
   final Player player;
   final Player against;
 
-  /// The meetings of their characters, and how many [player] won.
-  final int fights;
+  /// The Arena matchups of their portraits that counted, and how many
+  /// [player] won.
+  final int matchups;
   final int wins;
 
   /// The win rate bands of the week they count for (see [WeekWinRates.bands]).
   final List<(double, int)> bands;
 
-  int get extraStars => WinRates.extraStars(wins, fights, bands);
+  int get extraStars => WinRates.extraStars(wins, matchups, bands);
 }
 
-/// This week's win rates, from the fights of the days [fromDay] to [toDay]:
-/// every pair of players whose characters met, both ways.
+/// This week's win rates, from the Arena voted on during the days [fromDay]
+/// to [toDay] (on the challengers of the week before them): every pair of
+/// players whose portraits met, both ways.
 class WeekWinRates {
   const WeekWinRates({
     required this.fromDay,
@@ -955,35 +964,11 @@ class WeekWinRates {
   final int toDay;
   final List<WinRate> rates;
 
-  /// The extra stars for winning more than a share of the meetings, as the
-  /// server counts them this week: the weeks before the boost balance's
-  /// first one kept older bands.
+  /// The extra stars for winning more than a share of the matchups, as the
+  /// server counts them this week.
   final List<(double, int)> bands;
 
   /// The extra stars [player]'s characters get against [against]'s.
   int extraStars(String player, String against) =>
       rates.where((r) => r.player.name == player && r.against.name == against).firstOrNull?.extraStars ?? 0;
-
-  /// Every meeting of a fighter and the challenger in [fights], and who won
-  /// it. Fighters of the challenger's own player don't count.
-  static List<WinRate> count(Iterable<FightSetup> fights, Player Function(String name) player) {
-    final meetings = <(String, String), int>{};
-    final won = <(String, String), int>{};
-    for (final fight in fights) {
-      final challenger = fight.challenger.subject;
-      for (final fighter in fight.fighters) {
-        final subject = fighter.card.subject;
-        if (subject == challenger) continue;
-        final (winner, loser) = fight.fightersWin ? (subject, challenger) : (challenger, subject);
-        for (final pair in [(winner, loser), (loser, winner)]) {
-          meetings[pair] = (meetings[pair] ?? 0) + 1;
-        }
-        won[(winner, loser)] = (won[(winner, loser)] ?? 0) + 1;
-      }
-    }
-    return [
-      for (final MapEntry(key: (a, b), value: n) in meetings.entries)
-        WinRate(player: player(a), against: player(b), fights: n, wins: won[(a, b)] ?? 0),
-    ];
-  }
 }

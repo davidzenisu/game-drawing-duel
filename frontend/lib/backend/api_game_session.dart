@@ -1662,9 +1662,9 @@ class ApiGameSession extends GameSession {
     final server = this.server;
     if (server.isSpeed) return null;
     final json = await _kept(
-      // v3: the band of 0.27.0 (at least 80%); the ones kept before are
+      // v4: from the Arena's matchups (0.43.0); the ones kept before are
       // asked again.
-      'win-rates:v3:${server.code}',
+      'win-rates:v4:${server.code}',
       '/servers/${server.code}/win-rates',
       refresh: refresh,
       // They hold for the week after the one they count.
@@ -1691,13 +1691,13 @@ class ApiGameSession extends GameSession {
             if (rate case {
               'player_position': int player,
               'against_position': int against,
-              'fights': int fights,
+              'matchups': int matchups,
               'wins': int wins,
             })
               WinRate(
                 player: _seat(server, player),
                 against: _seat(server, against),
-                fights: fights,
+                matchups: matchups,
                 wins: wins,
                 bands: bands,
               )

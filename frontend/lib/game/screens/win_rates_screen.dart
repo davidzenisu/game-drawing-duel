@@ -8,8 +8,9 @@ import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
 import '../widgets/sketch_canvas.dart';
 
-/// This week's win rates, from last week's fights: every player as a card,
-/// each opening the matchups that give extra stars to them or against them.
+/// This week's win rates, from last week's Arena votes: every player as a
+/// card, each opening the pairs of players that give extra stars to them or
+/// against them.
 class WinRatesScreen extends StatefulWidget {
   const WinRatesScreen({super.key, required this.controller});
 
@@ -78,9 +79,9 @@ class _WinRatesScreenState extends State<WinRatesScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   sliver: SliverToBoxAdapter(
                     child: Text(
-                      // The first week has no week before it to count.
-                      '${rates.fromDay < 1 ? 'No win rates yet: they start once the first week is over.' : 'From the fights of days ${rates.fromDay} to ${rates.toDay}.'} '
-                      'Characters count for the player they show. ${_bands(rates.bands)}',
+                      // The first Arena is voted on in the second week.
+                      '${widget.controller.weekOf(widget.controller.day) < 3 ? 'No win rates yet: they start once the first Arena is over, in week 3.' : 'From the Arena votes of days ${rates.fromDay} to ${rates.toDay}, on the challengers of days ${(rates.fromDay - 7).clamp(1, rates.toDay)} to ${rates.toDay - 7}.'} '
+                      'Challengers count for the player they show. ${_bands(rates.bands)}',
                       style: textTheme.bodyMedium,
                     ),
                   ),
@@ -190,8 +191,8 @@ class _PlayerCard extends StatelessWidget {
   }
 }
 
-/// [player]'s matchups this week that change stars on either side: theirs
-/// against each other player, side by side.
+/// [player]'s pairs of players this week that change stars on either side:
+/// theirs against each other player, side by side.
 class PlayerWinRatesScreen extends StatelessWidget {
   const PlayerWinRatesScreen({super.key, required this.controller, required this.player, required this.rates});
 
@@ -299,7 +300,7 @@ class _MatchupSide extends StatelessWidget {
               maintainSize: true,
               maintainAnimation: true,
               maintainState: true,
-              child: Text('won ${rate?.wins ?? 0}/${rate?.fights ?? 0} fights', style: textTheme.bodySmall),
+              child: Text('won ${rate?.wins ?? 0}/${rate?.matchups ?? 0} matchups', style: textTheme.bodySmall),
             ),
           ],
         ),
@@ -308,13 +309,16 @@ class _MatchupSide extends StatelessWidget {
   }
 }
 
-/// How [bands] give extra stars, e.g. "Win at least 80% of at least 3 fights
-/// against a player for +1 ★ against them the next week."
+/// How [bands] give extra stars, e.g. "Win at least 60% of at least 10 Arena
+/// matchups against a player's portraits for +1 ★ against them the next
+/// week. Draws don't count, and each voter's first 10 votes on a pair of
+/// players do."
 String _bands(List<(double, int)> bands) {
   final (share, stars) = bands.first;
   final more = [for (final (share, stars) in bands.skip(1)) 'at least ${_percent(share)} for +$stars ★'];
-  return 'Win at least ${_percent(share)} of at least ${WinRates.minFights} fights against a player for '
-      '+$stars ★ against them the next week${more.isEmpty ? '' : ', ${more.join(', ')}'}.';
+  return 'Win at least ${_percent(share)} of at least ${WinRates.minMatchups} Arena matchups against a player\'s '
+      'portraits for +$stars ★ against them the next week${more.isEmpty ? '' : ', ${more.join(', ')}'}. '
+      "Draws don't count, and each voter's first ${WinRates.matchupsPerVoter} votes on a pair of players do.";
 }
 
 /// A share as a percentage, e.g. 60%.

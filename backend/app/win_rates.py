@@ -1,87 +1,119 @@
 """Win rates: after each week, a player's characters get extra stars this
-week against the players whose characters they beat most of the time last
-week.
+week against the players whose portraits won most of their Arena matchups
+against theirs last week.
 
-A character counts for the player it depicts. In a fight, every fighter
-meets the challenger once: the side that won the fight wins that meeting,
-and fighters depicting the challenger's own player don't count. A player who
-won at least a share of at least `rules.WIN_RATE_MIN_FIGHTS` meetings with
-another player's characters last week gets `rules.win_rate_extra_stars`:
-each of their fighters gets them against a challenger of that player, and a
-challenger of theirs gets them for each fighter of that player. Speed mode
-sessions have no weeks, so no win rates.
+A challenger counts for the player it portrays. In the Arena voted on last
+week (`app.arena`, on the challengers of the week before), a vote for a
+challenger portraying one player over one portraying another is a meeting
+the first player won. Draws ("can't decide") and matchups of two portraits
+of the same player count for nothing, and each voter's first
+`rules.WIN_RATE_MATCHUPS_PER_VOTER` votes on a pair of players count, so no
+one voter swings it. A player who won at least a share of at least
+`rules.WIN_RATE_MIN_MATCHUPS` meetings with another player gets
+`rules.win_rate_extra_stars`: each of their fighters gets them against a
+challenger of that player, and a challenger of theirs gets them for each
+fighter of that player. The fights themselves don't count. Until the first
+Arena is over (a server's third week) there are none; speed mode sessions
+have no weeks, so no Arena and no win rates.
 """
 
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session, aliased
 
 from app import days, rules, speed
-from app.models import Character, Fight, Fighter, Server, ServerSeat
+from app.models import ArenaVote, Character, Server, ServerSeat
 
 
 @dataclass(frozen=True)
 class Record:
-    """How `player`'s characters did against `against`'s last week."""
+    """How `player`'s portraits did against `against`'s in last week's
+    Arena: the meetings counted, and how many `player` won."""
 
     player: uuid.UUID
     against: uuid.UUID
-    fights: int
+    matchups: int
     wins: int
 
     @property
     def extra_stars(self) -> int:
-        return rules.win_rate_extra_stars(self.wins, self.fights)
+        return rules.win_rate_extra_stars(self.wins, self.matchups)
+
+
+def meetings[P](
+    votes: list[tuple[object, P, P]], per_voter: int | None
+) -> dict[tuple[P, P], tuple[int, int]]:
+    """Every pair of players' (wins, meetings), both ways, from `votes` of
+    (voter, winner's player, loser's player) in the order cast: each voter's
+    first `per_voter` on a pair of players count (all without a cap). Votes
+    between two portraits of the same player count for nothing."""
+    cast: Counter[tuple[object, frozenset]] = Counter()
+    result: dict[tuple[P, P], tuple[int, int]] = {}
+    for voter, winner, loser in votes:
+        if winner == loser:
+            continue
+        key = (voter, frozenset((winner, loser)))
+        if per_voter is not None and cast[key] >= per_voter:
+            continue
+        cast[key] += 1
+        wins, n = result.get((winner, loser), (0, 0))
+        result[(winner, loser)] = (wins + 1, n + 1)
+        wins, n = result.get((loser, winner), (0, 0))
+        result[(loser, winner)] = (wins, n + 1)
+    return result
 
 
 def counted_week(server: Server, day: int) -> tuple[int, int]:
-    """The first and last day of the week before `day`'s, whose fights give
-    the win rates of `day`'s week."""
+    """The first and last day of the week before `day`'s, whose Arena votes
+    give the win rates of `day`'s week."""
     start = days.week_start(server, day)
     return start - 7, start - 1
 
 
+def arena_week(server: Server, day: int) -> int:
+    """The Arena whose votes give the win rates of `day`'s week: the one
+    voted on during the week before (`app.arena`), on the challengers of the
+    week before that."""
+    return days.week_start(server, day) - 8
+
+
 def records(session: Session, server: Server, day: int) -> list[Record]:
-    """Every player's record against every other player in the week before
-    `day`'s, both ways, by roster order. Its fights must be decided
-    (`app.fights.complete_fights`, `app.fights.decide_fights`)."""
+    """Every player's record against every other player in the Arena voted
+    on in the week before `day`'s, both ways, by roster order."""
     if speed.is_speed(server):
         return []
-    first, last = counted_week(server, day)
-    fighter = aliased(Character)
-    challenger = aliased(Character)
-    meetings = session.execute(
-        select(fighter.subject_seat_id, challenger.subject_seat_id, Fight.fighters_win)
-        .select_from(Fighter)
-        .join(Fight, Fight.id == Fighter.fight_id)
-        .join(fighter, fighter.id == Fighter.character_id)
-        .join(challenger, challenger.id == Fight.challenger_id)
+    winner = aliased(Character)
+    loser = aliased(Character)
+    votes = session.execute(
+        select(
+            ArenaVote.voter_seat_id,
+            winner.subject_seat_id,
+            loser.subject_seat_id,
+        )
+        .join(winner, winner.id == ArenaVote.winner_id)
+        .join(
+            loser,
+            loser.id
+            == case(
+                (ArenaVote.winner_id == ArenaVote.first_id, ArenaVote.second_id),
+                else_=ArenaVote.first_id,
+            ),
+        )
         .where(
-            challenger.server_id == server.id,
-            Fight.day >= first,
-            Fight.day <= last,
-            Fight.fighters_win.is_not(None),
-            fighter.subject_seat_id != challenger.subject_seat_id,
+            ArenaVote.server_id == server.id,
+            ArenaVote.week == arena_week(server, day),
         )
+        .order_by(ArenaVote.voted_at, ArenaVote.id)
     ).all()
-    fights: dict[tuple[uuid.UUID, uuid.UUID], int] = {}
-    wins: dict[tuple[uuid.UUID, uuid.UUID], int] = {}
-    for fighter_player, challenger_player, fighters_win in meetings:
-        winner, loser = (
-            (fighter_player, challenger_player)
-            if fighters_win
-            else (challenger_player, fighter_player)
-        )
-        for pair in ((winner, loser), (loser, winner)):
-            fights[pair] = fights.get(pair, 0) + 1
-        wins[(winner, loser)] = wins.get((winner, loser), 0) + 1
+    counted = meetings([tuple(v) for v in votes], rules.WIN_RATE_MATCHUPS_PER_VOTER)
     order = {s.id: s.position for s in server.seats}
     return [
-        Record(player, against, n, wins.get((player, against), 0))
-        for (player, against), n in sorted(
-            fights.items(), key=lambda item: (order[item[0][0]], order[item[0][1]])
+        Record(player, against, n, wins)
+        for (player, against), (wins, n) in sorted(
+            counted.items(), key=lambda item: (order[item[0][0]], order[item[0][1]])
         )
     ]
 

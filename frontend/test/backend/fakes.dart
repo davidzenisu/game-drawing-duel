@@ -592,7 +592,11 @@ class FakeBackend {
       }
       if (request.method == 'GET' && path.length == 3 && path[2] == 'win-rates') {
         if (speedServers.contains(code)) return _json(409, {'detail': 'Speed mode sessions have no win rates'});
-        return _json(200, winRates[code] ?? {'from_day': -6, 'to_day': 0, 'min_fights': 3, 'win_rates': const []});
+        return _json(
+          200,
+          winRates[code] ??
+              {'from_day': -6, 'to_day': 0, 'min_matchups': 10, 'matchups_per_voter': 10, 'win_rates': const []},
+        );
       }
       if (path.length >= 3 && path[2] == 'arena') {
         final status = arenaStatus[code];

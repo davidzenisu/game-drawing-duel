@@ -10,16 +10,20 @@ void main() {
     tester.view.physicalSize = const Size(360, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final controller = await launchedGame(launchDate: firstMonday, day: 8);
+    final controller = await launchedGame(launchDate: firstMonday, day: 15);
     final rates = (await controller.winRates())!;
 
     await tester.pumpWidget(MaterialApp(home: WinRatesScreen(controller: controller)));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull, reason: 'fits a phone');
-    expect(find.textContaining('From the fights of days 1 to 7'), findsOneWidget);
+    expect(
+      find.textContaining('From the Arena votes of days 8 to 14, on the challengers of days 1 to 7.'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining(
-        'Win at least 80% of at least 3 fights against a player for +1 ★ against them the next week.',
+        "Win at least 60% of at least 10 Arena matchups against a player's portraits for +1 ★ against them the next "
+        "week. Draws don't count, and each voter's first 10 votes on a pair of players do.",
       ),
       findsOneWidget,
       reason: 'the band of the rules',
@@ -42,7 +46,7 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     expect(find.byType(PlayerWinRatesScreen), findsOneWidget);
     expect(find.text('+${best.extraStars} ★'), findsWidgets);
-    expect(find.text('won ${best.wins}/${best.fights} fights'), findsWidgets);
+    expect(find.text('won ${best.wins}/${best.matchups} matchups'), findsWidgets);
     expect(find.text('vs'), findsWidgets);
 
     // Only the matchups that change stars on either side.
