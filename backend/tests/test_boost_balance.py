@@ -20,13 +20,20 @@ class BoostBalanceTests(FightTestCase):
             server = session.scalar(select(Server).where(Server.code == self.code))
             server.launched_at = datetime(2026, 10, 5, 9, tzinfo=UTC)
             session.commit()
-        # The balance from the launch week on, unless a test says otherwise.
+        # The balance from the launch week on, its stars starting on the
+        # Sunday before each week, unless a test says otherwise.
         self.balance_from(date(2026, 10, 5))
+        self.shift_from(date(2026, 10, 5))
 
     def balance_from(self, monday: date) -> None:
         balance_from = patch("app.rules.BALANCE_FROM", monday)
         balance_from.start()
         self.addCleanup(balance_from.stop)
+
+    def shift_from(self, monday: date) -> None:
+        shift_from = patch("app.rules.BOOST_WEEK_SHIFT_FROM", monday)
+        shift_from.start()
+        self.addCleanup(shift_from.stop)
 
     def next_day(self):
         # Everyone draws a challenger, so there's one to boost and fight.
@@ -59,25 +66,30 @@ class BoostBalanceTests(FightTestCase):
                 .where(Fight.day >= first, Fight.day <= last)
             )
 
-    def ranking(self) -> dict:
-        return self.get(f"/servers/{self.code}/ranking").json()
+    def week_stats(self) -> dict:
+        return self.get(f"/servers/{self.code}/player-stats").json()
 
     def test_the_first_week_gives_the_base_stars(self) -> None:
         step = self.today()["boost"]
         self.assertEqual((step["stars"], step["max_per_challenger"]), (3, 3))
         self.assertIsNone(step["balance"])
+        self.assertFalse(step["next_week"])
+        self.assertIsNone(self.week_stats()["boost_balance"])
 
-    def test_heroes_winning_most_fights_give_more_stars(self) -> None:
-        self.to_day(8)
-        fights = self.set_results(1, 7, True)
+    def test_heroes_winning_most_fights_give_more_stars_from_sunday(self) -> None:
+        self.to_day(6)
+        self.assertEqual(self.today()["boost"]["stars"], 3, "Saturday's are this week's")
+        self.to_day(7)
+        fights = self.set_results(1, 6, True)
         self.assertGreaterEqual(fights, rules.BOOST_BALANCE_MIN_FIGHTS)
         step = self.today()["boost"]
         self.assertEqual((step["stars"], step["max_per_challenger"]), (5, 5))
+        self.assertTrue(step["next_week"], "Sunday's challengers are fought on Monday")
         self.assertEqual(
             step["balance"],
             {
                 "from_day": 1,
-                "to_day": 7,
+                "to_day": 6,
                 "fights": fights,
                 "hero_wins": fights,
                 "min_fights": rules.BOOST_BALANCE_MIN_FIGHTS,
@@ -86,49 +98,56 @@ class BoostBalanceTests(FightTestCase):
                 "stars": 5,
             },
         )
-        self.assertEqual(self.ranking()["boost_balance"], step["balance"])
+        self.assertIsNone(self.week_stats()["boost_balance"], "this week's: the first")
 
         challenger = step["targets"][0]["challenger"]["id"]
         response = self.boost({challenger: 5})
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(self.boost({challenger: 6}).status_code, 409)
 
+        self.next_day()
+        self.set_results(7, 7, False)
+        monday = self.today()["boost"]
+        self.assertEqual(monday["balance"], step["balance"], "Sunday's fights don't count")
+        self.assertFalse(monday["next_week"])
+        self.assertEqual(self.week_stats()["boost_balance"], step["balance"])
+
     def test_chance_spreads_the_weeks_stars(self) -> None:
-        self.to_day(8)
-        self.set_results(1, 7, True)
+        self.to_day(7)
+        self.set_results(1, 6, True)
         self.next_day()
         with self.session_factory() as session:
             spread = session.scalars(
                 select(func.sum(Boost.stars))
-                .where(Boost.day == 8)
+                .where(Boost.day == 7)
                 .group_by(Boost.booster_seat_id)
             ).all()
-        self.assertEqual(set(spread), {5}, "the week's stars, all of them")
+        self.assertEqual(set(spread), {5}, "next week's stars, all of them")
 
     def test_challengers_winning_most_fights_never_go_below_the_minimum(
         self,
     ) -> None:
-        self.to_day(8)
-        self.set_results(1, 7, False)
+        self.to_day(7)
+        self.set_results(1, 6, False)
         balance = self.today()["boost"]["balance"]
         self.assertEqual(
             (balance["previous_stars"], balance["step"], balance["stars"]), (3, -2, 3)
         )
 
     def test_too_few_fights_change_nothing(self) -> None:
-        self.to_day(8)
-        self.set_results(1, 7, True)
+        self.to_day(7)
+        self.set_results(1, 6, True)
         with self.session_factory() as session:
-            session.execute(delete(Fight).where(Fight.day < 7))
+            session.execute(delete(Fight).where(Fight.day < 6))
             session.commit()
         balance = self.today()["boost"]["balance"]
         self.assertLess(balance["fights"], rules.BOOST_BALANCE_MIN_FIGHTS)
         self.assertEqual((balance["step"], balance["stars"]), (0, 3))
 
     def test_weeks_stack_up_to_the_maximum(self) -> None:
-        self.to_day(15)
-        self.set_results(1, 7, True)
-        self.set_results(8, 14, True)
+        self.to_day(14)
+        self.set_results(1, 6, True)
+        self.set_results(8, 13, True)
         balance = self.today(ADMIN)["boost"]["balance"]
         self.assertEqual(
             (balance["from_day"], balance["previous_stars"], balance["step"]),
@@ -136,25 +155,56 @@ class BoostBalanceTests(FightTestCase):
         )
         self.assertEqual(balance["stars"], 6, "never more than the maximum")
 
-        self.set_results(8, 14, False)
+        self.set_results(8, 13, False)
         balance = self.today(ADMIN)["boost"]["balance"]
         self.assertEqual((balance["previous_stars"], balance["stars"]), (5, 3))
 
     def test_the_weeks_before_the_balance_keep_the_base_stars(self) -> None:
         # Running servers switch between two weeks: from day 15's on.
         self.balance_from(date(2026, 10, 19))
+        self.shift_from(date(2026, 10, 19))
         self.to_day(8)
         self.set_results(1, 7, True)
         step = self.today()["boost"]
         self.assertEqual((step["stars"], step["balance"]), (3, None))
-        self.assertIsNone(self.ranking()["boost_balance"])
+        self.assertIsNone(self.week_stats()["boost_balance"])
         self.assertEqual(self.boost({step["targets"][0]["challenger"]["id"]: 4}).status_code, 409)
 
-        self.to_day(15)
-        self.set_results(1, 14, True)
+        self.to_day(14)
+        self.set_results(1, 13, True)
         balance = self.today()["boost"]["balance"]
         self.assertEqual(
             (balance["previous_stars"], balance["step"], balance["stars"]),
             (3, 2, 5),
             "the first week on starts from the base stars",
+        )
+
+    def test_the_weeks_before_the_shift_start_on_monday(self) -> None:
+        # Days 8 to 14 start on their Monday, from days 1 to 7; day 15's
+        # week on Sunday, day 14.
+        self.shift_from(date(2026, 10, 19))
+        self.to_day(7)
+        self.assertFalse(self.today()["boost"]["next_week"])
+        self.to_day(13)
+        self.set_results(1, 7, True)
+        balance = self.today()["boost"]["balance"]
+        self.assertEqual(
+            (balance["from_day"], balance["to_day"], balance["min_fights"]),
+            (1, 7, rules.BOOST_BALANCE_MIN_FIGHTS_BEFORE),
+        )
+        self.assertEqual(balance["stars"], 5)
+
+        self.to_day(14)
+        self.set_results(8, 13, False)
+        step = self.today()["boost"]
+        self.assertTrue(step["next_week"])
+        self.assertEqual(
+            (
+                step["balance"]["from_day"],
+                step["balance"]["to_day"],
+                step["balance"]["min_fights"],
+                step["balance"]["previous_stars"],
+                step["stars"],
+            ),
+            (8, 13, rules.BOOST_BALANCE_MIN_FIGHTS, 5, 3),
         )

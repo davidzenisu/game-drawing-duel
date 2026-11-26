@@ -94,10 +94,11 @@ class BoostTarget(BaseModel):
 
 
 class BoostBalanceResponse(BaseModel):
-    """A week's boost stars a day, and why: the week before's, changed by
-    the heroes' share of its decided fights (`app.boost_balance`)."""
+    """A week's boost stars a day, the ones its challengers are boosted
+    with, and why: the week before's, changed by the heroes' share of its
+    decided fights from Monday to Saturday (`app.boost_balance`)."""
 
-    # The first and last day of the week before, whose fights count.
+    # The first and last day of the week before whose fights count.
     from_day: int
     to_day: int
     # Its decided fights, and how many the heroes won.
@@ -121,8 +122,12 @@ class BoostStep(BaseModel):
     # The stars you spread, and how many one challenger takes at most.
     stars: int
     max_per_challenger: int
-    # Why this week has `stars`; null in the first week and in speed mode.
+    # Why the week of today's challengers' fights has `stars`; null in the
+    # first week and in speed mode.
     balance: BoostBalanceResponse | None = None
+    # Whether `stars` are next week's: on Sunday, as the challengers boosted
+    # today are fought on Monday.
+    next_week: bool = False
 
 
 class FightStep(BaseModel):
@@ -207,8 +212,6 @@ class RankingResponse(BaseModel):
     # The last day of the week.
     day: int
     challengers: list[RankedChallenger]
-    # The boost stars its fights gave the week after; null in speed mode.
-    boost_balance: BoostBalanceResponse | None = None
 
 
 class TodayResponse(BaseModel):

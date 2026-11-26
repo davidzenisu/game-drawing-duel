@@ -128,11 +128,13 @@ enum Tutorial {
         icon: Icons.balance_rounded,
         title: 'A balance every week',
         text:
-            'Each week, the boost stars change with how last week\'s fights went. Heroes winning '
+            'Each week, the boost stars change with how last week\'s fights went from Monday to Saturday. '
+            'Heroes winning '
             '${[for (final (share, n) in WeeklyBoost.more) 'more than ${_percent(share)} give +$n ★'].join(', ')}; '
             '${[for (final (share, n) in WeeklyBoost.fewer) 'under ${_percent(share)} −$n ★'].join(', ')}. '
             'It takes ${WeeklyBoost.minFights} fights, and it adds up week after week, between '
-            '${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars} ★ a day. The week ranking shows this week\'s.',
+            '${WeeklyBoost.minStars} and ${WeeklyBoost.maxStars} ★ a day. The new stars start on Sunday, as '
+            'Sunday\'s challengers are fought in the new week. The week ranking shows this week\'s.',
       ),
     ],
     fight => [

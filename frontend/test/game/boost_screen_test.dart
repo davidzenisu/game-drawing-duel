@@ -55,6 +55,7 @@ void main() {
     expect(find.text('Boost challengers 1/${targets.length}'), findsOneWidget);
     expect(find.text(targets.first.challenger.title), findsOneWidget);
     expect(find.textContaining('3 of 3 left'), findsOneWidget);
+    expect(find.textContaining("Next week's balance"), findsNothing, reason: "not Sunday: this week's stars");
     expect(tester.takeException(), isNull, reason: 'fits a phone');
     // Every challenger shows its own stars; boost stars go below them.
     final ownStars = find.descendant(
@@ -187,5 +188,21 @@ void main() {
     expect(done, isTrue);
     expect(controller.boostStarsLeft, Boost.stars - 1);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets("on Sunday, the tray says the stars are next week's", (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final controller = await launchedGame(launchDate: firstMonday, day: 7, drawing: true);
+    expect(controller.boostNextWeek, isTrue);
+    expect(controller.boostTargets, isNotEmpty);
+    await tester.pumpWidget(MaterialApp(home: BoostScreen(controller: controller)));
+    await tester.pumpAndSettle();
+    expect(
+      find.text("Next week's balance: ${controller.boostStars} ★, as these challengers are fought on Monday."),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
   });
 }

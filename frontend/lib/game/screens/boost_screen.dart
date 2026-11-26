@@ -170,6 +170,7 @@ class _BoostScreenState extends State<BoostScreen> {
                   ),
                   _StarTray(
                     total: widget.controller.boostStars,
+                    nextWeek: widget.controller.boostNextWeek,
                     left: _left,
                     enabled: _canGive(current),
                     saving: _saving,
@@ -342,6 +343,7 @@ class _GivenStar extends StatelessWidget {
 class _StarTray extends StatelessWidget {
   const _StarTray({
     required this.total,
+    required this.nextWeek,
     required this.left,
     required this.enabled,
     required this.saving,
@@ -353,8 +355,10 @@ class _StarTray extends StatelessWidget {
     required this.onDone,
   });
 
-  /// This week's stars to give.
+  /// The stars to give: this week's, or on Sunday next week's ([nextWeek]),
+  /// as today's challengers are fought on Monday.
   final int total;
+  final bool nextWeek;
   final int left;
   final bool enabled;
   final bool saving;
@@ -394,6 +398,12 @@ class _StarTray extends StatelessWidget {
                   style: textTheme.titleSmall,
                   textAlign: TextAlign.center,
                 ),
+                if (nextWeek)
+                  Text(
+                    "Next week's balance: $total ★, as these challengers are fought on Monday.",
+                    style: textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
                 const SizedBox(height: 8),
                 Row(
                   children: [

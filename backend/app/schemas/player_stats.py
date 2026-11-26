@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from app.schemas.day import BoostBalanceResponse
+
 
 class PlacedPlayer(BaseModel):
     """A player's value of a stat and their place (tied players share one),
@@ -43,3 +45,6 @@ class PlayerStatsResponse(BaseModel):
     # ones the week ranks (fought that week), drawn so far; their stars stay
     # out.
     portrayed: list[PortrayedPlayer]
+    # The ongoing week only: its boost stars, the ones its challengers are
+    # boosted with, and why; null in the first week.
+    boost_balance: BoostBalanceResponse | None = None

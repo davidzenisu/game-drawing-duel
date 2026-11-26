@@ -2,9 +2,14 @@
 
 from typing import Literal
 
-from app import speed
+from app import boost_balance, speed
 from app.models import Character, Player, Server
-from app.schemas import CharacterResponse, SeatResponse, ServerResponse
+from app.schemas import (
+    BoostBalanceResponse,
+    CharacterResponse,
+    SeatResponse,
+    ServerResponse,
+)
 
 
 def character_response(character: Character) -> CharacterResponse:
@@ -17,6 +22,23 @@ def character_response(character: Character) -> CharacterResponse:
         subject_position=character.subject.position,
         day=character.day,
         theme=character.theme,
+    )
+
+
+def balance_response(
+    balance: boost_balance.Balance | None,
+) -> BoostBalanceResponse | None:
+    if balance is None:
+        return None
+    return BoostBalanceResponse(
+        from_day=balance.from_day,
+        to_day=balance.to_day,
+        fights=balance.fights,
+        hero_wins=balance.hero_wins,
+        min_fights=balance.min_fights,
+        previous_stars=balance.previous_stars,
+        step=balance.step,
+        stars=balance.stars,
     )
 
 

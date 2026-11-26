@@ -772,16 +772,32 @@ void main() {
     }
   });
 
-  test('the heroes won most of the first week, so the second gives +1 boost star a day', () async {
-    final game = await launchedGame(launchDate: firstMonday, day: 8);
-    final balance = game.boostBalance!;
-    expect((await game.weekRanking())!.boostBalance!.stars, balance.stars, reason: 'the ranking shows it too');
-    expect(balance.heroPercent, greaterThan(60));
-    expect(balance.heroPercent, lessThanOrEqualTo(80));
-    expect((balance.previousStars, balance.change, balance.stars), (3, 1, 4));
-    expect(game.boostStars, 4);
-    if (game.boostTargets.isNotEmpty) expect(game.boostStarsLeft, 4);
-  });
+  test(
+    'the heroes won most of the first week up to Saturday, so the second gives +1 boost star a day from Sunday',
+    () async {
+      final game = await launchedGame(launchDate: firstMonday, day: 6);
+      expect(
+        (game.boostBalance, game.boostNextWeek, game.boostStars),
+        (null, false, 3),
+        reason: "Saturday's: this week's",
+      );
+      await game.advanceDay();
+      final balance = game.boostBalance!;
+      expect(game.boostNextWeek, isTrue, reason: "Sunday's challengers are fought on Monday");
+      expect((balance.fromDay, balance.toDay), (1, 6));
+      expect(balance.heroPercent, greaterThan(60));
+      expect(balance.heroPercent, lessThanOrEqualTo(80));
+      expect((balance.previousStars, balance.change, balance.stars), (3, 1, 4));
+      expect(game.boostStars, 4);
+      if (game.boostTargets.isNotEmpty) expect(game.boostStarsLeft, 4);
+      expect((await game.playerStats(StatPeriod.week))!.boostBalance, isNull, reason: "this week's: the first");
+
+      await game.advanceDay();
+      expect(game.boostNextWeek, isFalse);
+      expect(game.boostStars, 4);
+      expect((await game.playerStats(StatPeriod.week))!.boostBalance!.stars, 4, reason: 'the week ranking shows it');
+    },
+  );
 
   test('skipping the drawing costs the next day\'s boosts', () async {
     final game = await launchedGame(day: 2);
