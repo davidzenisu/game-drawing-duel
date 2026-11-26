@@ -12,8 +12,6 @@ Sunday's aren't over when its boosts start) changes them by
 `rules.BOOST_MAX_STARS`. One challenger takes all of them at most. Speed
 mode sessions have no weeks, so they keep `rules.BOOST_STARS`, and so do
 the weeks before `rules.BALANCE_FROM`'s: the first week on starts from it.
-The balanced weeks before `rules.BOOST_WEEK_SHIFT_FROM`'s start on their
-Monday instead, from the whole week before's fights.
 """
 
 from collections import Counter
@@ -33,11 +31,9 @@ class Balance:
     # The first and last day of the week before whose fights count.
     from_day: int
     to_day: int
-    # Their decided fights, how many of them the heroes won, and how many it
-    # takes to change the stars.
+    # Their decided fights, and how many of them the heroes won.
     fights: int
     hero_wins: int
-    min_fights: int
     # The week before's boost stars, and the change its fights give.
     previous_stars: int
     step: int
@@ -53,18 +49,11 @@ class Balance:
         return self.stars
 
 
-def _shifted(server: Server, week: int) -> bool:
-    """Whether the week starting on `week` starts its boost stars on the
-    Sunday before (`rules.BOOST_WEEK_SHIFT_FROM`)."""
-    return days.date_of_day(server, week) >= rules.BOOST_WEEK_SHIFT_FROM
-
-
 def fight_week(server: Server, day: int) -> int:
     """The first day of the week whose boost stars a player gives on `day`:
     the week the challengers boosted that day are fought in, so on Sunday
     already next week's."""
-    week = days.week_start(server, day + 1)
-    return week if _shifted(server, week) else days.week_start(server, day)
+    return days.week_start(server, day + 1)
 
 
 def next_week(server: Server, day: int) -> bool:
@@ -74,13 +63,10 @@ def next_week(server: Server, day: int) -> bool:
     )
 
 
-def _counted(server: Server, week: int) -> tuple[int, int, int]:
+def _counted(week: int) -> tuple[int, int]:
     """The first and last day whose fights change the boost stars of the
-    week starting on `week`, and how many it takes."""
-    before = week - 7
-    if _shifted(server, week):
-        return before, before + 5, rules.BOOST_BALANCE_MIN_FIGHTS
-    return before, before + 6, rules.BOOST_BALANCE_MIN_FIGHTS_BEFORE
+    week starting on `week`: the week before's Monday to Saturday."""
+    return week - 7, week - 2
 
 
 def week_balance(session: Session, server: Server, day: int) -> Balance | None:
@@ -111,29 +97,27 @@ def week_balance(session: Session, server: Server, day: int) -> Balance | None:
         fights[fight_day] += 1
         wins[fight_day] += fighters_win
 
-    def counted(start: int) -> tuple[int, int, int, int, int]:
-        first, last, min_fights = _counted(server, start)
-        n = sum(fights[d] for d in range(first, last + 1))
-        won = sum(wins[d] for d in range(first, last + 1))
-        return first, last, n, won, min_fights
+    def step(start: int) -> int:
+        first, last = _counted(start)
+        counted = range(first, last + 1)
+        return rules.boost_balance_step(
+            sum(wins[d] for d in counted), sum(fights[d] for d in counted)
+        )
 
     stars = rules.BOOST_STARS
     for start in range(first_week + 7, week, 7):
         # The weeks before the balance keep the base stars.
         if days.balanced(server, start):
-            _, _, n, won, min_fights = counted(start)
-            stars = rules.balanced_boost_stars(
-                stars, rules.boost_balance_step(won, n, min_fights)
-            )
-    first, last, n, won, min_fights = counted(week)
+            stars = rules.balanced_boost_stars(stars, step(start))
+    first, last = _counted(week)
+    counted = range(first, last + 1)
     return Balance(
         from_day=first,
         to_day=last,
-        fights=n,
-        hero_wins=won,
-        min_fights=min_fights,
+        fights=sum(fights[d] for d in counted),
+        hero_wins=sum(wins[d] for d in counted),
         previous_stars=stars,
-        step=rules.boost_balance_step(won, n, min_fights),
+        step=step(week),
     )
 
 
@@ -157,4 +141,4 @@ def last_counted_day(server: Server, day: int) -> int | None:
     in speed mode."""
     if speed.is_speed(server):
         return None
-    return _counted(server, fight_week(server, day))[1]
+    return _counted(fight_week(server, day))[1]

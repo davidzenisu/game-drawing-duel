@@ -307,13 +307,10 @@ BOOST_MIN_STARS = 3
 BOOST_MAX_STARS = 6
 
 
-def boost_balance_step(
-    hero_wins: int, fights: int, min_fights: int = BOOST_BALANCE_MIN_FIGHTS
-) -> int:
+def boost_balance_step(hero_wins: int, fights: int) -> int:
     """How many boost stars more (or fewer) a week gives after the heroes
-    won `hero_wins` of the week before's `fights`, once there were at least
-    `min_fights`."""
-    if fights < min_fights:
+    won `hero_wins` of the week before's `fights`."""
+    if fights < BOOST_BALANCE_MIN_FIGHTS:
         return 0
     more = max(
         (n for share, n in BOOST_BALANCE_MORE if hero_wins > share * fights),
@@ -524,13 +521,6 @@ WIN_RATE_EXTRA_STARS = ((0.8, 1),)
 # middle of one. The weeks before keep `BOOST_STARS` a day and these bands.
 BALANCE_FROM = date(2026, 11, 23)
 WIN_RATE_EXTRA_STARS_BEFORE = ((0.5, 1), (0.75, 2))
-# The boost stars follow the week the boosted challengers are fought in from
-# the week of this Monday (UTC) on: its stars start on the Sunday before,
-# from the Monday-to-Saturday fights of the week before. The balanced weeks
-# before it start on their Monday, from the whole week before's fights, once
-# there were at least `BOOST_BALANCE_MIN_FIGHTS_BEFORE`.
-BOOST_WEEK_SHIFT_FROM = date(2026, 11, 30)
-BOOST_BALANCE_MIN_FIGHTS_BEFORE = 7
 
 
 def win_rate_extra_stars(

@@ -20,20 +20,13 @@ class BoostBalanceTests(FightTestCase):
             server = session.scalar(select(Server).where(Server.code == self.code))
             server.launched_at = datetime(2026, 10, 5, 9, tzinfo=UTC)
             session.commit()
-        # The balance from the launch week on, its stars starting on the
-        # Sunday before each week, unless a test says otherwise.
+        # The balance from the launch week on, unless a test says otherwise.
         self.balance_from(date(2026, 10, 5))
-        self.shift_from(date(2026, 10, 5))
 
     def balance_from(self, monday: date) -> None:
         balance_from = patch("app.rules.BALANCE_FROM", monday)
         balance_from.start()
         self.addCleanup(balance_from.stop)
-
-    def shift_from(self, monday: date) -> None:
-        shift_from = patch("app.rules.BOOST_WEEK_SHIFT_FROM", monday)
-        shift_from.start()
-        self.addCleanup(shift_from.stop)
 
     def next_day(self):
         # Everyone draws a challenger, so there's one to boost and fight.
@@ -162,7 +155,6 @@ class BoostBalanceTests(FightTestCase):
     def test_the_weeks_before_the_balance_keep_the_base_stars(self) -> None:
         # Running servers switch between two weeks: from day 15's on.
         self.balance_from(date(2026, 10, 19))
-        self.shift_from(date(2026, 10, 19))
         self.to_day(8)
         self.set_results(1, 7, True)
         step = self.today()["boost"]
@@ -177,34 +169,4 @@ class BoostBalanceTests(FightTestCase):
             (balance["previous_stars"], balance["step"], balance["stars"]),
             (3, 2, 5),
             "the first week on starts from the base stars",
-        )
-
-    def test_the_weeks_before_the_shift_start_on_monday(self) -> None:
-        # Days 8 to 14 start on their Monday, from days 1 to 7; day 15's
-        # week on Sunday, day 14.
-        self.shift_from(date(2026, 10, 19))
-        self.to_day(7)
-        self.assertFalse(self.today()["boost"]["next_week"])
-        self.to_day(13)
-        self.set_results(1, 7, True)
-        balance = self.today()["boost"]["balance"]
-        self.assertEqual(
-            (balance["from_day"], balance["to_day"], balance["min_fights"]),
-            (1, 7, rules.BOOST_BALANCE_MIN_FIGHTS_BEFORE),
-        )
-        self.assertEqual(balance["stars"], 5)
-
-        self.to_day(14)
-        self.set_results(8, 13, False)
-        step = self.today()["boost"]
-        self.assertTrue(step["next_week"])
-        self.assertEqual(
-            (
-                step["balance"]["from_day"],
-                step["balance"]["to_day"],
-                step["balance"]["min_fights"],
-                step["balance"]["previous_stars"],
-                step["stars"],
-            ),
-            (8, 13, rules.BOOST_BALANCE_MIN_FIGHTS, 5, 3),
         )

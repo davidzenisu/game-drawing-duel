@@ -183,10 +183,6 @@ class SharedRulesTest(unittest.TestCase):
             self.assertEqual(
                 rules.boost_balance_step(hero_wins, fights), step, (hero_wins, fights)
             )
-        # The weeks before the shift took a fight more.
-        before = rules.BOOST_BALANCE_MIN_FIGHTS_BEFORE
-        self.assertEqual(rules.boost_balance_step(6, 6, before), 0)
-        self.assertEqual(rules.boost_balance_step(7, 7, before), 2)
         for previous, step, stars in balance["weeks"]:
             self.assertEqual(
                 rules.balanced_boost_stars(previous, step), stars, (previous, step)

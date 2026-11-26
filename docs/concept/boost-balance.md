@@ -24,7 +24,6 @@ This works the following way:
 
 - A share exactly on an edge counts towards the smaller change: 40% and 60% change nothing, 20% and 80% change by one.
 - It takes at least **6** fights from Monday to Saturday (one a day); with fewer, the stars stay as they were.
-- The Sunday switch starts with the week of Monday, 30 November 2026, whose stars start on Sunday, 29 November. The balanced week before it (23 November) kept its stars from Monday to Sunday, from the whole week before's fights (Monday to Sunday, at least 7 of them), so running servers didn't change stars in the middle of a week.
 - The stars stack week over week, but never go below **3** or above **6** a day.
 - One challenger takes all of a player's stars at most, so a player can still put all of them on one.
 - Chance spreads the stars a player didn't give the same way: all of the week's stars count.

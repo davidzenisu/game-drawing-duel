@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from app import boost_balance, speed
+from app import boost_balance, rules, speed
 from app.models import Character, Player, Server
 from app.schemas import (
     BoostBalanceResponse,
@@ -35,7 +35,7 @@ def balance_response(
         to_day=balance.to_day,
         fights=balance.fights,
         hero_wins=balance.hero_wins,
-        min_fights=balance.min_fights,
+        min_fights=rules.BOOST_BALANCE_MIN_FIGHTS,
         previous_stars=balance.previous_stars,
         step=balance.step,
         stars=balance.stars,

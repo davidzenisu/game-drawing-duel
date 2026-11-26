@@ -15,7 +15,7 @@ the game is in early development (0.x), versions stay below 1.0.
 - The boost balance follows the week the boosted challengers are fought in:
   next week's boost stars start on Sunday already, as Sunday's challengers
   are fought on Monday. Every challenger of a week ranking is now boosted
-  with the same stars. Starts with the week of 30 November.
+  with the same stars.
 - The boost stars change with the heroes' win rate from Monday to Saturday;
   Sunday's fights don't count. It takes 6 fights instead of 7.
 - On Sunday, the boost tray says the stars are next week's.
