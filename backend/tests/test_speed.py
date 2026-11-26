@@ -198,6 +198,9 @@ class SpeedDayTests(SpeedTestCase):
             today = self.today()
             self.assertEqual(today["day"], day)
             self.assertIsNotNone(today["prompt"])
+            self.assertEqual(
+                today["prompt"]["least_picked"], [], "speed mode has no weeks"
+            )
             self.assertEqual(self.post("days/next").status_code, 200)
         today = self.today()
         self.assertEqual(today["day"], 4)

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:frontend/backend/auth_client.dart';
 import 'package:frontend/platform/local_cache.dart';
 import 'package:frontend/platform/sketch_store.dart';
+import 'package:frontend/game/rules/daily_loop.dart';
 import 'package:frontend/game/rules/models.dart';
 import 'package:frontend/game/rules/setup_plan.dart';
 import 'package:frontend/game/rules/upgrades.dart';
@@ -134,6 +135,13 @@ class FakeBackend {
 
   /// Written prompts by server code, author's seat and day.
   final Map<(String, int, int), ({String title, int subject})> prompts = {};
+
+  /// The players picked least this week by server code (roster positions),
+  /// whom a prompt earns [StarRewards.leastPicked] more for.
+  final Map<String, List<int>> leastPicked = {};
+
+  /// The written prompts that earned [StarRewards.leastPicked].
+  final Set<(String, int, int)> leastPickedPrompts = {};
 
   /// Fights by server code: owner seat, day, challenger and fighters.
   final Map<String, List<FakeFight>> fights = {};
@@ -926,7 +934,9 @@ class FakeBackend {
         if (a['collected'] == true) a['stars'] as int,
     ].fold(0, (a, b) => a + b);
     final arena = arenaStars[(code, playerId)] ?? 0;
+    final leastPickedBonus = leastPickedPrompts.where((k) => k.$1 == code && k.$2 == yours).length;
     return 3 * written +
+        StarRewards.leastPicked * leastPickedBonus +
         3 * drawn +
         won +
         collected +
@@ -1047,6 +1057,7 @@ class FakeBackend {
           return _json(422, {'detail': 'Choose another player of the server'});
         }
         prompts[(code, yours, day)] = (title: (body['title'] as String).trim(), subject: subject);
+        if (leastPicked[code]?.contains(subject) ?? false) leastPickedPrompts.add((code, yours, day));
       case ('PUT', ['today', 'challenger']):
         if (challenger() != null) return _json(409, {'detail': "You drew today's challenger already"});
         final written = prompts[(code, author, day - 1)];
@@ -1123,6 +1134,10 @@ class FakeBackend {
               'theme': theme(today + 3),
               'subject_position': prompts[(code, yours, today)]?.subject,
               'title': prompts[(code, yours, today)]?.title,
+              'least_picked': [
+                for (final p in leastPicked[code] ?? const <int>[])
+                  if (p != yours) p,
+              ],
             },
       'to_draw': today == 1
           ? null

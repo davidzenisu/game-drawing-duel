@@ -181,6 +181,30 @@ abstract final class StarRewards {
   /// Once a week is over, the first place of each player stat wins a
   /// trophy worth these stars, as a gift; tied first places each win one.
   static const weekStat = 3;
+
+  /// Writing a title for one of the players picked least this week earns
+  /// these stars more, see [leastPickedOf].
+  static const leastPicked = 1;
+
+  /// How many of the least-picked players at most earn [leastPicked].
+  static const leastPickedMax = 3;
+
+  /// The players (by index in [picks], each one's picks this week) that earn
+  /// [leastPicked]: the fewest picked first, a whole tie at a time, as long
+  /// as there are [leastPickedMax] of them at most. A tie that would make
+  /// more gets none, nor anyone after it, so it can be fewer, or none.
+  static List<int> leastPickedOf(List<int> picks) {
+    final chosen = <int>[];
+    for (final count in picks.toSet().toList()..sort()) {
+      final tied = [
+        for (final (i, c) in picks.indexed)
+          if (c == count) i,
+      ];
+      if (chosen.length + tied.length > leastPickedMax) break;
+      chosen.addAll(tied);
+    }
+    return chosen..sort();
+  }
 }
 
 abstract final class Hurries {

@@ -559,6 +559,27 @@ STARS_PER_PULL = 10
 # Once a week is over, the first place of each player stat (`app.player_stats`)
 # wins a trophy worth these stars, as a gift; tied first places each win one.
 STARS_FOR_WEEK_STAT = 3
+# Writing a challenger title for one of the players picked least this week
+# earns these stars on top of `STARS_FOR_PROMPT` (see `least_picked`).
+STARS_FOR_LEAST_PICKED = 1
+# How many of the least-picked players at most earn that bonus.
+LEAST_PICKED_MAX = 3
+
+
+def least_picked(picks: list[int]) -> list[int]:
+    """The players (by index in `picks`, each one's picks this week) that
+    earn `STARS_FOR_LEAST_PICKED`: the fewest picked first, a whole tie at a
+    time, as long as there are `LEAST_PICKED_MAX` of them at most. A tie that
+    would make more gets none, nor anyone after it, so it can be fewer, or
+    none."""
+    chosen: list[int] = []
+    for count in sorted(set(picks)):
+        tied = [i for i, c in enumerate(picks) if c == count]
+        if len(chosen) + len(tied) > LEAST_PICKED_MAX:
+            break
+        chosen += tied
+    return sorted(chosen)
+
 
 # Achievements (`app.achievements`), each rewarded once with stars:
 # - owning every starter hero of another player's, or portraying a player,

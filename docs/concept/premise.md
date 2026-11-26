@@ -70,6 +70,7 @@ New stars are celebrated the same way, with a big star and "+N stars" flying int
 
 A tap on the pulls chip opens a small menu under it with your **stars** ⭐, the currency players collect. What earns them is explained in the welcome intro (and "How to play"):
 - writing a challenger title (step 1): 3 stars;
+- writing it for one of the players picked least this week: 1 star more. Every prompt of the week's days before today counts as a pick of the player it's for, premade titles standing in included; the players are taken fewest picks first, a whole tie at a time, as long as that makes three of them at most, so it's up to three players, and none when a tie would make more. The picker shows them with a **+1 ★** badge on their chip (never on yourself, so you may have fewer to choose from). None on the first day of a week, or in speed mode;
 - drawing a challenger (step 2): 3 stars, besides its pull;
 - winning a fight you picked the fighters for (step 4): the challenger's stars (its own and its boost stars), besides the pull.
 - drawing a challenger that wins a fight: its stars in that fight (its own and its boost stars), whoever picked the fighters, even chance. Its artist collects them in the **Challengers** menu, on the challenger's card, from the day after the fight: the 5th day of the rotation. The Challengers button, and the Heroes button on the hub, show a badge counting the challengers with stars to collect.

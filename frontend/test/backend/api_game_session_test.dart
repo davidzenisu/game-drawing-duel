@@ -784,6 +784,12 @@ void main() {
       expect((sam.canEndDay, sam.canAdvanceDay), (true, false), reason: 'only the admin skips ahead');
 
       expect(admin.promptHint, 'a challenger on a snow day');
+      expect(admin.leastPicked, isEmpty);
+      backend.leastPicked['123456'] = [0, 3];
+      await admin.refreshDay();
+      expect(admin.leastPicked, {admin.server.players[3]}, reason: 'never yourself');
+      backend.leastPicked.remove('123456');
+      await admin.refreshDay();
       final starsBefore = admin.stars;
       await admin.submitPrompt('  The Owl King ', admin.server.players[2]);
       final prompt = backend.requests.lastWhere((r) => r.url.path == '/servers/123456/today/prompt');

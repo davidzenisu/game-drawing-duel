@@ -9,6 +9,15 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.43.0] - 2026-11-26
+
+### Added
+- Writing a challenger title for one of the players picked least this week
+  earns **1 star more**. Up to three players get the bonus, but if a tie
+  would make more than three, none of the tied players do. Their chips show
+  a **+1 ★** badge. There's no bonus on the first day of a week or in speed
+  mode.
+
 ## [0.42.0] - 2026-11-26
 
 ### Added

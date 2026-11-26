@@ -650,6 +650,33 @@ class MockGameSession extends GameSession {
   @override
   ChallengerPrompt? get yourPrompt => _yourPrompts[_day];
 
+  /// Like online, from the demo's prompts of the week's days before today:
+  /// the friends' ones drawn the day after (yours in slot 0 when you wrote
+  /// one) and the one you were given to draw.
+  @override
+  Set<Player> get leastPicked {
+    final first = max(_days.weekStart(_day), 1);
+    if (server.isSpeed || _day <= _days.weekStart(_day)) return {};
+    final players = server.players;
+    final picks = List.filled(players.length, 0);
+    void pick(String name) {
+      final i = players.indexWhere((p) => p.name == name);
+      if (i >= 0) picks[i]++;
+    }
+
+    for (var day = first; day < _day; day++) {
+      if (!_promptsOn(day)) continue;
+      for (var slot = 0; slot < DemoDays.slots; slot++) {
+        pick(_challenger(day + 1, slot).subject);
+      }
+      pick(_days.promptToDraw(day + 1).subject.name);
+    }
+    return {
+      for (final i in StarRewards.leastPickedOf(picks))
+        if (!players[i].isYou) players[i],
+    };
+  }
+
   bool _promptsOn(int day) => day >= 1 && (!server.isSpeed || day <= SpeedMode.lastPromptDay);
 
   /// Friends drew challengers on the days after one with prompts.
@@ -1516,7 +1543,7 @@ class MockGameSession extends GameSession {
       day: _day,
       hint: promptHint,
     );
-    _stars += StarRewards.prompt;
+    _stars += StarRewards.prompt + (leastPicked.contains(subject) ? StarRewards.leastPicked : 0);
     notifyListeners();
   }
 

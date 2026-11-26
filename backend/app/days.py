@@ -25,7 +25,7 @@ from app.models import (
     ServerSeat,
     ThemeHint,
 )
-from app.rules import SPEED_LAST_PROMPT_DAY, Theme, theme_of_date
+from app.rules import SPEED_LAST_PROMPT_DAY, Theme, least_picked, theme_of_date
 
 # Stands in if the author of a missing prompt got no hint ("NO PROMPT").
 FALLBACK_TITLE = "The Mystery Challenger"
@@ -127,7 +127,9 @@ def shuffled(server: Server, prompt_day: int) -> bool:
     fights the challenger. Servers that were running when that came in keep
     the roster order for what had started (`Server.shuffled_from_day`);
     sessions launched since shuffle from day 1."""
-    return server.shuffled_from_day is not None and prompt_day >= server.shuffled_from_day
+    return (
+        server.shuffled_from_day is not None and prompt_day >= server.shuffled_from_day
+    )
 
 
 def _drawers(
@@ -213,7 +215,9 @@ def written_prompt_authors(
     return authors
 
 
-def author_for(session: Session, server: Server, prompt_day: int, drawer: ServerSeat) -> ServerSeat | None:
+def author_for(
+    session: Session, server: Server, prompt_day: int, drawer: ServerSeat
+) -> ServerSeat | None:
     """Whose prompt of `prompt_day` `drawer` draws, see `_drawers`."""
     for author_id, d in _drawers(session, server, prompt_day).items():
         if d.id == drawer.id:
@@ -316,6 +320,50 @@ def premade_subject(server: Server, day: int, author: ServerSeat) -> ServerSeat:
     """The person of a premade prompt that stands in for `author`'s on `day`."""
     candidates = [s for s in server.seats if can_be_subject(author, s)]
     return _rng(server, day, author, "subject").choice(candidates)
+
+
+def week_picks(session: Session, server: Server, day: int) -> dict[uuid.UUID, int]:
+    """How often the prompts of `day`'s week before `day` picked each seat
+    of the roster: the ones players wrote, and the premade ones standing in
+    for the players who wrote none."""
+    first = max(week_start(server, day), 1)
+    seats = active_seats(server)
+    written = {
+        (author_id, prompt_day): subject_id
+        for author_id, prompt_day, subject_id in session.execute(
+            select(
+                ChallengerPrompt.author_seat_id,
+                ChallengerPrompt.day,
+                ChallengerPrompt.subject_seat_id,
+            ).where(
+                ChallengerPrompt.author_seat_id.in_([s.id for s in seats]),
+                ChallengerPrompt.day >= first,
+                ChallengerPrompt.day < day,
+            )
+        )
+    }
+    picks = {s.id: 0 for s in server.seats}
+    for prompt_day in range(first, day):
+        if not prompts_on(server, prompt_day):
+            continue
+        for author in seats:
+            subject_id = written.get((author.id, prompt_day))
+            if subject_id is None:
+                subject_id = premade_subject(server, prompt_day, author).id
+            picks[subject_id] += 1
+    return picks
+
+
+def least_picked_seats(session: Session, server: Server, day: int) -> set[uuid.UUID]:
+    """The seats a prompt written on `day` earns `rules.STARS_FOR_LEAST_PICKED`
+    for: the ones the week picked least so far (`rules.least_picked`), the
+    whole roster counted, whether they joined or not. None on a week's first
+    day, nor in speed mode, which has no weeks."""
+    if speed.is_speed(server) or day <= week_start(server, day):
+        return set()
+    picks = week_picks(session, server, day)
+    roster = sorted(server.seats, key=lambda s: s.position)
+    return {roster[i].id for i in least_picked([picks[s.id] for s in roster])}
 
 
 @dataclass(frozen=True)

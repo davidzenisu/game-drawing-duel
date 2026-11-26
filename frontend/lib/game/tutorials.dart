@@ -85,8 +85,10 @@ enum Tutorial {
         icon: Icons.title_rounded,
         title: 'Give them a title',
         text:
-            'Up to ${CharacterCard.maxTitleLength} characters, for ${StarRewards.prompt} stars. Tomorrow the '
-            'another player, picked at random, draws your challenger. If you skip, a premade title stands in.',
+            'Up to ${CharacterCard.maxTitleLength} characters, for ${StarRewards.prompt} stars, and '
+            '${StarRewards.leastPicked} more for a friend with a +${StarRewards.leastPicked} ★ badge: '
+            'one of the players picked least this week. Tomorrow another player, picked at random, '
+            'draws your challenger. If you skip, a premade title stands in.',
       ),
     ],
     draw => [

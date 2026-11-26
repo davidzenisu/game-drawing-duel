@@ -340,6 +340,29 @@ void main() {
     expect(game.yourPrompt?.theme, game.promptTheme);
   });
 
+  test('a prompt for one of the players picked least this week earns a star more', () async {
+    final game = await launchedGame(launchDate: firstMonday);
+    expect(game.leastPicked, isEmpty, reason: "none on a week's first day");
+    var rewarded = 0;
+    while (game.day < 8) {
+      await game.advanceDay();
+      if (game.day == 8) break;
+      final least = game.leastPicked;
+      expect(least.length, lessThanOrEqualTo(StarRewards.leastPickedMax));
+      expect(least.where((p) => p.isYou), isEmpty);
+      if (least.isEmpty) continue;
+      final before = game.stars;
+      await game.submitPrompt('Bonus', least.first);
+      expect(game.stars - before, StarRewards.prompt + StarRewards.leastPicked);
+      rewarded++;
+    }
+    expect(rewarded, greaterThan(0));
+    expect(game.leastPicked, isEmpty, reason: 'day 8 starts the next week');
+
+    final speed = await launchedGame(speed: true, day: 2);
+    expect(speed.leastPicked, isEmpty, reason: 'speed mode has no weeks');
+  });
+
   test('the 4 day loop: prompt, draw, boost and fighters', () async {
     final game = await launchedGame();
     final you = game.you;
