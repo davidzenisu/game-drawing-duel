@@ -19,8 +19,8 @@ the game is in early development (0.x), versions stay below 1.0.
   Prompt Engineer stays secret until the week is over.
 
 ### Changed
-- The players view picks its category from a row of chips that scrolls
-  sideways, so all five fit on a phone.
+- The players view picks its category from chips that wrap onto a second
+  line on narrow screens, so all five fit on a phone without scrolling.
 
 ## [0.41.0] - 2026-11-26
 

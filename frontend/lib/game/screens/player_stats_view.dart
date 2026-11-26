@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../theme/palette.dart';
 import '../rules/daily_loop.dart';
 
-/// How every player did in [week], a category at a time: a scrolling row of
-/// chips picks the category, whose players are ranked below with the trophies they won in it. Each
+/// How every player did in [week], a category at a time: chips, wrapping
+/// onto more lines where the screen is too narrow, pick the category, whose
+/// players are ranked below with the trophies they won in it. Each
 /// category's first places win a trophy once the week is over.
 class PlayerStatsView extends StatefulWidget {
   const PlayerStatsView({super.key, required this.stats, required this.week});
@@ -29,19 +30,17 @@ class _PlayerStatsViewState extends State<PlayerStatsView> {
       children: [
         Text(_span(stats, widget.week), style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            spacing: 8,
-            children: [
-              for (final kind in PlayerStatKind.values)
-                ChoiceChip(
-                  label: Text(kind.label),
-                  selected: _kind == kind,
-                  onSelected: (_) => setState(() => _kind = kind),
-                ),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final kind in PlayerStatKind.values)
+              ChoiceChip(
+                label: Text(kind.label),
+                selected: _kind == kind,
+                onSelected: (_) => setState(() => _kind = kind),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
         if (stats.stats.where((s) => s.kind == _kind).firstOrNull case final stat?)

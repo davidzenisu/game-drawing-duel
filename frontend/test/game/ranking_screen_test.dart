@@ -107,18 +107,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Secret until the week is over'), findsOneWidget);
     expect(find.textContaining(' ★'), findsOneWidget, reason: 'only in the trophy line, no values');
-    await tester.ensureVisible(find.text('Addict'));
     await tester.tap(find.text('Addict'));
     await tester.pumpAndSettle();
     expect(find.text(PlayerStatKind.busyStreak.description), findsOneWidget);
-    // The chips scroll to the categories that don't fit a phone.
-    await tester.ensureVisible(find.text('Hurry Crew'));
+    // The chips wrap onto more lines on a phone: every one is on screen.
+    for (final kind in PlayerStatKind.values) {
+      final chip = tester.getRect(find.widgetWithText(ChoiceChip, kind.label));
+      expect(chip.left >= 0 && chip.right <= 400, isTrue, reason: '${kind.label} fits the width');
+    }
+    expect(find.byType(Scrollable).evaluate().where((e) => (e.widget as Scrollable).axis == Axis.horizontal), isEmpty);
     await tester.tap(find.text('Hurry Crew'));
     await tester.pumpAndSettle();
     expect(find.text(PlayerStatKind.mostHurried.description), findsOneWidget);
     final hurried = week.stats.firstWhere((s) => s.kind == PlayerStatKind.mostHurried);
     expect(find.text('${hurried.players.first.value} hurries'), findsWidgets);
-    await tester.ensureVisible(find.text('Prompt Engineer'));
     await tester.tap(find.text('Prompt Engineer'));
     await tester.pumpAndSettle();
     expect(find.text(PlayerStatKind.mostPrompted.description), findsOneWidget);

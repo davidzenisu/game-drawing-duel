@@ -108,7 +108,7 @@ A challenger counts for the week of its fight, once it went through all four ste
 
 **Week ranking** (in the heroes menu, from day 1 on; speed mode has its own final ranking instead) has three views, picked at the top: **Players**, **Challengers** and **Arena**, each for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday). It opens on the players of this week. Weeks are named by number ("Week 1" is the launch week, Monday to Sunday, so it may be short; "Week 2" starts on the Monday after) instead of their days. Before the first week is over, last week says there's no ranking yet. This week's answers are kept on the device for the day, last week's until the next week is over, so the screen opens without asking the server again; the refresh button in the top right asks anyway.
 
-**Players** rank every player who joined in five categories, one at a time, picked with a row of chips that scrolls sideways where they don't fit (Giant Slayer, Grand Artist, Addict, Hurry Crew, Prompt Engineer):
+**Players** rank every player who joined in five categories, one at a time, picked with a chip each, wrapping onto a second line where the screen is too narrow (Giant Slayer, Grand Artist, Addict, Hurry Crew, Prompt Engineer):
 
 | Category | What counts |
 |---|---|
