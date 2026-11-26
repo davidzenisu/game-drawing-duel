@@ -7,6 +7,11 @@ import 'package:flutter/material.dart';
 abstract final class AppPalette {
   static const seed = Color(0xFF6750A4);
 
+  /// The themes' background (`colorScheme.surface` from [seed]), also the
+  /// installed web app's colours in `web/index.html` and `web/manifest.json`.
+  static const surfaceLight = Color(0xFFFDF7FF);
+  static const surfaceDark = Color(0xFF141218);
+
   // Card and standee materials.
   static const cardboard = Color(0xFFFBF9F4);
   static const cardboardEdge = Color(0xFFE2DDD2);
