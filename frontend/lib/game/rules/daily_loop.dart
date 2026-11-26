@@ -813,6 +813,7 @@ enum PlayerStatKind {
     'Grand Artist',
     'Boost stars the challengers they drew got, in the week of their fight',
     '★',
+    secretThisWeek: true,
   ),
   busyStreak(
     'busy-streak',
