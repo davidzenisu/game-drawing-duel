@@ -8,6 +8,7 @@ hints are stored when first given out, as a server uses each one once only.
 import hashlib
 import random
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 
@@ -129,26 +130,33 @@ def shuffled(server: Server, prompt_day: int) -> bool:
     return server.shuffled_from_day is not None and prompt_day >= server.shuffled_from_day
 
 
-def _drawers(session: Session, server: Server, prompt_day: int) -> dict[uuid.UUID, ServerSeat]:
+def _drawers(
+    session: Session,
+    server: Server,
+    prompt_day: int,
+    written: dict[uuid.UUID, uuid.UUID] | None = None,
+) -> dict[uuid.UUID, ServerSeat]:
     """Who draws the prompt each player wrote, or the premade one standing in,
     on `prompt_day`, by the author's seat: a fresh random hand-out per day
     (`shuffled`), never their own prompt and, where possible, never one of
     themselves. Before, the next player in the roster drew it. The same
-    every time it's asked, once the day's prompts are in."""
+    every time it's asked, once the day's prompts are in. `written` is the
+    day's prompts (their subject by author), if already loaded."""
     seats = active_seats(server)
     if len(seats) < 2:
         return {}
     if not shuffled(server, prompt_day):
         return {a.id: seats[(i + 1) % len(seats)] for i, a in enumerate(seats)}
-    written = {
-        p.author_seat_id: p.subject_seat_id
-        for p in session.scalars(
-            select(ChallengerPrompt).where(
-                ChallengerPrompt.day == prompt_day,
-                ChallengerPrompt.author_seat_id.in_([s.id for s in seats]),
+    if written is None:
+        written = {
+            p.author_seat_id: p.subject_seat_id
+            for p in session.scalars(
+                select(ChallengerPrompt).where(
+                    ChallengerPrompt.day == prompt_day,
+                    ChallengerPrompt.author_seat_id.in_([s.id for s in seats]),
+                )
             )
-        )
-    }
+        }
     subjects = {
         a.id: written.get(a.id) or premade_subject(server, prompt_day, a).id
         for a in seats
@@ -172,6 +180,37 @@ def _drawers(session: Session, server: Server, prompt_day: int) -> dict[uuid.UUI
     if best is None:  # No derangement found: practically impossible.
         best = seats[1:] + seats[:1]
     return {a.id: d for a, d in zip(seats, best, strict=True)}
+
+
+def written_prompt_authors(
+    session: Session, server: Server, first: int, last: int
+) -> dict[tuple[uuid.UUID, int], uuid.UUID]:
+    """Who wrote the prompt each challenger drawn from day `first` to day
+    `last` came from, by (artist seat, day drawn): only the prompts a player
+    wrote, not the premade ones standing in. In one query, whatever the days
+    (`prompt_to_draw` asks one prompt at a time)."""
+    seats = active_seats(server)
+    written: dict[int, dict[uuid.UUID, uuid.UUID]] = defaultdict(dict)
+    for author_id, day, subject_id in session.execute(
+        select(
+            ChallengerPrompt.author_seat_id,
+            ChallengerPrompt.day,
+            ChallengerPrompt.subject_seat_id,
+        ).where(
+            ChallengerPrompt.author_seat_id.in_([s.id for s in seats]),
+            ChallengerPrompt.day >= first - 1,
+            ChallengerPrompt.day <= last - 1,
+        )
+    ):
+        written[day][author_id] = subject_id
+    authors: dict[tuple[uuid.UUID, int], uuid.UUID] = {}
+    for prompt_day, prompts in written.items():
+        if prompt_day < 1 or not prompts_on(server, prompt_day):
+            continue
+        for author_id, drawer in _drawers(session, server, prompt_day, prompts).items():
+            if author_id in prompts:
+                authors[(drawer.id, prompt_day + 1)] = author_id
+    return authors
 
 
 def author_for(session: Session, server: Server, prompt_day: int, drawer: ServerSeat) -> ServerSeat | None:

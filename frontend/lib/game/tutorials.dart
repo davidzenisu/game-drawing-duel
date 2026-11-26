@@ -187,8 +187,10 @@ enum Tutorial {
         icon: Icons.people_alt_rounded,
         title: 'Player trophies',
         text:
-            'Players are ranked too: Giant Slayer (fights won), Grand Artist (boost stars of your challengers, '
-            'secret until the week is over) and Addict (days in a row with every step done). On Monday, every '
+            'Players are ranked too: Giant Slayer (fights won), Grand Artist (boost stars of your challengers), '
+            'Addict (days in a row with every step done), Hurry Crew (hurries received) and Prompt Engineer '
+            '(boost stars of the challengers drawn from your titles). Grand Artist and Prompt Engineer stay '
+            'secret until the week is over. On Monday, every '
             'first place wins a trophy worth '
             '${StarRewards.weekStat} stars.',
       ),

@@ -239,8 +239,80 @@ class PlayerStatsTests(FinaleTestCase):
                 self.next_day()
             self.today()
         later = queries()
-        self.assertLessEqual(early, 15)
+        self.assertLessEqual(early, 17)
         self.assertLessEqual(later, early + 2, "not more with the days played")
+
+    def test_hurry_crew_counts_every_hurry_received_on_the_day_it_hits(
+        self,
+    ) -> None:
+        for sender in (ADMIN, PLAYERS[1]):
+            sent = self.post("today/hurry", sender, {"target_position": 2})
+            self.assertEqual(sent.status_code, 200, sent.text)
+        sent = self.post("today/hurry", PLAYERS[2], {"target_position": 0})
+        self.assertEqual(sent.status_code, 200, sent.text)
+        # Sent on day 4, they hit on day 5.
+        self.assertEqual(
+            self.stat(self.stats(), "most-hurried"), [(0, 0, 1), (1, 0, 1), (2, 0, 1)]
+        )
+        with self.without_rest():
+            self.next_day()
+            stats = self.stats()
+            hurried = next(s for s in stats["stats"] if s["key"] == "most-hurried")
+            self.assertFalse(hurried["secret"])
+            self.assertEqual(
+                self.stat(stats, "most-hurried"), [(2, 2, 1), (0, 1, 2), (1, 0, 3)]
+            )
+            self.go_to_day(8)
+        self.assertEqual(
+            self.stat(self.stats("last-week"), "most-hurried")[0], (2, 2, 1)
+        )
+        self.assertEqual(self.stat(self.stats(), "most-hurried")[0][1:], (0, 1))
+        gifts = self.gifts(PLAYERS[2])
+        self.assertEqual(
+            [g["message"] for g in gifts if "Hurry Crew" in g["message"]],
+            ["Trophy: Hurry Crew in week 1!"],
+        )
+        self.assertFalse([g for g in self.gifts() if "Hurry Crew" in g["message"]])
+
+    def test_prompt_engineer_counts_the_boosts_of_challengers_from_your_titles(
+        self,
+    ) -> None:
+        # Only the admin writes a title on day 4: drawn on day 5, fought on
+        # day 7, a Sunday, so it's ranked in week 1. Day 2 and 3's
+        # challengers were drawn from premade titles.
+        written = self.post(
+            "today/prompt", ADMIN, {"subject_position": 1, "title": "Prompt Bard"}
+        )
+        self.assertEqual(written.status_code, 200, written.text)
+        with self.without_rest():
+            self.next_day()
+            self.draw_challengers()
+            stats = self.stats()
+            prompted = next(s for s in stats["stats"] if s["key"] == "most-prompted")
+            self.assertTrue(prompted["secret"], "it would tell how strong it is")
+            self.assertEqual(
+                self.stat(stats, "most-prompted"),
+                [(0, None, None), (1, None, None), (2, None, None)],
+            )
+            self.go_to_day(8)
+        ranking = self.get(f"/servers/{self.code}/ranking").json()
+        mine = [
+            c
+            for c in ranking["challengers"]
+            if c["prompt_author_position"] == 0 and not c["default_prompt"]
+        ]
+        self.assertEqual(len(mine), 1)
+        self.assertEqual(mine[0]["character"]["title"], "Prompt Bard")
+        stars = sum(b["stars"] for b in mine[0]["boosts"])
+        self.assertGreater(stars, 0, "chance boosts it at least")
+        last = self.stats("last-week")
+        self.assertEqual(
+            self.stat(last, "most-prompted"), [(0, stars, 1), (1, 0, 2), (2, 0, 2)]
+        )
+        self.assertEqual(
+            [g["message"] for g in self.gifts() if "Prompt Engineer" in g["message"]],
+            ["Trophy: Prompt Engineer in week 1!"],
+        )
 
     def test_no_last_week_before_the_first_is_over(self) -> None:
         self.assertIsNone(self.stats("last-week"))

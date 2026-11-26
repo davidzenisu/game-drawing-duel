@@ -16,6 +16,13 @@ places each win one. Speed mode sessions have none.
   drawing, boosts and fight (`_did_all`). A step with nothing to do doesn't
   break it. In the ongoing week, today counts once it's done, and doesn't
   break it before.
+- `most-hurried` (Hurry Crew): the hurries they received, in the week of the
+  day each hits (the day after it was sent), whether or not they drew that
+  day.
+- `most-prompted` (Prompt Engineer): the boost stars the challengers drawn
+  from prompts they wrote got, counted in the week of their fight like
+  Grand Artist. A challenger drawn from a premade title counts for nobody.
+  Secret during the ongoing week, like Grand Artist.
 """
 
 import uuid
@@ -33,20 +40,23 @@ from app.models import (
     Fight,
     Gift,
     GiftDelivery,
+    Hurry,
     Server,
     ServerSeat,
     Trophy,
 )
 
-STATS = ("most-wins", "most-boosted", "busy-streak")
+STATS = ("most-wins", "most-boosted", "busy-streak", "most-hurried", "most-prompted")
 
 # Hidden during the ongoing week.
-SECRET = frozenset({"most-boosted"})
+SECRET = frozenset({"most-boosted", "most-prompted"})
 
 NAMES = {
     "most-wins": "Giant Slayer",
     "most-boosted": "Grand Artist",
     "busy-streak": "Addict",
+    "most-hurried": "Hurry Crew",
+    "most-prompted": "Prompt Engineer",
 }
 
 # A challenger is fought this many days after it was drawn.
@@ -179,19 +189,36 @@ def values(
     ):
         stats["most-wins"][seat_id] = won
 
-    for seat_id, boosted in session.execute(
-        select(Character.artist_seat_id, func.sum(Boost.stars))
+    drawn_from = first - _FIGHT_AFTER_DRAWING
+    drawn_to = last - _FIGHT_AFTER_DRAWING
+    authors = days.written_prompt_authors(session, server, drawn_from, drawn_to)
+    for artist_id, day, boosted in session.execute(
+        select(Character.artist_seat_id, Character.day, func.sum(Boost.stars))
         .join(Boost, Boost.challenger_id == Character.id)
         .where(
             Character.server_id == server.id,
             Character.assignment_id.is_(None),
-            Character.day >= first - _FIGHT_AFTER_DRAWING,
-            Character.day <= last - _FIGHT_AFTER_DRAWING,
+            Character.day >= drawn_from,
+            Character.day <= drawn_to,
         )
-        .group_by(Character.artist_seat_id)
+        .group_by(Character.id, Character.artist_seat_id, Character.day)
     ):
-        if seat_id in stats["most-boosted"]:
-            stats["most-boosted"][seat_id] = boosted or 0
+        if artist_id in stats["most-boosted"]:
+            stats["most-boosted"][artist_id] += boosted or 0
+        author_id = authors.get((artist_id, day))
+        if author_id in stats["most-prompted"]:
+            stats["most-prompted"][author_id] += boosted or 0
+
+    for seat_id, hurried in session.execute(
+        select(Hurry.target_seat_id, func.count())
+        .where(
+            Hurry.target_seat_id.in_(ids),
+            Hurry.day >= first,
+            Hurry.day <= last,
+        )
+        .group_by(Hurry.target_seat_id)
+    ):
+        stats["most-hurried"][seat_id] = hurried
 
     done = _done(session, server)
     today = days.current_day(server)

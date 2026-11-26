@@ -1188,7 +1188,7 @@ class MockGameSession extends GameSession {
 
   /// Made-up player stats: at random, but the same for a period and day.
   /// Last week's once the first week is over, as the week ranking; this
-  /// week's boosts are secret. You lead the Addict streak, as if you never
+  /// week's boosts (Grand Artist, Prompt Engineer) are secret. You lead the Addict streak, as if you never
   /// missed a day, so every week over brings you its trophy to try.
   PlayerStats? _playerStats(StatPeriod period) {
     if (server.isSpeed) return null;
@@ -1208,6 +1208,8 @@ class MockGameSession extends GameSession {
       PlayerStatKind.mostWins => roll(to * 1009 + i * 31 + 1, to - from + 2),
       PlayerStatKind.mostBoosted => roll(to * 1009 + i * 31 + 2, 4 * (to - from + 1) + 1),
       PlayerStatKind.busyStreak => server.players[i].isYou ? to : roll(to * 1009 + i * 31 + 3, to),
+      PlayerStatKind.mostHurried => roll(to * 1009 + i * 31 + 4, to - from + 2),
+      PlayerStatKind.mostPrompted => roll(to * 1009 + i * 31 + 5, 4 * (to - from + 1) + 1),
     };
     int trophies(PlayerStatKind kind, int i) => kind == PlayerStatKind.busyStreak
         ? (server.players[i].isYou ? weeksOver : 0)
@@ -1219,7 +1221,7 @@ class MockGameSession extends GameSession {
       trophyStars: StarRewards.weekStat,
       stats: [
         for (final kind in PlayerStatKind.values)
-          if (period == StatPeriod.week && kind == PlayerStatKind.mostBoosted)
+          if (period == StatPeriod.week && kind.secretThisWeek)
             PlayerStat(
               kind: kind,
               secret: true,

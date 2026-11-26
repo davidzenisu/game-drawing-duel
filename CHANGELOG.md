@@ -9,6 +9,19 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.42.0] - 2026-11-26
+
+### Added
+- Two new weekly trophies in the **Week ranking**'s players view:
+  **Hurry Crew**, for the most hurries received in the week, and
+  **Prompt Engineer**, for the most boost stars given to challengers drawn
+  from titles you wrote (premade titles don't count). Like Grand Artist,
+  Prompt Engineer stays secret until the week is over.
+
+### Changed
+- The players view picks its category from chips that wrap onto a second
+  line on narrow screens, so all five fit on a phone without scrolling.
+
 ## [0.41.0] - 2026-11-26
 
 ### Added

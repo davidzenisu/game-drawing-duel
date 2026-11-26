@@ -17,7 +17,8 @@ class PlacedPlayer(BaseModel):
 class PlayerStat(BaseModel):
     """A player stat (`app.player_stats`), every player who joined ranked."""
 
-    # "most-wins", "most-boosted" or "busy-streak".
+    # "most-wins", "most-boosted", "busy-streak", "most-hurried" or
+    # "most-prompted".
     key: str
     # Hidden until the week is over: the players come in roster order.
     secret: bool
