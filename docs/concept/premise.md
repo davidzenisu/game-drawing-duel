@@ -108,13 +108,15 @@ A challenger counts for the week of its fight, once it went through all four ste
 
 **Week ranking** (in the heroes menu, from day 1 on; speed mode has its own final ranking instead) has three views, picked at the top: **Players**, **Challengers** and **Arena**, each for **This week** (up to today) or **Last week** (the latest finished one, Monday to Sunday). It opens on the players of this week. Weeks are named by number ("Week 1" is the launch week, Monday to Sunday, so it may be short; "Week 2" starts on the Monday after) instead of their days. Before the first week is over, last week says there's no ranking yet. This week's answers are kept on the device for the day, last week's until the next week is over, so the screen opens without asking the server again; the refresh button in the top right asks anyway.
 
-**Players** rank every player who joined in three categories, one at a time, picked with a three-part button (Giant Slayer, Grand Artist, Addict):
+**Players** rank every player who joined in five categories, one at a time, picked with a row of chips that scrolls sideways where they don't fit (Giant Slayer, Grand Artist, Addict, Hurry Crew, Prompt Engineer):
 
 | Category | What counts |
 |---|---|
 | Giant Slayer | fights won, of the ones the player picked the fighters for (chance's don't count) |
 | Grand Artist | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the challengers' ranking. **Secret** this week ("Secret until the week is over"), as it would tell how strong a drawing is: only the players and their trophies show. Last week's is shown. |
 | Addict | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. This week's counts today once it's done, and today doesn't break it before. |
+| Hurry Crew | the hurries the player received, each on the day it hits (the day after it was sent), whether or not they drew that day |
+| Prompt Engineer | the boost stars (chance's included) the challengers drawn from titles the player wrote got, in the week of the challenger's fight, like Grand Artist; a challenger drawn from a premade title (when its author wrote none) counts for nobody. **Secret** this week, like Grand Artist. |
 
 Every player is listed best first, with their value, without place numbers: the first places (ties share it) show a trophy at the start of their row, filled once the week is over and they won it, an outline in this week's view as it's still to win. Your own row is highlighted. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Addict in week 1!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept: every player shows the trophies they won in a category so far ("×2").
 
@@ -122,13 +124,15 @@ Every player is listed best first, with their value, without place numbers: the 
 
 Speed mode has no player stats.
 
-**Weekly trophies**: every week, the players who joined are also ranked, in three categories:
+**Weekly trophies**: every week, the players who joined are also ranked, in five categories:
 
 | Category | What counts |
 |---|---|
 | Giant Slayer | fights won, of the ones the player picked the fighters for (chance's don't count) |
 | Grand Artist | the boost stars the challengers they drew got (chance's included), in the week of the challenger's fight, like the week ranking. Secret during the week, as it would tell how strong a drawing is. |
 | Addict | the run of days up to the week's last one, across weeks, on which they did every daily step they could themselves: their title, drawing, boosts and fight. A step with nothing to do (no prompt to draw, no challengers to boost, no challenger to fight or every hero resting) doesn't break it. |
+| Hurry Crew | the hurries the player received, in the week of the day each hits (the day after it was sent) |
+| Prompt Engineer | the boost stars (chance's included) the challengers drawn from titles the player wrote got (not premade titles), in the week of the challenger's fight. Secret during the week, like Grand Artist. |
 
 Tied players share a place. When a new week begins, the first place of each category wins a **trophy**, worth **3 stars** as a gift on the notification board ("Trophy: Addict in week 1!"); tied first places each win one, and a first place of 0 wins nothing. Trophies are kept, so players can see how many each won. Weeks are numbered from the launch week ("Week 1", Monday to Sunday, so it may be short). Speed mode has no trophies.
 

@@ -107,9 +107,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Secret until the week is over'), findsOneWidget);
     expect(find.textContaining(' ★'), findsOneWidget, reason: 'only in the trophy line, no values');
+    await tester.ensureVisible(find.text('Addict'));
     await tester.tap(find.text('Addict'));
     await tester.pumpAndSettle();
     expect(find.text(PlayerStatKind.busyStreak.description), findsOneWidget);
+    // The chips scroll to the categories that don't fit a phone.
+    await tester.ensureVisible(find.text('Hurry Crew'));
+    await tester.tap(find.text('Hurry Crew'));
+    await tester.pumpAndSettle();
+    expect(find.text(PlayerStatKind.mostHurried.description), findsOneWidget);
+    final hurried = week.stats.firstWhere((s) => s.kind == PlayerStatKind.mostHurried);
+    expect(find.text('${hurried.players.first.value} hurries'), findsWidgets);
+    await tester.ensureVisible(find.text('Prompt Engineer'));
+    await tester.tap(find.text('Prompt Engineer'));
+    await tester.pumpAndSettle();
+    expect(find.text(PlayerStatKind.mostPrompted.description), findsOneWidget);
+    expect(find.textContaining('Secret until the week is over'), findsOneWidget, reason: 'like Grand Artist');
 
     // The challengers of this week: only who they portray.
     await tester.tap(find.text('Challengers'));

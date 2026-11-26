@@ -819,15 +819,26 @@ enum PlayerStatKind {
     'Addict',
     'Days in a row, across weeks, they did every step they could: title, drawing, boost and fight',
     'days',
+  ),
+  mostHurried('most-hurried', 'Hurry Crew', 'Hurries they received, on the day each hit', 'hurries'),
+  mostPrompted(
+    'most-prompted',
+    'Prompt Engineer',
+    'Boost stars the challengers drawn from titles they wrote got (not premade ones), in the week of their fight',
+    '★',
+    secretThisWeek: true,
   );
 
-  const PlayerStatKind(this.key, this.label, this.description, this.unit);
+  const PlayerStatKind(this.key, this.label, this.description, this.unit, {this.secretThisWeek = false});
 
   /// Its name in the API.
   final String key;
   final String label;
   final String description;
   final String unit;
+
+  /// Hidden until the week is over: it would tell how strong a drawing is.
+  final bool secretThisWeek;
 
   static PlayerStatKind? byKey(String key) => values.where((k) => k.key == key).firstOrNull;
 }
@@ -854,8 +865,8 @@ class PlayerStat {
   final PlayerStatKind kind;
   final List<PlacedPlayer> players;
 
-  /// Hidden until the week is over: [PlayerStatKind.mostBoosted] would tell
-  /// how strong a drawing is.
+  /// Hidden until the week is over: [PlayerStatKind.mostBoosted] and
+  /// [PlayerStatKind.mostPrompted] would tell how strong a drawing is.
   final bool secret;
 
   /// [values] (and the trophies won) ranked best first, then in the order
