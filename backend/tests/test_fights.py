@@ -162,6 +162,12 @@ class FightTests(FightTestCase):
     def test_left_stars_are_spread_by_chance_and_the_stars_decide_right_away(
         self,
     ) -> None:
+        # Day 1 is a Monday, so no week ends (and its finale crowns no
+        # challenger, changing its rarity) before the fight shows again.
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            server.launched_at = datetime(2026, 10, 5, 9, tzinfo=UTC)
+            session.commit()
         [target] = self.today()["boost"]["targets"]
         self.assertEqual(self.boost({target["challenger"]["id"]: 2}).status_code, 200)
         self.next_day()
