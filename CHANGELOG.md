@@ -18,6 +18,13 @@ the game is in early development (0.x), versions stay below 1.0.
   a **+1 ★** badge. There's no bonus on the first day of a week or in speed
   mode.
 
+## [0.42.1] - 2026-11-26
+
+### Fixed
+- The installed app's title bar and launch screen use the game's very dark
+  grey background (its light background in light mode) instead of blue.
+  An already installed app may only change once the browser refreshes it.
+
 ## [0.42.0] - 2026-11-26
 
 ### Added
