@@ -156,10 +156,7 @@ class SharedRulesTest(unittest.TestCase):
             self.assertEqual(
                 rules.win_rate_extra_stars(wins, fights), extra_stars, (wins, fights)
             )
-        # The weeks before the balance keep the old bands: 3 of 5 reaches
-        # 50%, but not 80%.
-        before = rules.WIN_RATE_EXTRA_STARS_BEFORE
-        self.assertEqual(rules.win_rate_extra_stars(3, 5, before), 1)
+        # 3 of 5 doesn't reach 80%.
         self.assertEqual(rules.win_rate_extra_stars(3, 5), 0)
         self.assertTrue(
             rules.fighters_win(4, 1, fighter_extra_stars=1),

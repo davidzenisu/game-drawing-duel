@@ -6,8 +6,7 @@ A character counts for the player it depicts. In a fight, every fighter
 meets the challenger once: the side that won the fight wins that meeting,
 and fighters depicting the challenger's own player don't count. A player who
 won at least a share of at least `rules.WIN_RATE_MIN_FIGHTS` meetings with
-another player's characters last week gets `rules.win_rate_extra_stars`
-(the bands before `rules.BALANCE_FROM`'s week: `bands`):
+another player's characters last week gets `rules.win_rate_extra_stars`:
 each of their fighters gets them against a challenger of that player, and a
 challenger of theirs gets them for each fighter of that player. Speed mode
 sessions have no weeks, so no win rates.
@@ -31,20 +30,10 @@ class Record:
     against: uuid.UUID
     fights: int
     wins: int
-    # The win rate bands of the week they count for.
-    bands: tuple[tuple[float, int], ...] = rules.WIN_RATE_EXTRA_STARS
 
     @property
     def extra_stars(self) -> int:
-        return rules.win_rate_extra_stars(self.wins, self.fights, self.bands)
-
-
-def bands(server: Server, day: int) -> tuple[tuple[float, int], ...]:
-    """The win rate bands of `day`'s week: the old ones before
-    `rules.BALANCE_FROM`'s."""
-    if days.balanced(server, day):
-        return rules.WIN_RATE_EXTRA_STARS
-    return rules.WIN_RATE_EXTRA_STARS_BEFORE
+        return rules.win_rate_extra_stars(self.wins, self.fights)
 
 
 def counted_week(server: Server, day: int) -> tuple[int, int]:
@@ -89,9 +78,8 @@ def records(session: Session, server: Server, day: int) -> list[Record]:
             fights[pair] = fights.get(pair, 0) + 1
         wins[(winner, loser)] = wins.get((winner, loser), 0) + 1
     order = {s.id: s.position for s in server.seats}
-    week_bands = bands(server, day)
     return [
-        Record(player, against, n, wins.get((player, against), 0), week_bands)
+        Record(player, against, n, wins.get((player, against), 0))
         for (player, against), n in sorted(
             fights.items(), key=lambda item: (order[item[0][0]], order[item[0][1]])
         )

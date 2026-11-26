@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from sqlalchemy import delete, select
@@ -9,10 +9,6 @@ from app.models import Fight, Fighter, Server, ServerSeat
 from tests.helpers import bearer, make_token
 from tests.test_drawing_uploads import SKETCH
 from tests.test_fights import PLAYERS, FightTestCase
-
-# The test server's weeks start before `rules.BALANCE_FROM`: these tests count
-# by the current bands.
-NEW_BANDS = patch("app.rules.BALANCE_FROM", date(2026, 10, 5))
 
 
 class WinRateTests(FightTestCase):
@@ -90,19 +86,12 @@ class WinRateTests(FightTestCase):
         self.assertEqual(rates["min_fights"], rules.WIN_RATE_MIN_FIGHTS)
         self.assertEqual(rates["win_rates"], [])
 
-    def test_the_weeks_before_the_balance_keep_the_old_bands(self) -> None:
+    def test_the_bands_come_with_the_win_rates(self) -> None:
         self.assertEqual(
             self.win_rates()["extra_stars"],
-            [list(b) for b in rules.WIN_RATE_EXTRA_STARS_BEFORE],
-            "launched before the first week of the new bands",
+            [list(b) for b in rules.WIN_RATE_EXTRA_STARS],
         )
-        with patch("app.rules.BALANCE_FROM", date(2026, 10, 5)):
-            self.assertEqual(
-                self.win_rates()["extra_stars"],
-                [list(b) for b in rules.WIN_RATE_EXTRA_STARS],
-            )
 
-    @NEW_BANDS
     def test_winning_most_meetings_gives_fighters_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]
@@ -155,7 +144,6 @@ class WinRateTests(FightTestCase):
         self.assertEqual(gacha["stars"], before + challenger_stars)
         self.assertEqual(self.today()["fight"]["yours"], fight, "as stored")
 
-    @NEW_BANDS
     def test_winning_most_meetings_gives_challengers_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]
@@ -176,7 +164,6 @@ class WinRateTests(FightTestCase):
         self.assertEqual([f["extra_stars"] for f in fight["fighters"]], [0])
         self.assertFalse(outcome["fighters_win"], "a tie goes to the challenger")
 
-    @NEW_BANDS
     def test_winning_less_than_80_percent_gives_no_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]
@@ -191,7 +178,6 @@ class WinRateTests(FightTestCase):
             (outcome["fighter_extra_stars"], outcome["challenger_extra_stars"]), (0, 0)
         )
 
-    @NEW_BANDS
     def test_too_few_meetings_give_no_extra_stars(self) -> None:
         self.to_day_eight()
         challenger = self.today()["fight"]["challenger"]

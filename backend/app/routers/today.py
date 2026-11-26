@@ -41,6 +41,7 @@ from app.rules import (
     SPEED_DAYS,
     STARS_FOR_CHALLENGER,
     STARS_FOR_PROMPT,
+    WIN_RATE_EXTRA_STARS,
     WIN_RATE_MIN_FIGHTS,
     Rarity,
     hurry_hits,
@@ -700,7 +701,7 @@ def get_win_rates(
         from_day=first,
         to_day=last,
         min_fights=WIN_RATE_MIN_FIGHTS,
-        extra_stars=list(win_rates.bands(server, day)),
+        extra_stars=list(WIN_RATE_EXTRA_STARS),
         win_rates=[
             WinRate(
                 player_position=positions[r.player],

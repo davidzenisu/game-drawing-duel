@@ -24,7 +24,7 @@ class BoostBalanceTests(FightTestCase):
         self.balance_from(date(2026, 10, 5))
 
     def balance_from(self, monday: date) -> None:
-        balance_from = patch("app.rules.BALANCE_FROM", monday)
+        balance_from = patch("app.rules.BOOST_BALANCE_FROM", monday)
         balance_from.start()
         self.addCleanup(balance_from.stop)
 

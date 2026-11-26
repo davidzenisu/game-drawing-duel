@@ -11,7 +11,8 @@ Sunday's aren't over when its boosts start) changes them by
 `rules.boost_balance_step`, within `rules.BOOST_MIN_STARS` and
 `rules.BOOST_MAX_STARS`. One challenger takes all of them at most. Speed
 mode sessions have no weeks, so they keep `rules.BOOST_STARS`, and so do
-the weeks before `rules.BALANCE_FROM`'s: the first week on starts from it.
+the weeks before `rules.BOOST_BALANCE_FROM`'s: the first week on starts
+from it.
 """
 
 from collections import Counter
@@ -49,6 +50,13 @@ class Balance:
         return self.stars
 
 
+def _balanced(server: Server, day: int) -> bool:
+    """Whether `day`'s week has the boost balance: the ones starting on or
+    after `rules.BOOST_BALANCE_FROM`."""
+    week = days.week_start(server, day)
+    return days.date_of_day(server, week) >= rules.BOOST_BALANCE_FROM
+
+
 def fight_week(server: Server, day: int) -> int:
     """The first day of the week whose boost stars a player gives on `day`:
     the week the challengers boosted that day are fought in, so on Sunday
@@ -74,8 +82,8 @@ def week_balance(session: Session, server: Server, day: int) -> Balance | None:
     challengers are boosted with. The counted fights of the weeks before
     must be decided (`app.fights.complete_fights`,
     `app.fights.decide_fights`). None in the first week and in speed mode,
-    and before `rules.BALANCE_FROM`'s week."""
-    if speed.is_speed(server) or not days.balanced(server, day):
+    and before `rules.BOOST_BALANCE_FROM`'s week."""
+    if speed.is_speed(server) or not _balanced(server, day):
         return None
     first_week = days.week_start(server, 1)
     week = days.week_start(server, day)
@@ -107,7 +115,7 @@ def week_balance(session: Session, server: Server, day: int) -> Balance | None:
     stars = rules.BOOST_STARS
     for start in range(first_week + 7, week, 7):
         # The weeks before the balance keep the base stars.
-        if days.balanced(server, start):
+        if _balanced(server, start):
             stars = rules.balanced_boost_stars(stars, step(start))
     first, last = _counted(week)
     counted = range(first, last + 1)
