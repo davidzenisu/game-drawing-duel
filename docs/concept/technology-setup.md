@@ -17,6 +17,8 @@ category: concept
 
 Mockup (PR preview sites): the app can run without a backend, with everything in memory. The other players are sample data on canned demo days, not a simulation, so the game rules live only in the backend and the shared rules. A "Start on day 8" option on the sign-up screen jumps straight to the Monday after a first week, with its ranking, three weekly heroes (a legend, a hero and an adventurer), the Arena open with the rest of week 1's challengers (its friends' votes made up, the same every time; it crowns its winners and opens the Arena banner on day 15), win rates, a boost balance of +1 ★ from Sunday, day 7 (the demo challengers only win the fights of the ones drawn on days 2, 6, 10…, so the heroes win about three in four) and a trophy to accept on the notification board (you always lead the Addict streak there), and the two characters you sent into Sunday's fight resting: your rarest one for a few days, a basic one until the next day. In the shipped app, players with the `manage:servers` permission can try the mockup too: "Try the mockup" in the app bar's Admin menu opens a fresh demo game over the real one, under a bar to exit it; nothing of it is kept.
 
+Web startup: until Flutter draws its first frame, the page shows the app icon and a loading circle on the theme's background. When the browser drops Flutter's WebGL context while the app is in the background (Android does this), and the context doesn't come back within a second of the app being visible again, the page reloads by itself (at most once every 10 seconds), so the app never stays black. A drawing in progress is lost then.
+
 Development directories:
 - docs
 - frontend

@@ -26,8 +26,35 @@
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FDF7FF">
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#141218">
   <style>
-    body { background-color: #FDF7FF; }
+    body { background-color: #FDF7FF; margin: 0; }
     @media (prefers-color-scheme: dark) { body { background-color: #141218; } }
+
+    /* Shown until Flutter's first frame, so a (re)load never looks blank. */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      transition: opacity 200ms ease-out;
+    }
+    #loading.done { opacity: 0; pointer-events: none; }
+    #loading img { width: 96px; height: 96px; border-radius: 24px; }
+    #loading .spinner {
+      width: 32px;
+      height: 32px;
+      box-sizing: border-box;
+      border: 4px solid rgba(103, 80, 164, 0.2);
+      border-top-color: #6750A4;
+      border-radius: 50%;
+      animation: loading-spin 900ms linear infinite;
+    }
+    @media (prefers-color-scheme: dark) {
+      #loading .spinner { border-color: rgba(208, 188, 255, 0.2); border-top-color: #D0BCFF; }
+    }
+    @keyframes loading-spin { to { transform: rotate(360deg); } }
   </style>
 
   <!-- iOS meta tags & icons -->
@@ -41,10 +68,25 @@
 
   <title>Drawing Duel</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Reloads the app if the browser dropped Flutter's drawing surface while
+    it was in the background; runs before Flutter starts. -->
+  <script src="context_recovery.js"></script>
   <script src="https://cdn.auth0.com/js/auth0-spa-js/2.24/auth0-spa-js.production.js" defer></script>
 </head>
 
 <body>
+  <div id="loading" aria-label="Loading">
+    <img src="icons/Icon-192.png" alt="">
+    <div class="spinner"></div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loading = document.getElementById('loading');
+      if (!loading) return;
+      loading.classList.add('done');
+      setTimeout(function () { loading.remove(); }, 300);
+    }, { once: true });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
