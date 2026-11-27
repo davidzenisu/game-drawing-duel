@@ -6,9 +6,10 @@ import 'package:frontend/mockup/mock_game_session.dart';
 
 import '../helpers.dart';
 
-/// A mockup game on day 3, with three challengers to boost.
+/// A mockup game on day 3 (a Wednesday, whatever the date), with three
+/// challengers to boost.
 Future<MockGameSession> _boostDay() async {
-  final controller = MockGameSession(seed: 1);
+  final controller = MockGameSession(seed: 1, launchDate: firstMonday);
   await controller.signUp('Pat');
   await controller.createServer(['Alex', 'Sam', 'Robin', 'Kim']);
   while (!controller.server.everyoneJoined) {

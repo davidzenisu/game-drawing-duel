@@ -140,4 +140,88 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
   });
+
+  group('errors never sign you out', () {
+    ApiGameSession sessionFor(FakeAuthClient auth, FakeBackend backend) => ApiGameSession(
+      api: ApiClient(baseUrl: 'https://api.example', auth: auth, httpClient: backend.client),
+      retryDelay: Duration.zero,
+    );
+
+    testWidgets('a rejected token shows on the sign-in screen, which offers to sign out', (tester) async {
+      final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Pat'));
+      final backend = FakeBackend()..rejectAll = (status: 401, detail: 'Invalid access token');
+      final session = sessionFor(auth, backend);
+      await tester.pumpWidget(GameApp(session: session, splash: false));
+      await tester.runAsync(session.start);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Invalid access token'), findsOneWidget);
+      expect(find.text('Sign in'), findsOneWidget);
+      await tester.tap(find.text('Sign out'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      expect(auth.signOuts, 1);
+      expect(find.textContaining('Invalid access token'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('a failed load offers to try again', (tester) async {
+      final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Sam'));
+      final backend = FakeBackend()
+        ..players['test-token'] = {'id': 'player-uuid-3', 'first_name': 'Sam'}
+        ..rejectAll = (status: 503, detail: 'Service unavailable');
+      final session = sessionFor(auth, backend);
+      await tester.pumpWidget(GameApp(session: session, splash: false));
+      await tester.runAsync(session.start);
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load the game"), findsOneWidget);
+      expect(find.textContaining('Service unavailable'), findsOneWidget);
+
+      backend.rejectAll = null;
+      await tester.tap(find.text('Try again'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      expect(find.text('Hi Sam!'), findsOneWidget);
+      expect(auth.signOuts, 0);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('a token rejected mid-game shows the error with a sign-out action', (tester) async {
+      tester.view.physicalSize = const Size(1200, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final auth = FakeAuthClient(profile: const AuthProfile(givenName: 'Sam'));
+      final backend = FakeBackend()..players['test-token'] = {'id': 'player-uuid-3', 'first_name': 'Sam'};
+      final session = sessionFor(auth, backend);
+      await tester.pumpWidget(GameApp(session: session, splash: false));
+      await tester.runAsync(session.start);
+      await tester.pumpAndSettle();
+      expect(find.text('Hi Sam!'), findsOneWidget);
+
+      backend.rejectAll = (status: 401, detail: 'Invalid access token');
+      await tester.tap(find.byTooltip('Account'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Change name'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Sam'), 'Samuel');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Invalid access token'), findsOneWidget);
+      expect(find.textContaining('sign out and sign in again'), findsOneWidget);
+      expect(auth.signOuts, 0, reason: 'you stay where you are');
+
+      await tester.tap(find.widgetWithText(SnackBarAction, 'Sign out'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      expect(auth.signOuts, 1);
+      expect(find.text('Sign in'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
 }

@@ -52,6 +52,14 @@ class SignInScreen extends StatelessWidget {
                         icon: const Icon(Icons.login_rounded),
                         label: const Text('Sign in'),
                       ),
+                      const SizedBox(height: 8),
+                      // Errors never sign you out; when the sign-in keeps
+                      // being rejected, signing out starts over.
+                      TextButton.icon(
+                        onPressed: () => runGameAction(context, controller.signOut),
+                        icon: const Icon(Icons.logout_rounded),
+                        label: const Text('Sign out'),
+                      ),
                     ],
                   ),
                 ),
