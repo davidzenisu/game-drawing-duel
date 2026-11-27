@@ -9,7 +9,7 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
-## [0.44.2] - 2026-11-27
+## [0.45.1] - 2026-11-27
 
 ### Fixed
 - Drawing with a pen (stylus, S Pen, Apple Pencil) works again with your
@@ -18,6 +18,18 @@ the game is in early development (0.x), versions stay below 1.0.
   touches don't draw; between pen strokes, fingers draw as before.
 - A second finger touching the canvas no longer takes over the stroke
   you're drawing.
+
+## [0.45.0] - 2026-11-27
+
+### Changed
+- In the **Arena**, an arrow beside each drawing shows which way to drag
+  the card to pick it: → for the one top right, ← for the one bottom left.
+  As you drag, the arrow of the side you're picking grows and the other
+  fades. The hints below the card now say it's the card you drag, from
+  anywhere on it.
+- The Arena card has to be dragged a bit further to either side before it
+  picks that side, and a quick flick only counts if it goes a fair way too,
+  so a short or accidental swipe springs back.
 
 ## [0.44.1] - 2026-11-27
 
