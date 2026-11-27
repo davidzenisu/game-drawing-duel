@@ -9,6 +9,16 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.44.2] - 2026-11-27
+
+### Fixed
+- Drawing with a pen (stylus, S Pen, Apple Pencil) works again with your
+  hand resting on the screen: the hand no longer cuts a stroke short to a
+  dot, pulls it off course or swallows it. While the pen is on the canvas,
+  touches don't draw; between pen strokes, fingers draw as before.
+- A second finger touching the canvas no longer takes over the stroke
+  you're drawing.
+
 ## [0.44.1] - 2026-11-27
 
 ### Fixed
