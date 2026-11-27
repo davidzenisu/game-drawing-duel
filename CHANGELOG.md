@@ -9,6 +9,16 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.44.1] - 2026-11-27
+
+### Fixed
+- Coming back to the game after it was in the background (another app, a
+  locked phone, another tab) no longer leaves a black screen: if the phone
+  dropped the game's display meanwhile, the game reloads by itself. A
+  drawing you hadn't finished is lost in that case.
+- While the game starts, it shows its icon and a loading circle on its
+  background instead of a blank screen.
+
 ## [0.44.0] - 2026-11-27
 
 ### Added
