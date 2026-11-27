@@ -9,6 +9,19 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.43.0] - 2026-11-27
+
+### Changed
+- Errors no longer sign you out: only the **Sign out** button does. When
+  something fails, even because the server rejected your sign-in, you stay
+  where you are and can try again; if your sign-in was rejected, the message
+  offers **Sign out** in case it keeps happening.
+- If the game can't load when you open it (no connection, the server is
+  down), it says so and offers **Try again** instead of sending you back to
+  the sign-in screen.
+- The sign-in screen has a **Sign out** button too, to start over with
+  another login when signing in keeps failing.
+
 ## [0.42.1] - 2026-11-26
 
 ### Fixed

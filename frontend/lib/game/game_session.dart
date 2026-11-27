@@ -13,6 +13,9 @@ import 'rules/upgrades.dart';
 enum GamePhase {
   /// Restoring a previous sign-in.
   loading,
+
+  /// Loading the player failed, e.g. offline: see [GameSession.loadProblem].
+  loadFailed,
   signIn,
   signup,
   server,
@@ -228,6 +231,20 @@ class PullOutcome {
   final int copies;
 }
 
+/// An action failed because the server rejected your sign-in. You stay
+/// where you are; if it keeps happening, [signOut] and sign in again.
+class SignInRejected implements Exception {
+  const SignInRejected(this.message, {required this.signOut});
+
+  final String message;
+
+  /// Signs out, see [GameSession.signOut].
+  final Future<void> Function() signOut;
+
+  @override
+  String toString() => message;
+}
+
 /// Everything the game screens need from a game, wherever it is played.
 ///
 /// State is read synchronously and kept up to date through [notifyListeners].
@@ -240,6 +257,10 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Why signing in doesn't work right now, e.g. a missing configuration.
   String? get signInProblem;
+
+  /// Why loading the player failed in [GamePhase.loadFailed], e.g. no
+  /// connection. The sign-in itself is kept: [retryLoading] tries again.
+  String? get loadProblem;
 
   /// First name to prefill on signup, e.g. from the social login.
   String get suggestedFirstName;
@@ -566,7 +587,12 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> signIn();
 
   /// Signs out of the account. Not available in the mockup, see [isMockup].
+  ///
+  /// The only way the sign-in ends: errors never sign you out.
   Future<void> signOut();
+
+  /// Loads the player again after [GamePhase.loadFailed].
+  Future<void> retryLoading();
 
   /// Finishes the account by picking a first name.
   Future<void> signUp(String firstName);
