@@ -99,6 +99,31 @@ class PlayerStatsTests(FinaleTestCase):
         for subject in PLAYERS:
             self.assertEqual(self.stats(subject=subject), stats)
 
+    def test_server_admins_reveal_the_secret_stats_of_this_week(self) -> None:
+        refused = self.get(f"/servers/{self.code}/player-stats?reveal=true")
+        self.assertEqual(refused.status_code, 403, "only for server admins")
+        self.assertEqual(refused.json()["detail"], "Missing permission manage:servers")
+        response = self.client.get(
+            f"/servers/{self.code}/player-stats?reveal=true",
+            headers=bearer(
+                make_token(ADMIN, permissions=["read:api", "manage:servers"])
+            ),
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        revealed = response.json()
+        for key in player_stats.SECRET:
+            stat = next(s for s in revealed["stats"] if s["key"] == key)
+            self.assertFalse(stat["secret"])
+            self.assertTrue(all(v is not None for _, v, _ in self.stat(revealed, key)))
+        # Day 2's challengers were fought this week with chance's 3 stars each.
+        self.assertEqual(
+            [v for _, v, _ in self.stat(revealed, "most-boosted")], [3, 3, 3]
+        )
+        # The others are the same as everyone sees them.
+        hidden = self.stats()
+        for key in set(player_stats.STATS) - player_stats.SECRET:
+            self.assertEqual(self.stat(revealed, key), self.stat(hidden, key))
+
     def test_a_busy_streak_runs_across_weeks_and_wins_a_trophy(self) -> None:
         with self.without_rest():
             for _ in range(4, 8):

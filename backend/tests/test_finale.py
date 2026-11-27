@@ -92,6 +92,33 @@ class FinaleTestCase(FightTestCase):
 class FinaleTests(FinaleTestCase):
     """The weekly finale, see `app/finale.py`."""
 
+    def test_server_admins_reveal_this_weeks_ranking_so_far(self) -> None:
+        # Day 4: days 2 and 3 are drawn.
+        self.assertIsNone(self.ranking(), "the first week isn't over")
+        refused = self.get(f"/servers/{self.code}/ranking?reveal=true")
+        self.assertEqual(refused.status_code, 403, "only for server admins")
+        response = self.client.get(
+            f"/servers/{self.code}/ranking?reveal=true",
+            headers=bearer(
+                make_token(ADMIN, permissions=["read:api", "manage:servers"])
+            ),
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        revealed = response.json()
+        self.assertEqual(revealed["day"], 7, "the week's last day")
+        ranked = revealed["challengers"]
+        self.assertEqual(
+            {r["character"]["id"] for r in ranked},
+            set(self.challengers(2) + self.challengers(3)),
+            "every challenger that ranks this week so far",
+        )
+        self.assertEqual([r["place"] for r in ranked], list(range(1, 7)))
+        self.assertTrue(all(r["hero_rarity"] is None for r in ranked))
+        # As they stand: day 2's are boosted (by chance) and fight today,
+        # day 3's are boosted today; nothing is completed by chance.
+        self.assertEqual([r["fights"] for r in ranked], [0] * 6)
+        self.assertEqual([r["stars"] for r in ranked], [6, 6, 6, 3, 3, 3])
+
     def pool(self) -> set[str]:
         return {c["id"] for c in self.get(f"/servers/{self.code}/pool").json()}
 

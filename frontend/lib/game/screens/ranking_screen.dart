@@ -41,6 +41,11 @@ enum RankingView {
 ///
 /// Answers are kept on the device: this week's for the day, last week's
 /// until the next week is over; the refresh button asks again.
+///
+/// Server admins ([GameSession.canManageServers]) can reveal what this week
+/// keeps secret, to debug: the secret player stats, the challengers ranked
+/// so far and the open Arena ranked by its votes so far, in the same views
+/// as last week's. Revealed answers are always asked anew, never kept.
 class RankingScreen extends StatefulWidget {
   const RankingScreen({
     super.key,
@@ -63,11 +68,12 @@ class _RankingScreenState extends State<RankingScreen> {
   late RankingView _view = widget.view;
   late StatPeriod _period = widget.period;
   final Map<StatPeriod, PlayerStats?> _stats = {};
-  WeekRanking? _ranking;
-  bool _rankingLoaded = false;
-  ArenaRanking? _arena;
-  bool _arenaLoaded = false;
+  final Map<StatPeriod, WeekRanking?> _rankings = {};
+  final Map<StatPeriod, ArenaRanking?> _arenas = {};
   bool _loading = true;
+
+  /// Whether a server admin revealed this week's secrets.
+  bool _reveal = false;
 
   @override
   void initState() {
@@ -76,16 +82,20 @@ class _RankingScreenState extends State<RankingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  /// Last week's challengers come from the week ranking, everything else
-  /// from the player stats.
-  bool get _showsRanking => _view == RankingView.challengers && _period == StatPeriod.lastWeek;
+  /// Whether this week's secrets show (only ever for server admins).
+  bool get _revealing => _reveal && _period == StatPeriod.week;
 
-  /// The latest decided Arena; this week's Arena comes with the day.
-  bool get _showsArena => _view == RankingView.arena && _period == StatPeriod.lastWeek;
+  /// Last week's challengers (or this week's, revealed) come from the week
+  /// ranking, everything else from the player stats.
+  bool get _showsRanking => _view == RankingView.challengers && (_period == StatPeriod.lastWeek || _revealing);
+
+  /// The latest decided Arena (or the open one, revealed); this week's
+  /// Arena otherwise comes with the day.
+  bool get _showsArena => _view == RankingView.arena && (_period == StatPeriod.lastWeek || _revealing);
 
   bool get _loaded => switch (_view) {
-    RankingView.arena => _period == StatPeriod.week || _arenaLoaded,
-    _ when _showsRanking => _rankingLoaded,
+    RankingView.arena => !_showsArena || _arenas.containsKey(_period),
+    _ when _showsRanking => _rankings.containsKey(_period),
     _ => _stats.containsKey(_period),
   };
 
@@ -94,28 +104,32 @@ class _RankingScreenState extends State<RankingScreen> {
   Future<void> _load({bool refresh = false}) async {
     setState(() => _loading = true);
     final controller = widget.controller;
+    final period = _period;
+    final reveal = _revealing;
+    // A refresh that failed keeps what showed.
+    void keep<T>(Map<StatPeriod, T?> answers, T? answer) {
+      if (answer != null || !refresh || !answers.containsKey(period)) answers[period] = answer;
+    }
+
     if (_view == RankingView.arena) {
-      final arena = _showsArena ? await runGameQuery(context, () => controller.arenaRanking(refresh: refresh)) : null;
-      if (!mounted) return;
-      setState(() {
-        if (arena != null || !refresh) _arena = arena ?? _arena;
-        if (_showsArena) _arenaLoaded = true;
-        _loading = false;
-      });
+      if (_showsArena) {
+        final arena = await runGameQuery(context, () => controller.arenaRanking(refresh: refresh, reveal: reveal));
+        if (!mounted) return;
+        keep(_arenas, arena);
+      }
+      setState(() => _loading = false);
     } else if (_showsRanking) {
-      final ranking = await runGameQuery(context, () => controller.weekRanking(refresh: refresh));
+      final ranking = await runGameQuery(context, () => controller.weekRanking(refresh: refresh, reveal: reveal));
       if (!mounted) return;
       setState(() {
-        if (ranking != null || !refresh) _ranking = ranking;
-        _rankingLoaded = true;
+        keep(_rankings, ranking);
         _loading = false;
       });
     } else {
-      final period = _period;
-      final stats = await runGameQuery(context, () => controller.playerStats(period, refresh: refresh));
+      final stats = await runGameQuery(context, () => controller.playerStats(period, refresh: refresh, reveal: reveal));
       if (!mounted) return;
       setState(() {
-        if (stats != null || !refresh) _stats[period] = stats;
+        keep(_stats, stats);
         _loading = false;
       });
     }
@@ -127,6 +141,18 @@ class _RankingScreenState extends State<RankingScreen> {
       _period = period ?? _period;
     });
     if (!_loaded) _load();
+  }
+
+  /// Reveals this week's secrets, or hides them again: this week's answers
+  /// are asked again either way.
+  void _setReveal(bool reveal) {
+    setState(() {
+      _reveal = reveal;
+      _stats.remove(StatPeriod.week);
+      _rankings.remove(StatPeriod.week);
+      _arenas.remove(StatPeriod.week);
+    });
+    _load();
   }
 
   @override
@@ -177,6 +203,19 @@ class _RankingScreenState extends State<RankingScreen> {
                     showSelectedIcon: false,
                     onSelectionChanged: (picked) => _show(period: picked.single),
                   ),
+                  if (widget.controller.canManageServers && _period == StatPeriod.week) ...[
+                    const SizedBox(height: 8),
+                    Center(
+                      child: FilterChip(
+                        avatar: Icon(_reveal ? Icons.visibility_rounded : Icons.visibility_off_outlined),
+                        label: const Text('Reveal secrets (admin)'),
+                        tooltip: "Show what stays secret until the week is over, to debug. Only server admins can.",
+                        selected: _reveal,
+                        showCheckmark: false,
+                        onSelected: _loading ? null : _setReveal,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (!_loaded || (_loading && _content(context) == null))
                     const Padding(
@@ -187,18 +226,15 @@ class _RankingScreenState extends State<RankingScreen> {
                     _content(context) ??
                         Padding(
                           padding: const EdgeInsets.all(24),
-                          child: Text(
-                            switch (_view) {
-                              RankingView.arena when widget.controller.server.isSpeed => 'Speed mode has no Arena.',
-                              RankingView.arena =>
-                                'No Arena decided yet. The first one opens once the first week is over, and is '
-                                    'decided a week later.',
-                              _ when _period == StatPeriod.lastWeek =>
-                                'No ranking yet. Once the first week is over, it shows here.',
-                              _ => 'Nothing to rank in this session.',
-                            },
-                            textAlign: TextAlign.center,
-                          ),
+                          child: Text(switch (_view) {
+                            RankingView.arena when widget.controller.server.isSpeed => 'Speed mode has no Arena.',
+                            RankingView.arena =>
+                              'No Arena decided yet. The first one opens once the first week is over, and is '
+                                  'decided a week later.',
+                            _ when _period == StatPeriod.lastWeek =>
+                              'No ranking yet. Once the first week is over, it shows here.',
+                            _ => 'Nothing to rank in this session.',
+                          }, textAlign: TextAlign.center),
                         ),
                 ],
               ),
@@ -214,15 +250,21 @@ class _RankingScreenState extends State<RankingScreen> {
     final players = widget.controller.server.players;
     if (_view == RankingView.arena) return _arenaContent(context);
     if (_showsRanking) {
-      final ranking = _ranking;
+      final ranking = _rankings[_period];
       if (ranking == null || ranking.challengers.isEmpty) return null;
+      final order =
+          'ranked by their boost stars, then the boost stars of their artist\'s challengers, their win rate and '
+          'the latest day.';
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Week ${widget.controller.weekOf(ranking.day)}: ${ranking.challengers.length} challengers, ranked by '
-            'their boost stars, then the boost stars of their artist\'s challengers, their win rate and the '
-            'latest day. The top ${Finale.maxHeroes} became weekly heroes: ★★★★, ★★★ and ★★.',
+            _revealing
+                ? 'Revealed: week ${widget.controller.weekOf(ranking.day)} so far, ${ranking.challengers.length} '
+                      'challengers with their boosts and fights up to now, $order Everyone else sees it once the '
+                      'week is over.'
+                : 'Week ${widget.controller.weekOf(ranking.day)}: ${ranking.challengers.length} challengers, '
+                      '$order The top ${Finale.maxHeroes} became weekly heroes: ★★★★, ★★★ and ★★.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -250,10 +292,7 @@ class _RankingScreenState extends State<RankingScreen> {
           'Their stars stay secret until the week is over; then they are ranked.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        if (stats.boostBalance case final balance?) ...[
-          const SizedBox(height: 12),
-          BoostBalanceCard(balance: balance),
-        ],
+        if (stats.boostBalance case final balance?) ...[const SizedBox(height: 12), BoostBalanceCard(balance: balance)],
         const SizedBox(height: 12),
         PlayersDashboard(weeks: PlayerWeek.of(players, {for (final (player, n) in stats.portrayed) player.name: n})),
       ],
@@ -276,12 +315,34 @@ extension on _RankingScreenState {
         style: textTheme.bodyMedium,
       );
     }
-    final arena = _arena;
+    final arena = _arenas[_period];
     if (arena == null || arena.challengers.isEmpty) return null;
     final unranked = [
       for (final entry in arena.challengers)
         if (!entry.qualified) entry,
     ];
+    if (_revealing) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            "Revealed: the Arena of week ${controller.weekOf(arena.week)}'s challengers so far, "
+            '${arena.challengers.length} challengers ranked by the votes up to now, the ones with at least '
+            '${arena.minMatchups} matchups. Everyone else sees it once the Arena is decided on Monday.',
+            style: textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 12),
+          for (final entry in arena.challengers)
+            if (entry.qualified) _ArenaTile(entry: entry),
+          if (unranked.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text('Not enough matchups yet', style: textTheme.titleMedium),
+            const SizedBox(height: 4),
+            for (final entry in unranked) _ArenaTile(entry: entry, minMatchups: arena.minMatchups),
+          ],
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -302,10 +363,7 @@ extension on _RankingScreenState {
               subtitle: Text('No challenger took part in ${arena.minMatchups} matchups.'),
             ),
           ),
-        for (final winner in arena.winners) ...[
-          _ArenaWinnerCard(entry: winner),
-          const SizedBox(height: 8),
-        ],
+        for (final winner in arena.winners) ...[_ArenaWinnerCard(entry: winner), const SizedBox(height: 8)],
         for (final entry in arena.challengers)
           if (!entry.isWinner && entry.qualified) _ArenaTile(entry: entry),
         if (unranked.isNotEmpty) ...[
@@ -460,9 +518,11 @@ class BoostBalanceCard extends StatelessWidget {
   }
 }
 
-void _openDetails(BuildContext context, RankedChallenger entry, DailyTheme dayTheme) => Navigator.of(
-  context,
-).push(MaterialPageRoute<void>(builder: (_) => RankingDetailScreen(entry: entry, dayTheme: dayTheme)));
+void _openDetails(BuildContext context, RankedChallenger entry, DailyTheme dayTheme) => Navigator.of(context).push(
+  MaterialPageRoute<void>(
+    builder: (_) => RankingDetailScreen(entry: entry, dayTheme: dayTheme),
+  ),
+);
 
 /// How often a player was chosen as a challenger in a week: the challengers
 /// portraying them.

@@ -9,6 +9,15 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.43.0] - 2026-11-27
+
+### Added
+- Server admins can reveal what the **Week ranking** keeps secret until the
+  week is over, to debug: a **Reveal secrets (admin)** chip under
+  **This week** shows Grand Artist and Prompt Engineer with their values,
+  this week's challengers ranked so far, and the open Arena ranked by its
+  votes so far. Other players don't see the chip and can't reveal anything.
+
 ## [0.42.1] - 2026-11-26
 
 ### Fixed
