@@ -745,11 +745,7 @@ class _Arrow extends StatelessWidget {
                   color: Color.lerp(Colors.white.withValues(alpha: 0.9), AppPalette.rarityLegend, glow),
                   border: Border.all(color: AppPalette.rarityLegend, width: 2.5),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
                     if (glow > 0)
                       BoxShadow(
                         color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
