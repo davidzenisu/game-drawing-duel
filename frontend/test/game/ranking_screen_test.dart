@@ -169,6 +169,48 @@ void main() {
     );
   });
 
+  testWidgets("server admins reveal this week's secrets: stats, challengers and the open Arena", (tester) async {
+    _phone(tester);
+    // Day 10: week 2, with week 1's challengers in the Arena.
+    final controller = await launchedGame(launchDate: firstMonday, day: 10);
+    expect(controller.canManageServers, isTrue, reason: 'like a server admin in the mockup');
+    await tester.pumpWidget(MaterialApp(home: RankingScreen(controller: controller)));
+    await tester.pumpAndSettle();
+    final reveal = find.widgetWithText(FilterChip, 'Reveal secrets (admin)');
+    expect(reveal, findsOneWidget);
+
+    await tester.tap(find.text('Grand Artist'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Secret until the week is over'), findsOneWidget);
+    await tester.tap(reveal);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Secret until the week is over'), findsNothing, reason: 'revealed');
+    final week = (await controller.playerStats(StatPeriod.week, reveal: true))!;
+    final boosted = week.stats.firstWhere((s) => s.kind == PlayerStatKind.mostBoosted);
+    expect(boosted.secret, isFalse);
+    expect(boosted.players.every((p) => p.value != null), isTrue);
+
+    await tester.tap(find.text('Challengers'));
+    await tester.pumpAndSettle();
+    final ranking = (await controller.weekRanking(reveal: true))!;
+    expect(ranking.challengers, isNotEmpty);
+    expect(find.textContaining('Revealed: week 2 so far, ${ranking.challengers.length} challengers'), findsOneWidget);
+    expect(find.textContaining('Weekly hero'), findsNothing, reason: 'none crowned yet');
+    expect(find.text('${ranking.challengers.first.stars} ★'), findsWidgets);
+
+    await tester.tap(find.text('Arena'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining("Revealed: the Arena of week 1's challengers so far"), findsOneWidget);
+    expect(find.textContaining('Arena winner'), findsNothing, reason: 'not decided yet');
+    expect(tester.takeException(), isNull, reason: 'fits a phone');
+
+    // Last week has no secrets: no chip there.
+    await tester.tap(find.text('Last week'));
+    await tester.pumpAndSettle();
+    expect(reveal, findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets("last week: the players' trophies", (tester) async {
     _phone(tester);
     final controller = await launchedGame(launchDate: firstMonday);

@@ -6,7 +6,7 @@ from enum import StrEnum
 from fastapi import APIRouter, HTTPException, status
 
 from app import boost_balance, days, finale, player_stats, speed
-from app.auth import CurrentPlayer
+from app.auth import CurrentPlayer, Reveal
 from app.deps import Code, DbSession, running_game
 from app.responses import balance_response
 from app.rules import STARS_FOR_WEEK_STAT
@@ -27,13 +27,20 @@ class Period(StrEnum):
 
 @router.get("/{code}/player-stats", response_model=PlayerStatsResponse | None)
 def get_player_stats(
-    code: Code, player: CurrentPlayer, session: DbSession, period: Period = Period.WEEK
+    code: Code,
+    player: CurrentPlayer,
+    session: DbSession,
+    reveal: Reveal,
+    period: Period = Period.WEEK,
 ) -> PlayerStatsResponse | None:
     """Every player's stats, each a ranking of all players with their
     trophies so far, and who the week's challengers portray: in the ongoing
     week (up to today; the secret ones without values) or the latest
     finished week (null before the first is over). The ongoing week comes
-    with its boost balance. Speed mode sessions have none."""
+    with its boost balance. Speed mode sessions have none.
+
+    With `reveal`, for accounts with the admin permission, the ongoing
+    week's secret stats show like the others, for debugging."""
     server, _ = running_game(session, code, player.id)
     if speed.is_speed(server):
         raise HTTPException(
@@ -61,7 +68,7 @@ def get_player_stats(
 
     def stat(key: str) -> PlayerStat:
         won = trophies.get(key, {})
-        if period is Period.WEEK and key in player_stats.SECRET:
+        if period is Period.WEEK and not reveal and key in player_stats.SECRET:
             return PlayerStat(
                 key=key,
                 secret=True,

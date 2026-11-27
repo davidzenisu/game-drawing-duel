@@ -430,7 +430,11 @@ abstract class GameSession extends ChangeNotifier {
   /// Loads the latest finished week's ranking, see [Finale]; null before the
   /// first week is over. Kept on the device until the next week is over,
   /// unless [refresh].
-  Future<WeekRanking?> weekRanking({bool refresh = false});
+  ///
+  /// With [reveal], for server admins ([canManageServers]) to debug: this
+  /// week's ranking so far instead (a speed session's while it runs),
+  /// without weekly heroes yet; always asked anew, never kept.
+  Future<WeekRanking?> weekRanking({bool refresh = false, bool reveal = false});
 
   /// The Arena open today, with your votes ([Arena]); null in the first
   /// week and in speed mode. Loaded with the day.
@@ -467,14 +471,22 @@ abstract class GameSession extends ChangeNotifier {
   /// Loads the latest decided Arena, best first; null before the first one
   /// is decided and in speed mode. Kept on the device until the next one is
   /// decided, unless [refresh].
-  Future<ArenaRanking?> arenaRanking({bool refresh = false});
+  ///
+  /// With [reveal], for server admins ([canManageServers]) to debug: the
+  /// Arena open today instead, ranked by its votes so far, without winners
+  /// yet; null in the first week. Always asked anew, never kept.
+  Future<ArenaRanking?> arenaRanking({bool refresh = false, bool reveal = false});
 
   /// Loads every player's stats and trophies for [period], and who its
   /// challengers portray, see [PlayerStats]; null in speed mode, which has
   /// none, and for last week before the first week is over. Kept on the
   /// device unless [refresh]: this week's for the day, last week's until the
   /// next week is over.
-  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false});
+  ///
+  /// With [reveal], for server admins ([canManageServers]) to debug, this
+  /// week's secret stats show like the others; always asked anew, never
+  /// kept.
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false, bool reveal = false});
 
   /// Loads this week's win rates, from last week's fights (see [WinRates]);
   /// null in speed mode, which has none. Kept on the device for the week,

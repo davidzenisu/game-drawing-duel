@@ -1329,6 +1329,16 @@ void main() {
       await alex.refreshDay();
       await alex.playerStats(StatPeriod.lastWeek);
       expect(statsRequests(), before + 5, reason: 'the next week is over');
+
+      // Revealed, for server admins: asked anew with reveal=true every time,
+      // never kept.
+      final asked = statsRequests();
+      await alex.playerStats(StatPeriod.week, reveal: true);
+      await alex.playerStats(StatPeriod.week, reveal: true);
+      expect(backend.requests.last.url.queryParameters, {'period': 'week', 'reveal': 'true'});
+      expect(statsRequests(), asked + 2);
+      await alex.playerStats(StatPeriod.week);
+      expect(backend.requests.last.url.queryParameters, {'period': 'week'}, reason: 'not the revealed one');
     });
 
     test("this week's win rates, from last week's fights", () async {

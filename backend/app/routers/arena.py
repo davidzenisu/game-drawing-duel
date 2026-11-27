@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import arena, days, finale, rules, stars
-from app.auth import CurrentPlayer
+from app.auth import CurrentPlayer, Reveal
 from app.deps import Code, DbSession, running_game
 from app.models import Server, ServerSeat
 from app.responses import character_response
@@ -97,13 +97,21 @@ def vote(
 
 @router.get("/{code}/arena/ranking", response_model=ArenaRankingResponse | None)
 def get_arena_ranking(
-    code: Code, player: CurrentPlayer, session: DbSession
+    code: Code, player: CurrentPlayer, session: DbSession, reveal: Reveal
 ) -> ArenaRankingResponse | None:
     """The latest decided Arena, best first, with its winners. Null before
-    the first one is decided, and always in speed mode."""
+    the first one is decided, and always in speed mode.
+
+    With `reveal`, for accounts with the admin permission, the Arena open
+    today instead, ranked by its votes so far, without winners yet, for
+    debugging. Null in the first week."""
     server, _ = running_game(session, code, player.id)
     finale.settle(session, server)
-    week = arena.latest_week(session, server)
+    week = (
+        arena.open_week(server, days.current_day(server))
+        if reveal
+        else arena.latest_week(session, server)
+    )
     if week is None:
         return None
     winners = {h.character_id: h for h in arena.winners_of(session, server, week)}

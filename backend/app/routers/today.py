@@ -20,7 +20,7 @@ from app import (
     stars,
     win_rates,
 )
-from app.auth import CurrentPlayer
+from app.auth import CurrentPlayer, Reveal
 from app.deps import Code, DbSession, running_game
 from app.drawings import save_character
 from app.models import (
@@ -604,21 +604,32 @@ def collect_challenger_stars(
 
 @router.get("/{code}/ranking", response_model=RankingResponse | None)
 def get_ranking(
-    code: Code, player: CurrentPlayer, session: DbSession
+    code: Code, player: CurrentPlayer, session: DbSession, reveal: Reveal
 ) -> RankingResponse | None:
     """The latest finished week's challengers, most stars first, and its
     weekly heroes (`app.finale`). Null before the first week is over.
 
-    In speed mode, all of the session's challengers once it's over."""
+    In speed mode, all of the session's challengers once it's over.
+
+    With `reveal`, for accounts with the admin permission, the ongoing
+    week's challengers instead (in speed mode, the ongoing session's), as
+    they rank so far, for debugging: their boosts and fights up to now,
+    nothing completed by chance; `day` is the week's last day."""
     server, _ = running_game(session, code, player.id)
     if speed.is_speed(server):
-        if not speed.clock(server).over:
-            return None
-        # The last day's boosts and fights nobody finished count too.
         last_day = SPEED_DAYS
-        fights.complete_boosts(session, server, last_day)
-        fights.complete_fights(session, server, last_day)
+        if speed.clock(server).over:
+            # The last day's boosts and fights nobody finished count too.
+            fights.complete_boosts(session, server, last_day)
+            fights.complete_fights(session, server, last_day)
+        elif not reveal:
+            return None
         ranked = finale.ranking(session, server, last_day + 1)
+        heroes = {}
+    elif reveal:
+        finale.settle(session, server)
+        last_day = finale.finale_day(server, days.current_day(server))
+        ranked = finale.ranking(session, server, last_day)
         heroes = {}
     else:
         finale.settle(session, server)
