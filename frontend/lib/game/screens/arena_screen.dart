@@ -67,7 +67,12 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
   static const _flyTime = Duration(milliseconds: 280);
 
   /// The share of the card's width a drag must pass to pick a side.
-  static const _threshold = 0.22;
+  static const _threshold = 0.32;
+
+  /// How fast a flick must be to pick a side before the threshold, and the
+  /// share of it the drag must still cover.
+  static const _flingSpeed = 1200.0;
+  static const _flingLean = 0.5;
 
   @override
   void initState() {
@@ -110,9 +115,9 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
 
   void _onDragEnd(DragEndDetails details) {
     final flung = details.velocity.pixelsPerSecond.dx;
-    if (_lean <= -1 || flung < -900) {
+    if (_lean <= -1 || (flung < -_flingSpeed && _lean <= -_flingLean)) {
       _vote(_Pick.left);
-    } else if (_lean >= 1 || flung > 900) {
+    } else if (_lean >= 1 || (flung > _flingSpeed && _lean >= _flingLean)) {
       _vote(_Pick.right);
     } else {
       _animateTo(Offset.zero);

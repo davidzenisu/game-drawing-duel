@@ -17,6 +17,9 @@ the game is in early development (0.x), versions stay below 1.0.
   As you drag, the arrow of the side you're picking grows and the other
   fades. The hints below the card now say it's the card you drag, from
   anywhere on it.
+- The Arena card has to be dragged a bit further to either side before it
+  picks that side, and a quick flick only counts if it goes a fair way too,
+  so a short or accidental swipe springs back.
 
 ## [0.44.1] - 2026-11-27
 

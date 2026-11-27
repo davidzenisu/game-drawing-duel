@@ -59,8 +59,8 @@ void main() {
     // Dragging stamps the side the card leans toward and fades the other
     // side's arrow; a short drag goes back.
     final gesture = await tester.startGesture(tester.getCenter(card));
-    await gesture.moveBy(const Offset(-30, 0));
-    await gesture.moveBy(const Offset(-30, 0));
+    await gesture.moveBy(const Offset(-45, 0));
+    await gesture.moveBy(const Offset(-45, 0));
     await tester.pump();
     expect(find.text('BETTER'), findsOneWidget);
     expect(
@@ -77,24 +77,34 @@ void main() {
       lessThan(tester.getCenter(card).dy),
       reason: 'dragged right: the one top right',
     );
-    await gesture.moveBy(const Offset(-70, 0));
+    await gesture.moveBy(const Offset(-40, 0));
     await gesture.up();
     await voted(0);
     expect(find.text('BETTER'), findsNothing, reason: 'back in the middle');
+
+    // Not far enough, even flicked, it springs back: a short flick, or a
+    // drag of a quarter of the card's width.
+    await tester.fling(card, const Offset(-45, 0), 1500);
+    await voted(0);
+    await tester.drag(card, const Offset(100, 0));
+    await voted(0);
 
     // Far enough, it flies off: a vote for the left one.
     await tester.drag(card, const Offset(-200, 0));
     await voted(1);
     await tester.drag(card, const Offset(200, 0));
     await voted(2);
+    // Flicked, half as far does.
+    await tester.fling(card, const Offset(90, 0), 1500);
+    await voted(3);
     // → and ← throw it too.
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
-    await voted(3);
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await voted(4);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await voted(5);
     // A draw.
     await tester.tap(find.text("Can't decide"));
-    await voted(5);
+    await voted(6);
 
     final stars = game.stars;
     while (game.arena!.votesToday < Arena.pack) {
