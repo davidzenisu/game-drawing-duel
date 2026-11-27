@@ -101,6 +101,13 @@ class MockGameSession extends GameSession {
   @override
   String? get signInProblem => null;
 
+  @override
+  String? get loadProblem => null;
+
+  /// The mockup has nothing to load.
+  @override
+  Future<void> retryLoading() async {}
+
   /// The mockup's signup screen offers a pretend social login instead.
   @override
   String get suggestedFirstName => '';

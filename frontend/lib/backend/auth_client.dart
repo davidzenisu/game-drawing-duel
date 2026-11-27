@@ -20,11 +20,10 @@ abstract class AuthClient {
   /// Restores a previous sign-in, or returns `null` if there is none.
   Future<AuthProfile?> restore();
 
-  /// Starts the sign-in, which may leave the app (redirect).
-  ///
-  /// With [fresh], the identity provider asks for the login again instead of
-  /// reusing its session, which also replaces a rejected token.
-  Future<void> signIn({bool fresh = false});
+  /// Starts the sign-in, which may leave the app (redirect). Reuses the
+  /// identity provider's session if there is one: after [signOut], it asks
+  /// for the login again.
+  Future<void> signIn();
 
   /// Ends the sign-in, which may leave the app (redirect).
   Future<void> signOut();
