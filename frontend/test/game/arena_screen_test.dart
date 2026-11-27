@@ -39,8 +39,25 @@ void main() {
       expect(game.arena!.votesToday, votes);
     }
 
-    // Dragging stamps the side the card leans toward; a short drag goes back.
+    // An arrow by each drawing points the way that picks it: → top right,
+    // ← bottom left; the hints below say it's the card you drag.
     final card = find.byKey(const ValueKey('arena-card'));
+    final right = find.descendant(of: card, matching: find.byKey(const ValueKey('arena-arrow-right')));
+    final left = find.descendant(of: card, matching: find.byKey(const ValueKey('arena-arrow-left')));
+    expect(right, findsOneWidget);
+    expect(left, findsOneWidget);
+    final cardCenter = tester.getCenter(card);
+    expect(tester.getCenter(right).dx, greaterThan(cardCenter.dx));
+    expect(tester.getCenter(right).dy, lessThan(cardCenter.dy));
+    expect(tester.getCenter(left).dx, lessThan(cardCenter.dx));
+    expect(tester.getCenter(left).dy, greaterThan(cardCenter.dy));
+    expect(find.text('← Drag the card'), findsOneWidget);
+    expect(find.text('Drag the card →'), findsOneWidget);
+    double opacity(Finder arrow) =>
+        tester.widget<Opacity>(find.descendant(of: arrow, matching: find.byType(Opacity)).first).opacity;
+
+    // Dragging stamps the side the card leans toward and fades the other
+    // side's arrow; a short drag goes back.
     final gesture = await tester.startGesture(tester.getCenter(card));
     await gesture.moveBy(const Offset(-30, 0));
     await gesture.moveBy(const Offset(-30, 0));
@@ -51,6 +68,8 @@ void main() {
       greaterThan(tester.getCenter(card).dy),
       reason: 'dragged left: the one bottom left',
     );
+    expect(opacity(right), lessThan(0.5));
+    expect(opacity(left), 1);
     await gesture.moveBy(const Offset(120, 0));
     await tester.pump();
     expect(
