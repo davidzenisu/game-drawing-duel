@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import 'game_session.dart';
 import 'sound.dart';
 import 'screens/daily_hub_screen.dart';
+import 'screens/load_failed_screen.dart';
 import 'screens/lobby_screen.dart';
 import 'screens/server_screen.dart';
 import 'screens/setup_screen.dart';
@@ -123,6 +124,7 @@ class _GameRootState extends State<GameRoot> {
 
   Widget _screenFor(GamePhase phase) => switch (phase) {
     GamePhase.loading => const Scaffold(body: Center(child: CircularProgressIndicator())),
+    GamePhase.loadFailed => LoadFailedScreen(controller: session),
     GamePhase.signIn => SignInScreen(controller: session),
     GamePhase.signup => SignupScreen(controller: session),
     GamePhase.server => ServerScreen(controller: session),

@@ -30,9 +30,6 @@ class FakeAuthClient implements AuthClient {
   final Object? restoreError;
   Object? tokenError;
   int signIns = 0;
-
-  /// Whether each sign-in asked for a fresh login.
-  final List<bool> freshSignIns = [];
   int signOuts = 0;
 
   @override
@@ -42,10 +39,7 @@ class FakeAuthClient implements AuthClient {
   }
 
   @override
-  Future<void> signIn({bool fresh = false}) async {
-    signIns++;
-    freshSignIns.add(fresh);
-  }
+  Future<void> signIn() async => signIns++;
 
   @override
   Future<void> signOut() async => signOuts++;

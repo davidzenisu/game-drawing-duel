@@ -243,6 +243,14 @@ class SpeedDayTests(SpeedTestCase):
             )
         while self.today()["day"] < 6:
             self.assertIsNone(self.get(f"/servers/{self.code}/ranking").json())
+            # Server admins can reveal it so far.
+            revealed = self.client.get(
+                f"/servers/{self.code}/ranking?reveal=true",
+                headers=bearer(
+                    make_token(ADMIN, permissions=["read:api", "manage:servers"])
+                ),
+            ).json()
+            self.assertEqual((revealed["day"], len(revealed["challengers"])), (6, 5))
             self.post("days/next")
         self.post("days/next")
         self.assertEqual(self.server()["phase"], "finished")

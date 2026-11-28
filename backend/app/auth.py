@@ -8,7 +8,9 @@ Token" enabled on the API).
 
 The content routes also need `edit:content`, for the accounts that manage the
 prompt hints and premade titles (see `require_content_editor`), and the admin
-routes `manage:servers` (see `require_server_admin`).
+routes `manage:servers` (see `require_server_admin`), which also lets an
+account reveal what the week ranking keeps secret during the week, for
+debugging (see `Reveal`).
 """
 
 import os
@@ -148,7 +150,17 @@ def require_server_admin(claims: TokenClaims) -> None:
         raise _forbidden(ADMIN_PERMISSION)
 
 
+def reveal_secrets(claims: TokenClaims, reveal: bool = False) -> bool:
+    """The `reveal` query parameter of the week ranking's routes: shows what
+    stays secret during the week, for debugging. Only accounts with the
+    admin permission may ask for it."""
+    if reveal and ADMIN_PERMISSION not in claims["permissions"]:
+        raise _forbidden(ADMIN_PERMISSION)
+    return reveal
+
+
 Auth0Subject = Annotated[str, Depends(get_auth0_subject)]
+Reveal = Annotated[bool, Depends(reveal_secrets)]
 
 
 def get_current_player(

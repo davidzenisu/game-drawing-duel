@@ -13,6 +13,9 @@ import 'rules/upgrades.dart';
 enum GamePhase {
   /// Restoring a previous sign-in.
   loading,
+
+  /// Loading the player failed, e.g. offline: see [GameSession.loadProblem].
+  loadFailed,
   signIn,
   signup,
   server,
@@ -228,6 +231,20 @@ class PullOutcome {
   final int copies;
 }
 
+/// An action failed because the server rejected your sign-in. You stay
+/// where you are; if it keeps happening, [signOut] and sign in again.
+class SignInRejected implements Exception {
+  const SignInRejected(this.message, {required this.signOut});
+
+  final String message;
+
+  /// Signs out, see [GameSession.signOut].
+  final Future<void> Function() signOut;
+
+  @override
+  String toString() => message;
+}
+
 /// Everything the game screens need from a game, wherever it is played.
 ///
 /// State is read synchronously and kept up to date through [notifyListeners].
@@ -240,6 +257,10 @@ abstract class GameSession extends ChangeNotifier {
 
   /// Why signing in doesn't work right now, e.g. a missing configuration.
   String? get signInProblem;
+
+  /// Why loading the player failed in [GamePhase.loadFailed], e.g. no
+  /// connection. The sign-in itself is kept: [retryLoading] tries again.
+  String? get loadProblem;
 
   /// First name to prefill on signup, e.g. from the social login.
   String get suggestedFirstName;
@@ -415,7 +436,11 @@ abstract class GameSession extends ChangeNotifier {
   /// Loads the latest finished week's ranking, see [Finale]; null before the
   /// first week is over. Kept on the device until the next week is over,
   /// unless [refresh].
-  Future<WeekRanking?> weekRanking({bool refresh = false});
+  ///
+  /// With [reveal], for server admins ([canManageServers]) to debug: this
+  /// week's ranking so far instead (a speed session's while it runs),
+  /// without weekly heroes yet; always asked anew, never kept.
+  Future<WeekRanking?> weekRanking({bool refresh = false, bool reveal = false});
 
   /// The Arena open today, with your votes ([Arena]); null in the first
   /// week and in speed mode. Loaded with the day.
@@ -452,14 +477,22 @@ abstract class GameSession extends ChangeNotifier {
   /// Loads the latest decided Arena, best first; null before the first one
   /// is decided and in speed mode. Kept on the device until the next one is
   /// decided, unless [refresh].
-  Future<ArenaRanking?> arenaRanking({bool refresh = false});
+  ///
+  /// With [reveal], for server admins ([canManageServers]) to debug: the
+  /// Arena open today instead, ranked by its votes so far, without winners
+  /// yet; null in the first week. Always asked anew, never kept.
+  Future<ArenaRanking?> arenaRanking({bool refresh = false, bool reveal = false});
 
   /// Loads every player's stats and trophies for [period], and who its
   /// challengers portray, see [PlayerStats]; null in speed mode, which has
   /// none, and for last week before the first week is over. Kept on the
   /// device unless [refresh]: this week's for the day, last week's until the
   /// next week is over.
-  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false});
+  ///
+  /// With [reveal], for server admins ([canManageServers]) to debug, this
+  /// week's secret stats show like the others; always asked anew, never
+  /// kept.
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false, bool reveal = false});
 
   /// Loads this week's win rates, from last week's fights (see [WinRates]);
   /// null in speed mode, which has none. Kept on the device for the week,
@@ -572,7 +605,12 @@ abstract class GameSession extends ChangeNotifier {
   Future<void> signIn();
 
   /// Signs out of the account. Not available in the mockup, see [isMockup].
+  ///
+  /// The only way the sign-in ends: errors never sign you out.
   Future<void> signOut();
+
+  /// Loads the player again after [GamePhase.loadFailed].
+  Future<void> retryLoading();
 
   /// Finishes the account by picking a first name.
   Future<void> signUp(String firstName);

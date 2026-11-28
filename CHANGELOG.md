@@ -9,7 +9,7 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
-## [0.43.0] - 2026-11-26
+## [0.46.0] - 2026-11-28
 
 ### Added
 - Writing a challenger title for one of the players picked least this week
@@ -17,6 +17,57 @@ the game is in early development (0.x), versions stay below 1.0.
   would make more than three, none of the tied players do. Their chips show
   a **+1 ★** badge. There's no bonus on the first day of a week or in speed
   mode.
+
+## [0.45.1] - 2026-11-28
+
+### Fixed
+- Drawing with a pen (stylus, S Pen) in Chrome on Android works again: a
+  stroke no longer stops at a dot or a short dash when the pen touches down
+  lightly.
+
+## [0.45.0] - 2026-11-27
+
+### Changed
+- In the **Arena**, an arrow beside each drawing shows which way to drag
+  the card to pick it: → for the one top right, ← for the one bottom left.
+  As you drag, the arrow of the side you're picking grows and the other
+  fades. The hints below the card now say it's the card you drag, from
+  anywhere on it.
+- The Arena card has to be dragged a bit further to either side before it
+  picks that side, and a quick flick only counts if it goes a fair way too,
+  so a short or accidental swipe springs back.
+
+## [0.44.1] - 2026-11-27
+
+### Fixed
+- Coming back to the game after it was in the background (another app, a
+  locked phone, another tab) no longer leaves a black screen: if the phone
+  dropped the game's display meanwhile, the game reloads by itself. A
+  drawing you hadn't finished is lost in that case.
+- While the game starts, it shows its icon and a loading circle on its
+  background instead of a blank screen.
+
+## [0.44.0] - 2026-11-27
+
+### Added
+- Server admins can reveal what the **Week ranking** keeps secret until the
+  week is over, to debug: a **Reveal secrets (admin)** chip under
+  **This week** shows Grand Artist and Prompt Engineer with their values,
+  this week's challengers ranked so far, and the open Arena ranked by its
+  votes so far. Other players don't see the chip and can't reveal anything.
+
+## [0.43.0] - 2026-11-27
+
+### Changed
+- Errors no longer sign you out: only the **Sign out** button does. When
+  something fails, even because the server rejected your sign-in, you stay
+  where you are and can try again; if your sign-in was rejected, the message
+  offers **Sign out** in case it keeps happening.
+- If the game can't load when you open it (no connection, the server is
+  down), it says so and offers **Try again** instead of sending you back to
+  the sign-in screen.
+- The sign-in screen has a **Sign out** button too, to start over with
+  another login when signing in keeps failing.
 
 ## [0.42.1] - 2026-11-26
 

@@ -68,44 +68,42 @@ class ApiGameSession extends GameSession {
 
   String? _serverNotice;
 
-  /// After a failed sign-in, signing in again must not reuse the old session.
-  bool _freshSignInNeeded = false;
+  String? _loadProblem;
 
   AuthClient get _auth => _api!.auth;
 
   /// Restores a previous sign-in and loads the player.
+  ///
+  /// A missing or rejected token leads to the sign-in screen, any other
+  /// error to [GamePhase.loadFailed]. Either way the sign-in is kept: only
+  /// [signOut] ends it.
   Future<void> start() async {
     if (_api == null) return _setPhase(GamePhase.signIn);
+    _loadProblem = null;
+    final AuthProfile? profile;
     try {
-      final profile = await _auth.restore();
-      if (profile == null) return _setPhase(GamePhase.signIn);
-      _suggestedFirstName = profile.firstName;
-      await _loadPlayer();
-    } on SignInRequired catch (error) {
-      _requireSignIn(error.message);
+      profile = await _auth.restore();
     } catch (error) {
-      _requireSignIn('Signing in failed: $error');
+      _signInProblem = 'Signing in failed: $error';
+      return _setPhase(GamePhase.signIn);
+    }
+    if (profile == null) return _setPhase(GamePhase.signIn);
+    _suggestedFirstName = profile.firstName;
+    try {
+      await _loadPlayer();
+    } on SignInRejected catch (error) {
+      _signInProblem = error.message;
+      _setPhase(GamePhase.signIn);
+    } catch (error) {
+      _loadProblem = 'Loading the game failed: $error';
+      _setPhase(GamePhase.loadFailed);
     }
   }
 
-  /// Back to the sign-in with the reason; the next sign-in is a fresh one.
-  void _requireSignIn(String problem) {
-    _signInProblem = problem;
-    _freshSignInNeeded = true;
-    _account = null;
-    _canEditContent = false;
-    _canManageServers = false;
-    _tutorialsSeen = {};
-    _server = null;
-    _assignments = const [];
-    _setupDrawings = {};
-    _pool = const [];
-    _collection = const [];
-    _challengers = const [];
-    _achievements = const [];
-    _tickets = 0;
-    _gifts = const [];
-    _setPhase(GamePhase.signIn);
+  @override
+  Future<void> retryLoading() async {
+    _setPhase(GamePhase.loading);
+    await start();
   }
 
   Future<Object?> _get(String path) => _guard(() => _api!.get(path));
@@ -129,7 +127,7 @@ class ApiGameSession extends GameSession {
   /// A failure that may well pass on a second try: no response at all (the
   /// browser's "Failed to fetch"), a timeout, or the API being overloaded.
   static bool _isTransient(Object error) => switch (error) {
-    SignInRequired() => false,
+    SignInRejected() => false,
     ApiException(:final statusCode) => statusCode >= 500 || statusCode == 429,
     http.ClientException() || TimeoutException() => true,
     _ => false,
@@ -145,8 +143,8 @@ class ApiGameSession extends GameSession {
     try {
       return await request();
     } on SignInRequired catch (error) {
-      _requireSignIn(error.message);
-      rethrow;
+      // Shown like other errors, with a way to sign out: you stay where you are.
+      throw SignInRejected(error.message, signOut: signOut);
     } on ApiException catch (error) {
       // Someone cancelled the server while you were in it.
       if (error.statusCode == 410 && _server != null) await _enterServer(await _get('/servers/${_server!.code}'));
@@ -1090,6 +1088,9 @@ class ApiGameSession extends GameSession {
   String? get signInProblem => _signInProblem;
 
   @override
+  String? get loadProblem => _loadProblem;
+
+  @override
   String get suggestedFirstName => _suggestedFirstName;
 
   @override
@@ -1105,11 +1106,12 @@ class ApiGameSession extends GameSession {
   @override
   Future<void> signIn() async {
     if (_api == null) throw StateError(_signInProblem!);
-    await _auth.signIn(fresh: _freshSignInNeeded);
+    await _auth.signIn();
   }
 
   @override
   Future<void> signOut() async {
+    if (_api == null) throw StateError(_signInProblem!);
     // The next player on this device shouldn't find your drawings. Before
     // Auth0, which may leave the page.
     _sketches.clear();
@@ -1133,6 +1135,8 @@ class ApiGameSession extends GameSession {
     _tickets = 0;
     _gifts = const [];
     _suggestedFirstName = '';
+    _signInProblem = null;
+    _loadProblem = null;
     _setPhase(GamePhase.signIn);
   }
 
@@ -1407,6 +1411,19 @@ class ApiGameSession extends GameSession {
     return json;
   }
 
+  /// [_kept], or with [reveal] the answer to GET [path] with `reveal=true`,
+  /// what the week ranking keeps secret, for server admins: always asked
+  /// anew, and never kept, so it doesn't show without [reveal].
+  Future<Object?> _ranking(
+    String key,
+    String path, {
+    required bool refresh,
+    required bool reveal,
+    required bool Function(Object? json, int askedOn) stillCurrent,
+  }) => reveal
+      ? _get('$path${path.contains('?') ? '&' : '?'}reveal=true')
+      : _kept(key, path, refresh: refresh, stillCurrent: stillCurrent);
+
   static ArenaStatus? _parseArenaStatus(Object? json) => switch (json) {
     null => null,
     {
@@ -1464,13 +1481,14 @@ class ApiGameSession extends GameSession {
       );
 
   @override
-  Future<ArenaRanking?> arenaRanking({bool refresh = false}) async {
+  Future<ArenaRanking?> arenaRanking({bool refresh = false, bool reveal = false}) async {
     final server = this.server;
     if (server.isSpeed) return null;
-    final json = await _kept(
+    final json = await _ranking(
       'arena-ranking:${server.code}',
       '/servers/${server.code}/arena/ranking',
       refresh: refresh,
+      reveal: reveal,
       // Until the next Arena is decided, the day after its week of votes.
       stillCurrent: (json, _) => json is Map && json['ends_on'] is int && day <= (json['ends_on'] as int) + 7,
     );
@@ -1510,12 +1528,13 @@ class ApiGameSession extends GameSession {
   }
 
   @override
-  Future<WeekRanking?> weekRanking({bool refresh = false}) async {
+  Future<WeekRanking?> weekRanking({bool refresh = false, bool reveal = false}) async {
     final server = this.server;
-    final json = await _kept(
+    final json = await _ranking(
       'ranking:${server.code}',
       '/servers/${server.code}/ranking',
       refresh: refresh,
+      reveal: reveal,
       stillCurrent: (json, _) => _stillCurrent(server, json),
     );
     return switch (json) {
@@ -1572,13 +1591,14 @@ class ApiGameSession extends GameSession {
       (server.isSpeed || day <= (json['day'] as int) + 7);
 
   @override
-  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async {
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false, bool reveal = false}) async {
     final server = this.server;
     if (server.isSpeed) return null;
-    final json = await _kept(
+    final json = await _ranking(
       'player-stats:${period.key}:${server.code}',
       '/servers/${server.code}/player-stats?period=${period.key}',
       refresh: refresh,
+      reveal: reveal,
       stillCurrent: switch (period) {
         // This week's for the day it was asked on.
         StatPeriod.week => (_, askedOn) => askedOn == day,

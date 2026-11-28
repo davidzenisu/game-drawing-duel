@@ -92,6 +92,27 @@ class ArenaTests(ArenaTestCase):
         )
         self.assertEqual(self.arena(), state, "the same matchup until you vote")
 
+    def test_server_admins_reveal_the_open_arena_ranked_by_its_votes(self) -> None:
+        admin = bearer(make_token(ADMIN, permissions=["read:api", "manage:servers"]))
+        path = f"/servers/{self.code}/arena/ranking?reveal=true"
+        self.assertIsNone(self.client.get(path, headers=admin).json(), "no Arena yet")
+        self.go_to_day(8)
+        refused = self.get(path)
+        self.assertEqual(refused.status_code, 403, "only for server admins")
+        self.assertIsNone(self.arena_ranking(), "none decided yet")
+        matchup = self.arena()["matchup"]
+        self.assertEqual(self.vote(matchup, 1).status_code, 200)
+
+        response = self.client.get(path, headers=admin)
+        self.assertEqual(response.status_code, 200, response.text)
+        revealed = response.json()
+        self.assertEqual((revealed["week"], revealed["ends_on"]), (7, 14))
+        ranked = revealed["challengers"]
+        self.assertEqual(len(ranked), 9, "all but the weekly heroes")
+        self.assertTrue(all(r["hero_rarity"] is None for r in ranked))
+        self.assertEqual(ranked[0]["character"]["id"], matchup[1]["id"], "it won")
+        self.assertEqual((ranked[0]["score"], ranked[0]["matchups"]), (1, 1))
+
     def test_votes_earn_the_pack_stars_once_and_stop_at_the_cap(self) -> None:
         self.go_to_day(8)
         before = self.stars()

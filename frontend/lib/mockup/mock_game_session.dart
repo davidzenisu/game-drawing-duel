@@ -101,6 +101,13 @@ class MockGameSession extends GameSession {
   @override
   String? get signInProblem => null;
 
+  @override
+  String? get loadProblem => null;
+
+  /// The mockup has nothing to load.
+  @override
+  Future<void> retryLoading() async {}
+
   /// The mockup's signup screen offers a pretend social login instead.
   @override
   String get suggestedFirstName => '';
@@ -1024,11 +1031,16 @@ class MockGameSession extends GameSession {
   /// The latest finished week's ranking: the challengers fought that week,
   /// drawn two days before.
   /// A speed session ranks all of its challengers once it's over.
+  /// Revealed, this week's so far (a speed session's while it runs).
   @override
-  Future<WeekRanking?> weekRanking({bool refresh = false}) async {
+  Future<WeekRanking?> weekRanking({bool refresh = false, bool reveal = false}) async {
     if (server.isSpeed) {
       final lastDay = SpeedMode.days.length;
-      return sessionOver ? WeekRanking(day: lastDay, challengers: _ranked(1, lastDay)) : null;
+      return sessionOver || reveal ? WeekRanking(day: lastDay, challengers: _ranked(1, min(lastDay, _day))) : null;
+    }
+    if (reveal) {
+      final lastDay = _days.weekStart(_day) + 6;
+      return WeekRanking(day: lastDay, challengers: _ranked(lastDay - 8, min(lastDay - 2, _day)));
     }
     final lastDay = _days.weekStart(_day) - 1;
     if (lastDay < 7) return null;
@@ -1208,16 +1220,39 @@ class MockGameSession extends GameSession {
   }
 
   @override
-  Future<ArenaRanking?> arenaRanking({bool refresh = false}) async => _latestArena;
+  Future<ArenaRanking?> arenaRanking({bool refresh = false, bool reveal = false}) async {
+    if (!reveal) return _latestArena;
+    // Revealed, the Arena open today, as if decided now, without winners.
+    final week = _days.weekStart(_day) - 1;
+    if (server.isSpeed || week < 7) return null;
+    final arena = _decideArena(week);
+    return ArenaRanking(
+      week: arena.week,
+      endsOn: arena.endsOn,
+      challengers: [
+        for (final c in arena.challengers)
+          ArenaRanked(
+            card: c.card,
+            place: c.place,
+            score: c.score,
+            matchups: c.matchups,
+            rating: c.rating,
+            qualified: c.qualified,
+          ),
+      ],
+    );
+  }
 
   @override
-  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false}) async => _playerStats(period);
+  Future<PlayerStats?> playerStats(StatPeriod period, {bool refresh = false, bool reveal = false}) async =>
+      _playerStats(period, reveal: reveal);
 
   /// Made-up player stats: at random, but the same for a period and day.
   /// Last week's once the first week is over, as the week ranking; this
-  /// week's boosts (Grand Artist, Prompt Engineer) are secret. You lead the Addict streak, as if you never
-  /// missed a day, so every week over brings you its trophy to try.
-  PlayerStats? _playerStats(StatPeriod period) {
+  /// week's boosts (Grand Artist, Prompt Engineer) are secret, unless
+  /// [reveal]ed. You lead the Addict streak, as if you never missed a day,
+  /// so every week over brings you its trophy to try.
+  PlayerStats? _playerStats(StatPeriod period, {bool reveal = false}) {
     if (server.isSpeed) return null;
     final weekStart = _days.weekStart(_day);
     final (from, to) = switch (period) {
@@ -1248,7 +1283,7 @@ class MockGameSession extends GameSession {
       trophyStars: StarRewards.weekStat,
       stats: [
         for (final kind in PlayerStatKind.values)
-          if (period == StatPeriod.week && kind.secretThisWeek)
+          if (period == StatPeriod.week && kind.secretThisWeek && !reveal)
             PlayerStat(
               kind: kind,
               secret: true,

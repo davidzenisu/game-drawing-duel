@@ -15,7 +15,8 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
-/// The sign-in can't be used (any more): no token, or the backend rejected it.
+/// The sign-in can't be used (right now): no token, or the backend rejected
+/// it. Nothing is cleared: only the player signs out.
 class SignInRequired implements Exception {
   const SignInRequired(this.message);
 
@@ -67,7 +68,7 @@ class ApiClient {
     final decoded = response.body.isEmpty ? null : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final detail = decoded is Map && decoded['detail'] is String ? decoded['detail'] as String : null;
-      if (response.statusCode == 401 || (detail?.startsWith('Missing permission') ?? false)) {
+      if (response.statusCode == 401) {
         throw SignInRequired('The server rejected your sign-in: ${detail ?? 'status ${response.statusCode}'}.');
       }
       throw ApiException(response.statusCode, detail ?? 'Request failed with status ${response.statusCode}.');

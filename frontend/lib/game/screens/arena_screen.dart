@@ -17,7 +17,8 @@ import '../widgets/ticket_chip.dart';
 /// The Arena ([Arena]): two of last week's challengers face off on one tall
 /// card, split by a curved line like a versus screen: one stands top right,
 /// its nameplate across the line on the left; the other stands bottom left,
-/// its nameplate on the right. You pick the better drawing, whatever their
+/// its nameplate on the right. An arrow beside each drawing points the way
+/// that picks it. You pick the better drawing, whatever their
 /// boosts were: drag the card right for the one on the right, left for the
 /// one on the left, and let go; it flies off and the next matchup, already
 /// waiting below, comes up. On a computer, → and ← throw it the same way.
@@ -66,7 +67,12 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
   static const _flyTime = Duration(milliseconds: 280);
 
   /// The share of the card's width a drag must pass to pick a side.
-  static const _threshold = 0.22;
+  static const _threshold = 0.32;
+
+  /// How fast a flick must be to pick a side before the threshold, and the
+  /// share of it the drag must still cover.
+  static const _flingSpeed = 1200.0;
+  static const _flingLean = 0.5;
 
   @override
   void initState() {
@@ -109,9 +115,9 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
 
   void _onDragEnd(DragEndDetails details) {
     final flung = details.velocity.pixelsPerSecond.dx;
-    if (_lean <= -1 || flung < -900) {
+    if (_lean <= -1 || (flung < -_flingSpeed && _lean <= -_flingLean)) {
       _vote(_Pick.left);
-    } else if (_lean >= 1 || flung > 900) {
+    } else if (_lean >= 1 || (flung > _flingSpeed && _lean >= _flingLean)) {
       _vote(_Pick.right);
     } else {
       _animateTo(Offset.zero);
@@ -251,13 +257,13 @@ class _ArenaScreenState extends State<ArenaScreen> with TickerProviderStateMixin
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: _ScenicHint(dark: dark, text: keys ? '← or drag left' : '← Drag left'),
+                  child: _ScenicHint(dark: dark, text: keys ? '← or drag the card' : '← Drag the card'),
                 ),
                 const SizedBox(width: 12),
                 _CantDecideButton(onPressed: _voting ? null : () => _vote(_Pick.draw)),
                 const SizedBox(width: 12),
                 Flexible(
-                  child: _ScenicHint(dark: dark, text: keys ? 'Drag right or →' : 'Drag right →'),
+                  child: _ScenicHint(dark: dark, text: keys ? 'Drag the card or →' : 'Drag the card →'),
                 ),
               ],
             ),
@@ -388,8 +394,11 @@ class _StatusBar extends StatelessWidget {
 /// first challenger stands top right, its nameplate beside it on the left,
 /// as in a fight; the second stands bottom left, its nameplate on the
 /// right. Both drawings hover gently over their bases ([hover], 0 to 1 and
-/// round again). The side the card leans toward lights up with a "BETTER"
-/// stamp, the other dims.
+/// round again). An arrow on each drawing's outer edge points the way to
+/// drag the card for it (→ for the top right one, ← for the bottom left
+/// one), nudging outward now and then. The side the card leans toward lights
+/// up with a "BETTER" stamp and its arrow grows; the other dims and its arrow
+/// fades.
 class _VersusCard extends StatelessWidget {
   const _VersusCard({super.key, required this.size, required this.matchup, required this.lean, this.hover = 0});
 
@@ -432,6 +441,10 @@ class _VersusCard extends StatelessWidget {
     // How far a drawing rises above its base, out of step with the other.
     // How far a standee sways to either side, out of step with the other.
     double sway(double phase) => drawing * 0.04 * sin(2 * pi * (hover + phase));
+    // The arrows nudge outward twice a round, together.
+    final nudge = drawing * 0.035 * max(0.0, sin(4 * pi * hover));
+    final arrow = size.width > 420 ? 48.0 : 38.0;
+    final drawingHeight = drawing / cardAspectRatio;
     return Material(
       elevation: 8,
       shadowColor: Colors.black54,
@@ -479,6 +492,31 @@ class _VersusCard extends StatelessWidget {
             bottom: _padding + standee * 0.3,
             width: plate,
             child: _Plate(card: left, dim: max(0, lean), large: size.width > 420),
+          ),
+          // The arrows, on the outer edge of each drawing.
+          Positioned(
+            right: _padding - arrow * 0.3,
+            top: _padding + (drawingHeight - arrow) / 2,
+            child: _Arrow(
+              key: const ValueKey('arena-arrow-right'),
+              right: true,
+              size: arrow,
+              nudge: nudge,
+              glow: max(0, lean),
+              fade: max(0, -lean),
+            ),
+          ),
+          Positioned(
+            left: _padding - arrow * 0.3,
+            bottom: _padding + drawing * _standeeHeight - (drawingHeight + arrow) / 2,
+            child: _Arrow(
+              key: const ValueKey('arena-arrow-left'),
+              right: false,
+              size: arrow,
+              nudge: nudge,
+              glow: max(0, -lean),
+              fade: max(0, lean),
+            ),
           ),
         ],
       ),
@@ -669,6 +707,68 @@ class _Plate extends StatelessWidget {
       dim: dim,
       radius: large ? 16 : 10,
       child: Nameplate(name: card.subject, title: card.title, nameFirst: true, large: large),
+    );
+  }
+}
+
+/// An arrow on a challenger's outer edge, pointing the way to drag the card
+/// for it ([right] or left), pushed outward by [nudge]. It grows and lights up
+/// as the card leans toward it ([glow], 0 to 1), and fades as it leans away
+/// ([fade], 0 to 1).
+class _Arrow extends StatelessWidget {
+  const _Arrow({
+    super.key,
+    required this.right,
+    required this.size,
+    required this.nudge,
+    required this.glow,
+    required this.fade,
+  });
+
+  final bool right;
+  final double size;
+  final double nudge;
+  final double glow;
+  final double fade;
+
+  @override
+  Widget build(BuildContext context) {
+    final outward = right ? 1.0 : -1.0;
+    return IgnorePointer(
+      child: ExcludeSemantics(
+        child: Opacity(
+          opacity: 1 - fade,
+          child: Transform.translate(
+            offset: Offset(outward * (nudge + glow * size * 0.15), 0),
+            child: Transform.scale(
+              scale: 1 + 0.3 * glow,
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color.lerp(Colors.white.withValues(alpha: 0.9), AppPalette.rarityLegend, glow),
+                  border: Border.all(color: AppPalette.rarityLegend, width: 2.5),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2)),
+                    if (glow > 0)
+                      BoxShadow(
+                        color: AppPalette.rarityLegend.withValues(alpha: 0.7 * glow),
+                        blurRadius: 16 * glow,
+                        spreadRadius: 2 * glow,
+                      ),
+                  ],
+                ),
+                child: Icon(
+                  right ? Icons.arrow_forward_rounded : Icons.arrow_back_rounded,
+                  size: size * 0.62,
+                  color: Color.lerp(const Color(0xFFB36B00), Colors.white, glow),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
