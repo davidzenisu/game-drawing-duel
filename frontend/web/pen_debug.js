@@ -24,12 +24,12 @@
   function show() {
     if (!box) {
       box = document.createElement('div');
-      box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:hidden;' +
+      box.style.cssText = 'position:fixed;left:0;right:0;top:0;max-height:33%;overflow:hidden;' +
         'background:rgba(0,0,0,.78);color:#0f0;font:11px/1.3 monospace;white-space:pre-wrap;' +
         'padding:4px;z-index:2147483647;pointer-events:none';
       document.documentElement.appendChild(box);
     }
-    box.textContent = lines.slice(-28).join('\n');
+    box.textContent = lines.slice(-14).join('\n');
   }
 
   function log(text) {
