@@ -12,10 +12,13 @@ the game is in early development (0.x), versions stay below 1.0.
 ## [0.45.1] - 2026-11-27
 
 ### Fixed
-- Drawing with a pen (stylus, S Pen, Apple Pencil) works again with your
-  hand resting on the screen: the hand no longer cuts a stroke short to a
-  dot, pulls it off course or swallows it. While the pen is on the canvas,
-  touches don't draw; between pen strokes, fingers draw as before.
+- Drawing with a pen (stylus, S Pen) in Chrome on Android works again: a
+  stroke no longer stops at a dot or a short dash when the pen touches down
+  lightly.
+- Your hand resting on the screen while you draw with a pen no longer cuts
+  the stroke short, pulls it off course or swallows it. While the pen is on
+  the canvas, touches don't draw; between pen strokes, fingers draw as
+  before.
 - A second finger touching the canvas no longer takes over the stroke
   you're drawing.
 
