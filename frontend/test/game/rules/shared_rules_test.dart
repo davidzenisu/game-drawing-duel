@@ -180,6 +180,10 @@ void main() {
     expect((StarRewards.prompt, StarRewards.challenger), (stars['prompt'], stars['challenger']));
     expect(StarRewards.pullPrice, stars['pull_price']);
     expect(StarRewards.weekStat, stars['week_stat']);
+    expect((StarRewards.leastPicked, StarRewards.leastPickedMax), (stars['least_picked'], stars['least_picked_max']));
+    for (final [List picks, List expected] in (stars['least_picked_cases'] as List).cast<List>()) {
+      expect(StarRewards.leastPickedOf(picks.cast<int>()), expected, reason: '$picks');
+    }
   });
 
   test('achievements', () {

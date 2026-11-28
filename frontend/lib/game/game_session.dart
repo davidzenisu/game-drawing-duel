@@ -336,6 +336,12 @@ abstract class GameSession extends ChangeNotifier {
       if (!player.isYou) player,
   ];
 
+  /// The players of [promptCandidates] picked least this week so far, whom
+  /// today's prompt earns [StarRewards.leastPicked] more for: up to
+  /// [StarRewards.leastPickedMax] of them, see [StarRewards.leastPickedOf].
+  /// None on a week's first day or in speed mode.
+  Set<Player> get leastPicked;
+
   ChallengerPrompt? get yourPrompt;
 
   /// Whether challenger prompts are written today: every day, but only on

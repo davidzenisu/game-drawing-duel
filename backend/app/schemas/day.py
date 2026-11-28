@@ -27,6 +27,10 @@ class YourPrompt(BaseModel):
     # Who you chose and what you wrote, or null.
     subject_position: int | None
     title: str | None
+    # The roster positions of the players you can choose that earn
+    # `app.rules.STARS_FOR_LEAST_PICKED` more: the ones picked least this
+    # week so far (`app.days.least_picked_seats`).
+    least_picked: list[int]
 
 
 class PromptToDrawResponse(BaseModel):

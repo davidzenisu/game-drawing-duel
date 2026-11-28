@@ -23,7 +23,9 @@ class StarTests(FightTestCase):
     def test_drawing_a_challenger_earns_three_stars(self) -> None:
         self.assertEqual(self.stars(SAM), 3, "yesterday's drawing")
 
-    def test_writing_a_title_earns_three_stars_once_a_day(self) -> None:
+    # Without the extra star for the players picked least (see `LeastPickedTests`).
+    @patch("app.days.least_picked_seats", return_value=set())
+    def test_writing_a_title_earns_three_stars_once_a_day(self, _) -> None:
         response = self.write_prompt(SAM)
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(self.stars(SAM), 6)

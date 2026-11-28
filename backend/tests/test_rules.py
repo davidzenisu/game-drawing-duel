@@ -226,6 +226,10 @@ class SharedRulesTest(unittest.TestCase):
         self.assertEqual(rules.STARS_FOR_CHALLENGER, stars["challenger"])
         self.assertEqual(rules.STARS_PER_PULL, stars["pull_price"])
         self.assertEqual(rules.STARS_FOR_WEEK_STAT, stars["week_stat"])
+        self.assertEqual(rules.STARS_FOR_LEAST_PICKED, stars["least_picked"])
+        self.assertEqual(rules.LEAST_PICKED_MAX, stars["least_picked_max"])
+        for picks, expected in stars["least_picked_cases"]:
+            self.assertEqual(rules.least_picked(picks), expected, picks)
 
     def test_achievements(self):
         achievements = SHARED["achievements"]

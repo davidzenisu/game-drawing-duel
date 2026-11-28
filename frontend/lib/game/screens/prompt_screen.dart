@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../game_session.dart';
+import '../../theme/palette.dart';
+import '../rules/daily_loop.dart';
 import '../rules/models.dart';
 import '../widgets/card_art.dart';
 import '../widgets/game_action.dart';
@@ -74,7 +76,9 @@ class _PromptScreenState extends State<PromptScreen> {
                         children: [
                           for (final player in controller.promptCandidates)
                             ChoiceChip(
-                              label: Text(player.name),
+                              label: controller.leastPicked.contains(player)
+                                  ? _LeastPickedLabel(player.name)
+                                  : Text(player.name),
                               selected: player == subject,
                               onSelected: (_) => setState(() => _subject = player),
                             ),
@@ -115,6 +119,32 @@ class _PromptScreenState extends State<PromptScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A player picked least this week: their name with the extra stars choosing
+/// them earns.
+class _LeastPickedLabel extends StatelessWidget {
+  const _LeastPickedLabel(this.name);
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.bold);
+    return Semantics(
+      label: '$name, ${StarRewards.leastPicked} star more',
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(name),
+          const SizedBox(width: 6),
+          Text('+${StarRewards.leastPicked}', style: style),
+          const Icon(Icons.star_rounded, size: 14, color: AppPalette.star),
+        ],
       ),
     );
   }

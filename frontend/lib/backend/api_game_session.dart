@@ -714,6 +714,11 @@ class ApiGameSession extends GameSession {
 
   @override
   String? get promptHint => _promptHint;
+
+  Set<Player> _leastPicked = {};
+
+  @override
+  Set<Player> get leastPicked => _leastPicked;
   ChallengerPrompt? _yourPrompt;
   ChallengerPrompt? _promptToDraw;
   CharacterCard? _yourChallenger;
@@ -838,6 +843,10 @@ class ApiGameSession extends GameSession {
       _promptsToday = prompt != null;
       _yourPrompt = null;
       _promptHint = null;
+      _leastPicked = {
+        if (prompt case {'least_picked': List positions})
+          for (final position in positions.cast<int>()) _seat(server, position),
+      };
       if (prompt case {
         'hint': String? hint,
         'theme': String promptTheme,

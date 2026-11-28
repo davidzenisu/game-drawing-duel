@@ -188,6 +188,69 @@ class TodayTests(TodayTestCase):
         self.assertEqual(response.status_code, 409)
 
 
+class LeastPickedTests(TodayTestCase):
+    """A prompt for one of the players the week picked least earns a star more."""
+
+    def stars(self, subject: str = ADMIN) -> int:
+        return self.get(f"/servers/{self.code}/gacha", subject).json()["stars"]
+
+    def prompt(self, subject_position: int, subject: str = ADMIN):
+        response = self.post(
+            "today/prompt",
+            subject,
+            json={"title": "Title", "subject_position": subject_position},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def next_day(self) -> None:
+        self.post("today/end")
+        self.post("today/end", SAM)
+
+    def picks(self) -> dict[int, int]:
+        with self.session_factory() as session:
+            server = session.scalar(select(Server).where(Server.code == self.code))
+            picks = days.week_picks(session, server, days.current_day(server))
+            return {s.position: picks[s.id] for s in server.seats}
+
+    def test_none_on_the_first_day_of_the_week(self) -> None:
+        # Monday: nobody was picked yet, but there's no bonus either.
+        self.assertEqual(self.today()["prompt"]["least_picked"], [])
+        self.prompt(2)
+        self.assertEqual(self.stars(), 3)
+
+    def test_the_least_picked_players_earn_a_star_more(self) -> None:
+        self.prompt(2)
+        self.prompt(3, SAM)
+        self.next_day()
+        # Tuesday: Alex (0), Sam (1) and seat 4 weren't picked; Alex can't
+        # choose themselves. Today's picks don't count until tomorrow.
+        self.assertEqual(self.picks(), {0: 0, 1: 0, 2: 1, 3: 1, 4: 0})
+        self.assertEqual(self.today()["prompt"]["least_picked"], [1, 4])
+        self.assertEqual(self.today(SAM)["prompt"]["least_picked"], [0, 4])
+        before = self.stars()
+        written = self.prompt(4)
+        self.assertEqual(written["prompt"]["least_picked"], [1, 4], "all day")
+        self.assertEqual(self.stars() - before, 3 + 1)
+        before = self.stars(SAM)
+        self.prompt(2, SAM)
+        self.assertEqual(self.stars(SAM) - before, 3, "seat 2 was picked already")
+        self.next_day()
+        # Wednesday: 0 and 1 weren't picked, and the three tied at one pick
+        # would make five: only those two.
+        self.assertEqual(self.picks(), {0: 0, 1: 0, 2: 2, 3: 1, 4: 1})
+        self.assertEqual(self.today()["prompt"]["least_picked"], [1])
+
+    def test_premade_prompts_standing_in_count_too(self) -> None:
+        self.prompt(2)
+        # Sam writes none: a premade one picks someone for them.
+        self.next_day()
+        picks = self.picks()
+        self.assertEqual(sum(picks.values()), 2)
+        self.assertEqual(picks[1], 0, "never the author of the premade one")
+        self.assertGreaterEqual(picks[2], 1)
+
+
 class RegularDayTests(LaunchTestCase):
     def test_days_change_at_midnight_utc(self) -> None:
         server = Server(

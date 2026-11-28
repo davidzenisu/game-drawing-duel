@@ -40,6 +40,7 @@ from app.rules import (
     BOOST_STARS,
     SPEED_DAYS,
     STARS_FOR_CHALLENGER,
+    STARS_FOR_LEAST_PICKED,
     STARS_FOR_PROMPT,
     WIN_RATE_EXTRA_STARS,
     WIN_RATE_MIN_FIGHTS,
@@ -106,6 +107,15 @@ def _fight_response(session: Session, server: Server, fight: Fight) -> FightResp
     )
 
 
+def _least_picked_positions(
+    session: Session, server: Server, day: int, seat: ServerSeat
+) -> list[int]:
+    """Who of the players `seat` can choose today earns the least-picked
+    stars, by roster position."""
+    seats = days.least_picked_seats(session, server, day)
+    return sorted(s.position for s in server.seats if s.id in seats and s.id != seat.id)
+
+
 def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
     day = days.current_day(server)
     # Yesterday's boosts and fights nobody finished are needed for today's
@@ -145,6 +155,7 @@ def _today(session: Session, server: Server, seat: ServerSeat) -> TodayResponse:
             if written
             else None,
             title=written.title if written else None,
+            least_picked=_least_picked_positions(session, server, day, seat),
         )
         if days.prompts_on(server, day)
         else None,
@@ -277,7 +288,9 @@ def write_prompt(
 ) -> TodayResponse:
     """Step 1: chooses the person who fits today's description best (anyone
     but yourself) and writes their challenger title; the next player draws
-    it tomorrow. Earns stars (`rules.STARS_FOR_PROMPT`). Once a day."""
+    it tomorrow. Earns stars (`rules.STARS_FOR_PROMPT`), and more for one of
+    the players the week picked least so far (`rules.STARS_FOR_LEAST_PICKED`,
+    see `days.least_picked_seats`). Once a day."""
     server, seat = running_game(session, code, player.id)
     day = days.current_day(server)
     if not days.prompts_on(server, day):
@@ -292,6 +305,8 @@ def write_prompt(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Choose another player of the server",
         )
+    # Before adding the prompt, so the query doesn't flush it.
+    least_picked = subject.id in days.least_picked_seats(session, server, day)
     session.add(
         ChallengerPrompt(
             author_seat_id=seat.id,
@@ -303,6 +318,12 @@ def write_prompt(
         )
     )
     session.add(stars.grant(seat.id, f"prompt:day-{day}", STARS_FOR_PROMPT))
+    if least_picked:
+        session.add(
+            stars.grant(
+                seat.id, f"prompt-least-picked:day-{day}", STARS_FOR_LEAST_PICKED
+            )
+        )
     try:
         session.commit()
     except IntegrityError as error:
