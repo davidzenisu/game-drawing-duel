@@ -129,6 +129,7 @@ def get_arena_ranking(
                 rating=s.rating,
                 score=s.score,
                 matchups=s.matchups,
+                opponents=s.opponents,
                 qualified=s.qualified,
             )
             for place, s in enumerate(arena.ranking(session, server, week), 1)

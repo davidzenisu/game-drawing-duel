@@ -221,6 +221,20 @@ class SharedRulesTest(unittest.TestCase):
         ):
             self.assertAlmostEqual(a, b, places=9)
 
+    def test_arena_opponents(self):
+        # 0 beat 1 twice and drew with 2; 1 beat 2; 3 met nobody.
+        votes = [(0, 1, 1), (1, 0, 0), (0, 2, 0.5), (1, 2, 1)]
+        shares = [2.5 / 3, 1 / 3, 0.25]
+        expected = [
+            (shares[1] * 2 + shares[2]) / 3,
+            (shares[0] * 2 + shares[2]) / 3,
+            (shares[0] + shares[1]) / 2,
+        ]
+        opponents = rules.arena_opponents(4, votes)
+        for got, want in zip(opponents, expected):
+            self.assertAlmostEqual(got, want, places=9)
+        self.assertIsNone(opponents[3], "no matchups")
+
     def test_stars(self):
         stars = SHARED["stars"]
         self.assertEqual(rules.STARS_FOR_PROMPT, stars["prompt"])

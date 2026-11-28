@@ -328,7 +328,8 @@ extension on _RankingScreenState {
           Text(
             "Revealed: the Arena of week ${controller.weekOf(arena.week)}'s challengers so far, "
             '${arena.challengers.length} challengers ranked by the votes up to now, the ones with at least '
-            '${arena.minMatchups} matchups. Everyone else sees it once the Arena is decided on Monday.',
+            '${arena.minMatchups} matchups. Everyone else sees it once the Arena is decided on Monday. '
+            '$_opponentsHint',
             style: textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -349,7 +350,7 @@ extension on _RankingScreenState {
         Text(
           "The Arena of week ${controller.weekOf(arena.week)}'s challengers, voted on in week "
           '${controller.weekOf(arena.endsOn)}: ${arena.challengers.length} challengers, ranked by everyone\'s votes, '
-          'the ones with at least ${arena.minMatchups} matchups. '
+          'the ones with at least ${arena.minMatchups} matchups. $_opponentsHint '
           '${arena.winners.isEmpty ? '' : 'The top ${Arena.maxWinners} became Arena winners: '
                     '${[for (final r in Arena.rarities) '★' * r.stars].join(', ')}.'}',
           style: textTheme.bodyMedium,
@@ -380,6 +381,11 @@ extension on _RankingScreenState {
     );
   }
 }
+
+/// Why a better record can rank lower, for the Arena's intro.
+const _opponentsHint =
+    'Places follow the rating from all of the votes, where beating strong drawings counts for more. '
+    'Below it: the matchups won, and how often their opponents won ("vs.").';
 
 /// An Arena winner, before and bigger than the other challengers, framed
 /// in the colour of the rarity it was crowned with.
@@ -422,7 +428,15 @@ class _ArenaWinnerCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text('Drawn by ${card.artist}', style: text.bodySmall),
             const SizedBox(height: 8),
-            Text('Won ${entry.record} matchups', style: text.titleMedium?.copyWith(color: rarity.color)),
+            Text('Rating ${entry.ratingText}', style: text.titleLarge?.copyWith(color: rarity.color)),
+            Text(
+              [
+                'Won ${entry.record} matchups',
+                if (entry.opponentsPercent case final percent?) 'opponents won $percent%',
+              ].join(' · '),
+              style: text.bodySmall,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -464,9 +478,22 @@ class _ArenaTile extends StatelessWidget {
               child: Nameplate(name: card.subject, title: card.title, compact: true),
             ),
             const SizedBox(width: 12),
-            Text(
-              entry.qualified ? entry.record : '${entry.matchups} of ${minMatchups ?? Arena.minMatchups} matchups',
-              style: textTheme.titleSmall,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (entry.qualified) ...[
+                  Text(entry.ratingText, style: textTheme.titleMedium),
+                  Text(
+                    [entry.record, if (entry.opponentsPercent case final percent?) 'vs. $percent%'].join(' · '),
+                    style: textTheme.bodySmall,
+                  ),
+                ] else
+                  Text(
+                    '${entry.matchups} of ${minMatchups ?? Arena.minMatchups} matchups',
+                    style: textTheme.titleSmall,
+                  ),
+              ],
             ),
           ],
         ),

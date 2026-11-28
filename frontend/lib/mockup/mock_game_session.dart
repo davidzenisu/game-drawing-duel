@@ -1241,6 +1241,13 @@ class MockGameSession extends GameSession {
       scores[b] = scores[b]! + (winner == null ? 0.5 : (winner == b ? 1 : 0));
     }
     double share(CharacterCard c) => scores[c.id]! / matchups[c.id]!;
+    // How strong its opponents were: made up like its own record (the
+    // average share of the others, nudged by a hash), with your votes'
+    // opponents counted in for real.
+    final average = entries.isEmpty ? 0.5 : entries.map(share).reduce((a, b) => a + b) / entries.length;
+    final opponents = {
+      for (final c in entries) c.id: (average + (c.id.hashCode.abs() % 21 - 10) / 100).clamp(0.0, 1.0),
+    };
     bool qualified(CharacterCard c) => matchups[c.id]! >= Arena.minMatchups;
     final order = [...entries.indexed]
       ..sort((x, y) {
@@ -1259,6 +1266,7 @@ class MockGameSession extends GameSession {
             score: scores[c.id]!,
             matchups: matchups[c.id]!,
             rating: share(c),
+            opponents: opponents[c.id],
             winnerRarity: place < Arena.maxWinners && qualified(c) ? Arena.rarities[place] : null,
             qualified: qualified(c),
           ),
@@ -1284,6 +1292,7 @@ class MockGameSession extends GameSession {
             score: c.score,
             matchups: c.matchups,
             rating: c.rating,
+            opponents: c.opponents,
             qualified: c.qualified,
           ),
       ],

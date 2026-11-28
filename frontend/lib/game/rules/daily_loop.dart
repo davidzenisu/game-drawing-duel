@@ -759,6 +759,7 @@ class ArenaRanked {
     required this.score,
     required this.matchups,
     this.rating = 1,
+    this.opponents,
     this.winnerRarity,
     this.qualified = true,
   });
@@ -774,6 +775,19 @@ class ArenaRanked {
 
   /// Its strength from all of the Arena's votes.
   final double rating;
+
+  /// [rating] as shown, what places follow: "3.27".
+  String get ratingText => rating.toStringAsFixed(2);
+
+  /// How strong the challengers it met were: their average win share (a
+  /// draw counts a half), once per matchup; null without matchups.
+  final double? opponents;
+
+  /// [opponents] in whole percent: 58; null without matchups.
+  int? get opponentsPercent => switch (opponents) {
+    final share? => (share * 100).round(),
+    null => null,
+  };
 
   /// The rarity it was crowned with as an Arena winner; null if it wasn't.
   final Rarity? winnerRarity;

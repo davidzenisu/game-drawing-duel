@@ -1629,6 +1629,7 @@ class ApiGameSession extends GameSession {
                 rating: rating.toDouble(),
                 score: score.toDouble(),
                 matchups: matchups,
+                opponents: (entry['opponents'] as num?)?.toDouble(),
                 winnerRarity: switch (entry['hero_rarity']) {
                   final String rarity => Rarity.values.byName(rarity),
                   _ => null,

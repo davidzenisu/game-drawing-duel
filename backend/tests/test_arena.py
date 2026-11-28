@@ -270,6 +270,9 @@ class ArenaTests(ArenaTestCase):
         )
         top = ranking["challengers"][0]
         self.assertEqual(top["score"], top["matchups"], "won every matchup")
+        for r in ranking["challengers"]:
+            self.assertGreaterEqual(r["opponents"], 0)
+            self.assertLessEqual(r["opponents"], 1)
         # The Arena of week 2's challengers is open now.
         self.assertEqual(self.today()["arena"]["week"], 14)
 
