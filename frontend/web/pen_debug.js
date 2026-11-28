@@ -2,7 +2,7 @@
 // merging. Only runs with ?pentest in the address. Logs, for each pointer,
 // how its stroke ended (up or cancel), after how many moves and how far,
 // what it landed on, and the browser events around it, in an overlay that
-// lets every touch through.
+// lets every touch through (newest line first).
 (function () {
   'use strict';
   // Kept for the tab, so it survives the sign-in's redirects.
@@ -29,7 +29,7 @@
         'padding:4px;z-index:2147483647;pointer-events:none';
       document.documentElement.appendChild(box);
     }
-    box.textContent = lines.slice(-14).join('\n');
+    box.textContent = lines.slice(-14).reverse().join('\n');
   }
 
   function log(text) {
