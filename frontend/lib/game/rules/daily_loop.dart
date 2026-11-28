@@ -776,6 +776,9 @@ class ArenaRanked {
   /// Its strength from all of the Arena's votes.
   final double rating;
 
+  /// [rating] as shown, what places follow: "3.27".
+  String get ratingText => rating.toStringAsFixed(2);
+
   /// How strong the challengers it met were: their average win share (a
   /// draw counts a half), once per matchup; null without matchups.
   final double? opponents;

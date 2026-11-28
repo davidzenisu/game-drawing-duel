@@ -384,8 +384,8 @@ extension on _RankingScreenState {
 
 /// Why a better record can rank lower, for the Arena's intro.
 const _opponentsHint =
-    'Beating strong drawings counts for more, so places weigh who they met: '
-    '"vs." is how often their opponents won.';
+    'Places follow the rating from all of the votes, where beating strong drawings counts for more. '
+    'Below it: the matchups won, and how often their opponents won ("vs.").';
 
 /// An Arena winner, before and bigger than the other challengers, framed
 /// in the colour of the rarity it was crowned with.
@@ -428,9 +428,15 @@ class _ArenaWinnerCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text('Drawn by ${card.artist}', style: text.bodySmall),
             const SizedBox(height: 8),
-            Text('Won ${entry.record} matchups', style: text.titleMedium?.copyWith(color: rarity.color)),
-            if (entry.opponentsPercent case final percent?)
-              Text('Their opponents won $percent%', style: text.bodySmall),
+            Text('Rating ${entry.ratingText}', style: text.titleLarge?.copyWith(color: rarity.color)),
+            Text(
+              [
+                'Won ${entry.record} matchups',
+                if (entry.opponentsPercent case final percent?) 'opponents won $percent%',
+              ].join(' · '),
+              style: text.bodySmall,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -476,12 +482,17 @@ class _ArenaTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  entry.qualified ? entry.record : '${entry.matchups} of ${minMatchups ?? Arena.minMatchups} matchups',
-                  style: textTheme.titleSmall,
-                ),
-                if (entry.qualified && entry.opponentsPercent != null)
-                  Text('vs. ${entry.opponentsPercent}%', style: textTheme.bodySmall),
+                if (entry.qualified) ...[
+                  Text(entry.ratingText, style: textTheme.titleMedium),
+                  Text(
+                    [entry.record, if (entry.opponentsPercent case final percent?) 'vs. $percent%'].join(' · '),
+                    style: textTheme.bodySmall,
+                  ),
+                ] else
+                  Text(
+                    '${entry.matchups} of ${minMatchups ?? Arena.minMatchups} matchups',
+                    style: textTheme.titleSmall,
+                  ),
               ],
             ),
           ],

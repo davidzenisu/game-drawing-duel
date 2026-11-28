@@ -1266,6 +1266,7 @@ void main() {
         [(other['id'], Rarity.legend, '3½ of 4')],
       );
       expect(ranking.challengers.last.record, '0 of 2');
+      expect([for (final r in ranking.challengers) r.ratingText], ['2.50', '0.50']);
       expect([for (final r in ranking.challengers) r.qualified], [true, false]);
       expect([for (final r in ranking.challengers) r.opponentsPercent], [58, null], reason: 'null when not sent');
       expect(ranking.minMatchups, Arena.minMatchups, reason: 'as the API sends it');
