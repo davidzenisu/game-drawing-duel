@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
@@ -20,39 +18,7 @@ void main() {
   // The game handles the browser's back button itself (`BackGuard`), so
   // Flutter's own browser history must stay out of it.
   setUrlStrategy(null);
-  final app = GameApp(session: FeatureFlags.mockupGameplay ? MockGameSession() : _backendSession());
-  // TEMPORARY (#349): with ?pentest, tells web/pen_debug.js what Flutter
-  // gets from a pen; remove before merging.
-  runApp(kIsWeb && Uri.base.query.contains('pentest') ? _PenLog(child: app) : app);
-}
-
-class _PenLog extends StatelessWidget {
-  const _PenLog({required this.child});
-
-  final Widget child;
-
-  static void _log(PointerEvent event) {
-    if (event.kind != PointerDeviceKind.stylus && event.kind != PointerDeviceKind.invertedStylus) return;
-    final change = switch (event) {
-      PointerDownEvent() => 'down',
-      PointerMoveEvent() => 'move',
-      PointerUpEvent() => 'up',
-      PointerHoverEvent() => 'hover',
-      PointerCancelEvent() => 'cancel',
-      _ => 'other',
-    };
-    debugPrint('FLT $change ${event.buttons}');
-  }
-
-  @override
-  Widget build(BuildContext context) => Listener(
-    onPointerDown: _log,
-    onPointerMove: _log,
-    onPointerUp: _log,
-    onPointerHover: _log,
-    onPointerCancel: _log,
-    child: child,
-  );
+  runApp(GameApp(session: FeatureFlags.mockupGameplay ? MockGameSession() : _backendSession()));
 }
 
 GameSession _backendSession() {

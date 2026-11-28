@@ -9,18 +9,12 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
-## [0.45.1] - 2026-11-27
+## [0.45.1] - 2026-11-28
 
 ### Fixed
 - Drawing with a pen (stylus, S Pen) in Chrome on Android works again: a
   stroke no longer stops at a dot or a short dash when the pen touches down
   lightly.
-- Your hand resting on the screen while you draw with a pen no longer cuts
-  the stroke short, pulls it off course or swallows it. While the pen is on
-  the canvas, touches don't draw; between pen strokes, fingers draw as
-  before.
-- A second finger touching the canvas no longer takes over the stroke
-  you're drawing.
 
 ## [0.45.0] - 2026-11-27
 

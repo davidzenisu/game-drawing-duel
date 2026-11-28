@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/palette.dart';
@@ -168,25 +167,13 @@ class SketchPadController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Starts a stroke at [point]; false if the pad is locked.
-  bool _begin(Offset point) {
-    if (!enabled) return false;
+  void _begin(Offset point) {
+    if (!enabled) return;
     final stroke = Stroke(color: color, width: width, points: [point]);
     _strokes.add(stroke);
     _history.add(_Drawn(stroke));
     _undone.clear();
     notifyListeners();
-    return true;
-  }
-
-  /// Takes back the stroke [_begin] started last, as if it was never drawn:
-  /// a palm's, once the pen comes down.
-  void _discard(Stroke stroke) {
-    if (_history.lastOrNull case _Drawn(stroke: final last) when identical(last, stroke)) {
-      _history.removeLast();
-      _strokes.remove(stroke);
-      notifyListeners();
-    }
   }
 
   void _extend(Offset point) {
@@ -216,81 +203,22 @@ class _Cleared extends _PadAction {
 }
 
 /// Editable drawing surface. Points are stored normalised to its size.
-///
-/// Each stroke follows the one pointer that started it; other fingers or a
-/// palm touching down meanwhile don't move it. While a pen is down, touches
-/// don't draw (the hand resting on the screen), and a touch stroke already
-/// going when the pen comes down was that hand: it's taken back.
-class SketchPad extends StatefulWidget {
+class SketchPad extends StatelessWidget {
   const SketchPad({super.key, required this.controller});
 
   final SketchPadController controller;
 
   @override
-  State<SketchPad> createState() => _SketchPadState();
-}
-
-class _SketchPadState extends State<SketchPad> {
-  /// The pointer drawing the current stroke, and its stroke.
-  int? _pointer;
-  Stroke? _stroke;
-  PointerDeviceKind? _kind;
-
-  /// The pens touching the canvas.
-  final Set<int> _pens = {};
-
-  static bool _isPen(PointerDeviceKind kind) =>
-      kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus;
-
-  void _down(PointerDownEvent event, Offset point) {
-    if (event.kind == PointerDeviceKind.mouse && event.buttons & kPrimaryMouseButton == 0) return;
-    final pen = _isPen(event.kind);
-    if (pen) _pens.add(event.pointer);
-    if (_pointer != null) {
-      if (!pen || _isPen(_kind!)) return;
-      // A touch was drawing when the pen came down: the hand holding it.
-      widget.controller._discard(_stroke!);
-      _end();
-    }
-    if (!pen && _pens.isNotEmpty) return;
-    if (!widget.controller._begin(point)) return;
-    _pointer = event.pointer;
-    _stroke = widget.controller.strokes.last;
-    _kind = event.kind;
-  }
-
-  void _move(PointerMoveEvent event, Offset point) {
-    if (event.pointer != _pointer) return;
-    // Locked meanwhile (time's up), or the stroke undone or cleared.
-    if (!identical(widget.controller.strokes.lastOrNull, _stroke)) return _end();
-    widget.controller._extend(point);
-  }
-
-  void _up(PointerEvent event) {
-    _pens.remove(event.pointer);
-    if (event.pointer == _pointer) _end();
-  }
-
-  void _end() {
-    _pointer = null;
-    _stroke = null;
-    _kind = null;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = constraints.biggest;
         Offset normalise(Offset local) =>
             Offset((local.dx / size.width).clamp(0.0, 1.0), (local.dy / size.height).clamp(0.0, 1.0));
-        return Listener(
+        return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onPointerDown: (event) => _down(event, normalise(event.localPosition)),
-          onPointerMove: (event) => _move(event, normalise(event.localPosition)),
-          onPointerUp: _up,
-          onPointerCancel: _up,
+          onPanStart: (details) => controller._begin(normalise(details.localPosition)),
+          onPanUpdate: (details) => controller._extend(normalise(details.localPosition)),
           child: CustomPaint(
             painter: SketchPainter(controller.strokes, repaint: controller),
             size: size,
