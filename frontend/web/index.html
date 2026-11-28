@@ -71,6 +71,9 @@
   <!-- Reloads the app if the browser dropped Flutter's drawing surface while
     it was in the background; runs before Flutter starts. -->
   <script src="context_recovery.js"></script>
+  <!-- Keeps a pen stroke going when the browser briefly reports the pen as
+    not pressed (Chrome on Android); runs before Flutter starts. -->
+  <script src="pen_fix.js"></script>
   <script src="https://cdn.auth0.com/js/auth0-spa-js/2.24/auth0-spa-js.production.js" defer></script>
 </head>
 

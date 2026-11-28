@@ -9,6 +9,13 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.45.1] - 2026-11-28
+
+### Fixed
+- Drawing with a pen (stylus, S Pen) in Chrome on Android works again: a
+  stroke no longer stops at a dot or a short dash when the pen touches down
+  lightly.
+
 ## [0.45.0] - 2026-11-27
 
 ### Changed
