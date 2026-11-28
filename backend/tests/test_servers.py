@@ -163,6 +163,32 @@ class ServerTests(ServerTestCase):
         sams = self.client.get("/servers/mine", headers=bearer(make_token("auth0|sam")))
         self.assertEqual([s["code"] for s in sams.json()], [first])
 
+    def test_you_can_be_on_three_regular_servers_at_once(self) -> None:
+        codes = [self.create().json()["code"] for _ in range(3)]
+        refused = self.create()
+        self.assertEqual(refused.status_code, 409)
+        self.assertIn("3 servers", refused.json()["detail"])
+        # Speed mode sessions and test sessions don't count.
+        self.assertEqual(self.create(mode="speed").status_code, 201)
+        self.assertEqual(self.create(is_test=True).status_code, 201)
+        # A cancelled server makes room again.
+        self.client.delete(f"/servers/{codes[0]}", headers=bearer(make_token(ADMIN)))
+        self.assertEqual(self.create().status_code, 201)
+        self.assertEqual(self.create().status_code, 409)
+
+    def test_joining_counts_towards_the_limit_too(self) -> None:
+        regular = self.create().json()["code"]
+        speedy = self.create(mode="speed").json()["code"]
+        sam = "auth0|sam"
+        self.sign_up(sam, "Sam")
+        for _ in range(3):
+            others = ["Robin", "Kim", "Jo", "Alex"]
+            self.assertEqual(self.create(others, subject=sam).status_code, 201)
+        refused = self.claim(regular, 1, sam)
+        self.assertEqual(refused.status_code, 409)
+        self.assertIn("3 servers", refused.json()["detail"])
+        self.assertEqual(self.claim(speedy, 1, sam).status_code, 200)
+
     def test_responses_never_expose_player_ids(self) -> None:
         body = self.create().text
         self.assertNotIn("auth0|", body)

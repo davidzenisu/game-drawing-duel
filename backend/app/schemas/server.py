@@ -59,6 +59,9 @@ class ServerResponse(BaseModel):
     # Your seat, or null if you haven't joined (yet).
     your_position: int | None
     seats: list[SeatResponse]
+    # Only in `GET /servers/mine`: whether the server waits on you, i.e. your
+    # setup drawings or today's challenger title or drawing aren't done yet.
+    waiting_on_you: bool = False
 
 
 class AssignmentResponse(BaseModel):

@@ -54,7 +54,9 @@ def phase(
     return "lobby" if server.setup_started_at is None else "setup"
 
 
-def server_response(server: Server, player: Player) -> ServerResponse:
+def server_response(
+    server: Server, player: Player, *, waiting_on_you: bool = False
+) -> ServerResponse:
     your_seat = next((s for s in server.seats if s.player_id == player.id), None)
     return ServerResponse(
         code=server.code,
@@ -66,6 +68,7 @@ def server_response(server: Server, player: Player) -> ServerResponse:
         cancelled_by=server.cancelled_by,
         setup_ends_at=speed.setup_ends_at(server),
         your_position=your_seat.position if your_seat else None,
+        waiting_on_you=waiting_on_you,
         seats=[
             SeatResponse(
                 position=s.position,

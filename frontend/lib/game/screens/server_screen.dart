@@ -11,6 +11,9 @@ import '../widgets/account_menu.dart';
 
 /// Join a server with a code (first: most players join one) or create one
 /// with a prepopulated roster. New players get a short note on the game.
+/// Coming from another of your servers, the back button leads back to it
+/// ([GameSession.returnServerCode]); on [SetupPlan.maxServers] regular
+/// servers already, only speed sessions can be created or joined.
 class ServerScreen extends StatelessWidget {
   const ServerScreen({super.key, required this.controller});
 
@@ -25,6 +28,14 @@ class ServerScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          leading: switch (controller.returnServerCode) {
+            final code? => IconButton(
+              tooltip: 'Back to server $code',
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => runGameAction(context, () => controller.switchServer(code)),
+            ),
+            null => null,
+          },
           title: Text('Hi ${controller.you.name}!'),
           actions: [
             AdminMenu(session: controller),
@@ -43,6 +54,17 @@ class ServerScreen extends StatelessWidget {
               Material(
                 color: Theme.of(context).colorScheme.secondaryContainer,
                 child: ListTile(leading: const Icon(Icons.info_outline_rounded), title: Text(notice)),
+              ),
+            if (controller.atServerLimit)
+              Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: const ListTile(
+                  leading: Icon(Icons.block_rounded),
+                  title: Text(
+                    "You're on ${SetupPlan.maxServers} servers, the most at once. "
+                    "Speed sessions don't count: you can still create or join those.",
+                  ),
+                ),
               ),
             if (!controller.tutorialsSeen.contains(ServerScreen.introKey)) _IntroNote(controller: controller),
             Expanded(
@@ -127,7 +149,8 @@ class _CreateServer extends StatefulWidget {
 }
 
 class _CreateServerState extends State<_CreateServer> {
-  bool _speed = false;
+  /// At the limit, only speed sessions can be created.
+  late bool _speed = widget.controller.atServerLimit;
 
   /// Your name on this server, when it isn't your account's.
   String? _yourName;
@@ -226,7 +249,12 @@ class _CreateServerState extends State<_CreateServer> {
         const SizedBox(height: 16),
         SegmentedButton<bool>(
           segments: [
-            const ButtonSegment(value: false, label: Text('Regular'), icon: Icon(Icons.calendar_month_rounded)),
+            ButtonSegment(
+              value: false,
+              label: const Text('Regular'),
+              icon: const Icon(Icons.calendar_month_rounded),
+              enabled: !widget.controller.atServerLimit,
+            ),
             ButtonSegment(
               value: true,
               label: Text('Speed · ${SpeedMode.total.inMinutes} min'),
@@ -246,7 +274,7 @@ class _CreateServerState extends State<_CreateServer> {
         ),
         const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: valid
+          onPressed: valid && (_speed || !widget.controller.atServerLimit)
               ? () => runGameAction(
                   context,
                   () => widget.controller.createServer(_names, yourName: _yourName, speed: _speed),

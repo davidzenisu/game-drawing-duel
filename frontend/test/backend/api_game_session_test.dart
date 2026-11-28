@@ -218,6 +218,105 @@ void main() {
       expect(again.server.code, '123456');
     });
 
+    group('several servers', () {
+      late FakeLocalCache cache;
+
+      Future<ApiGameSession> onDevice(String token) async {
+        final session = ApiGameSession(
+          api: ApiClient(
+            baseUrl: 'https://api.example',
+            auth: FakeAuthClient(token: token, profile: const AuthProfile()),
+            httpClient: backend.client,
+          ),
+          localCache: cache,
+        );
+        await session.start();
+        return session;
+      }
+
+      setUp(() => cache = FakeLocalCache());
+
+      test('you create another server and switch back and forth; the device opens the last one', () async {
+        final alex = await onDevice('alex');
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        expect(alex.myServers.map((s) => s.code), ['123456']);
+        expect(alex.returnServerCode, isNull);
+
+        await alex.addServer();
+        expect(alex.phase, GamePhase.server);
+        expect(alex.returnServerCode, '123456');
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo'], speed: true);
+        expect(alex.phase, GamePhase.lobby);
+        expect(alex.server.code, '123457');
+        expect(alex.returnServerCode, isNull);
+        await alex.refreshMyServers();
+        expect(alex.myServers.map((s) => s.code), ['123457', '123456']);
+        expect(alex.myServers.first.isSpeed, isTrue);
+
+        await alex.switchServer('123456');
+        expect(alex.phase, GamePhase.lobby);
+        expect(alex.server.code, '123456');
+        expect((await onDevice('alex')).server.code, '123456', reason: 'the last one, not the newest');
+
+        await alex.switchServer('123457');
+        expect((await onDevice('alex')).server.code, '123457');
+        // On another device, the newest one as before.
+        expect((await signedUpAgain('alex')).server.code, '123457');
+      });
+
+      test('the create or join screen leads back to the server you came from', () async {
+        final alex = await onDevice('alex');
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.addServer();
+        await alex.switchServer(alex.returnServerCode!);
+        expect(alex.phase, GamePhase.lobby);
+        expect(alex.server.code, '123456');
+        expect(alex.returnServerCode, isNull);
+      });
+
+      test('another server waiting on you shows', () async {
+        final alex = await onDevice('alex');
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.addServer();
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        backend.waitingOn.add(('123456', backend.players['alex']!['id'] as String));
+        await alex.refreshMyServers();
+        expect(alex.otherServerWaiting, isTrue);
+        expect(alex.myServers.last.waitingOnYou, isTrue);
+
+        await alex.switchServer('123456');
+        expect(alex.otherServerWaiting, isFalse, reason: "it's the one you're on");
+      });
+
+      test('three regular servers are the most; speed sessions and test sessions do not count', () async {
+        final alex = await onDevice('alex');
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.addServer();
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo'], speed: true);
+        await alex.addServer();
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo'], isTest: true);
+        await alex.addServer();
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.refreshMyServers();
+        expect(alex.atServerLimit, isFalse);
+        await alex.addServer();
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.refreshMyServers();
+        expect(alex.atServerLimit, isTrue);
+      });
+
+      test('a cancelled server leads back to another one of yours', () async {
+        final alex = await onDevice('alex');
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.addServer();
+        await alex.createServer(['Sam', 'Robin', 'Kim', 'Jo']);
+        await alex.cancelServer();
+        expect(alex.phase, GamePhase.server);
+        expect(alex.returnServerCode, '123456');
+        expect(alex.myServers.map((s) => s.code), ['123456']);
+      });
+    });
+
     test('unknown codes are reported', () async {
       await expectLater(admin.previewServer('999999'), throwsA(isA<ApiException>()));
     });
@@ -1183,7 +1282,7 @@ void main() {
       int rankingRequests() => backend.requests.where((r) => r.url.path.endsWith('/ranking')).length;
 
       expect(await alex.weekRanking(), isNull);
-      expect(cache.entries, isEmpty, reason: 'nothing to keep before the first week is over');
+      expect(cache.entries.keys, ['last-server'], reason: 'nothing to keep before the first week is over');
 
       final [card, ...] = [for (final d in backend.drawings.values) d.character];
       backend.rankings['123456'] = {
@@ -1291,7 +1390,7 @@ void main() {
       };
 
       expect(await alex.playerStats(StatPeriod.lastWeek), isNull, reason: 'before the first week is over');
-      expect(cache.entries, isEmpty);
+      expect(cache.entries.keys, ['last-server']);
       backend.playerStats[('123456', 'week')] = answer('week', 1, 1, 2, secret: true);
       final week = (await alex.playerStats(StatPeriod.week))!;
       expect(backend.requests.last.url.queryParameters['period'], 'week');

@@ -25,6 +25,7 @@ void main() {
   test('limits', () {
     expect(SetupPlan.minPlayers, rules['players']['min']);
     expect(SetupPlan.maxPlayers, rules['players']['max']);
+    expect(SetupPlan.maxServers, rules['max_servers']);
     expect(CharacterCard.maxTitleLength, rules['max_title_length']);
   });
 

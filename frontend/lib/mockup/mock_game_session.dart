@@ -219,6 +219,51 @@ class MockGameSession extends GameSession {
 
   // Server creation / join ----------------------------------------------------
 
+  /// The phase of the server you're on while you look at creating or joining
+  /// another one ([addServer]). The mockup plays one server at a time:
+  /// creating or joining another one throws the one you're on away.
+  GamePhase? _parkedPhase;
+
+  @override
+  List<ServerSummary> get myServers => [
+    if (_server case final server?)
+      ServerSummary(
+        code: server.code,
+        phase: switch (_parkedPhase ?? _phase) {
+          GamePhase.lobby => ServerPhase.lobby,
+          GamePhase.setup => ServerPhase.setup,
+          _ => sessionOver ? ServerPhase.finished : ServerPhase.running,
+        },
+        playerCount: server.players.length,
+        isSpeed: server.isSpeed,
+        isTest: server.isTest,
+      ),
+  ];
+
+  @override
+  String? get returnServerCode => _parkedPhase == null ? null : _server?.code;
+
+  @override
+  Future<void> addServer() async {
+    _parkedPhase = _phase;
+    _setPhase(GamePhase.server);
+  }
+
+  @override
+  Future<void> switchServer(String code) async {
+    final back = _parkedPhase;
+    if (back == null || code != _server?.code) throw UnsupportedError('The mockup plays one server at a time.');
+    _parkedPhase = null;
+    _setPhase(back);
+  }
+
+  /// Throws away the server you were on before creating or joining another.
+  Future<void> _dropParked() async {
+    if (_parkedPhase == null) return;
+    _parkedPhase = null;
+    await cancelServer();
+  }
+
   /// Creates a server with a prepopulated roster; the creator is the admin.
   @override
   Future<void> createServer(
@@ -227,6 +272,7 @@ class MockGameSession extends GameSession {
     bool isTest = false,
     bool speed = false,
   }) async {
+    await _dropParked();
     final name = yourName?.trim() ?? '';
     _you = Player(id: 'you', name: name.isEmpty ? accountName : name, isYou: true);
     final players = [you, for (final (i, name) in otherNames.indexed) Player(id: 'p$i', name: name.trim())];
@@ -260,6 +306,7 @@ class MockGameSession extends GameSession {
   @override
   Future<void> joinServer(ServerSession server, Player seat) async {
     if (server.joined.contains(seat.id)) throw StateError('This seat is taken');
+    await _dropParked();
     _you = seat.copyWith(isYou: true);
     final players = [for (final p in server.players) p.id == seat.id ? you : p];
     _server = ServerSession(code: server.code, players: players, isAdmin: false, joined: {...server.joined, you.id});

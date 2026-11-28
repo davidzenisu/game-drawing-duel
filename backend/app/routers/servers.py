@@ -1,18 +1,21 @@
 import secrets
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, status
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
+from app import speed
 from app.auth import ADMIN_PERMISSION, CurrentPlayer, TokenClaims
 from app.database import utc_now
+from app.day_flow import waiting_on
 from app.deps import Code, DbSession, load_server, require_not_launched, your_seat
 from app.game_data import delete_game_data
 from app.models import Server, ServerSeat
 from app.responses import server_response
-from app.rules import SERVER_CODE_LENGTH
+from app.rules import MAX_SERVERS, SERVER_CODE_LENGTH
 from app.schemas import ServerCreate, ServerResponse
 from app.setup import assign_setup
 from app.storage import Files, delete_quietly
@@ -25,6 +28,34 @@ _CODE_ATTEMPTS = 10
 
 def _new_code() -> str:
     return "".join(str(secrets.randbelow(10)) for _ in range(SERVER_CODE_LENGTH))
+
+
+def _counts(mode: str, is_test: bool) -> bool:
+    """Whether a server counts towards `MAX_SERVERS`: speed mode sessions
+    and test sessions don't."""
+    return mode != speed.SPEED and not is_test
+
+
+def _require_room(session: Session, player_id: uuid.UUID) -> None:
+    """Refuses another regular server once you're on `MAX_SERVERS` of them
+    that weren't cancelled."""
+    count = session.scalar(
+        select(func.count())
+        .select_from(Server)
+        .join(ServerSeat)
+        .where(
+            ServerSeat.player_id == player_id,
+            Server.cancelled_at.is_(None),
+            Server.mode != speed.SPEED,
+            Server.is_test.is_(False),
+        )
+    )
+    if count >= MAX_SERVERS:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"You're on {MAX_SERVERS} servers already, the most at once. "
+            "Speed sessions don't count.",
+        )
 
 
 @router.post("", response_model=ServerResponse, status_code=status.HTTP_201_CREATED)
@@ -44,6 +75,8 @@ def create_server(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="A test session can't be in speed mode",
         )
+    if _counts(body.mode, body.is_test):
+        _require_room(session, player.id)
     names = [body.your_name or player.first_name, *body.other_names]
     if len({name.casefold() for name in names}) != len(names):
         raise HTTPException(
@@ -74,8 +107,8 @@ def create_server(
 
 @router.get("/mine", response_model=list[ServerResponse])
 def my_servers(player: CurrentPlayer, session: DbSession) -> list[ServerResponse]:
-    """The servers you joined, newest first. A cancelled one stays until you
-    dismiss it."""
+    """The servers you joined, newest first, each with whether it waits on
+    you. A cancelled one stays until you dismiss it."""
     servers = session.scalars(
         select(Server)
         .join(ServerSeat)
@@ -83,7 +116,14 @@ def my_servers(player: CurrentPlayer, session: DbSession) -> list[ServerResponse
         .options(selectinload(Server.seats))
         .order_by(Server.created_at.desc())
     ).all()
-    return [server_response(server, player) for server in servers]
+    return [
+        server_response(
+            server,
+            player,
+            waiting_on_you=waiting_on(session, server, your_seat(server, player.id)),
+        )
+        for server in servers
+    ]
 
 
 @router.get("/{code}", response_model=ServerResponse)
@@ -112,6 +152,8 @@ def claim_seat(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="You already joined this server"
         )
+    if _counts(server.mode, server.is_test):
+        _require_room(session, player.id)
     # Only claims a free seat, even if someone else claims it at the same time.
     claimed = session.execute(
         update(ServerSeat)

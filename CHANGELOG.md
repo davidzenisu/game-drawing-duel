@@ -9,6 +9,23 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.47.0] - 2026-11-28
+
+### Added
+- Play on several servers at once: **Switch server** in the account menu
+  lists your servers and takes you to another one with a tap, and
+  **Create or join a server** opens the server screen without leaving the
+  ones you're on (the back arrow takes you back).
+- A server waiting on you, for your setup drawings or today's title or
+  drawing, shows **Your turn** in that list, and a dot on the account menu
+  tells you while another server is waiting.
+
+### Changed
+- You can be on up to 3 regular servers at once. Speed sessions don't
+  count, so you can always start or join one.
+- The game opens on the server you played last on this device, instead of
+  your newest one.
+
 ## [0.46.0] - 2026-11-28
 
 ### Added

@@ -99,6 +99,10 @@ class FakeBackend {
   /// The codes of the speed mode servers. Their setup ends and today ends at
   /// [speedEndsAt]; prompts are written on the first three days only.
   final Set<String> speedServers = {};
+
+  /// The servers that wait on a player, by code and player id, as
+  /// `GET /servers/mine` says.
+  final Set<(String, String)> waitingOn = {};
   static const speedEndsAt = '2026-10-09T10:05:00Z';
 
   /// Codes of the servers whose setup started.
@@ -457,7 +461,9 @@ class FakeBackend {
           .where((c) => servers[c]!.seats.any((s) => s['player'] == myId) && !dismissed.contains((c, myId)))
           .toList()
           .reversed;
-      return _json(200, [for (final code in mine) _server(code, myId)]);
+      return _json(200, [
+        for (final code in mine) {..._server(code, myId), 'waiting_on_you': waitingOn.contains((code, myId))},
+      ]);
     }
     if (path.length >= 2 && path[0] == 'servers' && servers.containsKey(path[1])) {
       final code = path[1];

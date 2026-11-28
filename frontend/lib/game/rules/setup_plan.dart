@@ -57,6 +57,10 @@ abstract final class SetupPlan {
   static const minPlayers = 5;
   static const maxPlayers = 10;
 
+  /// The most regular servers a player can be on at once; speed mode
+  /// sessions and test sessions don't count.
+  static const maxServers = 3;
+
   /// The short setup of a test session, drawn by every player who joined:
   /// one character per rarity tier that exists at setup.
   static const testPrompts = [SetupPrompt.basic, SetupPrompt.knight, SetupPrompt.legend];

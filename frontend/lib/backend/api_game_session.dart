@@ -297,12 +297,87 @@ class ApiGameSession extends GameSession {
     await _delete('/content/setup-hints/${entry.id}');
   }
 
-  /// Back to your newest server, or to creating or joining one.
+  /// Back to the server this device was on last, else your newest one, or
+  /// to creating or joining one.
   Future<void> _loadServer() async {
     final servers = await _get('/servers/mine');
     if (servers is! List) throw const FormatException('Unexpected servers response.');
+    _myServers = [for (final json in servers) _parseSummary(json)];
     if (servers.isEmpty) return _setPhase(GamePhase.server);
-    await _enterServer(servers.first);
+    final last = _localCache.read(_lastServerKey);
+    await _enterServer(servers.firstWhere((json) => json is Map && json['code'] == last, orElse: () => servers.first));
+  }
+
+  /// Where the code of the server this device was on last is kept.
+  static const _lastServerKey = 'last-server';
+
+  List<ServerSummary> _myServers = const [];
+
+  @override
+  List<ServerSummary> get myServers => _myServers;
+
+  String? _returnServerCode;
+
+  @override
+  String? get returnServerCode => _returnServerCode;
+
+  static ServerSummary _parseSummary(Object? json) {
+    if (json case {'code': String code, 'phase': String phase, 'seats': List seats, 'is_test': bool isTest}) {
+      return ServerSummary(
+        code: code,
+        phase: ServerPhase.values.asNameMap()[phase] ?? (throw FormatException('Unknown server phase $phase.')),
+        playerCount: seats.length,
+        isSpeed: json['mode'] == 'speed',
+        isTest: isTest,
+        waitingOnYou: json['waiting_on_you'] == true,
+      );
+    }
+    throw const FormatException('Unexpected server response.');
+  }
+
+  @override
+  Future<void> refreshMyServers() async {
+    final servers = await _get('/servers/mine');
+    if (servers is! List) throw const FormatException('Unexpected servers response.');
+    _myServers = [for (final json in servers) _parseSummary(json)];
+    notifyListeners();
+  }
+
+  /// [refreshMyServers], quietly: the list only adds to what's shown.
+  Future<void> _refreshMyServersQuietly() async {
+    try {
+      await refreshMyServers();
+    } catch (_) {
+      // The list stays as it was; it's loaded again later.
+    }
+  }
+
+  @override
+  Future<void> switchServer(String code) async {
+    final json = await _get('/servers/$code');
+    _clearServer();
+    _localCache.write(_lastServerKey, code);
+    // Through loading, so the screens of the server you leave start afresh.
+    _setPhase(GamePhase.loading);
+    try {
+      await _enterServer(json);
+    } on SignInRejected catch (error) {
+      _signInProblem = error.message;
+      _setPhase(GamePhase.signIn);
+    } catch (error) {
+      _loadProblem = 'Loading the server failed: $error';
+      _setPhase(GamePhase.loadFailed);
+    }
+  }
+
+  @override
+  Future<void> addServer() async {
+    final from = _server?.code;
+    _clearServer();
+    _serverNotice = null;
+    _returnServerCode = from;
+    _setPhase(GamePhase.server);
+    await _refreshMyServersQuietly();
   }
 
   /// Shows the server's lobby, or your setup once the admin started it.
@@ -312,16 +387,19 @@ class ApiGameSession extends GameSession {
     switch ((json as Map)['phase']) {
       case 'lobby':
         _server = server;
+        _entered(ServerPhase.lobby);
         _setPhase(GamePhase.lobby);
       case 'setup':
         await _loadSetup(server);
         _server = server;
+        _entered(ServerPhase.setup);
         _setPhase(GamePhase.setup);
       // A finished speed mode session stays in the daily hub, see
       // [sessionOver].
       case 'running' || 'finished':
         await _loadPool(server);
         _server = server;
+        _entered(json['phase'] == 'finished' ? ServerPhase.finished : ServerPhase.running);
         _setPhase(GamePhase.daily);
       case 'cancelled':
         // Seen: from now on it's no longer one of your servers.
@@ -331,6 +409,29 @@ class ApiGameSession extends GameSession {
       default:
         throw const FormatException('Unexpected server phase.');
     }
+  }
+
+  /// On [server], in [phase]: this device opens it again next time, and
+  /// [myServers] catch up with a server just created or joined, or one that
+  /// moved on.
+  void _entered(ServerPhase phase) {
+    _returnServerCode = null;
+    _localCache.write(_lastServerKey, server.code);
+    final known = _myServers.where((s) => s.code == server.code).firstOrNull;
+    if (known?.phase == phase) return;
+    if (known == null) {
+      _myServers = [
+        ServerSummary(
+          code: server.code,
+          phase: phase,
+          playerCount: server.players.length,
+          isSpeed: server.isSpeed,
+          isTest: server.isTest,
+        ),
+        ..._myServers,
+      ];
+    }
+    unawaited(_refreshMyServersQuietly());
   }
 
   static String _seatId(int position) => 'seat-$position';
@@ -1126,6 +1227,8 @@ class ApiGameSession extends GameSession {
     _canEditContent = false;
     _canManageServers = false;
     _server = null;
+    _myServers = const [];
+    _returnServerCode = null;
     _assignments = const [];
     _setupDrawings = {};
     _pool = const [];
@@ -1195,8 +1298,23 @@ class ApiGameSession extends GameSession {
     _leaveServer(null);
   }
 
-  /// Back to creating or joining a server.
+  /// Back to creating or joining a server, with [notice] if given; with
+  /// other servers left, the screen offers to go back to the newest one.
   void _leaveServer(String? notice) {
+    final left = _server?.code;
+    _clearServer();
+    _myServers = [
+      for (final s in _myServers)
+        if (s.code != left && s.phase != ServerPhase.cancelled) s,
+    ];
+    _returnServerCode = _myServers.firstOrNull?.code;
+    _serverNotice = notice;
+    _setPhase(GamePhase.server);
+    unawaited(_refreshMyServersQuietly());
+  }
+
+  /// Forgets the server you're on and its game.
+  void _clearServer() {
     _server = null;
     _assignments = const [];
     _setupDrawings = {};
@@ -1206,8 +1324,6 @@ class ApiGameSession extends GameSession {
     _achievements = const [];
     _tickets = 0;
     _gifts = const [];
-    _serverNotice = notice;
-    _setPhase(GamePhase.server);
   }
 
   @override
@@ -1881,10 +1997,12 @@ class ApiGameSession extends GameSession {
     await refreshDay();
   }
 
-  /// A new day brings new challengers to the pool, so everything reloads.
+  /// A new day brings new challengers to the pool, so everything reloads,
+  /// and the other servers may be waiting on you too.
   @override
   Future<void> refreshDay() async {
     await _loadPool(server);
     notifyListeners();
+    unawaited(_refreshMyServersQuietly());
   }
 }

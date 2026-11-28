@@ -13,6 +13,9 @@ from fractions import Fraction
 MIN_PLAYERS = 5
 MAX_PLAYERS = 10
 SERVER_CODE_LENGTH = 6
+# The most regular servers a player can be on at once; speed mode sessions
+# and test sessions don't count.
+MAX_SERVERS = 3
 
 
 class Rarity(StrEnum):
