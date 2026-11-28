@@ -18,6 +18,17 @@
   var active = {};
   var box = null;
   var t0 = performance.now();
+  // What Flutter reports getting (main.dart's _PenLog), per stroke.
+  var flt = {};
+  var consoleLog = console.log;
+  console.log = function () {
+    var text = String(arguments[0]);
+    if (text.indexOf('FLT ') === 0) {
+      flt[text.slice(4)] = (flt[text.slice(4)] || 0) + 1;
+      return;
+    }
+    return consoleLog.apply(console, arguments);
+  };
 
   function ms() { return Math.round(performance.now() - t0); }
 
@@ -51,7 +62,9 @@
   }
 
   window.addEventListener('pointerdown', function (e) {
-    active[e.pointerId] = { type: e.pointerType, x: e.clientX, y: e.clientY, moves: 0, far: 0, at: ms() };
+    active[e.pointerId] = { type: e.pointerType, x: e.clientX, y: e.clientY, moves: 0, far: 0, at: ms(),
+      zero: 0, coal: 0, coalZero: 0, fix0: window.__penFixPatched };
+    flt = {};
     var others = Object.keys(active).length - 1;
     log('DOWN ' + e.pointerType + '#' + e.pointerId + ' btn=' + e.buttons + ' p=' + e.pressure.toFixed(2) +
       ' others=' + others + ' on ' + path(e.target));
@@ -61,6 +74,10 @@
     var a = active[e.pointerId];
     if (!a) return;
     a.moves++;
+    if (e.buttons === 0) a.zero++;
+    if (typeof e.getCoalescedEvents === 'function') {
+      e.getCoalescedEvents().forEach(function (c) { a.coal++; if (c.buttons === 0) a.coalZero++; });
+    }
     var d = Math.hypot(e.clientX - a.x, e.clientY - a.y);
     if (d > a.far) a.far = d;
     if (e.buttons !== a.buttons && a.buttons !== undefined) log('  buttons ' + a.buttons + '->' + e.buttons + ' #' + e.pointerId);
@@ -72,8 +89,16 @@
       var a = active[e.pointerId];
       if (!a) return;
       delete active[e.pointerId];
+      var fix = window.__penFixPatched === undefined ? 'NOT LOADED' : (window.__penFixPatched - a.fix0);
       log((kind === 'pointercancel' ? '**CANCEL** ' : 'UP ') + a.type + '#' + e.pointerId + ' moves=' + a.moves +
-        ' far=' + Math.round(a.far) + 'px ' + (ms() - a.at) + 'ms');
+        ' far=' + Math.round(a.far) + 'px ' + (ms() - a.at) + 'ms zero=' + a.zero + ' coal=' + a.coal +
+        ' coalZero=' + a.coalZero + ' fixed=' + fix);
+      // What Flutter got, once it has handled this event too.
+      setTimeout(function () {
+        var parts = [];
+        for (var k in flt) parts.push(k + '\u00d7' + flt[k]);
+        log('  flutter: ' + (parts.join(' ') || 'nothing'));
+      }, 50);
     };
   }
   window.addEventListener('pointerup', end('pointerup'), true);

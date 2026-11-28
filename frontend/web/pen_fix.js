@@ -17,11 +17,14 @@
   'use strict';
 
   var down = new Set();
+  // How many moves it changed, for the ?pentest diagnostics (#349).
+  window.__penFixPatched = 0;
 
   function touching(event) {
     if (event.buttons !== 0) return;
     try {
       Object.defineProperty(event, 'buttons', { value: 1, configurable: true });
+      window.__penFixPatched++;
     } catch (_) {
       // Left as it is: the stroke may end early, as before.
     }
