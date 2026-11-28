@@ -56,6 +56,32 @@ def seat_done(session: Session, server: Server, day: int, seat: ServerSeat) -> b
     )
 
 
+def waiting_on(session: Session, server: Server, seat: ServerSeat) -> bool:
+    """Whether `server` waits on `seat`: during the setup, for its setup
+    drawings; once running, for today's challenger title or drawing, unless
+    `seat` ended the day. Not once a speed mode session is over."""
+    if server.cancelled_at is not None or seat.player_id is None:
+        return False
+    if server.launched_at is None:
+        return server.setup_started_at is not None and seat.setup_done_at is None
+    if speed.is_speed(server) and speed.clock(server).over:
+        return False
+    day = days.current_day(server)
+    if session.scalar(
+        select(DayEnd.id).where(DayEnd.seat_id == seat.id, DayEnd.day == day)
+    ):
+        return False
+    if days.prompts_on(server, day) and not session.scalar(
+        select(ChallengerPrompt.id).where(
+            ChallengerPrompt.author_seat_id == seat.id, ChallengerPrompt.day == day
+        )
+    ):
+        return True
+    return (
+        days.draws_on(server, day) and days.drawn_challenger(session, seat, day) is None
+    )
+
+
 def end_speed_day_if_done(session: Session, server: Server) -> None:
     """In speed mode, starts the next day as soon as everyone is done with
     today. Commits."""

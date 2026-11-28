@@ -72,6 +72,45 @@ class ServerSession {
       : players;
 }
 
+/// Where one of [GameSession.myServers] stands.
+enum ServerPhase {
+  lobby(label: 'Lobby'),
+  setup(label: 'Setup'),
+  running(label: 'Running'),
+  finished(label: 'Finished'),
+  cancelled(label: 'Cancelled');
+
+  const ServerPhase({required this.label});
+
+  final String label;
+}
+
+/// One of the servers you're on, to switch to ([GameSession.switchServer]).
+class ServerSummary {
+  const ServerSummary({
+    required this.code,
+    required this.phase,
+    required this.playerCount,
+    this.isSpeed = false,
+    this.isTest = false,
+    this.waitingOnYou = false,
+  });
+
+  final String code;
+  final ServerPhase phase;
+  final int playerCount;
+  final bool isSpeed;
+  final bool isTest;
+
+  /// Whether the server waits on you: your setup drawings, or today's
+  /// challenger title or drawing.
+  final bool waitingOnYou;
+
+  /// Whether it counts towards [SetupPlan.maxServers]: speed mode sessions
+  /// and test sessions don't, nor cancelled servers.
+  bool get counts => !isSpeed && !isTest && phase != ServerPhase.cancelled;
+}
+
 /// Another player secretly sent a hurry against your next challenger
 /// drawing. Every hurry you receive counts.
 /// It takes away `Hurries.cut` of the time left when it hits.
@@ -279,6 +318,27 @@ abstract class GameSession extends ChangeNotifier {
   /// Why you are back at creating or joining a server, e.g. because another
   /// player cancelled the server.
   String? get serverNotice;
+
+  /// Every server you're on, newest first, the one you're on included; see
+  /// [refreshMyServers].
+  List<ServerSummary> get myServers => const [];
+
+  /// Whether another of [myServers] than the one you're on waits on you.
+  bool get otherServerWaiting => myServers.any((s) => s.waitingOnYou && s.code != _currentServerCode);
+
+  String? get _currentServerCode => switch (phase) {
+    GamePhase.lobby || GamePhase.setup || GamePhase.daily => server.code,
+    _ => null,
+  };
+
+  /// Whether you're on [SetupPlan.maxServers] regular servers already: you
+  /// can only create or join speed mode sessions until one is cancelled.
+  bool get atServerLimit => myServers.where((s) => s.counts).length >= SetupPlan.maxServers;
+
+  /// The server you came from while creating or joining another one
+  /// ([addServer]), or the one to go back to after one was cancelled: the
+  /// create or join screen offers to go back to it ([switchServer]).
+  String? get returnServerCode => null;
 
   /// Names to prefill when creating a server.
   List<String> get suggestedPlayerNames;
@@ -644,6 +704,16 @@ abstract class GameSession extends ChangeNotifier {
   /// Updates the server: who joined the lobby, whether the admin started the
   /// setup, or whether someone cancelled it.
   Future<void> refreshServer();
+
+  /// Loads [myServers] again.
+  Future<void> refreshMyServers() async {}
+
+  /// Goes to another of [myServers]. This device opens it again next time.
+  Future<void> switchServer(String code) => Future.error(UnsupportedError('There are no other servers.'));
+
+  /// To creating or joining another server, staying on the ones you're on:
+  /// [returnServerCode] leads back to the one you're on.
+  Future<void> addServer() => Future.error(UnsupportedError("Can't create or join another server here."));
 
   /// Cancels the server for everyone and deletes its drawings and everything
   /// played so far, at any point of the game; anyone who joined can, e.g.

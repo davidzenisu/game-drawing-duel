@@ -421,3 +421,51 @@ class ThemeTests(TodayTestCase):
         self.assertEqual(days.theme_of(sunday, 1).value, "castle")
         self.assertEqual(days.theme_of(sunday, 2).value, "forest")
         self.assertEqual(days.theme_of(sunday, 6).value, "jungle")
+
+
+class WaitingOnYouTests(TodayTestCase):
+    def waiting(self, subject: str = ADMIN) -> bool:
+        (server,) = [
+            s
+            for s in self.get("/servers/mine", subject).json()
+            if s["code"] == self.code
+        ]
+        return server["waiting_on_you"]
+
+    def prompt(self, title: str, subject_position: int, subject: str = ADMIN):
+        return self.post(
+            "today/prompt",
+            subject,
+            json={"title": title, "subject_position": subject_position},
+        )
+
+    def test_a_server_waits_for_your_title_and_drawing_of_the_day(self) -> None:
+        self.assertTrue(self.waiting(), "day 1: a title to write")
+        self.prompt("The Owl King", 2)
+        self.assertFalse(self.waiting())
+        self.assertTrue(self.waiting(SAM), "Sam hasn't written theirs")
+        self.post("days/next")
+        self.prompt("The Owl Queen", 3)
+        self.assertTrue(self.waiting(), "day 2: a challenger to draw")
+        self.draw()
+        self.assertFalse(self.waiting())
+
+    def test_ending_the_day_stops_the_wait(self) -> None:
+        self.post("today/end")
+        self.assertFalse(self.waiting())
+
+    def test_a_setup_waits_for_your_drawings(self) -> None:
+        code = self.create(is_test=True).json()["code"]
+        self.claim(code, 1, SAM)
+
+        def waiting(subject: str) -> bool:
+            mine = self.get("/servers/mine", subject).json()
+            return next(s for s in mine if s["code"] == code)["waiting_on_you"]
+
+        self.assertFalse(waiting(ADMIN), "nothing to do in the lobby")
+        self.start(code)
+        self.assertTrue(waiting(ADMIN))
+        self.draw_all(code, ADMIN)
+        self.finish(code, ADMIN)
+        self.assertFalse(waiting(ADMIN))
+        self.assertTrue(waiting(SAM))

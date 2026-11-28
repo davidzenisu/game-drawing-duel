@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../game_session.dart';
@@ -5,12 +7,15 @@ import '../sound.dart';
 import '../screens/release_notes_screen.dart';
 import '../screens/suggestions_screen.dart';
 import 'cancel_server.dart';
+import 'server_picker.dart';
 import 'game_action.dart';
 
-enum _AccountAction { rename, music, effects, whatsNew, suggestions, signOut, cancelServer }
+enum _AccountAction { switchServer, rename, music, effects, whatsNew, suggestions, signOut, cancelServer }
 
-/// App bar menu for your account: who you're signed in as, changing your
-/// name, turning music and sound effects on or off ([GameSound]), what's new in the game (its release notes) and signing out (not in the mockup, which has no account to sign
+/// App bar menu for your account: who you're signed in as, switching to
+/// another of your servers or creating or joining another one while on a
+/// server ([ServerPicker]), with a dot while another server waits on you,
+/// changing your name, turning music and sound effects on or off ([GameSound]), what's new in the game (its release notes) and signing out (not in the mockup, which has no account to sign
 /// out of). On a server, also its feedback board ([suggestions]) and
 /// cancelling it ([canCancelServer]).
 class AccountMenu extends StatelessWidget {
@@ -33,12 +38,28 @@ class AccountMenu extends StatelessWidget {
     await runGameAction(context, () => session.rename(name));
   }
 
+  /// Whether you're on a server, so you can switch or add one.
+  bool get _onServer => switch (session.phase) {
+    GamePhase.lobby || GamePhase.setup || GamePhase.daily => true,
+    _ => false,
+  };
+
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(listenable: session, builder: (context, _) => _menu(context));
+  }
+
+  Widget _menu(BuildContext context) {
+    final onServer = _onServer;
+    final waiting = onServer && session.otherServerWaiting;
     return PopupMenuButton<_AccountAction>(
-      tooltip: 'Account',
-      icon: const Icon(Icons.account_circle_rounded),
+      tooltip: waiting ? 'Account: another server waits on you' : 'Account',
+      icon: Badge(isLabelVisible: waiting, child: const Icon(Icons.account_circle_rounded)),
+      onOpened: () {
+        if (onServer) unawaited(session.refreshMyServers().catchError((_) {}));
+      },
       onSelected: (action) => switch (action) {
+        _AccountAction.switchServer => ServerPicker.show(context, session),
         _AccountAction.rename => _rename(context),
         _AccountAction.music => sound.toggleMusic(),
         _AccountAction.effects => sound.toggleEffects(),
@@ -61,6 +82,18 @@ class AccountMenu extends StatelessWidget {
           ),
         ),
         const PopupMenuDivider(),
+        if (onServer) ...[
+          PopupMenuItem(
+            value: _AccountAction.switchServer,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Badge(isLabelVisible: waiting, child: const Icon(Icons.swap_horiz_rounded)),
+              title: const Text('Switch server'),
+              subtitle: Text('On server ${session.server.code}'),
+            ),
+          ),
+          const PopupMenuDivider(),
+        ],
         const PopupMenuItem(
           value: _AccountAction.rename,
           child: ListTile(
