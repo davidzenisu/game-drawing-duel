@@ -13,8 +13,8 @@ the game is in early development (0.x), versions stay below 1.0.
 
 ### Added
 - Play on several servers at once: **Switch server** in the account menu
-  lists your servers and takes you to another one with a tap, and
-  **Create or join a server** opens the server screen without leaving the
+  lists your servers and takes you to another one with a tap. Below the
+  list, **Create or join** opens the server screen without leaving the
   ones you're on (the back arrow takes you back).
 - A server waiting on you, for your setup drawings or today's title or
   drawing, shows **Your turn** in that list, and a dot on the account menu

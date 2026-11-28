@@ -73,7 +73,10 @@ void _severalServers() {
     await tester.pumpAndSettle();
     expect(find.text('Switch server'), findsOneWidget);
     expect(find.text('On server $code'), findsOneWidget);
-    await tester.tap(find.text('Create or join a server'));
+    expect(find.text('Create or join a server'), findsNothing, reason: 'only in the server list');
+    await tester.tap(find.text('Switch server'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create or join'));
     await tester.pumpAndSettle();
     expect(find.byType(ServerScreen), findsOneWidget);
 

@@ -10,11 +10,11 @@ import 'cancel_server.dart';
 import 'server_picker.dart';
 import 'game_action.dart';
 
-enum _AccountAction { switchServer, addServer, rename, music, effects, whatsNew, suggestions, signOut, cancelServer }
+enum _AccountAction { switchServer, rename, music, effects, whatsNew, suggestions, signOut, cancelServer }
 
 /// App bar menu for your account: who you're signed in as, switching to
-/// another of your servers ([ServerPicker]) or creating or joining another
-/// one while on a server, with a dot while another server waits on you,
+/// another of your servers or creating or joining another one while on a
+/// server ([ServerPicker]), with a dot while another server waits on you,
 /// changing your name, turning music and sound effects on or off ([GameSound]), what's new in the game (its release notes) and signing out (not in the mockup, which has no account to sign
 /// out of). On a server, also its feedback board ([suggestions]) and
 /// cancelling it ([canCancelServer]).
@@ -60,7 +60,6 @@ class AccountMenu extends StatelessWidget {
       },
       onSelected: (action) => switch (action) {
         _AccountAction.switchServer => ServerPicker.show(context, session),
-        _AccountAction.addServer => runGameAction(context, session.addServer),
         _AccountAction.rename => _rename(context),
         _AccountAction.music => sound.toggleMusic(),
         _AccountAction.effects => sound.toggleEffects(),
@@ -91,14 +90,6 @@ class AccountMenu extends StatelessWidget {
               leading: Badge(isLabelVisible: waiting, child: const Icon(Icons.swap_horiz_rounded)),
               title: const Text('Switch server'),
               subtitle: Text('On server ${session.server.code}'),
-            ),
-          ),
-          const PopupMenuItem(
-            value: _AccountAction.addServer,
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.add_circle_outline_rounded),
-              title: Text('Create or join a server'),
             ),
           ),
           const PopupMenuDivider(),
