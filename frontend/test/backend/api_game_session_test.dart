@@ -1235,7 +1235,15 @@ void main() {
         'ends_on': 14,
         'min_matchups': 5,
         'challengers': [
-          {'character': other, 'place': 1, 'hero_rarity': 'legend', 'rating': 2.5, 'score': 3.5, 'matchups': 4},
+          {
+            'character': other,
+            'place': 1,
+            'hero_rarity': 'legend',
+            'rating': 2.5,
+            'score': 3.5,
+            'matchups': 4,
+            'opponents': 0.584,
+          },
           {
             'character': left,
             'place': 2,
@@ -1259,6 +1267,7 @@ void main() {
       );
       expect(ranking.challengers.last.record, '0 of 2');
       expect([for (final r in ranking.challengers) r.qualified], [true, false]);
+      expect([for (final r in ranking.challengers) r.opponentsPercent], [58, null], reason: 'null when not sent');
       expect(ranking.minMatchups, Arena.minMatchups, reason: 'as the API sends it');
     });
 

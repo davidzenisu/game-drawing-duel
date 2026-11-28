@@ -104,6 +104,9 @@ class Standing:
     # Its score in its matchups (a draw counts a half), and how many.
     score: float
     matchups: int
+    # The average win share of the challengers it met, once per matchup
+    # (`rules.arena_opponents`); None without matchups.
+    opponents: float | None = None
 
     @property
     def qualified(self) -> bool:
@@ -127,6 +130,7 @@ def standings(entries: list[Character], votes: list[ArenaVote]) -> list[Standing
         )
         matchups.append((i, j, score))
     ratings = rules.arena_ratings(len(entries), matchups)
+    opponents = rules.arena_opponents(len(entries), matchups)
     scores = [0.0] * len(entries)
     counts = [0] * len(entries)
     for i, j, score in matchups:
@@ -135,7 +139,7 @@ def standings(entries: list[Character], votes: list[ArenaVote]) -> list[Standing
         counts[i] += 1
         counts[j] += 1
     return [
-        Standing(entries[i], ratings[i], scores[i], counts[i])
+        Standing(entries[i], ratings[i], scores[i], counts[i], opponents[i])
         for i in rules.arena_order(len(entries), matchups, ratings)
     ]
 

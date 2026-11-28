@@ -510,6 +510,26 @@ def arena_matchups(count: int, matchups: list[tuple[int, int, float]]) -> list[i
     return taken
 
 
+def arena_opponents(
+    count: int, matchups: list[tuple[int, int, float]]
+) -> list[float | None]:
+    """How strong each of `count` challengers' opponents were in `matchups`
+    (as in `arena_ratings`): the average win share of the ones it met (their
+    score per matchup, from all of theirs, a draw counting a half), once per
+    matchup, so one met twice counts twice. None without matchups."""
+    scores = [0.0] * count
+    taken = arena_matchups(count, matchups)
+    for i, j, score in matchups:
+        scores[i] += score
+        scores[j] += 1 - score
+    shares = [s / t if t else 0.0 for s, t in zip(scores, taken)]
+    met = [0.0] * count
+    for i, j, _ in matchups:
+        met[i] += shares[j]
+        met[j] += shares[i]
+    return [m / t if t else None for m, t in zip(met, taken)]
+
+
 def arena_qualified(matchups: int) -> bool:
     """Whether a challenger with that many matchups is ranked, and can be
     crowned."""

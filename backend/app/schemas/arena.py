@@ -70,6 +70,10 @@ class ArenaRanked(BaseModel):
     rating: float
     score: float
     matchups: int
+    # How strong the challengers it met were: their average win share (a
+    # draw counts a half), once per matchup (`app.rules.arena_opponents`);
+    # null without matchups.
+    opponents: float | None = None
     # Whether it took part in enough matchups to be ranked
     # (`app.rules.ARENA_MIN_MATCHUPS`); the others come last, unranked.
     qualified: bool = True

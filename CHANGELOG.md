@@ -9,6 +9,14 @@ change is a version of its own, dated the day it went live (UTC): a minor
 version when it adds or changes something, a patch when it only fixes. While
 the game is in early development (0.x), versions stay below 1.0.
 
+## [0.48.0] - 2026-11-28
+
+### Added
+- The Arena's week ranking shows how strong each challenger's opponents
+  were: "vs. 58%" under its record (how often the drawings it met won),
+  and "Their opponents won 58%" on the winners' cards. Beating strong
+  drawings counts for more, so a better record can rank lower.
+
 ## [0.47.0] - 2026-11-28
 
 ### Added

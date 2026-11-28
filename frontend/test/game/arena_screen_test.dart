@@ -183,6 +183,11 @@ void main() {
     final ranking = (await game.arenaRanking())!;
     expect(ranking.winners.every((w) => w.qualified), isTrue);
     final unranked = ranking.challengers.where((c) => !c.qualified).toList();
+    // How strong their opponents were, for the winners and the other ranked.
+    final top = ranking.winners.first;
+    expect(find.text('Their opponents won ${top.opponentsPercent}%'), findsWidgets);
+    expect(find.textContaining('"vs." is how often their opponents won'), findsOneWidget);
+    expect(unranked.first.opponentsPercent, isNotNull, reason: 'known, just not shown');
     expect(unranked, isNotEmpty, reason: 'the demo has a few without enough matchups');
     expect(ranking.challengers.skipWhile((c) => c.qualified).every((c) => !c.qualified), isTrue, reason: 'last');
     await tester.scrollUntilVisible(find.text('Not enough matchups'), 200);
